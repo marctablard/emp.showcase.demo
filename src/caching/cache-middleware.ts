@@ -50,16 +50,23 @@ function replacePlaceholders(tags: string[], groups: string[]): string[] {
 
 /**
  * Auth.js v5 default session cookie name. `src/auth/auth.config.ts` sets no
- * custom `cookies.sessionToken.name`, so the default applies. Matched with
- * `includes` to cover the `__Secure-` prefix and chunked `.0`/`.1` suffixes.
+ * custom `cookies.sessionToken.name`, so the default applies: exact name, optional
+ * `__Secure-` prefix (HTTPS), optional numeric chunk suffix (`.0`, `.1`, …) for large
+ * JWTs. Anchored so unrelated cookies that merely contain the fragment do not turn a
+ * public response into `private, no-store`.
  */
-const AUTHJS_SESSION_COOKIE_FRAGMENT = 'authjs.session-token';
+const AUTHJS_SESSION_COOKIE_NAME = /^(?:__Secure-)?authjs\.session-token(?:\.\d+)?$/;
+
+/** Exported for tests. */
+export function isAuthJsSessionCookieName(name: string): boolean {
+  return AUTHJS_SESSION_COOKIE_NAME.test(name);
+}
 
 /**
  * Detect an Auth.js session on the request (Edge runtime: `NextRequest.cookies` only).
  */
 function hasAuthSession(req: NextRequest): boolean {
-  return req.cookies.getAll().some((cookie) => cookie.name.includes(AUTHJS_SESSION_COOKIE_FRAGMENT));
+  return req.cookies.getAll().some((cookie) => isAuthJsSessionCookieName(cookie.name));
 }
 
 /**

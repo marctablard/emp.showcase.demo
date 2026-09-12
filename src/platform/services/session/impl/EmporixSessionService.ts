@@ -405,8 +405,13 @@ class EmporixSessionService implements SessionService {
   async getCurrent(): Promise<Session | undefined> {
     try {
       return await this.getCurrentOrThrow();
-    } catch (_error) {
-      // fail silently for ssr context
+    } catch (error) {
+      // Best-effort read for SSR / display paths: log and resolve "no session". Access-gating
+      // callers must use getCurrentOrThrow() so an outage cannot pass as an anonymous visitor.
+      this.logger.warn(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Could not read current session context; treating as no session (best-effort read)',
+      );
       return undefined;
     }
   }

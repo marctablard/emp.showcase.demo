@@ -172,10 +172,14 @@ describe('EmporixSessionService', () => {
       expect(result).toBeUndefined();
     });
 
-    it('getCurrent swallows a failed lookup and resolves undefined', async () => {
+    it('getCurrent swallows a failed lookup, logs it and resolves undefined', async () => {
       mockSessionContextApi.getOwnSessionContext.mockRejectedValue(new Error('session-context down'));
 
       await expect(sessionService.getCurrent()).resolves.toBeUndefined();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { error: 'session-context down' },
+        expect.stringContaining('Could not read current session context'),
+      );
     });
   });
 

@@ -65,12 +65,16 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
     @inject('LoggerService') private readonly logger: LoggerService,
   ) {}
 
+  /**
+   * Session reads use `getCurrentOrThrow()`: a failed lookup must reject (→ callers fail closed)
+   * instead of silently dropping `legalEntityId` / `siteCode` and trusting a broader result.
+   */
   async getMySegments(options?: { siteCode?: string }): Promise<Segment[]> {
-    const session = await this.sessionService.getCurrent();
-    const siteCode = options?.siteCode ?? session?.siteCode;
-    const params = { legalEntityId: session?.legalEntityId, siteCode };
-
+    let session: Session | undefined;
     try {
+      session = await this.sessionService.getCurrentOrThrow();
+      const siteCode = options?.siteCode ?? session?.siteCode;
+      const params = { legalEntityId: session?.legalEntityId, siteCode };
       const source = await this.resolveMySegmentsSource(params, session?.customerId);
       const now = Date.now();
       const mapped = source
@@ -117,8 +121,8 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
   }
 
   async getSegmentItems(options?: CustomerSegmentQueryOptions): Promise<ItemAssignment[]> {
-    const session = await this.sessionService.getCurrent();
     try {
+      const session = await this.sessionService.getCurrentOrThrow();
       const baseParams: CustomerSegmentQueryOptions = {
         ...options,
         siteCode: options?.siteCode ?? session?.siteCode,
@@ -169,8 +173,8 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
   }
 
   async getCategoryTrees(options?: CustomerSegmentQueryOptions): Promise<CategoryTree[]> {
-    const session = await this.sessionService.getCurrent();
     try {
+      const session = await this.sessionService.getCurrentOrThrow();
       const response = await this.customerSegmentApi.getCategoryTrees({
         siteCode: options?.siteCode ?? session?.siteCode,
         legalEntityId: options?.legalEntityId ?? session?.legalEntityId,

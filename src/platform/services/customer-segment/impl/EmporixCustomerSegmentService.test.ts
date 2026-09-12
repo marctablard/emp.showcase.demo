@@ -40,7 +40,7 @@ describe('EmporixCustomerSegmentService', () => {
     Array.from({ length: count }, (_, i) => assignment(offset + i));
 
   let api: jest.Mocked<EmporixCustomerSegmentApi>;
-  let sessionService: jest.Mocked<Pick<SessionService, 'getCurrent'>>;
+  let sessionService: jest.Mocked<Pick<SessionService, 'getCurrentOrThrow'>>;
   let logger: jest.Mocked<LoggerService>;
   let service: EmporixCustomerSegmentService;
 
@@ -51,7 +51,7 @@ describe('EmporixCustomerSegmentService', () => {
       getSegmentItems: jest.fn(),
       getCategoryTrees: jest.fn(),
     } as unknown as jest.Mocked<EmporixCustomerSegmentApi>;
-    sessionService = { getCurrent: jest.fn().mockResolvedValue(session) };
+    sessionService = { getCurrentOrThrow: jest.fn().mockResolvedValue(session) };
     logger = {
       trace: jest.fn(),
       debug: jest.fn(),
@@ -66,6 +66,38 @@ describe('EmporixCustomerSegmentService', () => {
       sessionService as unknown as SessionService,
       logger,
     );
+  });
+
+  describe('session lookup failure (fail closed, never a broader scope)', () => {
+    beforeEach(() => {
+      sessionService.getCurrentOrThrow.mockRejectedValue(new Error('session-context down'));
+    });
+
+    it('getMySegments rejects without calling the segment API', async () => {
+      await expect(service.getMySegments({ siteCode: 'main' })).rejects.toThrow(
+        'Failed to retrieve customer segments: session-context down',
+      );
+      expect(api.getMySegments).not.toHaveBeenCalled();
+      expect(api.getSegments).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ err: expect.any(Error) }),
+        'Error fetching customer segments',
+      );
+    });
+
+    it('getSegmentItems rejects without calling the segment API', async () => {
+      await expect(service.getSegmentItems({ siteCode: 'main' })).rejects.toThrow(
+        'Failed to retrieve customer segment items: session-context down',
+      );
+      expect(api.getSegmentItems).not.toHaveBeenCalled();
+    });
+
+    it('getCategoryTrees rejects without calling the segment API', async () => {
+      await expect(service.getCategoryTrees({ siteCode: 'main' })).rejects.toThrow(
+        'Failed to retrieve customer segment category trees: session-context down',
+      );
+      expect(api.getCategoryTrees).not.toHaveBeenCalled();
+    });
   });
 
   describe('getMySegments', () => {

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { applyCacheDirectives } from './cache-middleware';
+import { applyCacheDirectives, isAuthJsSessionCookieName } from './cache-middleware';
 
 const ENABLED_ENV = 'NEXT_CACHE_MIDDLEWARE_ENABLED';
 const PRODUCT_PATH = '/product/abc';
@@ -17,6 +17,27 @@ function makeRequest(pathname: string, cookieHeader?: string): NextRequest {
 function apply(pathname: string, cookieHeader?: string): Response {
   return applyCacheDirectives(makeRequest(pathname, cookieHeader), new Response(null));
 }
+
+describe('isAuthJsSessionCookieName', () => {
+  it.each([
+    'authjs.session-token',
+    '__Secure-authjs.session-token',
+    'authjs.session-token.0',
+    '__Secure-authjs.session-token.12',
+  ])('accepts %s', (name) => {
+    expect(isAuthJsSessionCookieName(name)).toBe(true);
+  });
+
+  it.each([
+    'xauthjs.session-token',
+    'authjs.session-token-old',
+    'authjs.session-token.',
+    'authjs_session-token',
+    'Authjs.session-token',
+  ])('rejects %s', (name) => {
+    expect(isAuthJsSessionCookieName(name)).toBe(false);
+  });
+});
 
 describe('applyCacheDirectives', () => {
   const originalEnabled = process.env[ENABLED_ENV];
@@ -53,6 +74,17 @@ describe('applyCacheDirectives', () => {
       expect(response.headers.get('Cache-Control')).toBe(PRIVATE_NO_STORE);
       expect(response.headers.get('X-Cache-Tags')).toBeNull();
     });
+  });
+
+  it.each([
+    'my-authjs.session-token-copy=abc',
+    'authjs.session-token-old=abc',
+    'xauthjs.session-token=abc',
+    'authjs.session-token.abc=1',
+  ])('keeps the public directive for a look-alike cookie name (%s)', (cookieHeader) => {
+    const response = apply(SUGGESTIONS_PATH, cookieHeader);
+
+    expect(response.headers.get('Cache-Control')).toMatch(/^public, /);
   });
 
   it('keeps the public directive when only unrelated cookies are present', () => {
