@@ -111,6 +111,8 @@ export interface EmporixDiscount {
   currency: string;
   sequenceId?: number;
   description?: string;
+  /** YAML `discount.calculationType` — apply basis when `ApplyDiscountBeforeTax` | `ApplyDiscountAfterTax`. */
+  calculationType?: string;
 }
 
 /**
@@ -137,6 +139,23 @@ export interface EmporixOrderCalculatedPrice {
     taxValue?: number;
     taxCode?: string;
     taxRate?: number;
+  };
+  /** YAML `orderCalculatedPrice.discountedPrice` — goods after discounts. */
+  discountedPrice?: {
+    netValue: number;
+    grossValue: number;
+    taxValue: number;
+    taxCode?: string;
+    taxRate?: number;
+  };
+  /** YAML `orderCalculatedPrice.totalDiscount`. */
+  totalDiscount?: {
+    calculationType?: 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
+    value: number;
+    appliedDiscounts?: Array<{
+      id: string;
+      value: number;
+    }>;
   };
 }
 

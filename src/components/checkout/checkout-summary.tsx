@@ -92,14 +92,92 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     total,
     currency,
     hasAppliedCoupons,
+    couponApplyBasis,
     originalGoodsNet,
+    originalGoodsVat,
+    originalGoodsGross,
     savingsTotal,
+    goodsDiscountedGross,
   } = useCheckoutOrderSummary();
+  // Missing couponApplyBasis stays on the shipped net-applied path (COP-4815).
+  const isGrossApplied = Boolean(hasAppliedCoupons) && couponApplyBasis === 'gross';
   if (!cart) {
     return (
       <div className="bg-surface-page p-6 rounded-md shadow-sm">
         <H5 className="mb-4">{t('title')}</H5>
       </div>
+    );
+  }
+
+  const moneyCurrency = currency || cart.tax.currency;
+  const savingsBadge =
+    typeof savingsTotal === 'number' ? (
+      <div className="flex justify-end">
+        <div
+          className="rounded-sm bg-surface-success px-2 py-1 text-xs leading-5 text-text-body"
+          data-testid="checkout-yourSavings"
+        >
+          <span>{t('yourSavings')} </span>
+          <span className="font-bold">{formatCurrency(-Math.abs(savingsTotal), moneyCurrency)}</span>
+        </div>
+      </div>
+    ) : null;
+
+  let goodsTotals: React.ReactNode;
+  if (isGrossApplied) {
+    goodsTotals = (
+      <>
+        <div className="flex justify-between">
+          <span>{t('valueOfGoods')}</span>
+          <span>{formatCurrency(originalGoodsNet ?? goodsNet, moneyCurrency)}</span>
+        </div>
+        <div className="flex justify-between text-base">
+          <span>{tCommon('tax')}</span>
+          <span>{formatCurrency(originalGoodsVat ?? 0, moneyCurrency)}</span>
+        </div>
+        <div className="flex flex-col gap-2 border-t border-border-primary pt-4">
+          <div className="flex justify-between" data-testid="checkout-originalGrossValue">
+            <span>{t('originalGrossValue')}</span>
+            <span className="line-through">
+              {formatCurrency(originalGoodsGross ?? cart.tax.grossValue, moneyCurrency)}
+            </span>
+          </div>
+          {savingsBadge}
+          <div className="flex justify-between" data-testid="checkout-grossValueOfGoods">
+            <span>{t('grossValueOfGoods')}</span>
+            <span className="font-bold">{formatCurrency(goodsDiscountedGross ?? 0, moneyCurrency)}</span>
+          </div>
+        </div>
+      </>
+    );
+  } else if (hasAppliedCoupons) {
+    goodsTotals = (
+      <>
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between" data-testid="checkout-originalValueOfGoods">
+            <span>{t('originalValueOfGoods')}</span>
+            <span className="line-through">{formatCurrency(originalGoodsNet ?? goodsNet, moneyCurrency)}</span>
+          </div>
+          {savingsBadge}
+        </div>
+        <div className="flex justify-between border-t border-border-primary pt-4 text-base">
+          <span>{t('netValueOfGoods')}</span>
+          <span className="font-bold">{formatCurrency(goodsNet, moneyCurrency)}</span>
+        </div>
+      </>
+    );
+  } else {
+    goodsTotals = (
+      <>
+        <div className="flex justify-between">
+          <span className="">{t('valueOfGoods')}</span>
+          <span>{formatCurrency(cart.subTotalPrice.amount, cart.subTotalPrice.currency)}</span>
+        </div>
+        <div className="flex justify-between border-t border-border-primary pt-4 text-base">
+          <span>{t('netValueOfGoods')}</span>
+          <span className="font-bold">{formatCurrency(goodsNet, moneyCurrency)}</span>
+        </div>
+      </>
     );
   }
 
@@ -114,7 +192,8 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
         ref={fixedContainer}
       >
         <Card className={cn('bg-surface-action-hover-2 p-6 border-none gap-4 w-full')} ref={summaryRootRef}>
-          <CardHeader className="p-0">
+          {/* COP-4815 / Figma 4452:97361: title box is 24px; Card gap-4 is spacing/4 (16px) to Input Button. Collapse CardHeader's default grid-rows-[auto_auto] + gap-1.5 so the extra 6px row is gone. */}
+          <CardHeader className="grid-rows-[auto] gap-0 p-0">
             <CardTitle>
               <H5>{t('title')}</H5>
             </CardTitle>
@@ -122,44 +201,15 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
           <CheckoutPromoCodeBox />
           <CardContent className="bg-surface-page rounded-md p-4">
             <div className="space-y-4">
-              {/* COP-5589: coupons replace the gross valueOfGoods row — do not stack it with original/savings. */}
-              {hasAppliedCoupons ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between" data-testid="checkout-originalValueOfGoods">
-                    <span>{t('originalValueOfGoods')}</span>
-                    <span className="line-through">
-                      {formatCurrency(originalGoodsNet ?? goodsNet, currency || cart.tax.currency)}
-                    </span>
-                  </div>
-                  {typeof savingsTotal === 'number' ? (
-                    <div className="flex justify-end">
-                      <div
-                        className="rounded-sm bg-surface-success px-2 py-1 text-xs leading-5 text-text-body"
-                        data-testid="checkout-yourSavings"
-                      >
-                        <span>{t('yourSavings')} </span>
-                        <span className="font-bold">
-                          {formatCurrency(-Math.abs(savingsTotal), currency || cart.tax.currency)}
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="flex justify-between">
-                  <span className="">{t('valueOfGoods')}</span>
-                  <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-base pt-4 border-t border-border-primary">
-                <span>{t('netValueOfGoods')}</span>
-                <span className="font-bold">{formatCurrency(goodsNet, currency || cart.tax.currency)}</span>
-              </div>
+              {/* COP-5589: net-applied original/savings. COP-4815: after-tax stack is Jira AC — Figma 4517:46711 is net + separator only. */}
+              {goodsTotals}
               <div className="flex flex-col gap-2">
-                <div className="flex justify-between text-base">
-                  <span>{tCommon('tax')}</span>
-                  <span>{formatCurrency(goodsVat, currency || cart.tax.currency)}</span>
-                </div>
+                {!isGrossApplied && (
+                  <div className="flex justify-between text-base">
+                    <span>{tCommon('tax')}</span>
+                    <span>{formatCurrency(goodsVat, moneyCurrency)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-base">
                   <span>{t('shippingFee')}</span>
                   {shippingFee === undefined ? (

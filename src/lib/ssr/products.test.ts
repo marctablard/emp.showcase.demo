@@ -31,7 +31,7 @@ describe('getProductById', () => {
     };
   }
 
-  const product = { id: 'sku-123', name: { en: 'Widget' } };
+  const product = { id: 'sku-123', name: { en: 'Widget' }, description: { en: 'Widget' }, purchasable: true };
   const options = { prices: false, variants: false, categories: false };
 
   it('calls SearchService.getCatalogProductById with id, options, locale, and site when BatteryIncluded is bound', async () => {

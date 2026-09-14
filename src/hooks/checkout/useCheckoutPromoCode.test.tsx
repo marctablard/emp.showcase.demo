@@ -2,6 +2,8 @@ import { act, renderHook } from '@testing-library/react';
 import type { Cart, CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import { useCheckoutPromoCode } from './useCheckoutPromoCode';
 
+const FIGMA_PROMO_ERROR = 'This is not an active promo code. Please check your entry.';
+
 const mockApplyDiscount = jest.fn();
 const mockRemoveDiscount = jest.fn();
 const mockUseCart = jest.fn();
@@ -11,7 +13,7 @@ jest.mock('../cart/useCart', () => ({
 }));
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => (key === 'promoCodeError' ? FIGMA_PROMO_ERROR : key),
 }));
 
 jest.mock('@/hooks/common/useLogger', () => ({
@@ -85,11 +87,49 @@ describe('useCheckoutPromoCode', () => {
       await result.current.apply();
     });
 
-    expect(result.current.fieldError).toBe('promoCodeError');
+    expect(result.current.fieldError).toBe(FIGMA_PROMO_ERROR);
     expect(result.current.fieldError).not.toContain('segment');
     expect(result.current.discounts).toEqual([existingDiscount]);
     expect(mockApplyDiscount).toHaveBeenCalledWith('NOTALLOWED');
     expect(mockApplyDiscount).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps an inactive code apply failure to the generic Figma error', async () => {
+    mockApplyDiscount.mockRejectedValue(new Error('inactive'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('INACTIVE');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.fieldError).toBe(FIGMA_PROMO_ERROR);
+    expect(result.current.fieldError).not.toContain('segment');
+    expect(result.current.fieldError).not.toMatch(/currency/i);
+    expect(mockApplyDiscount).toHaveBeenCalledWith('INACTIVE');
+  });
+
+  it('maps cannot apply twice (already exists on cart) to the generic Figma error', async () => {
+    mockApplyDiscount.mockRejectedValue(new Error('Coupon already exists on this cart'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('LS10PTOTAL');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.fieldError).toBe(FIGMA_PROMO_ERROR);
+    expect(result.current.fieldError).not.toContain('already exists');
+    expect(result.current.fieldError).not.toContain('segment');
+    expect(result.current.fieldError).not.toMatch(/currency/i);
+    expect(result.current.discounts).toEqual([existingDiscount]);
+    expect(mockApplyDiscount).toHaveBeenCalledWith('LS10PTOTAL');
   });
 
   it('clears the field error on success and relies on updated cart discounts', async () => {
@@ -104,7 +144,7 @@ describe('useCheckoutPromoCode', () => {
     await act(async () => {
       await result.current.apply();
     });
-    expect(result.current.fieldError).toBe('promoCodeError');
+    expect(result.current.fieldError).toBe(FIGMA_PROMO_ERROR);
 
     const updatedDiscount: CartAppliedDiscount = {
       code: 'LS10PTOTAL',
@@ -130,5 +170,66 @@ describe('useCheckoutPromoCode', () => {
     expect(result.current.fieldError).toBeNull();
     expect(result.current.discounts).toEqual([updatedDiscount]);
     expect(result.current.discounts[0]?.code).toBe('LS10PTOTAL');
+  });
+
+  it('applies a second promo with a second successful applyDiscount call', async () => {
+    const firstDiscount: CartAppliedDiscount = {
+      code: 'ACCESSORIES15',
+      name: '15% discount',
+      discountIndex: 0,
+      amount: 1.5,
+      currency: 'EUR',
+    };
+    const secondDiscount: CartAppliedDiscount = {
+      code: 'SOLAR10',
+      name: '10% discount',
+      discountIndex: 1,
+      amount: 10,
+      currency: 'EUR',
+    };
+
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({ discounts: [] }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+    });
+    mockApplyDiscount.mockResolvedValue(undefined);
+
+    const { result, rerender } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('ACCESSORIES15');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+    expect(mockApplyDiscount).toHaveBeenCalledWith('ACCESSORIES15');
+
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({ discounts: [firstDiscount] }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+    });
+    rerender();
+
+    await act(async () => {
+      result.current.setCode('SOLAR10');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(mockApplyDiscount).toHaveBeenCalledWith('SOLAR10');
+    expect(mockApplyDiscount).toHaveBeenCalledTimes(2);
+
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({ discounts: [firstDiscount, secondDiscount] }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+    });
+    rerender();
+
+    expect(result.current.fieldError).toBeNull();
+    expect(result.current.discounts).toEqual([firstDiscount, secondDiscount]);
   });
 });

@@ -178,8 +178,11 @@ describe('EmporixCartService', () => {
 
       const updatePayload = mockCartApi.updateCart.mock.calls[0][1];
       expect(updatePayload.addresses).toHaveLength(2);
-      expect(updatePayload.addresses.map((address: { type: string }) => address.type)).toEqual(['SHIPPING', 'BILLING']);
-      expect(updatePayload.addresses.every((address: { origin?: string }) => address.origin === 'REQUEST')).toBe(true);
+      expect(updatePayload.addresses?.map((address: { type: string }) => address.type)).toEqual([
+        'SHIPPING',
+        'BILLING',
+      ]);
+      expect(updatePayload.addresses?.every((address: { origin?: string }) => address.origin === 'REQUEST')).toBe(true);
       expect(updatePayload.countryCode).toBe('US');
       expect(updatePayload.zipCode).toBe('10001');
       expect(updatePayload.addresses).not.toEqual(expect.arrayContaining([expect.objectContaining({ country: 'DE' })]));
@@ -228,9 +231,9 @@ describe('EmporixCartService', () => {
       });
 
       const updatePayload = mockCartApi.updateCart.mock.calls[0][1];
-      const billingAddress = updatePayload.addresses.find((address: { type: string }) => address.type === 'BILLING');
+      const billingAddress = updatePayload.addresses?.find((address: { type: string }) => address.type === 'BILLING');
       expect(billingAddress).toEqual(expect.objectContaining({ country: 'CH', zipCode: '6300', origin: 'REQUEST' }));
-      expect(billingAddress.country).not.toBe('DE');
+      expect(billingAddress?.country).not.toBe('DE');
     });
 
     it('should handle cart with no metadata (version starts at 1)', async () => {

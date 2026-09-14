@@ -1,6 +1,8 @@
 import { Price, Tax } from '../common';
 import { Product } from '../product';
 
+export type TotalDiscountCalculationType = 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
+
 export interface CartAppliedDiscount {
   code: string;
   name?: string;
@@ -25,8 +27,11 @@ export interface Cart {
   tax: Tax;
   discounts?: CartAppliedDiscount[];
   savingsTotal?: number;
+  totalDiscountCalculationType?: TotalDiscountCalculationType;
+  includesTax?: boolean;
   goodsDiscountedNet?: number;
   goodsDiscountedVat?: number;
+  goodsDiscountedGross?: number;
 }
 
 export interface CartItem {

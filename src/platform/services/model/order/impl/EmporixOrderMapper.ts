@@ -3,6 +3,7 @@ import { CUSTOMER_ID } from '@/lib/common/customer-identity';
 import { resolveSharedPositiveTaxRate } from '@/lib/common/tax-aggregate';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
+  EmporixDiscount,
   EmporixOrder,
   EmporixOrderEntry,
   EmporixPayment,
@@ -17,6 +18,7 @@ import type {
   OrderPayment,
   OrderPrice,
   OrderShipping,
+  TotalDiscountCalculationType,
 } from '@/platform/services/model/order/order';
 
 function resolveOrderGoodsTaxRate(
@@ -32,6 +34,56 @@ function resolveOrderGoodsTaxRate(
     return undefined;
   }
   return typeof fallbackGoodsRate === 'number' && fallbackGoodsRate > 0 ? fallbackGoodsRate : undefined;
+}
+
+function isApplyBasis(value: string | undefined): value is TotalDiscountCalculationType {
+  return value === 'ApplyDiscountBeforeTax' || value === 'ApplyDiscountAfterTax';
+}
+
+function resolveTotalDiscountCalculationType(
+  publishedType: string | undefined,
+  discounts: EmporixDiscount[] | undefined,
+): TotalDiscountCalculationType | undefined {
+  if (isApplyBasis(publishedType)) {
+    return publishedType;
+  }
+  const fromDiscount = discounts?.find((discount) => isApplyBasis(discount.calculationType))?.calculationType;
+  return isApplyBasis(fromDiscount) ? fromDiscount : undefined;
+}
+
+function mapPublishedCouponFields(
+  integrationModel: EmporixOrder,
+): Pick<
+  Order,
+  | 'savingsTotal'
+  | 'totalDiscountCalculationType'
+  | 'includesTax'
+  | 'goodsDiscountedNet'
+  | 'goodsDiscountedVat'
+  | 'goodsDiscountedGross'
+> {
+  const totalDiscount = integrationModel.calculatedPrice?.totalDiscount;
+  const discountedPrice = integrationModel.calculatedPrice?.discountedPrice;
+  const totalDiscountCalculationType = resolveTotalDiscountCalculationType(
+    totalDiscount?.calculationType,
+    integrationModel.discounts,
+  );
+  return {
+    ...(totalDiscount ? { savingsTotal: totalDiscount.value } : {}),
+    ...(totalDiscountCalculationType
+      ? {
+          totalDiscountCalculationType,
+          includesTax: totalDiscountCalculationType === 'ApplyDiscountAfterTax',
+        }
+      : {}),
+    ...(discountedPrice
+      ? {
+          goodsDiscountedNet: discountedPrice.netValue,
+          goodsDiscountedVat: discountedPrice.taxValue,
+          goodsDiscountedGross: discountedPrice.grossValue,
+        }
+      : {}),
+  };
 }
 
 /**
@@ -81,6 +133,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
         : undefined,
       customerEmail: integrationModel.customer?.email,
       customerNote: integrationModel.customerNote,
+      ...mapPublishedCouponFields(integrationModel),
     };
   }
 

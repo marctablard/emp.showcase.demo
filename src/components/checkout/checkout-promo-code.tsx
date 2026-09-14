@@ -76,7 +76,8 @@ export function CheckoutPromoCodeBox() {
             void apply();
           }}
         >
-          <div className="min-w-0 h-12 flex-1">
+          {/* Figma 4452:97361 Field–Button: 306×48 + 91×48 with 1px overlap → 396×48. */}
+          <div className="h-12 min-w-0 grow basis-[306px]">
             <Input
               id="checkout-promo-code"
               type="text"
@@ -99,7 +100,7 @@ export function CheckoutPromoCodeBox() {
           <Button
             type="submit"
             variant="input"
-            className="h-12 font-headlines tracking-[var(--desktop-spacing-action-button)]"
+            className="-ml-px h-12 w-[91px] shrink-0 font-headlines tracking-[var(--desktop-spacing-action-button)]"
             data-testid="checkout-applyPromo"
             disabled={!canApply}
           >
@@ -121,13 +122,11 @@ export function CheckoutPromoCodeBox() {
       >
         <div className="flex items-start gap-1">
           <Info className="size-[18px] shrink-0 text-icon-information" aria-hidden />
-          {/* Desktop/body/s-bold + s → text-sm (12/20). Parent p is 700 so captured infoCopy matches Figma. */}
-          <p className="min-w-0 flex-1 text-sm font-bold leading-5 text-text-body">
-            <span className="font-bold">{t('promoCodeOnePerProduct')}</span>
-            <span className="font-normal">
-              <br aria-hidden />
-              {t('promoCodeBestPrice')}
-            </span>
+          {/* Desktop/body/s (4476:119171): Open Sans 12/20 weight 400 → text-sm font-normal text-text-body. */}
+          <p className="min-w-0 flex-1 text-sm font-normal leading-5 text-text-body">
+            {t('promoCodeOnePerProduct')}
+            <br aria-hidden />
+            {t('promoCodeBestPrice')}
           </p>
         </div>
       </div>

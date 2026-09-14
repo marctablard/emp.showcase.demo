@@ -16,7 +16,7 @@ describe('ssr CMSService binding (prod-prune smoke)', () => {
     expect(ssr.isBound('CMSService')).toBe(true);
     expect(ssr.isBound('CmsAdapter:none')).toBe(true);
 
-    bindActiveCmsAdapter(ssr, { NEXT_CMS_PROVIDER: 'none' } as NodeJS.ProcessEnv);
+    bindActiveCmsAdapter(ssr, { NEXT_CMS_PROVIDER: 'none' } as unknown as NodeJS.ProcessEnv);
     expect(ssr.isBound('CmsAdapter')).toBe(true);
 
     const service = await getCmsService();

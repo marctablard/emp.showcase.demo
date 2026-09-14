@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { format } from 'date-fns';
-import { Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
+import { BadgePercent, Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
 import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
 import { formatShippingFeeDisplay } from '@/components/account/shared/format-shipping-fee';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
@@ -21,9 +21,11 @@ import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { isOrderAccessDeniedError } from '@/lib/client/orders';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
+import { buildOrderOverviewBreakdown } from '@/lib/common/order-overview-summary';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Address } from '@/platform/services/model/common';
+import type { OrderDiscount } from '@/platform/services/model/order/order';
 import type { Order, OrderStatus } from '@/platform/services/model/order/order';
 import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
 import { CreateReturnDialog } from './create-return-dialog';
@@ -64,6 +66,190 @@ function renderAddress(address: Address) {
   );
 }
 
+function formatOverviewAmount(amount: number, currency: string): string {
+  return `${amount} ${currency}`;
+}
+
+function formatOverviewSignedAmount(amount: number, currency: string): string {
+  return `-${Math.abs(amount)} ${currency}`;
+}
+
+function OrderAppliedPromoList({ discounts }: { readonly discounts: OrderDiscount[] }) {
+  return (
+    <ul className="flex w-full flex-col gap-3 rounded-md border border-border-success bg-surface-success px-4 py-2">
+      {discounts.map((discount, index) => (
+        <li
+          key={`${discount.code}-${index}`}
+          className="flex w-full flex-col gap-0.5"
+          data-testid={`order-appliedPromo-${discount.code}`}
+        >
+          <div className="flex items-center gap-1">
+            <BadgePercent className="size-[18px] shrink-0 text-icon-success" aria-hidden />
+            <p className="min-w-0 flex-1 text-xs leading-5 text-text-body">{discount.code}</p>
+          </div>
+          {(discount.description || typeof discount.value === 'number') && (
+            <div className="flex items-start justify-between gap-2 text-xs leading-5 text-text-body">
+              {discount.description ? <p className="min-w-0 font-bold">{discount.description}</p> : <span />}
+              <p className="shrink-0 text-right font-bold">
+                {formatOverviewSignedAmount(discount.value, discount.currency)}
+              </p>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function OrderSavingsBadge({ amount, currency }: { readonly amount: number; readonly currency: string }) {
+  const tOrder = useTranslations('orders');
+  return (
+    <div className="flex justify-end">
+      <div
+        className="rounded-sm bg-surface-success px-2 py-1 text-xs leading-5 text-text-body"
+        data-testid="order-yourSavings"
+      >
+        <span>{tOrder('yourSavings')} </span>
+        <span className="font-bold">{formatOverviewSignedAmount(amount, currency)}</span>
+      </div>
+    </div>
+  );
+}
+
+function OrderOverviewTotals({ order }: { readonly order: Order }) {
+  const tOrder = useTranslations('orders');
+  const tCommon = useTranslations('common');
+  if (!order.price) {
+    return null;
+  }
+
+  const breakdown = buildOrderOverviewBreakdown(order);
+  const currency = breakdown.currency || order.price.subtotal.currency;
+  const hasAppliedCoupons = Boolean(breakdown.hasAppliedCoupons);
+  const isGrossApplied = hasAppliedCoupons && breakdown.couponApplyBasis === 'gross';
+  const goodsTaxInput = {
+    taxRate: order.price.subtotal.taxRate,
+    taxAmount: isGrossApplied ? (breakdown.originalGoodsVat ?? 0) : breakdown.goodsVat,
+    netAmount: isGrossApplied ? (breakdown.originalGoodsNet ?? breakdown.goodsNet) : breakdown.goodsNet,
+  };
+  const showGoodsVat = shouldDisplayTaxLine(goodsTaxInput);
+  const goodsVatAmount = isGrossApplied ? (breakdown.originalGoodsVat ?? 0) : breakdown.goodsVat;
+  const savingsBadge =
+    typeof breakdown.savingsTotal === 'number' ? (
+      <OrderSavingsBadge amount={breakdown.savingsTotal} currency={currency} />
+    ) : null;
+
+  let goodsTotals: ReactNode;
+  if (isGrossApplied) {
+    goodsTotals = (
+      <>
+        <div className="flex justify-between items-start gap-4">
+          <span>{tOrder('valueOfGoods')}</span>
+          <span className="text-right font-normal">
+            {formatOverviewAmount(breakdown.originalGoodsNet ?? breakdown.goodsNet, currency)}
+          </span>
+        </div>
+        {showGoodsVat && (
+          <div className="flex justify-between gap-4 pt-2">
+            <span>
+              {tCommon('tax')}
+              {detailTaxRateSuffix(goodsTaxInput)}
+            </span>
+            <span>{formatOverviewAmount(goodsVatAmount, currency)}</span>
+          </div>
+        )}
+        <div className="flex flex-col gap-2 border-t border-border-primary pt-4">
+          <div className="flex justify-between gap-4" data-testid="order-originalGrossValue">
+            <span>{tOrder('originalGrossValue')}</span>
+            <span className="line-through">
+              {formatOverviewAmount(breakdown.originalGoodsGross ?? order.price.subtotal.gross, currency)}
+            </span>
+          </div>
+          {savingsBadge}
+          <div className="flex justify-between gap-4" data-testid="order-grossValueOfGoods">
+            <span>{tOrder('grossValueOfGoods')}</span>
+            <span className="font-bold">{formatOverviewAmount(breakdown.goodsDiscountedGross ?? 0, currency)}</span>
+          </div>
+        </div>
+      </>
+    );
+  } else if (hasAppliedCoupons) {
+    goodsTotals = (
+      <>
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-start gap-4" data-testid="order-originalValueOfGoods">
+            <span>{tOrder('originalValueOfGoods')}</span>
+            <span className="text-right font-normal line-through">
+              {formatOverviewAmount(breakdown.originalGoodsNet ?? breakdown.goodsNet, currency)}
+            </span>
+          </div>
+          {savingsBadge}
+        </div>
+        <div className="flex justify-between items-start gap-4 border-t border-border-primary pt-4">
+          <span>{tOrder('netValueOfGoods')}</span>
+          <span className="text-right font-bold">{formatOverviewAmount(breakdown.goodsNet, currency)}</span>
+        </div>
+      </>
+    );
+  } else {
+    goodsTotals = (
+      <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
+        <span>{tOrder('netValueOfGoods')}</span>
+        <span className="text-right font-normal">{formatOverviewAmount(breakdown.goodsNet, currency)}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 text-base font-body text-text-body">
+      {breakdown.discounts && breakdown.discounts.length > 0 ? (
+        <OrderAppliedPromoList discounts={breakdown.discounts} />
+      ) : null}
+      {goodsTotals}
+      {!isGrossApplied && showGoodsVat && (
+        <div className="flex justify-between gap-4 pt-2">
+          <span>
+            {tCommon('tax')}
+            {detailTaxRateSuffix(goodsTaxInput)}
+          </span>
+          <span>{formatOverviewAmount(goodsVatAmount, currency)}</span>
+        </div>
+      )}
+
+      {order.shipping && (
+        <div className="flex justify-between gap-4 pt-2">
+          <span>{tOrder('shippingFee')}</span>
+          <span>
+            {formatShippingFeeDisplay(
+              order.shipping.total.value,
+              (amount) => formatOverviewAmount(amount, order.shipping!.total.currency),
+              tOrder('free'),
+            )}
+          </span>
+        </div>
+      )}
+
+      {breakdown.showShippingVat && order.shipping?.total.tax !== undefined && (
+        <div className="flex justify-between gap-4 pt-2">
+          <span>
+            {tOrder('shippingVat')}
+            {detailTaxRateSuffix({
+              taxRate: order.shipping.total.taxRate,
+              taxAmount: order.shipping.total.tax,
+            })}
+          </span>
+          <span>{formatOverviewAmount(order.shipping.total.tax, order.shipping.total.currency)}</span>
+        </div>
+      )}
+
+      <div className="flex justify-between items-start gap-4 pt-2">
+        <H5>{tOrder('totalValue')}</H5>
+        <H5>{formatOverviewAmount(breakdown.total, order.price.total.currency)}</H5>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Order Detail component
  * Displays detailed information for a single order
@@ -76,7 +262,6 @@ export function OrderDetail({
   readonly initialOrder?: Order | null;
 }) {
   const tOrder = useTranslations('orders');
-  const tCommon = useTranslations('common');
   const tPaymentModes = useTranslations('checkout.PaymentModes');
   const locale = useLocale();
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
@@ -302,84 +487,7 @@ export function OrderDetail({
             icon={<ReceiptText className="h-8 w-8 text-text-action" />}
             hasHeadline
           >
-            {order.price && (
-              <div className="space-y-2 text-base font-body text-text-body">
-                <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
-                  <span>{tOrder('netValueOfGoods')}</span>
-                  <span className="text-right font-normal">
-                    {order.price.subtotal.net} {order.price.subtotal.currency}
-                  </span>
-                </div>
-
-                {shouldDisplayTaxLine({
-                  taxRate: order.price.subtotal.taxRate,
-                  taxAmount: order.price.subtotal.tax,
-                  netAmount: order.price.subtotal.net,
-                }) && (
-                  <div className="flex justify-between gap-4 pt-2">
-                    <span>
-                      {tCommon('tax')}
-                      {detailTaxRateSuffix({
-                        taxRate: order.price.subtotal.taxRate,
-                        taxAmount: order.price.subtotal.tax,
-                        netAmount: order.price.subtotal.net,
-                      })}
-                    </span>
-                    <span>
-                      {order.price.subtotal.tax} {order.price.subtotal.currency}
-                    </span>
-                  </div>
-                )}
-
-                {order.shipping && (
-                  <div className="flex justify-between gap-4 pt-2">
-                    <span>{tOrder('shippingFee')}</span>
-                    <span>
-                      {formatShippingFeeDisplay(
-                        order.shipping.total.value,
-                        (amount) => `${amount} ${order.shipping!.total.currency}`,
-                        tOrder('free'),
-                      )}
-                    </span>
-                  </div>
-                )}
-
-                {shouldDisplayTaxLine({
-                  taxRate: order.shipping?.total.taxRate,
-                  taxAmount: order.shipping?.total.tax,
-                }) &&
-                  order.shipping?.total.tax !== undefined && (
-                    <div className="flex justify-between gap-4 pt-2">
-                      <span>
-                        {tOrder('shippingVat')}
-                        {detailTaxRateSuffix({
-                          taxRate: order.shipping.total.taxRate,
-                          taxAmount: order.shipping.total.tax,
-                        })}
-                      </span>
-                      <span>
-                        {order.shipping.total.tax} {order.shipping.total.currency}
-                      </span>
-                    </div>
-                  )}
-
-                {order.discounts && order.discounts.length > 0 && (
-                  <div className="flex justify-between gap-4 pt-2">
-                    <span>{tOrder('discount')}</span>
-                    <span>
-                      -{order.discounts[0].value} {order.discounts[0].currency}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex justify-between items-start gap-4 pt-2">
-                  <H5>{tOrder('totalValue')}</H5>
-                  <H5>
-                    {order.price.total.gross} {order.price.total.currency}
-                  </H5>
-                </div>
-              </div>
-            )}
+            <OrderOverviewTotals order={order} />
           </SummaryCard>
         </div>
 

@@ -12,8 +12,12 @@ export type CheckoutOrderSummaryBreakdown = {
   total: number;
   currency: string;
   hasAppliedCoupons?: boolean;
+  couponApplyBasis?: 'net' | 'gross';
   originalGoodsNet?: number;
+  originalGoodsVat?: number;
+  originalGoodsGross?: number;
   savingsTotal?: number;
+  goodsDiscountedGross?: number;
 };
 
 function round2(value: number): number {
@@ -79,6 +83,41 @@ function cartHasAppliedCoupons(cart: Cart | null | undefined): boolean {
   return typeof cart.savingsTotal === 'number' && cart.savingsTotal > 0;
 }
 
+function appliedCouponBreakdownFields(
+  cart: Cart | null | undefined,
+  originalGoodsNet: number,
+): Pick<
+  CheckoutOrderSummaryBreakdown,
+  | 'hasAppliedCoupons'
+  | 'couponApplyBasis'
+  | 'originalGoodsNet'
+  | 'originalGoodsVat'
+  | 'originalGoodsGross'
+  | 'savingsTotal'
+  | 'goodsDiscountedGross'
+> {
+  const savingsFields = typeof cart?.savingsTotal === 'number' ? { savingsTotal: cart.savingsTotal } : {};
+
+  if (cart?.totalDiscountCalculationType === 'ApplyDiscountAfterTax') {
+    return {
+      hasAppliedCoupons: true,
+      couponApplyBasis: 'gross',
+      originalGoodsNet,
+      originalGoodsVat: cart.tax?.amount ?? 0,
+      originalGoodsGross: cart.tax?.grossValue ?? 0,
+      ...savingsFields,
+      ...(typeof cart.goodsDiscountedGross === 'number' ? { goodsDiscountedGross: cart.goodsDiscountedGross } : {}),
+    };
+  }
+
+  return {
+    hasAppliedCoupons: true,
+    couponApplyBasis: 'net',
+    originalGoodsNet,
+    ...savingsFields,
+  };
+}
+
 /**
  * Checkout / cart / mini-cart summary from mapped Emporix `calculatedPrice`.
  * When a checkout shipping method is picked and its fee differs from the cart
@@ -110,13 +149,7 @@ export function buildCheckoutOrderSummaryFromCart(
     feesTotal: cart?.fees?.amount ?? 0,
     total: cart?.totalPrice?.amount ?? 0,
     currency: cart?.tax?.currency ?? cart?.currency ?? '',
-    ...(hasAppliedCoupons
-      ? {
-          hasAppliedCoupons: true,
-          originalGoodsNet,
-          ...(typeof cart?.savingsTotal === 'number' ? { savingsTotal: cart.savingsTotal } : {}),
-        }
-      : {}),
+    ...(hasAppliedCoupons ? appliedCouponBreakdownFields(cart, originalGoodsNet) : {}),
   };
 
   if (!cart) {

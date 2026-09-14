@@ -417,7 +417,7 @@ describe('useProduct hook', () => {
     test('does not catalog-refetch when sessionPricingKey is introduced after cold start for an SSR Product object', async () => {
       const sessionStore = createSessionStore({
         // Incomplete session — no siteCode/currency yet (sessionPricingKey empty)
-        session: { id: 'cold-incomplete', customerId: 'ANONYMOUS' },
+        session: { id: 'cold-incomplete', customerId: 'ANONYMOUS', siteCode: '', currency: '' },
         loading: true,
       });
       const customWrapper = createBootstrapWrapper(sessionStore);

@@ -138,10 +138,17 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
       tax: tax,
       ...(discounts ? { discounts } : {}),
       ...(totalDiscount ? { savingsTotal: totalDiscount.value } : {}),
+      ...(totalDiscount?.calculationType
+        ? {
+            totalDiscountCalculationType: totalDiscount.calculationType,
+            includesTax: totalDiscount.calculationType === 'ApplyDiscountAfterTax',
+          }
+        : {}),
       ...(discountedPrice
         ? {
             goodsDiscountedNet: discountedPrice.netValue,
             goodsDiscountedVat: discountedPrice.taxValue,
+            goodsDiscountedGross: discountedPrice.grossValue,
           }
         : {}),
     };

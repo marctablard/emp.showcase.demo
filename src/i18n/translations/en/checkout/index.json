@@ -88,7 +88,7 @@
     "paymentMethodRequired": "Payment method is required"
   },
   "summary": {
-    "title": "Order Summary",
+    "title": "Order Overview",
     "subtotal": "Subtotal",
     "total": "Total",
     "valueOfGoods": "Value of goods",
@@ -110,6 +110,8 @@
     "promoCodeBestPrice": "Our best-price logic always applies the highest discount available for you.",
     "originalValueOfGoods": "Original value of goods",
     "yourSavings": "Your savings",
+    "originalGrossValue": "Original Gross Value",
+    "grossValueOfGoods": "Gross Value of Goods",
     "removePromo": "Remove promo code"
   },
   "promoCode": "Promo Code",

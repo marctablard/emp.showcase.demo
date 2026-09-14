@@ -67,6 +67,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: true,
         templateAttributes: {
           'pick-a-list-optional': 'Value 4',
@@ -114,6 +115,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: true,
         template: { id: 'tmpl-1' },
         templateAttributes: { 'pick-a-list-optional': 'Value 4' },
@@ -145,6 +147,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: false,
         isParentVariant: true,
         template: { id: 'tmpl-1', version: '2' },
@@ -201,6 +204,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: false,
         isParentVariant: true,
         variantAttributes: [{ key: 'width', values: [{ key: '20', selected: true }] }],
@@ -230,6 +234,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'parent-1',
         name: { en: 'Parent' },
+        description: {},
         purchasable: false,
         isParentVariant: true,
         template: { id: 'tmpl-1' },
@@ -238,6 +243,7 @@ describe('EmporixProductService template meta enrichment', () => {
           {
             id: 'child-1',
             name: { en: 'Child' },
+            description: {},
             purchasable: true,
             parentVariantId: 'parent-1',
             variantAttributes: [{ key: 'width', name: { en: 'width' }, values: [{ key: '20', selected: true }] }],
@@ -275,6 +281,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'child-1',
         name: { en: 'Child' },
+        description: {},
         purchasable: true,
         parentVariantId: 'parent-1',
         variantAttributes: [
@@ -318,6 +325,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: true,
         templateAttributes: { 'pick-a-list-optional': 'Value 4' },
       },

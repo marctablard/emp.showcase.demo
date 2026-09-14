@@ -83,7 +83,7 @@
     "paymentMethodRequired": "Zahlungsmethode ist erforderlich"
   },
   "summary": {
-    "title": "Bestellzusammenfassung",
+    "title": "Bestellübersicht",
     "shippingCosts": "Versandkosten",
     "shippingFee": "Versandgebühr",
     "shippingVat": "Versand-MwSt.",
@@ -97,6 +97,8 @@
     "promoCodeBestPrice": "Unsere Bestpreis-Logik wendet immer den höchsten verfügbaren Rabatt für Sie an.",
     "originalValueOfGoods": "Ursprünglicher Warenwert",
     "yourSavings": "Ihre Ersparnis",
+    "originalGrossValue": "Ursprünglicher Bruttowert",
+    "grossValueOfGoods": "Brutto-Warenwert",
     "removePromo": "Promo-Code entfernen",
     "subtotal": "Zwischensumme",
     "total": "Gesamt",

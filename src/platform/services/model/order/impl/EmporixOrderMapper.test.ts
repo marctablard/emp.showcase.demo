@@ -230,4 +230,107 @@ describe('EmporixOrderMapper', () => {
 
     expect(result.shipping?.total).toEqual({ value: 15, currency: 'EUR' });
   });
+
+  it('omits published coupon fields when the upstream order has no discounts', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 115, grossValue: 136.85, taxValue: 21.85 },
+        },
+      }),
+    );
+
+    expect(result.discounts).toBeUndefined();
+    expect(result.savingsTotal).toBeUndefined();
+    expect(result.totalDiscountCalculationType).toBeUndefined();
+    expect(result.includesTax).toBeUndefined();
+    expect(result.goodsDiscountedNet).toBeUndefined();
+    expect(result.goodsDiscountedVat).toBeUndefined();
+    expect(result.goodsDiscountedGross).toBeUndefined();
+    expect(result).not.toHaveProperty('discountCalculationType');
+  });
+
+  it('maps before-tax totalDiscount, coupon codes, and discounted goods', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [
+          { code: 'TOTAL', amount: 101.1, currency: 'EUR', sequenceId: 1 },
+          {
+            code: '10POFF',
+            amount: 101.1,
+            currency: 'EUR',
+            calculationType: 'ApplyDiscountBeforeTax',
+          },
+        ],
+        calculatedPrice: {
+          price: { netValue: 1010.99, grossValue: 1203.08, taxValue: 192.09, taxCode: 'STANDARD', taxRate: 19 },
+          discountedPrice: {
+            netValue: 909.89,
+            grossValue: 1082.77,
+            taxValue: 172.88,
+            taxCode: 'STANDARD',
+            taxRate: 19,
+          },
+          totalDiscount: {
+            calculationType: 'ApplyDiscountBeforeTax',
+            value: 101.1,
+            appliedDiscounts: [{ id: '10POFF', value: 101.1 }],
+          },
+          finalPrice: { netValue: 909.89, grossValue: 1082.77, taxValue: 172.88 },
+        },
+      }),
+    );
+
+    expect(result.discounts?.map((discount) => discount.code)).toEqual(['TOTAL', '10POFF']);
+    expect(result.savingsTotal).toBe(101.1);
+    expect(result.totalDiscountCalculationType).toBe('ApplyDiscountBeforeTax');
+    expect(result.includesTax).toBe(false);
+    expect(result.goodsDiscountedNet).toBe(909.89);
+    expect(result.goodsDiscountedVat).toBe(172.88);
+    expect(result.goodsDiscountedGross).toBe(1082.77);
+    expect(result).not.toHaveProperty('discountCalculationType');
+  });
+
+  it('maps after-tax totalDiscount and discounted gross', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [
+          {
+            code: 'GROSS10',
+            amount: 8.22,
+            currency: 'EUR',
+            calculationType: 'ApplyDiscountAfterTax',
+          },
+        ],
+        calculatedPrice: {
+          price: { netValue: 69.15, grossValue: 82.29, taxValue: 13.14, taxCode: 'STANDARD', taxRate: 19 },
+          discountedPrice: {
+            netValue: 58.235,
+            grossValue: 74.07,
+            taxValue: 13.14,
+            taxCode: 'STANDARD',
+            taxRate: 19,
+          },
+          totalDiscount: {
+            calculationType: 'ApplyDiscountAfterTax',
+            value: 8.22,
+            appliedDiscounts: [{ id: 'GROSS10', value: 8.22 }],
+          },
+          finalPrice: { netValue: 58.235, grossValue: 74.07, taxValue: 13.14 },
+        },
+      }),
+    );
+
+    expect(result.discounts).toEqual([{ code: 'GROSS10', value: 8.22, currency: 'EUR' }]);
+    expect(result.savingsTotal).toBe(8.22);
+    expect(result.totalDiscountCalculationType).toBe('ApplyDiscountAfterTax');
+    expect(result.includesTax).toBe(true);
+    expect(result.goodsDiscountedGross).toBe(74.07);
+    expect(result.goodsDiscountedNet).toBe(58.235);
+    expect(result.goodsDiscountedVat).toBe(13.14);
+  });
 });

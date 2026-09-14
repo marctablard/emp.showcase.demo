@@ -1,6 +1,10 @@
 import type { Cart } from '@/platform/services/model/cart';
 import { buildCheckoutOrderSummaryBreakdown, buildCheckoutOrderSummaryFromCart } from './checkout-order-summary';
 
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 /** Confirmation-shaped oracle for the ticket numbers (not the helper formula written twice). */
 const CONFIRMATION_ORACLE_STANDARD = { total: { gross: 129.24 } };
 const CONFIRMATION_ORACLE_REDUCED = { total: { gross: 128.44 } };
@@ -243,8 +247,12 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     const breakdown = buildCheckoutOrderSummaryFromCart(cart);
 
     expect(breakdown.hasAppliedCoupons).toBeUndefined();
+    expect(breakdown.couponApplyBasis).toBeUndefined();
     expect(breakdown.originalGoodsNet).toBeUndefined();
+    expect(breakdown.originalGoodsVat).toBeUndefined();
+    expect(breakdown.originalGoodsGross).toBeUndefined();
     expect(breakdown.savingsTotal).toBeUndefined();
+    expect(breakdown.goodsDiscountedGross).toBeUndefined();
     expect(breakdown.goodsNet).toBe(69.15);
     expect(breakdown.goodsVat).toBe(13.14);
     expect(breakdown.shippingFee).toBeUndefined();
@@ -256,15 +264,50 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
       ...cart,
       discounts: [{ code: 'LS10PTOTAL', discountIndex: 0, amount: 11.22, currency: 'EUR' }],
       savingsTotal: 11.22,
+      totalDiscountCalculationType: 'ApplyDiscountBeforeTax',
+      includesTax: false,
       goodsDiscountedNet: 57.93,
       goodsDiscountedVat: 11.01,
     });
 
     expect(breakdown.hasAppliedCoupons).toBe(true);
+    expect(breakdown.couponApplyBasis).toBe('net');
     expect(breakdown.originalGoodsNet).toBe(69.15);
+    expect(breakdown.originalGoodsVat).toBeUndefined();
+    expect(breakdown.originalGoodsGross).toBeUndefined();
+    expect(breakdown.goodsDiscountedGross).toBeUndefined();
     expect(breakdown.goodsNet).toBe(57.93);
     expect(breakdown.goodsVat).toBe(11.01);
     expect(breakdown.savingsTotal).toBe(11.22);
+  });
+
+  it('exposes a gross-applied stack when totalDiscountCalculationType is ApplyDiscountAfterTax', () => {
+    const tax = { amount: 15.66, netValue: 82.45, grossValue: 98.11, currency: 'EUR' };
+    const breakdown = buildCheckoutOrderSummaryFromCart({
+      ...cart,
+      tax,
+      discounts: [{ code: 'GROSS10', discountIndex: 0, amount: 16.11, currency: 'EUR' }],
+      savingsTotal: 16.11,
+      totalDiscountCalculationType: 'ApplyDiscountAfterTax',
+      includesTax: true,
+      goodsDiscountedNet: 70,
+      goodsDiscountedVat: 12,
+      goodsDiscountedGross: 82,
+    });
+
+    expect(breakdown.hasAppliedCoupons).toBe(true);
+    expect(breakdown.couponApplyBasis).toBe('gross');
+    expect(breakdown.originalGoodsNet).toBe(82.45);
+    expect(breakdown.originalGoodsVat).toBe(15.66);
+    expect(breakdown.originalGoodsVat).not.toBe(breakdown.goodsVat);
+    expect(breakdown.originalGoodsGross).toBe(98.11);
+    expect(round2((breakdown.originalGoodsNet ?? 0) + (breakdown.originalGoodsVat ?? 0))).toBe(
+      breakdown.originalGoodsGross,
+    );
+    expect(breakdown.savingsTotal).toBe(16.11);
+    expect(breakdown.goodsDiscountedGross).toBe(82);
+    expect(breakdown.goodsNet).toBe(70);
+    expect(breakdown.goodsVat).toBe(12);
   });
 
   it('keeps current goodsNet when savings exist without discounted net', () => {
@@ -274,6 +317,7 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     });
 
     expect(breakdown.hasAppliedCoupons).toBe(true);
+    expect(breakdown.couponApplyBasis).toBe('net');
     expect(breakdown.originalGoodsNet).toBe(69.15);
     expect(breakdown.savingsTotal).toBe(6.915);
     expect(breakdown.goodsNet).toBe(69.15);

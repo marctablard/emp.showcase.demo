@@ -150,8 +150,11 @@ describe('EmporixCartMapper', () => {
     expect(mapped.shippingCosts?.tax?.taxRate).toBe(0);
     expect(mapped.discounts).toBeUndefined();
     expect(mapped.savingsTotal).toBeUndefined();
+    expect(mapped.totalDiscountCalculationType).toBeUndefined();
+    expect(mapped.includesTax).toBeUndefined();
     expect(mapped.goodsDiscountedNet).toBeUndefined();
     expect(mapped.goodsDiscountedVat).toBeUndefined();
+    expect(mapped.goodsDiscountedGross).toBeUndefined();
   });
 
   it('maps LS10PTOTAL OpenAPI GET chips without discountIndex to domain index 0', () => {
@@ -167,8 +170,11 @@ describe('EmporixCartMapper', () => {
       },
     ]);
     expect(mapped.savingsTotal).toBe(11.22);
+    expect(mapped.totalDiscountCalculationType).toBe('ApplyDiscountBeforeTax');
+    expect(mapped.includesTax).toBe(false);
     expect(mapped.goodsDiscountedNet).toBe(90);
     expect(mapped.goodsDiscountedVat).toBe(9);
+    expect(mapped.goodsDiscountedGross).toBe(99);
     expect(mapped.totalPrice.amount).toBe(110.455);
     expect(mapped.tax.netValue).toBe(100);
     expect(mapped.subTotalPrice.amount).toBe(110);
@@ -202,8 +208,44 @@ describe('EmporixCartMapper', () => {
       },
     ]);
     expect(mapped.savingsTotal).toBe(6.915);
+    expect(mapped.totalDiscountCalculationType).toBe('ApplyDiscountBeforeTax');
+    expect(mapped.includesTax).toBe(false);
+    expect(mapped.goodsDiscountedGross).toBeUndefined();
     expect(mapped.tax.netValue).toBe(69.15);
     expect(mapped.totalPrice.amount).toBe(82.3);
+  });
+
+  it('maps ApplyDiscountAfterTax to includesTax true and discounted gross', () => {
+    const mapped = mapper.mapToService(
+      showcaseDevCart({
+        discountedPrice: {
+          netValue: 58.235,
+          grossValue: 74.07,
+          taxValue: 13.14,
+          taxCode: 'STANDARD',
+          taxRate: 19,
+        },
+        totalDiscount: {
+          calculationType: 'ApplyDiscountAfterTax',
+          value: 8.22,
+          appliedDiscounts: [
+            {
+              id: 'GROSS10',
+              value: 8.22,
+              discountType: 'PERCENT',
+              origin: 'INTERNAL',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(mapped.totalDiscountCalculationType).toBe('ApplyDiscountAfterTax');
+    expect(mapped.includesTax).toBe(true);
+    expect(mapped.goodsDiscountedGross).toBe(74.07);
+    expect(mapped.goodsDiscountedNet).toBe(58.235);
+    expect(mapped.goodsDiscountedVat).toBe(13.14);
+    expect(mapped.savingsTotal).toBe(8.22);
   });
 
   it('prefers totalShipping over shipping when both are present', () => {

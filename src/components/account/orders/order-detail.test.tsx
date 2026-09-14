@@ -4,6 +4,8 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import deOrdersTranslations from '@/i18n/translations/de/orders/index.json';
+import enOrdersTranslations from '@/i18n/translations/en/orders/index.json';
 import type { Order } from '@/platform/services/model/order/order';
 import { OrderDetail } from './order-detail';
 
@@ -689,6 +691,104 @@ describe('OrderDetail', () => {
     expect(vatIndex).toBeGreaterThan(netValueOfGoodsIndex);
     expect(shippingFeeIndex).toBeGreaterThan(vatIndex);
     expect(totalValueIndex).toBeGreaterThan(shippingFeeIndex);
+  });
+
+  it('renders a net-applied coupon box and savings without a remove control', () => {
+    const netCouponOrder: Order = {
+      ...baseOrder,
+      discounts: [
+        { code: 'TOTAL', value: 101.1, currency: 'EUR', description: '10% off order' },
+        { code: '10POFF', value: 101.1, currency: 'EUR' },
+      ],
+      savingsTotal: 101.1,
+      totalDiscountCalculationType: 'ApplyDiscountBeforeTax',
+      includesTax: false,
+      goodsDiscountedNet: 909.89,
+      goodsDiscountedVat: 172.88,
+      goodsDiscountedGross: 1082.77,
+      price: {
+        subtotal: { net: 1010.99, gross: 1203.08, tax: 192.09, currency: 'EUR', taxRate: 19 },
+        total: { net: 909.89, gross: 1082.77, tax: 172.88, currency: 'EUR' },
+      },
+    };
+    mockUseOrder({ order: netCouponOrder });
+
+    render(<OrderDetail orderId={netCouponOrder.id} initialOrder={netCouponOrder} />);
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]') as HTMLElement;
+    const totalChip = screen.getByTestId('order-appliedPromo-TOTAL');
+    const tenOffChip = screen.getByTestId('order-appliedPromo-10POFF');
+
+    expect(overviewHeading).toBeInTheDocument();
+    expect(totalChip).toHaveTextContent('TOTAL');
+    expect(totalChip).toHaveTextContent('10% off order');
+    expect(totalChip).toHaveTextContent('-101.1 EUR');
+    expect(tenOffChip).toHaveTextContent('10POFF');
+    expect(within(totalChip).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(tenOffChip).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-removePromo-TOTAL')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-removePromo-TOTAL')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-applyPromo')).not.toBeInTheDocument();
+    expect(screen.getByTestId('order-originalValueOfGoods')).toHaveTextContent('originalValueOfGoods');
+    expect(screen.getByTestId('order-originalValueOfGoods')).toHaveTextContent('1010.99 EUR');
+    expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('yourSavings');
+    expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('-101.1 EUR');
+    expect(overviewCard).toHaveTextContent('909.89 EUR');
+    expect(overviewCard).toHaveTextContent('172.88 EUR');
+    expect(overviewCard).not.toHaveTextContent('192.09 EUR');
+    expect(screen.queryByTestId('order-originalGrossValue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-grossValueOfGoods')).not.toBeInTheDocument();
+    expect(overviewCard).not.toHaveTextContent('discount');
+    expect(overviewCard).not.toHaveTextContent(/freight/i);
+    expect(enOrdersTranslations.yourSavings).toBe('Your savings');
+    expect(enOrdersTranslations.originalValueOfGoods).toBe('Original value of goods');
+    expect(deOrdersTranslations.yourSavings).toBe('Ihre Ersparnis');
+  });
+
+  it('renders a gross-applied coupon box with pre-discount VAT and no remove control', () => {
+    const grossCouponOrder: Order = {
+      ...baseOrder,
+      discounts: [{ code: 'GROSS10', value: 16.11, currency: 'EUR', description: 'After-tax 10%' }],
+      savingsTotal: 16.11,
+      totalDiscountCalculationType: 'ApplyDiscountAfterTax',
+      includesTax: true,
+      goodsDiscountedNet: 70,
+      goodsDiscountedVat: 12,
+      goodsDiscountedGross: 82,
+      price: {
+        subtotal: { net: 82.45, gross: 98.11, tax: 15.66, currency: 'EUR' },
+        total: { net: 70, gross: 86.95, tax: 12, currency: 'EUR' },
+      },
+    };
+    mockUseOrder({ order: grossCouponOrder });
+
+    render(<OrderDetail orderId={grossCouponOrder.id} initialOrder={grossCouponOrder} />);
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]') as HTMLElement;
+    const chip = screen.getByTestId('order-appliedPromo-GROSS10');
+
+    expect(chip).toHaveTextContent('GROSS10');
+    expect(chip).toHaveTextContent('After-tax 10%');
+    expect(within(chip).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-removePromo-GROSS10')).not.toBeInTheDocument();
+    expect(overviewCard).toHaveTextContent('valueOfGoods');
+    expect(overviewCard).toHaveTextContent('82.45 EUR');
+    expect(overviewCard).toHaveTextContent('15.66 EUR');
+    expect(overviewCard).not.toHaveTextContent('12 EUR');
+    expect(screen.getByTestId('order-originalGrossValue')).toHaveTextContent('originalGrossValue');
+    expect(screen.getByTestId('order-originalGrossValue')).toHaveTextContent('98.11 EUR');
+    expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('yourSavings');
+    expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('-16.11 EUR');
+    expect(screen.getByTestId('order-grossValueOfGoods')).toHaveTextContent('grossValueOfGoods');
+    expect(screen.getByTestId('order-grossValueOfGoods')).toHaveTextContent('82 EUR');
+    expect(screen.queryByTestId('order-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(overviewCard).not.toHaveTextContent('discount');
+    expect(enOrdersTranslations.originalGrossValue).toBe('Original Gross Value');
+    expect(enOrdersTranslations.grossValueOfGoods).toBe('Gross Value of Goods');
+    expect(deOrdersTranslations.originalGrossValue).toBe('Ursprünglicher Bruttowert');
+    expect(deOrdersTranslations.grossValueOfGoods).toBe('Brutto-Warenwert');
   });
 
   it('omits an optional Shipping VAT row when the order model has no independent shipping-tax value', () => {

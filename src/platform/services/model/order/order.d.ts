@@ -82,6 +82,9 @@ export interface OrderDiscount {
   description?: string;
 }
 
+/** Published `calculatedPrice.totalDiscount.calculationType` — not YAML `discountCalculationType` SUBTOTAL/TOTAL. */
+export type TotalDiscountCalculationType = 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
+
 /**
  * Price information for an order
  */
@@ -118,6 +121,12 @@ export interface Order {
   payments?: OrderPayment[];
   shipping?: OrderShipping;
   discounts?: OrderDiscount[];
+  savingsTotal?: number;
+  totalDiscountCalculationType?: TotalDiscountCalculationType;
+  includesTax?: boolean;
+  goodsDiscountedNet?: number;
+  goodsDiscountedGross?: number;
+  goodsDiscountedVat?: number;
   price?: OrderPrice;
   currency?: string;
   customerEmail?: string;

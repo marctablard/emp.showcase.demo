@@ -1,3 +1,6 @@
+// Module scope: `loadModule` is also declared by sibling SSR test files.
+export {};
+
 async function loadModule() {
   jest.resetModules();
 
@@ -29,6 +32,7 @@ describe('getActiveSearchEngine', () => {
     services.set(
       'SearchService',
       new BatteryIncludedSearchService(
+        {} as never,
         {} as never,
         {} as never,
         {} as never,
