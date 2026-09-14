@@ -156,7 +156,7 @@ function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: st
       };
     }
 
-    if (error.upstreamStatus === 502 || error.upstreamStatus === 503) {
+    if (error.upstreamStatus != null && error.upstreamStatus >= 500) {
       return {
         status: 500,
         response: { error: upstreamFailureMessage, reason: CART_API_REASON.UPSTREAM_FAILURE },

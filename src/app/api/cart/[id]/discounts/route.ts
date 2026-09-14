@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { mapCartDiscountApplyError } from '@/lib/common/cart-api-error-mapping';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -16,16 +17,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const resolvedParams = await params;
   const cartId = resolvedParams.id;
 
+  const sessionService = server.get<SessionService>('SessionService');
+  const session = await sessionService.getCurrent();
+  if (!session || !isAuthenticatedSessionCustomerId(session.customerId)) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
   try {
     const cartService = server.get<CartService>('CartService');
-    const sessionService = server.get<SessionService>('SessionService');
-    const session = await sessionService.getCurrent();
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const code = typeof body?.code === 'string' ? body.code.trim() : '';
+    const rawCode = typeof body === 'object' && body !== null && 'code' in body ? body.code : undefined;
+    const code = typeof rawCode === 'string' ? rawCode.trim() : '';
 
     if (!code) {
       return NextResponse.json({ error: 'Code is required' }, { status: 400 });

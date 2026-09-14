@@ -48,25 +48,17 @@ function mapCartDiscounts(
   appliedDiscounts: EmporixCalculatedAppliedDiscount[] | undefined,
   currency: string,
 ): CartAppliedDiscount[] | undefined {
+  if (!sourceDiscounts || sourceDiscounts.length === 0) {
+    return undefined;
+  }
   const applied = appliedDiscounts ?? [];
-  if (sourceDiscounts && sourceDiscounts.length > 0) {
-    return sourceDiscounts.map((discount, arrayIndex) => ({
-      code: discount.code,
-      name: discount.name,
-      discountIndex: resolveDiscountIndex(discount.discountIndex, discount.id, arrayIndex),
-      amount: findAppliedDiscountValue(applied, discount) ?? discount.amount ?? 0,
-      currency: discount.currency ?? currency,
-    }));
-  }
-  if (applied.length > 0) {
-    return applied.map((entry, arrayIndex) => ({
-      code: entry.id,
-      discountIndex: arrayIndex,
-      amount: entry.value,
-      currency,
-    }));
-  }
-  return undefined;
+  return sourceDiscounts.map((discount, arrayIndex) => ({
+    code: discount.code,
+    name: discount.name,
+    discountIndex: resolveDiscountIndex(discount.discountIndex, discount.id, arrayIndex),
+    amount: findAppliedDiscountValue(applied, discount) ?? discount.amount ?? 0,
+    currency: discount.currency ?? currency,
+  }));
 }
 
 /**

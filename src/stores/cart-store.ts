@@ -123,6 +123,8 @@ export const createCartStore = (initState: CartState = defaultState) => {
   let _fetchPromise: Promise<Cart | null | undefined> | null = null;
   /** Serializes PATCH /shipping so parallel callers cannot race Emporix optimistic locking. */
   let _shippingUpdateGate: Promise<void> = Promise.resolve();
+  /** Serializes apply/remove discount so out-of-order `set` cannot restore a stale chip list. */
+  let _discountMutationGate: Promise<void> = Promise.resolve();
   /** Settling counter kept outside state so only 0→1 / N→0 transitions notify subscribers. */
   let _settlingCount = 0;
 
@@ -551,39 +553,57 @@ export const createCartStore = (initState: CartState = defaultState) => {
       },
 
       applyDiscount: async (code: string) => {
-        const { currentCart } = get();
-        if (!currentCart) {
-          return;
-        }
+        const afterPrevious = _discountMutationGate;
+        let releaseNext!: () => void;
+        _discountMutationGate = new Promise<void>((resolve) => {
+          releaseNext = resolve;
+        });
+        await afterPrevious.catch(() => {});
 
-        // Do not flip `loading` — checkout must keep the previous cart snapshot
-        // so a field error can show without a global spinner.
         try {
+          const { currentCart } = get();
+          if (!currentCart) {
+            return;
+          }
+
+          // Do not flip `loading` — checkout must keep the previous cart snapshot
+          // so a field error can show without a global spinner.
           const updatedCart = await apiApplyCartDiscount(currentCart.id, code);
           set({ currentCart: updatedCart, error: null });
         } catch (err) {
           const error = err instanceof Error ? err : new Error('Failed to apply cart discount');
           set({ error });
-          getLogger().error({ err, cartId: currentCart.id }, 'Error applying cart discount');
+          getLogger().error({ err, cartId: get().currentCart?.id }, 'Error applying cart discount');
           throw error;
+        } finally {
+          releaseNext();
         }
       },
 
       removeDiscount: async (discountIndex: number) => {
-        const { currentCart } = get();
-        if (!currentCart) {
-          return;
-        }
+        const afterPrevious = _discountMutationGate;
+        let releaseNext!: () => void;
+        _discountMutationGate = new Promise<void>((resolve) => {
+          releaseNext = resolve;
+        });
+        await afterPrevious.catch(() => {});
 
-        // Do not flip `loading` — same contract as updateShippingMethod / applyDiscount.
         try {
+          const { currentCart } = get();
+          if (!currentCart) {
+            return;
+          }
+
+          // Do not flip `loading` — same contract as updateShippingMethod / applyDiscount.
           const updatedCart = await apiRemoveCartDiscount(currentCart.id, discountIndex);
           set({ currentCart: updatedCart, error: null });
         } catch (err) {
           const error = err instanceof Error ? err : new Error('Failed to remove cart discount');
           set({ error });
-          getLogger().error({ err, cartId: currentCart.id }, 'Error removing cart discount');
+          getLogger().error({ err, cartId: get().currentCart?.id }, 'Error removing cart discount');
           throw error;
+        } finally {
+          releaseNext();
         }
       },
 

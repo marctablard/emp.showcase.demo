@@ -181,7 +181,7 @@ describe('EmporixCartMapper', () => {
     expect(mapped.shippingCosts?.amount).toBe(6.5);
   });
 
-  it('builds chips from appliedDiscounts when discounts[] is empty', () => {
+  it('does not build removable chips from appliedDiscounts when discounts[] is empty', () => {
     const mapped = mapper.mapToService(
       showcaseDevCart({
         totalDiscount: {
@@ -194,19 +194,18 @@ describe('EmporixCartMapper', () => {
               discountType: 'PERCENT',
               origin: 'INTERNAL',
             },
+            {
+              id: 'external-price-rule',
+              value: 1,
+              discountType: 'ABSOLUTE',
+              origin: 'EXTERNAL',
+            },
           ],
         },
       }),
     );
 
-    expect(mapped.discounts).toEqual([
-      {
-        code: 'LS10PTOTAL',
-        discountIndex: 0,
-        amount: 6.915,
-        currency: 'EUR',
-      },
-    ]);
+    expect(mapped.discounts).toBeUndefined();
     expect(mapped.savingsTotal).toBe(6.915);
     expect(mapped.totalDiscountCalculationType).toBe('ApplyDiscountBeforeTax');
     expect(mapped.includesTax).toBe(false);

@@ -92,6 +92,16 @@ describe('cart-api-error-mapping', () => {
       expect(mapping.status).toBe(500);
       expect(mapping.response.reason).toBe(CART_API_REASON.UPSTREAM_FAILURE);
     });
+
+    it('maps typed 500 CartDiscountError to 500 upstream_failure', () => {
+      const mapping = mapCartDiscountApplyError(
+        new CartDiscountError('Failed to apply discount', { upstreamStatus: 500 }),
+      );
+
+      expect(mapping.status).toBe(500);
+      expect(mapping.response.reason).toBe(CART_API_REASON.UPSTREAM_FAILURE);
+      expect(mapping.logContext.upstreamStatus).toBe(500);
+    });
   });
 
   describe('mapCartDiscountRemoveError', () => {

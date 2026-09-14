@@ -25,8 +25,7 @@ import { buildOrderOverviewBreakdown } from '@/lib/common/order-overview-summary
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Address } from '@/platform/services/model/common';
-import type { OrderDiscount } from '@/platform/services/model/order/order';
-import type { Order, OrderStatus } from '@/platform/services/model/order/order';
+import type { Order, OrderDiscount, OrderStatus } from '@/platform/services/model/order/order';
 import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
 import { CreateReturnDialog } from './create-return-dialog';
 import { OrderStatusBadge } from './order-status-badge';

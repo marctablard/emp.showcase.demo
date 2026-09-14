@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { mapCartDiscountRemoveError } from '@/lib/common/cart-api-error-mapping';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -22,8 +23,8 @@ export async function DELETE(
     const cartService = server.get<CartService>('CartService');
     const sessionService = server.get<SessionService>('SessionService');
     const session = await sessionService.getCurrent();
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
+    if (!session || !isAuthenticatedSessionCustomerId(session.customerId)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
     const discountIndex = Number(discountIndexParam);
