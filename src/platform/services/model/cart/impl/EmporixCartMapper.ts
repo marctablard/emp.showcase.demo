@@ -25,17 +25,6 @@ function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: '
   };
 }
 
-function resolveDiscountIndex(discountIndex: number | undefined, id: string | undefined, arrayIndex: number): number {
-  if (discountIndex != null) {
-    return discountIndex;
-  }
-  const parsedId = Number(id);
-  if (Number.isFinite(parsedId)) {
-    return parsedId;
-  }
-  return arrayIndex;
-}
-
 function findAppliedDiscountValue(
   appliedDiscounts: EmporixCalculatedAppliedDiscount[],
   discount: EmporixCartDiscount,
@@ -55,7 +44,7 @@ function mapCartDiscounts(
   return sourceDiscounts.map((discount, arrayIndex) => ({
     code: discount.code,
     name: discount.name,
-    discountIndex: resolveDiscountIndex(discount.discountIndex, discount.id, arrayIndex),
+    discountIndex: discount.discountIndex ?? arrayIndex,
     amount: findAppliedDiscountValue(applied, discount) ?? discount.amount ?? 0,
     currency: discount.currency ?? currency,
   }));

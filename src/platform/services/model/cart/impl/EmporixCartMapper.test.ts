@@ -157,6 +157,32 @@ describe('EmporixCartMapper', () => {
     expect(mapped.goodsDiscountedGross).toBeUndefined();
   });
 
+  it('uses array position when discountIndex is omitted even if id is a numeric coupon id', () => {
+    const mapped = mapper.mapToService({
+      ...ls10pTotalOpenApiCart(),
+      discounts: [
+        {
+          id: '42',
+          code: 'LS10PTOTAL',
+          name: 'LS10PTOTAL',
+          currency: 'EUR',
+          discountRate: 10,
+          valid: true,
+        },
+      ],
+    } as EmporixCart);
+
+    expect(mapped.discounts).toEqual([
+      {
+        code: 'LS10PTOTAL',
+        name: 'LS10PTOTAL',
+        discountIndex: 0,
+        amount: 11.22,
+        currency: 'EUR',
+      },
+    ]);
+  });
+
   it('maps LS10PTOTAL OpenAPI GET chips without discountIndex to domain index 0', () => {
     const mapped = mapper.mapToService(ls10pTotalOpenApiCart());
 
