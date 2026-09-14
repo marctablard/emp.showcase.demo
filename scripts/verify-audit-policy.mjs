@@ -32,7 +32,36 @@ import fs from 'node:fs';
 // exception is valid through the end of that UTC day) and a `reason`
 // explaining why upgrading is not currently safe. Remove the entry once a
 // real fix lands or the date passes — do not silently extend `expires`.
-const ALLOWED_EXCEPTIONS = [];
+const ALLOWED_EXCEPTIONS = [
+  {
+    id: 'GHSA-p293-qw3h-jr36',
+    expires: '2026-10-12',
+    reason:
+      'Next 16.3.x lockfile rewrite OOMs npm ci on GitHub runners; stay on the last installable 16.2.12 lockfile until a generated lockfile installs.',
+  },
+  {
+    id: 'GHSA-2xp9-vwfh-vxw4',
+    expires: '2026-10-12',
+    reason:
+      'Same Next 16.3.x lockfile OOM; stay on the last installable 16.2.12 lockfile until a generated lockfile installs.',
+  },
+  {
+    id: 'GHSA-rgj7-g3m4-5g8c',
+    expires: '2026-10-12',
+    reason: 'sharp 0.35.4 lockfile rewrite OOMs npm ci; keep 0.35.3 until a generated lockfile installs.',
+  },
+  {
+    id: 'GHSA-2883-xcg3-v3hh',
+    expires: '2026-10-12',
+    reason: 'js-yaml 3.15.2/4.3.2 lockfile rewrite OOMs npm ci; keep current pins until a generated lockfile installs.',
+  },
+  {
+    id: 'GHSA-j95f-988m-3j2f',
+    expires: '2026-10-12',
+    reason:
+      'A single @tiptap/core override mismatches @tiptap/pm 3.30.0 peers. Leave the Storyblok-owned 3.30.0 set until a full 3.30.5 lockfile can be generated.',
+  },
+];
 
 const FAIL_SEVERITIES = new Set(['high', 'critical']);
 const GHSA_RE = /GHSA-[0-9a-z]+-[0-9a-z]+-[0-9a-z]+/i;

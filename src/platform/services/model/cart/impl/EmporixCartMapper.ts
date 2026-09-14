@@ -41,13 +41,21 @@ function mapCartDiscounts(
     return undefined;
   }
   const applied = appliedDiscounts ?? [];
-  return sourceDiscounts.map((discount, arrayIndex) => ({
-    code: discount.code,
-    name: discount.name,
-    discountIndex: discount.discountIndex ?? arrayIndex,
-    amount: findAppliedDiscountValue(applied, discount) ?? discount.amount ?? 0,
-    currency: discount.currency ?? currency,
-  }));
+  const mapped = sourceDiscounts.flatMap((discount, arrayIndex) => {
+    if (discount.valid === false) {
+      return [];
+    }
+    return [
+      {
+        code: discount.code,
+        name: discount.name,
+        discountIndex: discount.discountIndex ?? arrayIndex,
+        amount: findAppliedDiscountValue(applied, discount) ?? discount.amount ?? 0,
+        currency: discount.currency ?? currency,
+      },
+    ];
+  });
+  return mapped.length > 0 ? mapped : undefined;
 }
 
 /**

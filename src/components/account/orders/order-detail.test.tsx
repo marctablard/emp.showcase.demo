@@ -791,6 +791,22 @@ describe('OrderDetail', () => {
     expect(deOrdersTranslations.grossValueOfGoods).toBe('Brutto-Warenwert');
   });
 
+  it('hides Gross Value of Goods when after-tax orders have no discounted goods amount', () => {
+    const shippingOnlyCouponOrder: Order = {
+      ...baseOrder,
+      discounts: [{ code: 'SHIPFREE', value: 6.5, currency: 'EUR', description: 'Free shipping' }],
+      savingsTotal: 6.5,
+      totalDiscountCalculationType: 'ApplyDiscountAfterTax',
+      includesTax: true,
+    };
+    mockUseOrder({ order: shippingOnlyCouponOrder });
+
+    render(<OrderDetail orderId={shippingOnlyCouponOrder.id} initialOrder={shippingOnlyCouponOrder} />);
+
+    expect(screen.getByTestId('order-originalGrossValue')).toBeInTheDocument();
+    expect(screen.queryByTestId('order-grossValueOfGoods')).not.toBeInTheDocument();
+  });
+
   it('omits an optional Shipping VAT row when the order model has no independent shipping-tax value', () => {
     mockUseOrder();
 

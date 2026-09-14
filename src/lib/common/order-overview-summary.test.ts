@@ -106,4 +106,19 @@ describe('buildOrderOverviewBreakdown', () => {
     expect(breakdown.goodsVat).toBe(12);
     expect(breakdown.total).toBe(86.95);
   });
+
+  it('omits goodsDiscountedGross when after-tax orders have no discountedPrice', () => {
+    const breakdown = buildOrderOverviewBreakdown({
+      ...noCouponOrder,
+      discounts: [{ code: 'SHIPFREE', value: 6.5, currency: 'EUR' }],
+      savingsTotal: 6.5,
+      totalDiscountCalculationType: 'ApplyDiscountAfterTax',
+      includesTax: true,
+    });
+
+    expect(breakdown.hasAppliedCoupons).toBe(true);
+    expect(breakdown.couponApplyBasis).toBe('gross');
+    expect(breakdown.originalGoodsGross).toBe(119);
+    expect(breakdown.goodsDiscountedGross).toBeUndefined();
+  });
 });

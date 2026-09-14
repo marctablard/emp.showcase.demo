@@ -165,10 +165,12 @@ function OrderOverviewTotals({ order }: { readonly order: Order }) {
             </span>
           </div>
           {savingsBadge}
-          <div className="flex justify-between gap-4" data-testid="order-grossValueOfGoods">
-            <span>{tOrder('grossValueOfGoods')}</span>
-            <span className="font-bold">{formatOverviewAmount(breakdown.goodsDiscountedGross ?? 0, currency)}</span>
-          </div>
+          {typeof breakdown.goodsDiscountedGross === 'number' ? (
+            <div className="flex justify-between gap-4" data-testid="order-grossValueOfGoods">
+              <span>{tOrder('grossValueOfGoods')}</span>
+              <span className="font-bold">{formatOverviewAmount(breakdown.goodsDiscountedGross, currency)}</span>
+            </div>
+          ) : null}
         </div>
       </>
     );

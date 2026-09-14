@@ -354,6 +354,27 @@ describe('CheckoutSummaryComponent', () => {
     expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
   });
 
+  it('hides Gross Value of Goods when after-tax checkout has no discounted goods amount', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        couponApplyBasis: 'gross',
+        originalGoodsNet: 82.45,
+        originalGoodsVat: 15.66,
+        originalGoodsGross: 98.11,
+        savingsTotal: 6.5,
+        goodsNet: 82.45,
+        goodsVat: 15.66,
+        total: 119.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.getByTestId('checkout-originalGrossValue')).toHaveTextContent(money(98.11));
+    expect(screen.queryByTestId('checkout-grossValueOfGoods')).not.toBeInTheDocument();
+  });
+
   it('removing the last code restores the no-coupon Value of goods row', () => {
     mockUseCheckoutPromoCode.mockReturnValue({
       code: '',

@@ -183,6 +183,39 @@ describe('EmporixCartMapper', () => {
     ]);
   });
 
+  it('skips valid:false discounts and keeps the original discounts[] index for DELETE', () => {
+    const mapped = mapper.mapToService({
+      ...ls10pTotalOpenApiCart(),
+      discounts: [
+        {
+          id: 'stale',
+          code: 'STALE10',
+          name: 'STALE10',
+          currency: 'EUR',
+          valid: false,
+        },
+        {
+          id: '1',
+          code: 'LS10PTOTAL',
+          name: 'LS10PTOTAL',
+          currency: 'EUR',
+          discountRate: 10,
+          valid: true,
+        },
+      ],
+    } as EmporixCart);
+
+    expect(mapped.discounts).toEqual([
+      {
+        code: 'LS10PTOTAL',
+        name: 'LS10PTOTAL',
+        discountIndex: 1,
+        amount: 11.22,
+        currency: 'EUR',
+      },
+    ]);
+  });
+
   it('maps LS10PTOTAL OpenAPI GET chips without discountIndex to domain index 0', () => {
     const mapped = mapper.mapToService(ls10pTotalOpenApiCart());
 

@@ -143,10 +143,12 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
             </span>
           </div>
           {savingsBadge}
-          <div className="flex justify-between" data-testid="checkout-grossValueOfGoods">
-            <span>{t('grossValueOfGoods')}</span>
-            <span className="font-bold">{formatCurrency(goodsDiscountedGross ?? 0, moneyCurrency)}</span>
-          </div>
+          {typeof goodsDiscountedGross === 'number' ? (
+            <div className="flex justify-between" data-testid="checkout-grossValueOfGoods">
+              <span>{t('grossValueOfGoods')}</span>
+              <span className="font-bold">{formatCurrency(goodsDiscountedGross, moneyCurrency)}</span>
+            </div>
+          ) : null}
         </div>
       </>
     );
