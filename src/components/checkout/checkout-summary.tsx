@@ -10,6 +10,7 @@ import { useCheckoutOrderSummary } from '@/hooks/checkout/useCheckoutOrderSummar
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { createCheckoutApprovalContext } from '@/lib/approval/contracts';
+import type { CheckoutOrderSummaryBreakdown } from '@/lib/common/checkout-order-summary';
 import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -25,6 +26,113 @@ interface OrderSummaryProps {
   isReadOnly?: boolean;
   leftContent: RefObject<HTMLDivElement | null>;
   onSubmit: (approvalData?: { approverId: string; comment: string }) => void;
+}
+
+function CheckoutSavingsBadge(props: { amount: number; currency: string; label: string }) {
+  return (
+    <div className="flex justify-end">
+      <div
+        className="rounded-sm bg-surface-success px-2 py-1 text-xs leading-5 text-text-body"
+        data-testid="checkout-yourSavings"
+      >
+        <span>{props.label} </span>
+        <span className="font-bold">{formatCurrency(-Math.abs(props.amount), props.currency)}</span>
+      </div>
+    </div>
+  );
+}
+
+function CheckoutGrossValueOfGoodsRow(props: { amount: number | undefined; currency: string; label: string }) {
+  if (typeof props.amount !== 'number') {
+    return null;
+  }
+  return (
+    <div className="flex justify-between" data-testid="checkout-grossValueOfGoods">
+      <span>{props.label}</span>
+      <span className="font-bold">{formatCurrency(props.amount, props.currency)}</span>
+    </div>
+  );
+}
+
+type CheckoutGoodsTotalsProps = {
+  breakdown: CheckoutOrderSummaryBreakdown;
+  isGrossApplied: boolean;
+  moneyCurrency: string;
+  fallbackGross: number;
+  idleGoodsAmount: number;
+  idleGoodsCurrency: string;
+};
+
+function CheckoutGoodsTotals(props: CheckoutGoodsTotalsProps) {
+  const t = useTranslations('checkout.summary');
+  const tCommon = useTranslations('common');
+  const { breakdown, isGrossApplied, moneyCurrency, fallbackGross, idleGoodsAmount, idleGoodsCurrency } = props;
+  const savingsBadge =
+    typeof breakdown.savingsTotal === 'number' ? (
+      <CheckoutSavingsBadge amount={breakdown.savingsTotal} currency={moneyCurrency} label={t('yourSavings')} />
+    ) : null;
+
+  if (isGrossApplied) {
+    return (
+      <>
+        <div className="flex justify-between">
+          <span>{t('valueOfGoods')}</span>
+          <span>{formatCurrency(breakdown.originalGoodsNet ?? breakdown.goodsNet, moneyCurrency)}</span>
+        </div>
+        <div className="flex justify-between text-base">
+          <span>{tCommon('tax')}</span>
+          <span>{formatCurrency(breakdown.originalGoodsVat ?? 0, moneyCurrency)}</span>
+        </div>
+        <div className="flex flex-col gap-2 border-t border-border-primary pt-4">
+          <div className="flex justify-between" data-testid="checkout-originalGrossValue">
+            <span>{t('originalGrossValue')}</span>
+            <span className="line-through">
+              {formatCurrency(breakdown.originalGoodsGross ?? fallbackGross, moneyCurrency)}
+            </span>
+          </div>
+          {savingsBadge}
+          <CheckoutGrossValueOfGoodsRow
+            amount={breakdown.goodsDiscountedGross}
+            currency={moneyCurrency}
+            label={t('grossValueOfGoods')}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (breakdown.hasAppliedCoupons) {
+    return (
+      <>
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between" data-testid="checkout-originalValueOfGoods">
+            <span>{t('originalValueOfGoods')}</span>
+            <span className="line-through">
+              {formatCurrency(breakdown.originalGoodsNet ?? breakdown.goodsNet, moneyCurrency)}
+            </span>
+          </div>
+          {savingsBadge}
+        </div>
+        <div className="flex justify-between border-t border-border-primary pt-4 text-base">
+          <span>{t('netValueOfGoods')}</span>
+          <span className="font-bold">{formatCurrency(breakdown.goodsNet, moneyCurrency)}</span>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex justify-between">
+        <span className="">{t('valueOfGoods')}</span>
+        <span>{formatCurrency(idleGoodsAmount, idleGoodsCurrency)}</span>
+      </div>
+      <div className="flex justify-between border-t border-border-primary pt-4 text-base">
+        <span>{t('netValueOfGoods')}</span>
+        <span className="font-bold">{formatCurrency(breakdown.goodsNet, moneyCurrency)}</span>
+      </div>
+    </>
+  );
 }
 
 /**
@@ -81,8 +189,8 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   const fixedContainer = useRef<HTMLDivElement>(null);
   // 112 = pinned top offset (`top-[112px]` below) — trigger and pin must use the same value.
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, 112, leftContent);
+  const summary = useCheckoutOrderSummary();
   const {
-    goodsNet,
     goodsVat,
     shippingFee,
     shippingVat,
@@ -93,12 +201,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     currency,
     hasAppliedCoupons,
     couponApplyBasis,
-    originalGoodsNet,
-    originalGoodsVat,
-    originalGoodsGross,
-    savingsTotal,
-    goodsDiscountedGross,
-  } = useCheckoutOrderSummary();
+  } = summary;
   // Missing couponApplyBasis stays on the shipped net-applied path (COP-4815).
   const isGrossApplied = Boolean(hasAppliedCoupons) && couponApplyBasis === 'gross';
   if (!cart) {
@@ -110,78 +213,6 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   }
 
   const moneyCurrency = currency || cart.tax.currency;
-  const savingsBadge =
-    typeof savingsTotal === 'number' ? (
-      <div className="flex justify-end">
-        <div
-          className="rounded-sm bg-surface-success px-2 py-1 text-xs leading-5 text-text-body"
-          data-testid="checkout-yourSavings"
-        >
-          <span>{t('yourSavings')} </span>
-          <span className="font-bold">{formatCurrency(-Math.abs(savingsTotal), moneyCurrency)}</span>
-        </div>
-      </div>
-    ) : null;
-
-  let goodsTotals: React.ReactNode;
-  if (isGrossApplied) {
-    goodsTotals = (
-      <>
-        <div className="flex justify-between">
-          <span>{t('valueOfGoods')}</span>
-          <span>{formatCurrency(originalGoodsNet ?? goodsNet, moneyCurrency)}</span>
-        </div>
-        <div className="flex justify-between text-base">
-          <span>{tCommon('tax')}</span>
-          <span>{formatCurrency(originalGoodsVat ?? 0, moneyCurrency)}</span>
-        </div>
-        <div className="flex flex-col gap-2 border-t border-border-primary pt-4">
-          <div className="flex justify-between" data-testid="checkout-originalGrossValue">
-            <span>{t('originalGrossValue')}</span>
-            <span className="line-through">
-              {formatCurrency(originalGoodsGross ?? cart.tax.grossValue, moneyCurrency)}
-            </span>
-          </div>
-          {savingsBadge}
-          {typeof goodsDiscountedGross === 'number' ? (
-            <div className="flex justify-between" data-testid="checkout-grossValueOfGoods">
-              <span>{t('grossValueOfGoods')}</span>
-              <span className="font-bold">{formatCurrency(goodsDiscountedGross, moneyCurrency)}</span>
-            </div>
-          ) : null}
-        </div>
-      </>
-    );
-  } else if (hasAppliedCoupons) {
-    goodsTotals = (
-      <>
-        <div className="flex flex-col gap-2">
-          <div className="flex justify-between" data-testid="checkout-originalValueOfGoods">
-            <span>{t('originalValueOfGoods')}</span>
-            <span className="line-through">{formatCurrency(originalGoodsNet ?? goodsNet, moneyCurrency)}</span>
-          </div>
-          {savingsBadge}
-        </div>
-        <div className="flex justify-between border-t border-border-primary pt-4 text-base">
-          <span>{t('netValueOfGoods')}</span>
-          <span className="font-bold">{formatCurrency(goodsNet, moneyCurrency)}</span>
-        </div>
-      </>
-    );
-  } else {
-    goodsTotals = (
-      <>
-        <div className="flex justify-between">
-          <span className="">{t('valueOfGoods')}</span>
-          <span>{formatCurrency(cart.subTotalPrice.amount, cart.subTotalPrice.currency)}</span>
-        </div>
-        <div className="flex justify-between border-t border-border-primary pt-4 text-base">
-          <span>{t('netValueOfGoods')}</span>
-          <span className="font-bold">{formatCurrency(goodsNet, moneyCurrency)}</span>
-        </div>
-      </>
-    );
-  }
 
   return (
     <div className={cn('flex flex-col gap-4 w-full', isContainerBottom ? 'justify-end' : 'justify-start')}>
@@ -204,7 +235,14 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
           <CardContent className="bg-surface-page rounded-md p-4">
             <div className="space-y-4">
               {/* COP-5589: net-applied original/savings. COP-4815: after-tax stack is Jira AC — Figma 4517:46711 is net + separator only. */}
-              {goodsTotals}
+              <CheckoutGoodsTotals
+                breakdown={summary}
+                isGrossApplied={isGrossApplied}
+                moneyCurrency={moneyCurrency}
+                fallbackGross={cart.tax.grossValue}
+                idleGoodsAmount={cart.subTotalPrice.amount}
+                idleGoodsCurrency={cart.subTotalPrice.currency}
+              />
               <div className="flex flex-col gap-2">
                 {!isGrossApplied && (
                   <div className="flex justify-between text-base">
