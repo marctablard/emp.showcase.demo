@@ -7,6 +7,7 @@ import {
 } from '@/lib/common/cart-api-error-mapping';
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
+  CART_DISCOUNT_REASON,
   CartCurrencyUpdateError,
   CartDiscountError,
 } from '@/platform/services/cart/errors';
@@ -66,6 +67,35 @@ describe('cart-api-error-mapping', () => {
       expect(mapping.response.reason).toBe(CART_API_REASON.DISCOUNT_NOT_APPLICABLE);
       expect(mapping.response.error).toBe('Discount is not applicable');
       expect(mapping.logContext.upstreamStatus).toBe(400);
+    });
+
+    it.each([
+      [CART_DISCOUNT_REASON.CODE_NOT_FOUND, CART_API_REASON.COUPON_NOT_FOUND],
+      [CART_DISCOUNT_REASON.NOT_ACTIVE, CART_API_REASON.COUPON_NOT_ACTIVE],
+      [CART_DISCOUNT_REASON.ALREADY_APPLIED, CART_API_REASON.COUPON_ALREADY_APPLIED],
+      [CART_DISCOUNT_REASON.NOT_ELIGIBLE, CART_API_REASON.COUPON_NOT_ELIGIBLE],
+      [CART_DISCOUNT_REASON.NOT_APPLICABLE, CART_API_REASON.COUPON_NOT_APPLICABLE],
+    ])('maps classified coupon rejection %s to 400 %s', (reason, apiReason) => {
+      const mapping = mapCartDiscountApplyError(
+        new CartDiscountError('Failed to apply discount', { upstreamStatus: 400, reason }),
+      );
+
+      expect(mapping.status).toBe(400);
+      expect(mapping.response.reason).toBe(apiReason);
+      expect(mapping.logContext.reason).toBe(apiReason);
+    });
+
+    it('maps an already-applied rejection (upstream 409) to 400 coupon_already_applied', () => {
+      const mapping = mapCartDiscountApplyError(
+        new CartDiscountError('Failed to apply discount', {
+          upstreamStatus: 409,
+          reason: CART_DISCOUNT_REASON.ALREADY_APPLIED,
+        }),
+      );
+
+      expect(mapping.status).toBe(400);
+      expect(mapping.response.reason).toBe(CART_API_REASON.COUPON_ALREADY_APPLIED);
+      expect(mapping.logContext.upstreamStatus).toBe(409);
     });
 
     it('maps typed 401/403/404 discount errors to matching statuses', () => {

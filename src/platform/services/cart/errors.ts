@@ -34,15 +34,39 @@ export function isCartCurrencyUpdateError(error: unknown): error is CartCurrency
   );
 }
 
+/**
+ * Why the platform rejected a coupon, classified from the Coupon Service validation response.
+ * Drives a distinct shopper-facing message per class without leaking upstream text.
+ */
+export const CART_DISCOUNT_REASON = {
+  /** No coupon with this code exists. */
+  CODE_NOT_FOUND: 'CODE_NOT_FOUND',
+  /** The code exists but is not redeemable right now (expired). */
+  NOT_ACTIVE: 'NOT_ACTIVE',
+  /** The code is already on this cart. */
+  ALREADY_APPLIED: 'ALREADY_APPLIED',
+  /** The code exists but this customer (segment, allow-list, anonymous) may not redeem it. */
+  NOT_ELIGIBLE: 'NOT_ELIGIBLE',
+  /** The code exists and the customer may use it, but the cart does not satisfy its restrictions. */
+  NOT_APPLICABLE: 'NOT_APPLICABLE',
+} as const;
+
+export type CartDiscountReason = (typeof CART_DISCOUNT_REASON)[keyof typeof CART_DISCOUNT_REASON];
+
 export class CartDiscountError extends Error {
   public readonly upstreamStatus?: number;
   public readonly upstreamBody?: string;
+  public readonly reason?: CartDiscountReason;
 
-  constructor(message: string, details?: { upstreamStatus?: number; upstreamBody?: string }) {
+  constructor(
+    message: string,
+    details?: { upstreamStatus?: number; upstreamBody?: string; reason?: CartDiscountReason },
+  ) {
     super(message);
     this.name = 'CartDiscountError';
     this.upstreamStatus = details?.upstreamStatus;
     this.upstreamBody = details?.upstreamBody;
+    this.reason = details?.reason;
   }
 }
 

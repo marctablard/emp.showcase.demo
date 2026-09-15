@@ -1,6 +1,8 @@
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
+  CART_DISCOUNT_REASON,
   CartCurrencyUpdateError,
+  type CartDiscountReason,
   isCartDiscountError,
 } from '@/platform/services/cart/errors';
 
@@ -9,7 +11,18 @@ export const CART_API_REASON = {
   FORBIDDEN: 'forbidden',
   CONTEXT_MISMATCH: 'context_mismatch',
   UNSUPPORTED_CURRENCY: 'unsupported_currency',
+  /** Generic coupon rejection whose cause could not be classified. */
   DISCOUNT_NOT_APPLICABLE: 'discount_not_applicable',
+  /** Code exists and the customer may use it, but the cart fails its restrictions (threshold, currency, …). */
+  COUPON_NOT_APPLICABLE: 'coupon_not_applicable',
+  /** No coupon with this code exists (Coupon Service `resource_not_found`). */
+  COUPON_NOT_FOUND: 'coupon_not_found',
+  /** Code exists but is expired / not redeemable right now. */
+  COUPON_NOT_ACTIVE: 'coupon_not_active',
+  /** Code is already applied to this cart. */
+  COUPON_ALREADY_APPLIED: 'coupon_already_applied',
+  /** Code exists but this customer/segment may not redeem it. */
+  COUPON_NOT_ELIGIBLE: 'coupon_not_eligible',
   UNAUTHORIZED: 'unauthorized',
   UPSTREAM_FAILURE: 'upstream_failure',
 } as const;
@@ -118,6 +131,32 @@ export function mapCartCurrencyPutError(error: unknown): CartApiErrorMapping {
   };
 }
 
+type DiscountRejectionResponse = { error: string; reason: string };
+
+/** 400 bodies per classified coupon rejection; the shopper copy is chosen client-side from `reason`. */
+const DISCOUNT_REJECTION_RESPONSES: Record<CartDiscountReason, DiscountRejectionResponse> = {
+  [CART_DISCOUNT_REASON.CODE_NOT_FOUND]: { error: 'Coupon code not found', reason: CART_API_REASON.COUPON_NOT_FOUND },
+  [CART_DISCOUNT_REASON.NOT_ACTIVE]: { error: 'Coupon is not active', reason: CART_API_REASON.COUPON_NOT_ACTIVE },
+  [CART_DISCOUNT_REASON.ALREADY_APPLIED]: {
+    error: 'Coupon is already applied',
+    reason: CART_API_REASON.COUPON_ALREADY_APPLIED,
+  },
+  [CART_DISCOUNT_REASON.NOT_ELIGIBLE]: {
+    error: 'Coupon is not available for this customer',
+    reason: CART_API_REASON.COUPON_NOT_ELIGIBLE,
+  },
+  [CART_DISCOUNT_REASON.NOT_APPLICABLE]: {
+    error: 'Coupon does not apply to this cart',
+    reason: CART_API_REASON.COUPON_NOT_APPLICABLE,
+  },
+};
+
+/** Unclassified rejection (validation lookup failed or inconclusive): legacy generic reason. */
+const DEFAULT_DISCOUNT_REJECTION: DiscountRejectionResponse = {
+  error: 'Discount is not applicable',
+  reason: CART_API_REASON.DISCOUNT_NOT_APPLICABLE,
+};
+
 function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: string): CartApiErrorMapping {
   if (isCartDiscountError(error)) {
     if (error.upstreamStatus === 401) {
@@ -168,11 +207,12 @@ function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: st
       };
     }
 
+    const rejection = error.reason ? DISCOUNT_REJECTION_RESPONSES[error.reason] : DEFAULT_DISCOUNT_REJECTION;
     return {
       status: 400,
-      response: { error: 'Discount is not applicable', reason: CART_API_REASON.DISCOUNT_NOT_APPLICABLE },
+      response: rejection,
       logContext: {
-        reason: CART_API_REASON.DISCOUNT_NOT_APPLICABLE,
+        reason: rejection.reason,
         upstreamStatus: error.upstreamStatus,
         upstreamBody: error.upstreamBody,
       },

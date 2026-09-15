@@ -179,6 +179,7 @@ describe('EmporixCartMapper', () => {
         discountIndex: 0,
         amount: 11.22,
         currency: 'EUR',
+        type: 'PERCENT',
       },
     ]);
   });
@@ -212,6 +213,7 @@ describe('EmporixCartMapper', () => {
         discountIndex: 1,
         amount: 11.22,
         currency: 'EUR',
+        type: 'PERCENT',
       },
     ]);
   });
@@ -226,6 +228,7 @@ describe('EmporixCartMapper', () => {
         discountIndex: 0,
         amount: 11.22,
         currency: 'EUR',
+        type: 'PERCENT',
       },
     ]);
     expect(mapped.savingsTotal).toBe(11.22);
@@ -329,6 +332,105 @@ describe('EmporixCartMapper', () => {
     expect(mapped.shippingCosts?.amount).toBe(6.355);
     expect(mapped.shippingCosts?.tax?.amount).toBe(0.445);
     expect(mapped.shippingCosts?.tax?.grossValue).toBe(6.8);
+  });
+
+  it('does not flag freeShipping for a regular cart', () => {
+    expect(mapper.mapToService(showcaseDevCart()).freeShipping).toBeUndefined();
+  });
+
+  it('flags freeShipping from a FREE_SHIPPING applied discount', () => {
+    const mapped = mapper.mapToService(
+      showcaseDevCart({
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 4.95,
+          appliedDiscounts: [{ id: 'FREESHIP', value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+      }),
+    );
+
+    expect(mapped.freeShipping).toBe(true);
+  });
+
+  it('types a free-shipping chip from the shipping applied discounts', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        shipping: {
+          netValue: 4.95,
+          grossValue: 4.95,
+          taxValue: 0,
+          taxCode: 'ZERO',
+          taxRate: 0,
+          appliedDiscounts: [{ id: 'VKTEST-PROMO03', value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+        totalShipping: { netValue: 0, grossValue: 0, taxValue: 0, taxCode: 'ZERO', taxRate: 0 },
+      }),
+      discounts: [{ code: 'VKTEST-PROMO03', name: 'Free shipping over 100', discountIndex: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.freeShipping).toBe(true);
+    expect(mapped.discounts).toEqual([
+      {
+        code: 'VKTEST-PROMO03',
+        name: 'Free shipping over 100',
+        discountIndex: 0,
+        amount: 4.95,
+        currency: 'EUR',
+        type: 'FREE_SHIPPING',
+      },
+    ]);
+  });
+
+  it('types a chip from totalShipping applied discounts and leaves unmatched chips untyped', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalShipping: {
+          netValue: 0,
+          grossValue: 0,
+          taxValue: 0,
+          taxCode: 'ZERO',
+          taxRate: 0,
+          appliedDiscounts: [{ id: 'SHIPFREE', value: 6.8, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+      }),
+      discounts: [
+        { code: 'SHIPFREE', discountIndex: 0, valid: true },
+        { code: 'UNMATCHED', discountIndex: 1, amount: 3, valid: true },
+      ],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toMatchObject({ code: 'SHIPFREE', amount: 6.8, type: 'FREE_SHIPPING' });
+    expect(mapped.discounts?.[1]).toEqual({
+      code: 'UNMATCHED',
+      name: undefined,
+      discountIndex: 1,
+      amount: 3,
+      currency: 'EUR',
+    });
+    expect(mapped.discounts?.[1]).not.toHaveProperty('type');
+  });
+
+  it('flags freeShipping when totalShipping is zeroed against a non-zero pre-discount shipping', () => {
+    const mapped = mapper.mapToService(
+      showcaseDevCart({
+        shipping: { netValue: 4.95, grossValue: 4.95, taxValue: 0, taxCode: 'ZERO', taxRate: 0 },
+        totalShipping: { netValue: 0, grossValue: 0, taxValue: 0, taxCode: 'ZERO', taxRate: 0 },
+      }),
+    );
+
+    expect(mapped.freeShipping).toBe(true);
+    expect(mapped.shippingCosts?.amount).toBe(0);
+  });
+
+  it('does not flag freeShipping when shipping is simply zero everywhere', () => {
+    const mapped = mapper.mapToService(
+      showcaseDevCart({
+        shipping: { netValue: 0, grossValue: 0, taxValue: 0, taxCode: 'ZERO', taxRate: 0 },
+        totalShipping: { netValue: 0, grossValue: 0, taxValue: 0, taxCode: 'ZERO', taxRate: 0 },
+      }),
+    );
+
+    expect(mapped.freeShipping).toBeUndefined();
   });
 
   it('falls back to shipping when totalShipping is absent', () => {

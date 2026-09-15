@@ -112,6 +112,32 @@ describe('useCheckoutPromoCode', () => {
     expect(mockApplyDiscount).toHaveBeenCalledWith('INACTIVE');
   });
 
+  it.each([
+    ['coupon_not_found', FIGMA_PROMO_ERROR],
+    ['coupon_not_active', FIGMA_PROMO_ERROR],
+    ['coupon_not_eligible', 'promoCodeNotEligible'],
+    ['coupon_not_applicable', 'promoCodeNotApplicable'],
+    ['coupon_already_applied', 'promoCodeAlreadyApplied'],
+    ['discount_not_applicable', FIGMA_PROMO_ERROR],
+    ['some_future_reason', FIGMA_PROMO_ERROR],
+  ])('picks the copy for API reason %s', async (reason, expectedMessage) => {
+    const err: Error & { reason?: string; status?: number } = new Error('Discount is not applicable');
+    err.reason = reason;
+    err.status = 400;
+    mockApplyDiscount.mockRejectedValue(err);
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('VKTEST-PROMO03');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.fieldError).toBe(expectedMessage);
+  });
+
   it('maps cannot apply twice (already exists on cart) to the generic Figma error', async () => {
     mockApplyDiscount.mockRejectedValue(new Error('Coupon already exists on this cart'));
 

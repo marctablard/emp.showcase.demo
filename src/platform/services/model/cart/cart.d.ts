@@ -3,12 +3,16 @@ import { Product } from '../product';
 
 export type TotalDiscountCalculationType = 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
 
+export type CartAppliedDiscountType = 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+
 export interface CartAppliedDiscount {
   code: string;
   name?: string;
   discountIndex: number;
   amount: number;
   currency: string;
+  /** Coupon type from the calculated price; `FREE_SHIPPING` chips carry no goods amount. */
+  type?: CartAppliedDiscountType;
 }
 
 export interface Cart {
@@ -32,6 +36,12 @@ export interface Cart {
   goodsDiscountedNet?: number;
   goodsDiscountedVat?: number;
   goodsDiscountedGross?: number;
+  /**
+   * An applied coupon waives shipping (`FREE_SHIPPING` applied discount, or
+   * `totalShipping` zeroed against a non-zero pre-discount `shipping`). `shippingCosts`
+   * is then the discounted (zero) shipping — see COP-5589 QA follow-up.
+   */
+  freeShipping?: boolean;
 }
 
 export interface CartItem {

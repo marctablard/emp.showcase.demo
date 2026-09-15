@@ -25,37 +25,70 @@ function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: '
   };
 }
 
-function findAppliedDiscountValue(
+function findAppliedDiscount(
   appliedDiscounts: EmporixCalculatedAppliedDiscount[],
   discount: EmporixCartDiscount,
-): number | undefined {
-  return appliedDiscounts.find((applied) => applied.id === discount.code || applied.id === discount.id)?.value;
+): EmporixCalculatedAppliedDiscount | undefined {
+  return appliedDiscounts.find((applied) => applied.id === discount.code || applied.id === discount.id);
+}
+
+/** Every applied-discount list on the calculated price; free-shipping coupons live on the shipping ones. */
+function allAppliedDiscounts(calculatedPrice: EmporixCart['calculatedPrice']): EmporixCalculatedAppliedDiscount[] {
+  return [
+    ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
+    ...(calculatedPrice?.shipping?.appliedDiscounts ?? []),
+    ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
+  ];
 }
 
 function mapCartDiscounts(
   sourceDiscounts: EmporixCartDiscount[] | undefined,
-  appliedDiscounts: EmporixCalculatedAppliedDiscount[] | undefined,
+  appliedDiscounts: EmporixCalculatedAppliedDiscount[],
   currency: string,
 ): CartAppliedDiscount[] | undefined {
   if (!sourceDiscounts || sourceDiscounts.length === 0) {
     return undefined;
   }
-  const applied = appliedDiscounts ?? [];
   const mapped = sourceDiscounts.flatMap((discount, arrayIndex) => {
     if (discount.valid === false) {
       return [];
     }
+    const applied = findAppliedDiscount(appliedDiscounts, discount);
     return [
       {
         code: discount.code,
         name: discount.name,
         discountIndex: discount.discountIndex ?? arrayIndex,
-        amount: findAppliedDiscountValue(applied, discount) ?? discount.amount ?? 0,
+        amount: applied?.value ?? discount.amount ?? 0,
         currency: discount.currency ?? currency,
+        ...(applied?.discountType ? { type: applied.discountType } : {}),
       },
     ];
   });
   return mapped.length > 0 ? mapped : undefined;
+}
+
+function hasFreeShippingDiscount(applied: EmporixCalculatedAppliedDiscount[] | undefined): boolean {
+  return (applied ?? []).some((discount) => discount.discountType === 'FREE_SHIPPING');
+}
+
+/**
+ * True when a coupon waives shipping: a `FREE_SHIPPING` applied discount anywhere on the
+ * calculated price, or `totalShipping` zeroed while the pre-discount `shipping` is non-zero.
+ */
+function isShippingWaived(calculatedPrice: EmporixCart['calculatedPrice']): boolean {
+  if (!calculatedPrice) {
+    return false;
+  }
+  const { totalDiscount, shipping, totalShipping } = calculatedPrice;
+  if (
+    hasFreeShippingDiscount(totalDiscount?.appliedDiscounts) ||
+    hasFreeShippingDiscount(shipping?.appliedDiscounts) ||
+    hasFreeShippingDiscount(totalShipping?.appliedDiscounts)
+  ) {
+    return true;
+  }
+  return totalShipping !== undefined && totalShipping.grossValue === 0 && (shipping?.grossValue ?? 0) > 0;
 }
 
 /**
@@ -110,7 +143,11 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     }
     const totalDiscount = emporixCart.calculatedPrice?.totalDiscount;
     const discountedPrice = emporixCart.calculatedPrice?.discountedPrice;
-    const discounts = mapCartDiscounts(emporixCart.discounts, totalDiscount?.appliedDiscounts, currency);
+    const discounts = mapCartDiscounts(
+      emporixCart.discounts,
+      allAppliedDiscounts(emporixCart.calculatedPrice),
+      currency,
+    );
     return {
       id: emporixCart.id,
       customerId: emporixCart.customerId,
@@ -140,6 +177,7 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
             goodsDiscountedGross: discountedPrice.grossValue,
           }
         : {}),
+      ...(isShippingWaived(emporixCart.calculatedPrice) ? { freeShipping: true } : {}),
     };
   }
 

@@ -2,8 +2,9 @@ import { Container } from 'inversify';
 import 'reflect-metadata';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
+import type { EmporixCouponApi } from '@/platform/integrations/emporix/coupon/EmporixCouponApi';
 import type { EmporixCart } from '@/platform/integrations/emporix/model/cart';
-import { CartCurrencyUpdateError, CartDiscountError } from '@/platform/services/cart/errors';
+import { CART_DISCOUNT_REASON, CartCurrencyUpdateError, CartDiscountError } from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CartMapper } from '@/platform/services/model/cart/CartMapper';
 import type { Cart } from '@/platform/services/model/cart/cart';
@@ -45,6 +46,7 @@ describe('EmporixCartService', () => {
   let mockCommonUtil: jest.Mocked<Pick<EmporixCommonUtil, 'generateProductYrn'>>;
   let mockMapper: jest.Mocked<Pick<CartMapper<EmporixCart, unknown>, 'mapToService'>>;
   let mockShippingService: jest.Mocked<Pick<ShippingService, 'getDeliveryWindowsForCart'>>;
+  let mockCouponApi: jest.Mocked<EmporixCouponApi>;
 
   // Minimal stubs for unused dependencies
   const noop = {} as Record<string, jest.Mock>;
@@ -119,6 +121,11 @@ describe('EmporixCartService', () => {
       getDeliveryWindowsForCart: jest.fn().mockResolvedValue([]),
     };
 
+    mockCouponApi = {
+      validateCoupon: jest.fn().mockResolvedValue({ ok: true }),
+    };
+
+    container.bind('EmporixCouponApi').toConstantValue(mockCouponApi);
     container.bind('EmporixCommonUtil').toConstantValue(mockCommonUtil);
     container.bind('EmporixCartApi').toConstantValue(mockCartApi);
     container.bind('EmporixCartMapper').toConstantValue(mockMapper);
@@ -692,6 +699,193 @@ describe('EmporixCartService', () => {
         }),
       );
       expect(mockCartApi.getCart).toHaveBeenCalledTimes(1);
+    });
+
+    describe('rejection classification via coupon validation', () => {
+      const cartRejection = new Error(
+        'Failed to apply discount to cart: 400 Bad Request {"code":400,"message":"Discount with code X is not valid"}',
+      );
+
+      beforeEach(() => {
+        mockCartApi.getCart.mockResolvedValue(rawCart);
+        mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+        mockCartApi.applyDiscount.mockRejectedValue(cartRejection);
+      });
+
+      it('asks the coupon service with the cart goods total and the cart legal entity', async () => {
+        mockSessionService.getCurrent.mockResolvedValue({
+          id: 'session-1',
+          customerId: 'cust-1',
+          currency: 'EUR',
+          siteCode: 'main',
+          legalEntityId: 'le-1',
+          cartId: 'cart-1',
+        });
+        mockCartApi.getCart.mockResolvedValue({ ...rawCart, legalEntityId: 'le-1' });
+        mockMapper.mapToService.mockReturnValue({ ...mappedCartWithDiscount, legalEntity: 'le-1' });
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ name: 'CartDiscountError', reason: CART_DISCOUNT_REASON.NOT_APPLICABLE }),
+        );
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+          legalEntityId: 'le-1',
+        });
+      });
+
+      it('omits legalEntityId for carts without a legal entity', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toBeDefined();
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+        });
+      });
+
+      it('classifies re-applying a code already on the cart (cart-service 409) as ALREADY_APPLIED without a lookup', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error('Failed to apply discount to cart: 409 Conflict {"status":409,"message":"already applied"}'),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 409 }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('classifies a cart-service 409 as ALREADY_APPLIED even when the mapped cart no longer lists the code', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error('Failed to apply discount to cart: 409 Conflict {"status":409,"message":"already applied"}'),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'NOT-ON-MAPPED-CART')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 409 }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('classifies a 400 for a code already on the cart as ALREADY_APPLIED without a lookup', async () => {
+        await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 400 }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('does not label a 5xx for a code already on the cart as ALREADY_APPLIED', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error('Failed to apply discount to cart: 503 Service Unavailable {"status":503}'),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+          expect.objectContaining({ upstreamStatus: 503, reason: undefined }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('classifies an expired code as NOT_ACTIVE', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status: 400,
+          type: 'business_error',
+          detailTypes: ['coupon_expired'],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'OLDCODE')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_ACTIVE }),
+        );
+      });
+
+      it.each([
+        ['401 without a body', { ok: false as const, status: 401, detailTypes: [] }],
+        ['non-business 403', { ok: false as const, status: 403, type: 'Forbidden', detailTypes: [] }],
+      ])('keeps the original error when the validation answer is inconclusive (%s)', async (_label, outcome) => {
+        mockCouponApi.validateCoupon.mockResolvedValue(outcome);
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ name: 'CartDiscountError', upstreamStatus: 400, reason: undefined }),
+        );
+      });
+
+      it('classifies an unknown code as CODE_NOT_FOUND', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status: 404,
+          type: 'resource_not_found',
+          detailTypes: [],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'NOPE')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.CODE_NOT_FOUND, upstreamStatus: 400 }),
+        );
+      });
+
+      it.each([
+        ['coupon_segment_customer_not_assigned', 400],
+        ['coupon_redemption_forbidden', 403],
+      ])('classifies %s as NOT_ELIGIBLE', async (detailType, status) => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status,
+          type: 'business_error',
+          detailTypes: [detailType],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'VKTEST-PROMO03')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_ELIGIBLE }),
+        );
+      });
+
+      it('classifies a 403 business error with an unknown detail type as NOT_ELIGIBLE', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status: 403,
+          type: 'business_error',
+          detailTypes: ['coupon_customer_not_allowed'],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'ALLOWLIST')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_ELIGIBLE }),
+        );
+      });
+
+      it('classifies any other business rejection (threshold, currency, dates) as NOT_APPLICABLE', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status: 400,
+          type: 'business_error',
+          detailTypes: ['coupon_order_total_too_low'],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'MINORDER')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_APPLICABLE }),
+        );
+      });
+
+      it('keeps the original error without a reason when the validation lookup itself fails', async () => {
+        mockCouponApi.validateCoupon.mockRejectedValue(new Error('Failed to validate coupon: 503'));
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ name: 'CartDiscountError', upstreamStatus: 400, reason: undefined }),
+        );
+        expect(mockLogger.warn).toHaveBeenCalled();
+      });
+
+      it.each([
+        ['401 Unauthorized', 401],
+        ['403 Forbidden', 403],
+        ['404 Not Found', 404],
+        ['503 Service Unavailable', 503],
+      ])('does not consult the coupon service for a cart-service %s', async (statusText, status) => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(`Failed to apply discount to cart: ${statusText} {"status":${status}}`),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ upstreamStatus: status, reason: undefined }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
     });
 
     it('does not apply when the cart is missing', async () => {

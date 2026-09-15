@@ -5,6 +5,10 @@ import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
+import type {
+  EmporixCouponApi,
+  EmporixCouponValidationOutcome,
+} from '@/platform/integrations/emporix/coupon/EmporixCouponApi';
 import type { EmporixAddCartItemRequest, EmporixUpdateCartItemRequest } from '@/platform/integrations/emporix/model';
 import type { EmporixCart, EmporixCartAddress, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
 import type {
@@ -17,8 +21,10 @@ import type {
 } from '@/platform/services/cart/CartService';
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
+  CART_DISCOUNT_REASON,
   CartCurrencyUpdateError,
   CartDiscountError,
+  type CartDiscountReason,
   extractUpstreamBody,
   extractUpstreamStatus,
   isCartDiscountError,
@@ -35,6 +41,50 @@ import type { Media, Paginated, PaginationQuery } from '../../model/common';
 import type { SessionService } from '../../session/SessionService';
 import type { ShippingService } from '../../shipping/ShippingService';
 import type { SiteService } from '../../site/SiteService';
+
+/** Coupon Service `details[].type` values that mean "this customer may not use the code". */
+const COUPON_ELIGIBILITY_DETAIL_TYPES: ReadonlySet<string> = new Set([
+  'coupon_segment_customer_not_assigned',
+  'coupon_redemption_forbidden',
+]);
+
+/** Coupon Service `details[].type` values that mean "the code is not redeemable right now". */
+const COUPON_NOT_ACTIVE_DETAIL_TYPES: ReadonlySet<string> = new Set(['coupon_expired']);
+
+/**
+ * Maps a Coupon Service validation outcome onto the shopper-facing reason classes.
+ * Observed on the tenant: `resource_not_found` (404) for unknown codes; `business_error` with
+ * `coupon_segment_customer_not_assigned` (400) / `coupon_redemption_forbidden` (403) for
+ * eligibility, `coupon_expired` (400) for inactive codes and e.g.
+ * `coupon_discount_currency_incorrect` (400) for cart restrictions. The detail types are not
+ * enumerated in the docs, so any other `business_error` on a 403 is still treated as an
+ * eligibility refusal (the customer may not redeem it), while every other `business_error`
+ * (threshold, dates, categories) is "not applicable to this cart", as is a passing validation
+ * (the cart-level check failed for a reason the coupon service does not see).
+ * Anything else — auth/scope failures such as a 401 or a non-business 403 — is inconclusive
+ * and returns `undefined` so the caller keeps the generic copy.
+ */
+export function classifyCouponRejection(outcome: EmporixCouponValidationOutcome): CartDiscountReason | undefined {
+  if (outcome.ok) {
+    return CART_DISCOUNT_REASON.NOT_APPLICABLE;
+  }
+  if (outcome.status === 404 || outcome.type === 'resource_not_found') {
+    return CART_DISCOUNT_REASON.CODE_NOT_FOUND;
+  }
+  if (outcome.detailTypes.some((type) => COUPON_ELIGIBILITY_DETAIL_TYPES.has(type))) {
+    return CART_DISCOUNT_REASON.NOT_ELIGIBLE;
+  }
+  if (outcome.detailTypes.some((type) => COUPON_NOT_ACTIVE_DETAIL_TYPES.has(type))) {
+    return CART_DISCOUNT_REASON.NOT_ACTIVE;
+  }
+  if (outcome.status === 403 && outcome.type === 'business_error') {
+    return CART_DISCOUNT_REASON.NOT_ELIGIBLE;
+  }
+  if (outcome.type === 'business_error') {
+    return CART_DISCOUNT_REASON.NOT_APPLICABLE;
+  }
+  return undefined;
+}
 
 /**
  * Implementation of CartService for Emporix cart data.
@@ -53,6 +103,7 @@ class EmporixCartService implements CartService {
     @inject('LoggerService') private logger: LoggerService,
     @inject('SiteService') private siteService: SiteService,
     @inject('ShippingService') private readonly shippingService: ShippingService,
+    @inject('EmporixCouponApi') private readonly couponApi: EmporixCouponApi,
   ) {}
 
   private normalizeLegalEntityId(value: string | undefined): string {
@@ -761,12 +812,13 @@ class EmporixCartService implements CartService {
       throw new CartDiscountError('Coupon code is required');
     }
 
-    await this.requireSessionCart(cartId);
+    const cartBeforeApply = await this.requireSessionCart(cartId);
 
     try {
       await this.cartApi.applyDiscount(cartId, trimmedCode);
     } catch (error) {
-      throw this.mapCartDiscountError(error, 'Failed to apply discount');
+      const mapped = this.mapCartDiscountError(error, 'Failed to apply discount');
+      throw await this.withDiscountRejectionReason(mapped, trimmedCode, cartBeforeApply);
     }
 
     let cart = await this.requireSessionCart(cartId);
@@ -796,6 +848,57 @@ class EmporixCartService implements CartService {
       throw new CartDiscountError('Cart not found');
     }
     return cart;
+  }
+
+  /**
+   * The Cart Service answers every coupon rejection with the same generic 400, so on that 400
+   * the Coupon Service validation is asked once for the typed reason (COP-5589 QA: "not an
+   * active promo code" was shown for segment, threshold and currency rejections alike).
+   * Re-applying a code already on the cart is a 409 Conflict and needs no lookup (mapped by
+   * status, since the mapper drops `valid: false` chips from `cart.discounts`). Other 4xx
+   * (401/403/404) are cart-context failures mapped by status, not coupon rejections.
+   * Classification is best-effort — any failure or inconclusive answer keeps the original error.
+   */
+  private async withDiscountRejectionReason(
+    error: CartDiscountError,
+    code: string,
+    cart: Cart,
+  ): Promise<CartDiscountError> {
+    if (error.reason) {
+      return error;
+    }
+    if (error.upstreamStatus === 409) {
+      return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
+    }
+    if (error.upstreamStatus !== 400) {
+      return error;
+    }
+    if (cart.discounts?.some((discount) => discount.code === code)) {
+      return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
+    }
+    try {
+      const outcome = await this.couponApi.validateCoupon(code, {
+        orderTotal: { amount: cart.subTotalPrice.amount, currency: cart.currency },
+        ...(cart.legalEntity ? { legalEntityId: cart.legalEntity } : {}),
+      });
+      const reason = classifyCouponRejection(outcome);
+      this.logger.info(
+        { cartId: cart.id, reason, validation: outcome },
+        'Coupon rejected by cart service; classified via coupon validation',
+      );
+      return reason ? this.withReason(error, reason) : error;
+    } catch (validationError) {
+      this.logger.warn({ err: validationError, cartId: cart.id }, 'Coupon validation lookup failed after rejection');
+      return error;
+    }
+  }
+
+  private withReason(error: CartDiscountError, reason: CartDiscountReason): CartDiscountError {
+    return new CartDiscountError(error.message, {
+      upstreamStatus: error.upstreamStatus,
+      upstreamBody: error.upstreamBody,
+      reason,
+    });
   }
 
   async getSavedCarts(pagination: PaginationQuery): Promise<Paginated<Cart>> {

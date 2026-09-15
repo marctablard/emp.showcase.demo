@@ -26,6 +26,8 @@ function AppliedPromoChip({
   onRemove: (discountIndex: number) => void;
   removeLabel: string;
 }>) {
+  // A free-shipping coupon has no goods amount — the name takes the whole line (COP-4815 QA follow-up).
+  const showAmount = discount.type !== 'FREE_SHIPPING';
   return (
     <div className="flex w-full flex-col gap-0.5" data-testid={`checkout-appliedPromo-${discount.code}`}>
       <div className="flex items-center gap-1">
@@ -42,10 +44,14 @@ function AppliedPromoChip({
           <X className="size-[18px]" aria-hidden />
         </button>
       </div>
-      {(discount.name || typeof discount.amount === 'number') && (
+      {(Boolean(discount.name) || showAmount) && (
         <div className="flex items-start justify-between gap-2 text-xs leading-5 text-text-body">
           {discount.name ? <p className="min-w-0 font-bold">{discount.name}</p> : <span />}
-          <p className="shrink-0 text-right font-bold">{formatSignedAmount(discount.amount, discount.currency)}</p>
+          {showAmount ? (
+            <p className="shrink-0 text-right font-bold" data-testid={`checkout-appliedPromoAmount-${discount.code}`}>
+              {formatSignedAmount(discount.amount, discount.currency)}
+            </p>
+          ) : null}
         </div>
       )}
     </div>
@@ -73,7 +79,8 @@ export function CheckoutPromoCodeBox() {
           className="flex h-12 w-full items-stretch"
           onSubmit={(event) => {
             event.preventDefault();
-            void apply();
+            // `apply` surfaces failures through `fieldError`; nothing left to handle here.
+            apply().catch(() => undefined);
           }}
         >
           {/* Figma 4452:97361 Field–Button: 306×48 + 91×48 with 1px overlap → 396×48. */}

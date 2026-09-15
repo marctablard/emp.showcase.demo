@@ -18,6 +18,13 @@ export type CheckoutOrderSummaryBreakdown = {
   originalGoodsGross?: number;
   savingsTotal?: number;
   goodsDiscountedGross?: number;
+  /**
+   * Whether the applied coupons actually lowered the goods value. False for a free-shipping-only
+   * coupon, so the summary must not strike through an unchanged goods figure (COP-5589 QA).
+   */
+  goodsDiscounted?: boolean;
+  /** A coupon waives shipping: `shippingFee` is the picked method's list fee to strike through. */
+  shippingFree?: boolean;
 };
 
 function round2(value: number): number {
@@ -83,6 +90,10 @@ function cartHasAppliedCoupons(cart: Cart | null | undefined): boolean {
   return typeof cart.savingsTotal === 'number' && cart.savingsTotal > 0;
 }
 
+function isLowerThan(candidate: number | undefined, reference: number): boolean {
+  return typeof candidate === 'number' && reference - candidate >= 0.005;
+}
+
 function appliedCouponBreakdownFields(
   cart: Cart | null | undefined,
   originalGoodsNet: number,
@@ -95,17 +106,23 @@ function appliedCouponBreakdownFields(
   | 'originalGoodsGross'
   | 'savingsTotal'
   | 'goodsDiscountedGross'
+  | 'goodsDiscounted'
+  | 'shippingFree'
 > {
   const savingsFields = typeof cart?.savingsTotal === 'number' ? { savingsTotal: cart.savingsTotal } : {};
+  const shippingFields = cart?.freeShipping ? { shippingFree: true } : {};
 
   if (cart?.totalDiscountCalculationType === 'ApplyDiscountAfterTax') {
+    const originalGoodsGross = cart.tax?.grossValue ?? 0;
     return {
       hasAppliedCoupons: true,
       couponApplyBasis: 'gross',
       originalGoodsNet,
       originalGoodsVat: cart.tax?.amount ?? 0,
-      originalGoodsGross: cart.tax?.grossValue ?? 0,
+      originalGoodsGross,
+      goodsDiscounted: isLowerThan(cart.goodsDiscountedGross, originalGoodsGross),
       ...savingsFields,
+      ...shippingFields,
       ...(typeof cart.goodsDiscountedGross === 'number' ? { goodsDiscountedGross: cart.goodsDiscountedGross } : {}),
     };
   }
@@ -114,7 +131,9 @@ function appliedCouponBreakdownFields(
     hasAppliedCoupons: true,
     couponApplyBasis: 'net',
     originalGoodsNet,
+    goodsDiscounted: isLowerThan(cart?.goodsDiscountedNet, originalGoodsNet),
     ...savingsFields,
+    ...shippingFields,
   };
 }
 
@@ -166,6 +185,19 @@ export function buildCheckoutOrderSummaryFromCart(
       shippingVat: 0,
       showShippingVat: false,
       total: round2((cart.totalPrice?.amount ?? 0) - cartShippingGross),
+    };
+  }
+
+  // Free-shipping coupon: the cart already carries zero shipping in `totalPrice`. Show the
+  // picked method's list fee (struck through in the UI) but do not add it back to the total.
+  if (fromCart.shippingFree) {
+    return {
+      ...fromCart,
+      shippingFee: selectedShipping.amount,
+      shippingVat: 0,
+      showShippingVat: false,
+      shippingVatLookupFailed: false,
+      total: round2((cart.totalPrice?.amount ?? 0) - mappedCartShippingGross(cart)),
     };
   }
 

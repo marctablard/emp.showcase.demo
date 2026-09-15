@@ -375,6 +375,101 @@ describe('CheckoutSummaryComponent', () => {
     expect(screen.queryByTestId('checkout-grossValueOfGoods')).not.toBeInTheDocument();
   });
 
+  it('free-shipping coupon: keeps plain goods rows, strikes the shipping fee and appends Free', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        couponApplyBasis: 'net',
+        originalGoodsNet: 100,
+        goodsDiscounted: false,
+        shippingFree: true,
+        savingsTotal: 20,
+        goodsNet: 100,
+        shippingFee: 20,
+        shippingVat: 0,
+        showShippingVat: false,
+        total: 107.7,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.getByText('valueOfGoods').nextElementSibling).toHaveTextContent(money(107.7));
+    expect(screen.queryByTestId('checkout-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-originalGrossValue')).not.toBeInTheDocument();
+    // COP-4815 QA: no "Your savings" on the goods block even though the platform reports the waived fee.
+    expect(screen.queryByTestId('checkout-yourSavings')).not.toBeInTheDocument();
+    const shippingFree = screen.getByTestId('checkout-shippingFree');
+    expect(shippingFree.querySelector('.line-through')).toHaveTextContent(money(20));
+    expect(shippingFree).toHaveTextContent('free');
+    expect(screen.getByTestId('checkout-summary-total')).toHaveTextContent(money(107.7));
+  });
+
+  it('free-shipping coupon on an after-tax cart does not render the gross stack', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        couponApplyBasis: 'gross',
+        originalGoodsNet: 100,
+        originalGoodsVat: 7.7,
+        originalGoodsGross: 107.7,
+        goodsDiscounted: false,
+        shippingFree: true,
+        savingsTotal: 0,
+        goodsNet: 100,
+        goodsVat: 7.7,
+        shippingFee: 20,
+        total: 107.7,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.queryByTestId('checkout-originalGrossValue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-yourSavings')).not.toBeInTheDocument();
+    expect(screen.getByText('netValueOfGoods').nextElementSibling).toHaveTextContent(money(100));
+    expect(screen.getByText('tax').nextElementSibling).toHaveTextContent(money(7.7));
+    expect(screen.getByTestId('checkout-shippingFree')).toBeInTheDocument();
+  });
+
+  it('keeps Your savings for a goods coupon that reports a saving without discounted figures', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        originalGoodsNet: 100,
+        goodsDiscounted: false,
+        savingsTotal: 6.92,
+        goodsNet: 100,
+        total: 129.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.getByText('valueOfGoods')).toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent(money(6.92));
+    expect(screen.queryByTestId('checkout-shippingFree')).not.toBeInTheDocument();
+  });
+
+  it('does not strike the shipping fee for a goods-only coupon', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        originalGoodsNet: 100,
+        goodsDiscounted: true,
+        savingsTotal: 10,
+        goodsNet: 90,
+        total: 119.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.queryByTestId('checkout-shippingFree')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-originalValueOfGoods')).toBeInTheDocument();
+  });
+
   it('removing the last code restores the no-coupon Value of goods row', () => {
     mockUseCheckoutPromoCode.mockReturnValue({
       code: '',

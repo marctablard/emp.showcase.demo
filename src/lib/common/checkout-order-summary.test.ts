@@ -281,6 +281,54 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     expect(breakdown.savingsTotal).toBe(11.22);
   });
 
+  it('flags goodsDiscounted for a goods coupon and leaves shippingFree unset', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart({
+      ...cart,
+      discounts: [{ code: 'LS10PTOTAL', discountIndex: 0, amount: 11.22, currency: 'EUR' }],
+      savingsTotal: 11.22,
+      totalDiscountCalculationType: 'ApplyDiscountBeforeTax',
+      goodsDiscountedNet: 57.93,
+      goodsDiscountedVat: 11.01,
+    });
+
+    expect(breakdown.goodsDiscounted).toBe(true);
+    expect(breakdown.shippingFree).toBeUndefined();
+  });
+
+  it('free-shipping coupon: goods untouched, picked fee shown for strike-through, total not inflated', () => {
+    const freeShippingCart: Cart = {
+      ...cart,
+      discounts: [{ code: 'FREESHIP', discountIndex: 0, amount: 4.95, currency: 'EUR' }],
+      savingsTotal: 4.95,
+      totalDiscountCalculationType: 'ApplyDiscountBeforeTax',
+      goodsDiscountedNet: 69.15,
+      goodsDiscountedVat: 13.14,
+      freeShipping: true,
+      // Emporix zeroes totalShipping; finalPrice already excludes shipping.
+      shippingCosts: {
+        amount: 0,
+        currency: 'EUR',
+        tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0, taxCode: 'ZERO', taxRate: 0 },
+      },
+      totalPrice: { amount: 82.29, currency: 'EUR' },
+    };
+
+    const picked = buildCheckoutOrderSummaryFromCart(freeShippingCart, { amount: 4.95 });
+    expect(picked.hasAppliedCoupons).toBe(true);
+    expect(picked.goodsDiscounted).toBe(false);
+    expect(picked.shippingFree).toBe(true);
+    expect(picked.goodsNet).toBe(69.15);
+    expect(picked.shippingFee).toBe(4.95);
+    expect(picked.shippingVat).toBe(0);
+    expect(picked.showShippingVat).toBe(false);
+    expect(picked.total).toBe(82.29);
+
+    const unpicked = buildCheckoutOrderSummaryFromCart(freeShippingCart);
+    expect(unpicked.shippingFree).toBe(true);
+    expect(unpicked.shippingFee).toBeUndefined();
+    expect(unpicked.total).toBe(82.29);
+  });
+
   it('exposes a gross-applied stack when totalDiscountCalculationType is ApplyDiscountAfterTax', () => {
     const tax = { amount: 15.66, netValue: 82.45, grossValue: 98.11, currency: 'EUR' };
     const breakdown = buildCheckoutOrderSummaryFromCart({
