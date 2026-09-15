@@ -57,20 +57,38 @@ describe('POST /api/cart/[id]/discounts', () => {
     });
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: 'Authentication required' });
+    await expect(response.json()).resolves.toEqual({ error: 'Session not found' });
     expect(cartService.applyDiscount).not.toHaveBeenCalled();
   });
 
-  it('returns 401 for an anonymous session', async () => {
+  it('lets an anonymous session apply a coupon (allowAnonymous is decided platform-side)', async () => {
+    const cart = { id: 'cart-1', discounts: [{ code: 'VKTEST-PROMO01', discountIndex: 0 }] };
     sessionService.getCurrent.mockResolvedValue({ customerId: CUSTOMER_ID.SESSION_ANONYMOUS });
+    cartService.applyDiscount.mockResolvedValue(cart);
 
-    const response = await POST(createRequest({ code: 'LS10PTOTAL' }) as never, {
+    const response = await POST(createRequest({ code: 'VKTEST-PROMO01' }) as never, {
       params: Promise.resolve({ id: 'cart-1' }),
     });
 
-    expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: 'Authentication required' });
-    expect(cartService.applyDiscount).not.toHaveBeenCalled();
+    expect(cartService.applyDiscount).toHaveBeenCalledWith('cart-1', 'VKTEST-PROMO01');
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(cart);
+  });
+
+  it('maps a platform rejection of an anonymous redemption to the generic not-applicable error', async () => {
+    sessionService.getCurrent.mockResolvedValue({ customerId: CUSTOMER_ID.SESSION_ANONYMOUS });
+    cartService.applyDiscount.mockRejectedValue(new CartDiscountError('Coupon not allowed', { upstreamStatus: 400 }));
+
+    const response = await POST(createRequest({ code: 'SEGMENT-ONLY' }) as never, {
+      params: Promise.resolve({ id: 'cart-1' }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Discount is not applicable',
+      reason: CART_API_REASON.DISCOUNT_NOT_APPLICABLE,
+    });
+    expect(logger.error).toHaveBeenCalled();
   });
 
   it('returns 400 for malformed JSON', async () => {

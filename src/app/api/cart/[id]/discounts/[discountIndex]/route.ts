@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { mapCartDiscountRemoveError } from '@/lib/common/cart-api-error-mapping';
-import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -9,7 +8,8 @@ import type { SessionService } from '@/platform/services/session/SessionService'
 
 /**
  * DELETE /api/cart/[id]/discounts/[discountIndex]
- * Remove one discount from a cart by index
+ * Remove one discount from a cart by index. Anonymous sessions are allowed, mirroring the
+ * apply route: a guest who could redeem an `allowAnonymous` coupon must be able to remove it.
  */
 export async function DELETE(
   _request: NextRequest,
@@ -23,8 +23,8 @@ export async function DELETE(
     const cartService = server.get<CartService>('CartService');
     const sessionService = server.get<SessionService>('SessionService');
     const session = await sessionService.getCurrent();
-    if (!session || !isAuthenticatedSessionCustomerId(session.customerId)) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
     }
 
     const discountIndex = Number(discountIndexParam);

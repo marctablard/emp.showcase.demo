@@ -51,20 +51,22 @@ describe('DELETE /api/cart/[id]/discounts/[discountIndex]', () => {
     });
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: 'Authentication required' });
+    await expect(response.json()).resolves.toEqual({ error: 'Session not found' });
     expect(cartService.removeDiscount).not.toHaveBeenCalled();
   });
 
-  it('returns 401 for an anonymous session', async () => {
+  it('lets an anonymous session remove a coupon it applied', async () => {
+    const cart = { id: 'cart-1', discounts: [] };
     sessionService.getCurrent.mockResolvedValue({ customerId: CUSTOMER_ID.SESSION_ANONYMOUS });
+    cartService.removeDiscount.mockResolvedValue(cart);
 
     const response = await DELETE({} as never, {
       params: Promise.resolve({ id: 'cart-1', discountIndex: '0' }),
     });
 
-    expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: 'Authentication required' });
-    expect(cartService.removeDiscount).not.toHaveBeenCalled();
+    expect(cartService.removeDiscount).toHaveBeenCalledWith('cart-1', 0);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(cart);
   });
 
   it('returns 400 for a non-integer index', async () => {

@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { mapCartDiscountApplyError } from '@/lib/common/cart-api-error-mapping';
-import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -11,7 +10,11 @@ const COUPON_CODE_MAX_LENGTH = 150;
 
 /**
  * POST /api/cart/[id]/discounts
- * Apply a discount coupon to a cart
+ * Apply a discount coupon to a cart.
+ *
+ * Anonymous sessions are allowed on purpose: Emporix decides per coupon whether guests may
+ * redeem it (`allowAnonymous`) and rejects segment/customer-restricted coupons for them, so the
+ * storefront only requires a session that owns the cart (COP-5589).
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
@@ -19,8 +22,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const sessionService = server.get<SessionService>('SessionService');
   const session = await sessionService.getCurrent();
-  if (!session || !isAuthenticatedSessionCustomerId(session.customerId)) {
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  if (!session) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 401 });
   }
 
   let body: unknown;
