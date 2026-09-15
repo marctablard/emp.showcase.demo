@@ -29,7 +29,10 @@ function findAppliedDiscount(
   appliedDiscounts: EmporixCalculatedAppliedDiscount[],
   discount: EmporixCartDiscount,
 ): EmporixCalculatedAppliedDiscount | undefined {
-  return appliedDiscounts.find((applied) => applied.id === discount.code || applied.id === discount.id);
+  // Both ids are optional upstream; never let `undefined === undefined` pair unrelated entries.
+  return appliedDiscounts.find(
+    (applied) => applied.id !== undefined && (applied.id === discount.code || applied.id === discount.id),
+  );
 }
 
 /** Every applied-discount list on the calculated price; free-shipping coupons live on the shipping ones. */

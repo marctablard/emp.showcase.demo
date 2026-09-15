@@ -381,6 +381,28 @@ describe('EmporixCartMapper', () => {
     ]);
   });
 
+  it('does not pair an id-less applied discount with an id-less source coupon', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 4.95,
+          appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+      }),
+      discounts: [{ code: 'NOID', discountIndex: 0, amount: 3, valid: true }],
+    } as EmporixCart);
+
+    // `undefined === undefined` must not count as a match: keep the coupon's own amount, no type.
+    expect(mapped.discounts?.[0]).toEqual({
+      code: 'NOID',
+      name: undefined,
+      discountIndex: 0,
+      amount: 3,
+      currency: 'EUR',
+    });
+  });
+
   it('types a chip from totalShipping applied discounts and leaves unmatched chips untyped', () => {
     const mapped = mapper.mapToService({
       ...showcaseDevCart({
