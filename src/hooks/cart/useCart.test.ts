@@ -1086,6 +1086,121 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     expect(store.getState().error).toBeNull();
   });
 
+  type SeededStore = ReturnType<typeof seedStore>;
+  const queuedWrites: Array<[string, (store: SeededStore) => Promise<void>, () => jest.Mock]> = [
+    ['applyDiscount', (store) => store.getState().applyDiscount('QUEUED'), () => mockApplyCartDiscount],
+    [
+      'updateShippingInfo',
+      (store) => store.getState().updateShippingInfo({ country: 'DE', zipCode: '10115' }),
+      () => mockUpdateShippingInfo,
+    ],
+  ];
+
+  it.each(queuedWrites)(
+    'discards a %s queued before a reset instead of replaying it on the re-resolved cart',
+    async (_name, start, api) => {
+      const store = seedStore(buildCart('cart-1'));
+      const pendingApply = deferred<Cart>();
+      mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+      mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-new')));
+
+      const holdPromise = store.getState().applyDiscount('HOLD');
+      const queuedPromise = start(store);
+      await flushMicrotasks();
+
+      await act(async () => {
+        await store.getState().validateCart('unauthenticated');
+      });
+
+      pendingApply.resolve(buildCart('cart-1'));
+      await act(async () => {
+        await Promise.all([holdPromise, queuedPromise]);
+      });
+
+      expect(api().mock.calls.filter((call: unknown[]) => call[0] === 'cart-new')).toHaveLength(0);
+      expect(mockApplyCartDiscount).toHaveBeenCalledTimes(1);
+      expect(store.getState().currentCart?.id).toBe('cart-new');
+      expect(store.getState().error).toBeNull();
+    },
+  );
+
+  it('still reprices the re-resolved cart when a currency change was queued before a reset', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pendingApply = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+    mockUpdateCartCurrency.mockResolvedValue(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-new')));
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-new', { currency: 'CHF' })));
+
+    const holdPromise = store.getState().applyDiscount('HOLD');
+    const currencyPromise = store.getState().updateCurrency('CHF');
+    await flushMicrotasks();
+
+    await act(async () => {
+      await store.getState().validateCart('unauthenticated');
+    });
+
+    pendingApply.resolve(buildCart('cart-1'));
+    await act(async () => {
+      await Promise.all([holdPromise, currencyPromise]);
+    });
+
+    // Currency is session intent, not bound to the old cart id: it must land on the new cart.
+    expect(mockUpdateCartCurrency).toHaveBeenCalledTimes(1);
+    expect(mockUpdateCartCurrency).toHaveBeenCalledWith('cart-new', 'CHF');
+    expect(store.getState().currentCart?.currency).toBe('CHF');
+    expect(store.getState().loading).toBe(false);
+  });
+
+  it('issues a fresh GET for a refetch after a write instead of deduping onto a pre-write GET', async () => {
+    const store = seedStore(buildCart('cart-1', { items: [{ id: 'item-1' }] as Cart['items'] }));
+    const staleGet = deferred<ReturnType<typeof fcResult>>();
+    mockFetchCurrentCart.mockReturnValueOnce(staleGet.promise);
+    mockApplyCartDiscount.mockResolvedValueOnce(buildCart('cart-1', { items: [{ id: 'item-1' }] as Cart['items'] }));
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-1', { items: [] })));
+
+    const fetchPromise = store.getState().fetchCart();
+    await act(async () => {
+      await store.getState().applyDiscount('FAST');
+      await store.getState().removeItem('item-1');
+    });
+
+    // The post-remove refetch must not reuse the pre-write GET that is still in flight.
+    expect(mockFetchCurrentCart).toHaveBeenCalledTimes(2);
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+
+    staleGet.resolve(fcResult(buildCart('cart-1', { items: [{ id: 'item-1' }] as Cart['items'] })));
+    await act(async () => {
+      await fetchPromise;
+    });
+
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+    expect(store.getState().loading).toBe(false);
+  });
+
+  it('drops a GET issued before a discount write that resolves after the write published its snapshot', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const staleGet = deferred<ReturnType<typeof fcResult>>();
+    mockFetchCurrentCart.mockReturnValueOnce(staleGet.promise);
+    mockApplyCartDiscount.mockResolvedValueOnce(buildCart('cart-1', { currency: 'USD' }));
+
+    const fetchPromise = store.getState().fetchCart();
+    await act(async () => {
+      await store.getState().applyDiscount('FAST');
+    });
+    expect(store.getState().currentCart?.currency).toBe('USD');
+
+    staleGet.resolve(fcResult(buildCart('cart-1', { currency: 'EUR' })));
+    await act(async () => {
+      await fetchPromise;
+    });
+
+    // The pre-write GET must not roll the snapshot back to the pre-discount cart.
+    expect(store.getState().currentCart?.currency).toBe('USD');
+    expect(store.getState().loading).toBe(false);
+  });
+
   it('drains a reprice recorded during a reset fetch once the busy gate releases', async () => {
     const store = seedStore(buildCart('cart-1'));
     const pendingApply = deferred<Cart>();

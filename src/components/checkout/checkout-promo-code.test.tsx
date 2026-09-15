@@ -20,6 +20,12 @@ const mockPromo = {
   discounts: [] as CartAppliedDiscount[],
 };
 
+/** Locale-agnostic amount matcher: CI formats with the German default language ("-1,50 €"). */
+function money(amount: number): RegExp {
+  const [whole, fraction] = amount.toFixed(2).split('.');
+  return new RegExp(`${whole}[.,]${fraction}`);
+}
+
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => (key === 'promoCodeError' ? FIGMA_PROMO_ERROR : key),
 }));
@@ -175,7 +181,7 @@ describe('CheckoutPromoCodeBox', () => {
 
     render(<CheckoutPromoCodeBox />);
 
-    expect(screen.getByTestId('checkout-appliedPromoAmount-ACCESSORIES15')).toHaveTextContent('1.50');
+    expect(screen.getByTestId('checkout-appliedPromoAmount-ACCESSORIES15')).toHaveTextContent(money(1.5));
   });
 
   it('omits the amount for a free-shipping coupon chip so the name takes the whole line', () => {
@@ -195,7 +201,7 @@ describe('CheckoutPromoCodeBox', () => {
     const chip = screen.getByTestId('checkout-appliedPromo-VKTEST-PROMO03');
     expect(chip).toHaveTextContent('Free shipping over 100');
     expect(screen.queryByTestId('checkout-appliedPromoAmount-VKTEST-PROMO03')).not.toBeInTheDocument();
-    expect(chip).not.toHaveTextContent('0.00');
+    expect(chip).not.toHaveTextContent(money(0));
   });
 
   it('renders only the code row for a nameless free-shipping chip', () => {
@@ -207,7 +213,7 @@ describe('CheckoutPromoCodeBox', () => {
 
     const chip = screen.getByTestId('checkout-appliedPromo-FREESHIP');
     expect(chip.children).toHaveLength(1);
-    expect(chip).not.toHaveTextContent('4.95');
+    expect(chip).not.toHaveTextContent(money(4.95));
   });
 
   it('renders applied codes in the green chip area', () => {

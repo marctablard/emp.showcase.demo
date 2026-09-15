@@ -184,6 +184,10 @@ interface FetchCartDeps {
   set: (patch: Partial<CartState>) => void;
   /** False once a cart reset happened after this fetch was issued. */
   isCurrent: () => boolean;
+  /** True once a mutation published a newer cart snapshot after this fetch was issued. */
+  isSuperseded: () => boolean;
+  /** Quiet fetches never set `loading: true`, so they must not clear it either. */
+  quiet: boolean;
   /** Drops this fetch from the dedupe slot so a follow-up fetch issues a new GET. */
   releaseDedupe: () => void;
   drainPendingCurrencySync: () => Promise<void>;
@@ -264,7 +268,10 @@ function logFetchCartSnapshot(
   }
 }
 
-/** GETs the cart and publishes it — unless a reset happened meanwhile, in which case nothing is written. */
+/**
+ * GETs the cart and publishes it — unless a reset happened meanwhile (nothing is written) or a
+ * mutation already published a newer snapshot (the older GET must not roll it back).
+ */
 async function resolveCurrentCart(deps: FetchCartDeps): Promise<Cart | null | undefined | typeof STALE_FETCH> {
   const response = await apiFetchCurrentCart().catch((err: unknown) => {
     // Cart is gone (or the GET failed): treat as "no cart" without surfacing an error.
@@ -275,6 +282,15 @@ async function resolveCurrentCart(deps: FetchCartDeps): Promise<Cart | null | un
     devSyncLog('cart-store: fetchCart dropped stale response after cart reset', {
       cartId: response?.cart?.id ?? null,
     });
+    return STALE_FETCH;
+  }
+  if (deps.isSuperseded()) {
+    devSyncLog('cart-store: fetchCart dropped GET superseded by a newer mutation snapshot', {
+      cartId: response?.cart?.id ?? null,
+    });
+    if (!deps.quiet) {
+      deps.set({ loading: false });
+    }
     return STALE_FETCH;
   }
   if (response === null) {
@@ -482,7 +498,10 @@ async function runCartSnapshotMutation(
     failureMessage: string;
     logMessage: string;
     rethrow?: boolean;
-    /** Set for writes whose arguments reference the previous cart (discount index, shipping method). */
+    /**
+     * Set for writes whose intent belongs to the cart the shopper was looking at (discount index,
+     * shipping method, coupon code) — never replay them against a cart re-resolved by a reset.
+     */
     cancelIfResetWhileQueued?: boolean;
   },
 ): Promise<void> {
@@ -521,6 +540,7 @@ function runApplyDiscount(ctx: CartMutationContext, code: string): Promise<void>
     failureMessage: 'Failed to apply cart discount',
     logMessage: 'Error applying cart discount',
     rethrow: true,
+    cancelIfResetWhileQueued: true,
   });
 }
 
@@ -539,6 +559,11 @@ async function runUpdateShippingInfo(
   shippingAddress: CartShippingAddress,
   billingAddress?: CartShippingAddress,
 ): Promise<void> {
+  // The address belongs to the checkout the shopper was in; a reset re-resolves the cart
+  // (other session/site) and checkout re-sends its own address for that cart.
+  if (ctx.resetWhileQueued) {
+    return;
+  }
   try {
     const cart = ctx.get().currentCart ?? (await ctx.refetch());
     if (!cart) {
@@ -570,6 +595,11 @@ async function runUpdateShippingInfo(
   }
 }
 
+/**
+ * Currency is session-scoped intent, not bound to a cart id: a reprice queued before a reset
+ * must still reach the re-resolved cart (`syncCurrencyWithSession` clears its pending intent once
+ * this runs), so — unlike id-bound writes — `resetWhileQueued` is deliberately not a cancel here.
+ */
 async function runUpdateCurrency(ctx: CartMutationContext, currency: string): Promise<void> {
   try {
     const cart = ctx.get().currentCart ?? (await ctx.refetch());
@@ -602,6 +632,14 @@ export const createCartStore = (initState: CartState = defaultState) => {
   /** Dedupes concurrent `fetchCart` calls; kept outside state to avoid re-renders. */
   let _fetchPromise: Promise<Cart | null | undefined> | null = null;
   const _mutations = new CartMutationQueue();
+  /**
+   * Bumped whenever a mutation publishes `currentCart`. `fetchCart` is not serialized behind the
+   * mutation gate, so a GET issued before the bump must not overwrite that newer snapshot — and
+   * a refetch issued after the bump must not dedupe onto that older GET either.
+   */
+  let _snapshotVersion = 0;
+  /** Snapshot version the deduped `_fetchPromise` was issued under. */
+  let _fetchPromiseVersion = 0;
   /** Settling counter kept outside state so only 0→1 / N→0 transitions notify subscribers. */
   let _settlingCount = 0;
 
@@ -619,6 +657,9 @@ export const createCartStore = (initState: CartState = defaultState) => {
         isCurrent: () => _mutations.isCurrent(epoch),
         commit: (patch) => {
           if (_mutations.isCurrent(epoch)) {
+            if ('currentCart' in patch) {
+              _snapshotVersion += 1;
+            }
             set(patch);
             return;
           }
@@ -746,15 +787,17 @@ export const createCartStore = (initState: CartState = defaultState) => {
         /**
          * Read the current cart. Never creates. Discards responses whose site disagrees with the
          * session's `x-session-site-code` header or the local `lastSiteCode`, and drops responses
-         * that arrive after a cart reset. `_createCurrent` is retained for API compatibility and
+         * that arrive after a cart reset or after a mutation published a newer snapshot.
+         * `_createCurrent` is retained for API compatibility and
          * ignored. When a mutation holds the gate, a pending currency reprice is drained after the
          * gate releases rather than awaited here (see `drainPendingCurrencySync`).
          */
         fetchCart: (_createCurrent: boolean = false, options?: { quiet?: boolean }) => {
-          if (_fetchPromise !== null) {
+          if (_fetchPromise !== null && _fetchPromiseVersion === _snapshotVersion) {
             return _fetchPromise;
           }
           const fetchEpoch = _mutations.currentEpoch;
+          const fetchSnapshotVersion = _snapshotVersion;
           let thisPromise: Promise<Cart | null | undefined> | null = null;
           const releaseDedupe = () => {
             if (_fetchPromise === thisPromise) {
@@ -766,12 +809,15 @@ export const createCartStore = (initState: CartState = defaultState) => {
               get,
               set,
               isCurrent: () => _mutations.isCurrent(fetchEpoch),
+              isSuperseded: () => _snapshotVersion !== fetchSnapshotVersion,
+              quiet: options?.quiet === true,
               releaseDedupe,
               drainPendingCurrencySync,
             },
             options,
           );
           _fetchPromise = thisPromise;
+          _fetchPromiseVersion = fetchSnapshotVersion;
           void thisPromise.finally(releaseDedupe);
           return thisPromise;
         },

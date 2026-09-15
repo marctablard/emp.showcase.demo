@@ -53,6 +53,9 @@ export const CART_DISCOUNT_REASON = {
 
 export type CartDiscountReason = (typeof CART_DISCOUNT_REASON)[keyof typeof CART_DISCOUNT_REASON];
 
+/** `CartDiscountError` message for a caller-supplied cart id that belongs to another site (mapped to 403). */
+export const CART_SITE_MISMATCH_MESSAGE = 'Cart belongs to a different site';
+
 export class CartDiscountError extends Error {
   public readonly upstreamStatus?: number;
   public readonly upstreamBody?: string;

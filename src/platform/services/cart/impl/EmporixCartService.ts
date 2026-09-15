@@ -22,6 +22,7 @@ import type {
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
   CART_DISCOUNT_REASON,
+  CART_SITE_MISMATCH_MESSAGE,
   CartCurrencyUpdateError,
   CartDiscountError,
   type CartDiscountReason,
@@ -812,7 +813,7 @@ class EmporixCartService implements CartService {
       throw new CartDiscountError('Coupon code is required');
     }
 
-    const cartBeforeApply = await this.requireSessionCart(cartId);
+    const cartBeforeApply = await this.requireSessionCart(cartId, { checkSite: true });
 
     try {
       await this.cartApi.applyDiscount(cartId, trimmedCode);
@@ -831,7 +832,7 @@ class EmporixCartService implements CartService {
   }
 
   async removeDiscount(cartId: string, discountIndex: number): Promise<Cart> {
-    await this.requireSessionCart(cartId);
+    await this.requireSessionCart(cartId, { checkSite: true });
 
     try {
       await this.cartApi.removeDiscount(cartId, discountIndex);
@@ -842,10 +843,26 @@ class EmporixCartService implements CartService {
     return this.requireSessionCart(cartId);
   }
 
-  private async requireSessionCart(cartId: string): Promise<Cart> {
+  /**
+   * Loads the cart for a discount write. With `checkSite` (the first load of a write): the id is
+   * caller-supplied and customer carts outlive a site switch, so — like `updateCartItemQuantity`
+   * — a cart from another site is refused instead of being mutated in the wrong site context.
+   */
+  private async requireSessionCart(cartId: string, options?: { checkSite?: boolean }): Promise<Cart> {
     const cart = await this.getCartById(cartId);
     if (!cart) {
       throw new CartDiscountError('Cart not found');
+    }
+    if (!options?.checkSite) {
+      return cart;
+    }
+    const session = await this.sessionService.getCurrent();
+    if (session && cart.site && cart.site !== session.siteCode) {
+      this.logger.warn(
+        { cartId, cartSite: cart.site, sessionSite: session.siteCode },
+        'Cart belongs to different site during discount write — aborting',
+      );
+      throw new CartDiscountError(CART_SITE_MISMATCH_MESSAGE);
     }
     return cart;
   }

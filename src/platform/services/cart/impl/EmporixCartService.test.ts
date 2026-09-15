@@ -4,7 +4,12 @@ import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/Empori
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
 import type { EmporixCouponApi } from '@/platform/integrations/emporix/coupon/EmporixCouponApi';
 import type { EmporixCart } from '@/platform/integrations/emporix/model/cart';
-import { CART_DISCOUNT_REASON, CartCurrencyUpdateError, CartDiscountError } from '@/platform/services/cart/errors';
+import {
+  CART_DISCOUNT_REASON,
+  CART_SITE_MISMATCH_MESSAGE,
+  CartCurrencyUpdateError,
+  CartDiscountError,
+} from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CartMapper } from '@/platform/services/model/cart/CartMapper';
 import type { Cart } from '@/platform/services/model/cart/cart';
@@ -652,6 +657,27 @@ describe('EmporixCartService', () => {
       expect(mockCartApi.refreshCart).not.toHaveBeenCalled();
     });
 
+    it('refuses a cart from another site instead of applying the code in the wrong site context', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        customerId: 'cust-1',
+        currency: 'EUR',
+        siteCode: 'other-site',
+        cartId: 'cart-1',
+      });
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({ name: 'CartDiscountError', message: CART_SITE_MISMATCH_MESSAGE }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { cartId: 'cart-1', cartSite: 'main', sessionSite: 'other-site' },
+        'Cart belongs to different site during discount write — aborting',
+      );
+    });
+
     it('rejects an empty code without calling the API', async () => {
       await expect(cartService.applyDiscount('cart-1', '')).rejects.toBeInstanceOf(CartDiscountError);
       await expect(cartService.applyDiscount('cart-1', '   ')).rejects.toBeInstanceOf(CartDiscountError);
@@ -978,6 +1004,23 @@ describe('EmporixCartService', () => {
           name: 'CartDiscountError',
           message: 'Cart not found',
         }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('does not remove from a cart that belongs to another site', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        customerId: 'cust-1',
+        currency: 'EUR',
+        siteCode: 'other-site',
+        cartId: 'cart-1',
+      });
+      mockCartApi.getCart.mockResolvedValue({ id: 'cart-1', currency: 'EUR', siteCode: 'main' });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({ name: 'CartDiscountError', message: CART_SITE_MISMATCH_MESSAGE }),
       );
       expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
     });

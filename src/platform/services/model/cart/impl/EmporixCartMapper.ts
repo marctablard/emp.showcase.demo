@@ -88,7 +88,7 @@ function isShippingWaived(calculatedPrice: EmporixCart['calculatedPrice']): bool
   ) {
     return true;
   }
-  return totalShipping !== undefined && totalShipping.grossValue === 0 && (shipping?.grossValue ?? 0) > 0;
+  return totalShipping?.grossValue === 0 && (shipping?.grossValue ?? 0) > 0;
 }
 
 /**

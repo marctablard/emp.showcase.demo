@@ -1,6 +1,7 @@
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
   CART_DISCOUNT_REASON,
+  CART_SITE_MISMATCH_MESSAGE,
   CartCurrencyUpdateError,
   type CartDiscountReason,
   isCartDiscountError,
@@ -171,7 +172,7 @@ function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: st
       };
     }
 
-    if (error.upstreamStatus === 403) {
+    if (error.upstreamStatus === 403 || error.message === CART_SITE_MISMATCH_MESSAGE) {
       return {
         status: 403,
         response: { error: 'Cart context is forbidden', reason: CART_API_REASON.FORBIDDEN },

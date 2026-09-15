@@ -8,6 +8,7 @@ import {
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
   CART_DISCOUNT_REASON,
+  CART_SITE_MISMATCH_MESSAGE,
   CartCurrencyUpdateError,
   CartDiscountError,
 } from '@/platform/services/cart/errors';
@@ -114,6 +115,10 @@ describe('cart-api-error-mapping', () => {
       const notFound = mapCartDiscountApplyError(new CartDiscountError('Cart not found'));
       expect(notFound.status).toBe(404);
       expect(notFound.response.reason).toBe(CART_API_REASON.NOT_FOUND);
+
+      const wrongSite = mapCartDiscountApplyError(new CartDiscountError(CART_SITE_MISMATCH_MESSAGE));
+      expect(wrongSite.status).toBe(403);
+      expect(wrongSite.response.reason).toBe(CART_API_REASON.FORBIDDEN);
     });
 
     it('maps unknown errors to 500 upstream_failure', () => {
