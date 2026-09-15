@@ -105,6 +105,79 @@ function shouldSkipShippingUpdate(
   );
 }
 
+async function waitForInFlightCart(
+  currentCart: Cart | null | undefined,
+  fetchPromise: Promise<Cart | null | undefined> | null,
+  readCart: () => Cart | null | undefined,
+): Promise<Cart | null | undefined> {
+  if (currentCart !== undefined && currentCart !== null) {
+    return currentCart;
+  }
+  if (fetchPromise === null) {
+    return currentCart;
+  }
+  await fetchPromise;
+  return readCart();
+}
+
+async function createCartOrRetryAdd(args: {
+  lastSiteCode: string | null;
+  retryCount: number;
+  fetchExisting: () => Promise<Cart | null | undefined>;
+  retry: () => Promise<ModifyCartItemResult>;
+}): Promise<{ kind: 'cart'; cart: Cart } | { kind: 'result'; result: ModifyCartItemResult }> {
+  try {
+    const cart = await apiCreateCart({
+      ...(args.lastSiteCode ? { siteCode: args.lastSiteCode } : {}),
+    });
+    return { kind: 'cart', cart };
+  } catch (err) {
+    if (args.retryCount < 1) {
+      const fetched = await args.fetchExisting();
+      if (fetched) {
+        return { kind: 'result', result: await args.retry() };
+      }
+    }
+    throw err;
+  }
+}
+
+async function realignCartToSessionSite(args: {
+  cart: Cart;
+  lastSiteCode: string | null;
+  fetchAligned: () => Promise<Cart | null | undefined>;
+}): Promise<Cart> {
+  const { cart, lastSiteCode, fetchAligned } = args;
+  if (!lastSiteCode || !cart.site || cart.site === lastSiteCode) {
+    return cart;
+  }
+  getLogger().warn(
+    { cartSite: cart.site, sessionSite: lastSiteCode },
+    'Cart-site mismatch detected on client — clearing stale cart and re-resolving',
+  );
+  const aligned = await fetchAligned();
+  if (!aligned) {
+    throw new Error('Failed to get correct site cart');
+  }
+  return aligned;
+}
+
+async function commitAddedCartItem(args: {
+  cartId: string;
+  productId: string;
+  quantity: number;
+  setCart: (cart: Cart) => void;
+  refetch: () => Promise<unknown>;
+}): Promise<ModifyCartItemResult> {
+  const result = await apiAddItemToCart(args.cartId, args.productId, args.quantity);
+  if (result.cart) {
+    args.setCart(result.cart);
+  } else {
+    await args.refetch();
+  }
+  return result;
+}
+
 // default state explicitly 'undefined' since it means, we don't know the cart's state
 const defaultState: CartState = {
   currentCart: undefined,
@@ -122,8 +195,8 @@ export const createCartStore = (initState: CartState = defaultState) => {
   /** Dedupes concurrent `fetchCart` calls; kept outside state to avoid re-renders. */
   let _fetchPromise: Promise<Cart | null | undefined> | null = null;
   /**
-   * Serializes cart mutations that write `currentCart` (shipping + discounts)
-   * so a promo apply cannot overwrite a shipping PATCH (or the reverse).
+   * Serializes cart mutations that publish `currentCart` (shipping, discounts,
+   * line items, currency) so a slower in-flight response cannot overwrite a newer snapshot.
    */
   let _cartMutationGate: Promise<void> = Promise.resolve();
   /** Settling counter kept outside state so only 0→1 / N→0 transitions notify subscribers. */
@@ -370,128 +443,117 @@ export const createCartStore = (initState: CartState = defaultState) => {
        * re-resolves via `fetchCart` if the existing cart belongs to the wrong site.
        */
       addToCart: async (productId: string, quantity: number, _retryCount = 0) => {
-        const { lastSiteCode } = get();
+        const attempt = async (retryCount: number): Promise<ModifyCartItemResult> => {
+          const { lastSiteCode } = get();
+          let currentCart = await waitForInFlightCart(get().currentCart, _fetchPromise, () => get().currentCart);
 
-        let { currentCart } = get();
-        if (!currentCart) {
-          // Wait for any in-flight fetchCart (e.g. from validateCart after login) before
-          // attempting to create — avoids a 409 Conflict when the auth service already
-          // created/merged a cart server-side.
-          if (_fetchPromise) {
-            await _fetchPromise;
-            currentCart = get().currentCart;
-          }
-        }
-        if (!currentCart) {
-          try {
-            const newCart = await apiCreateCart({
-              ...(lastSiteCode ? { siteCode: lastSiteCode } : {}),
-            });
-            set({ currentCart: newCart, loading: false });
-            currentCart = newCart;
-          } catch (err) {
-            // Cart creation failed — likely a 409 Conflict from a post-login race where
-            // the session already owns a cart. Fetch the existing cart and retry once.
-            if (_retryCount < 1) {
-              _fetchPromise = null;
-              const fetched = await get().fetchCart();
-              if (fetched) {
-                return get().addToCart(productId, quantity, _retryCount + 1);
+          if (!currentCart) {
+            try {
+              const created = await createCartOrRetryAdd({
+                lastSiteCode,
+                retryCount,
+                fetchExisting: async () => {
+                  _fetchPromise = null;
+                  return get().fetchCart();
+                },
+                retry: () => attempt(retryCount + 1),
+              });
+              if (created.kind === 'result') {
+                return created.result;
               }
+              set({ currentCart: created.cart, loading: false });
+              currentCart = created.cart;
+            } catch (err) {
+              const error = err instanceof Error ? err : new Error('Failed to create cart');
+              set({ error, loading: false });
+              getLogger().error({ err }, 'Error creating cart before add-to-cart');
+              throw err;
             }
-            const error = err instanceof Error ? err : new Error('Failed to create cart');
+          }
+
+          currentCart = await realignCartToSessionSite({
+            cart: currentCart,
+            lastSiteCode,
+            fetchAligned: async () => {
+              _fetchPromise = null;
+              set({ currentCart: null, loading: true, error: null });
+              await get().fetchCart();
+              return get().currentCart;
+            },
+          });
+
+          set({ loading: true, error: null });
+          try {
+            return await commitAddedCartItem({
+              cartId: currentCart.id,
+              productId,
+              quantity,
+              setCart: (cart) => set({ currentCart: cart, loading: false }),
+              refetch: () => get().fetchCart(),
+            });
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to add item to cart');
             set({ error, loading: false });
-            getLogger().error({ err }, 'Error creating cart before add-to-cart');
+            getLogger().error({ err }, 'Error adding item to cart');
             throw err;
           }
-        }
+        };
 
-        // Cart belongs to a different site than `validateSite` last snapped — re-resolve via GET.
-        if (lastSiteCode && currentCart.site && currentCart.site !== lastSiteCode) {
-          getLogger().warn(
-            { cartSite: currentCart.site, sessionSite: lastSiteCode },
-            'Cart-site mismatch detected on client — clearing stale cart and re-resolving',
-          );
-          _fetchPromise = null;
-          set({ currentCart: null, loading: true, error: null });
-          await get().fetchCart();
-          const { currentCart: correctCart } = get();
-          if (!correctCart) {
-            throw new Error('Failed to get correct site cart');
-          }
-          currentCart = correctCart;
-        }
-
-        set({ loading: true, error: null });
-
-        try {
-          const cartId = currentCart.id;
-
-          const result = await apiAddItemToCart(cartId, productId, quantity);
-
-          if (result.cart) {
-            set({ currentCart: result.cart, loading: false });
-          } else {
-            await get().fetchCart();
-          }
-
-          return result;
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error('Failed to add item to cart');
-          set({ error, loading: false });
-          getLogger().error({ err }, 'Error adding item to cart');
-          throw err;
-        }
+        return enqueueCartMutation(() => attempt(_retryCount));
       },
 
       updateItemQuantity: async (itemId: string, quantity: number) => {
-        const { currentCart } = get();
-        if (!currentCart) {
-          await get().fetchCart();
-          const updatedCart = get().currentCart;
-          if (!updatedCart) throw new Error('No cart available');
-        }
+        await enqueueCartMutation(async () => {
+          const { currentCart } = get();
+          if (!currentCart) {
+            await get().fetchCart();
+            const updatedCart = get().currentCart;
+            if (!updatedCart) throw new Error('No cart available');
+          }
 
-        try {
-          set({ loading: true, error: null });
-          const cart = get().currentCart;
-          if (!cart) throw new Error('No cart available');
+          try {
+            set({ loading: true, error: null });
+            const cart = get().currentCart;
+            if (!cart) throw new Error('No cart available');
 
-          // Call API to update item
-          await apiUpdateCartItemQuantity(cart.id, itemId, quantity);
+            // Call API to update item
+            await apiUpdateCartItemQuantity(cart.id, itemId, quantity);
 
-          // Refetch cart to get updated state
-          await get().fetchCart();
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error('Failed to update cart item');
-          set({ error, loading: false });
-          getLogger().error({ err }, 'Error updating cart item');
-        }
+            // Refetch cart to get updated state
+            await get().fetchCart();
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to update cart item');
+            set({ error, loading: false });
+            getLogger().error({ err }, 'Error updating cart item');
+          }
+        });
       },
 
       removeItem: async (itemId: string) => {
-        const { currentCart } = get();
-        if (!currentCart) {
-          await get().fetchCart();
-          const updatedCart = get().currentCart;
-          if (!updatedCart) throw new Error('No cart available');
-        }
+        await enqueueCartMutation(async () => {
+          const { currentCart } = get();
+          if (!currentCart) {
+            await get().fetchCart();
+            const updatedCart = get().currentCart;
+            if (!updatedCart) throw new Error('No cart available');
+          }
 
-        try {
-          set({ loading: true, error: null });
-          const cart = get().currentCart;
-          if (!cart) throw new Error('No cart available');
+          try {
+            set({ loading: true, error: null });
+            const cart = get().currentCart;
+            if (!cart) throw new Error('No cart available');
 
-          // Call API to remove item
-          await apiRemoveCartItem(cart.id, itemId);
+            // Call API to remove item
+            await apiRemoveCartItem(cart.id, itemId);
 
-          // Refetch cart to get updated state
-          await get().fetchCart();
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error('Failed to remove cart item');
-          set({ error, loading: false });
-          getLogger().error({ err }, 'Error removing cart item');
-        }
+            // Refetch cart to get updated state
+            await get().fetchCart();
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to remove cart item');
+            set({ error, loading: false });
+            getLogger().error({ err }, 'Error removing cart item');
+          }
+        });
       },
 
       updateShippingInfo: async (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => {
@@ -595,26 +657,28 @@ export const createCartStore = (initState: CartState = defaultState) => {
       },
 
       updateCurrency: async (currency: string) => {
-        try {
-          const { currentCart } = get();
-          if (!currentCart) {
-            await get().fetchCart();
-            const updatedCart = get().currentCart;
-            if (!updatedCart) return;
+        await enqueueCartMutation(async () => {
+          try {
+            const { currentCart } = get();
+            if (!currentCart) {
+              await get().fetchCart();
+              const updatedCart = get().currentCart;
+              if (!updatedCart) return;
+            }
+
+            set({ loading: true, error: null });
+
+            const cart = get().currentCart;
+            if (!cart) return;
+
+            await apiUpdateCartCurrency(cart.id, currency);
+            await get().fetchCart(false);
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to update cart currency');
+            set({ error, loading: false });
+            getLogger().error({ err }, 'Error updating cart currency');
           }
-
-          set({ loading: true, error: null });
-
-          const cart = get().currentCart;
-          if (!cart) return;
-
-          await apiUpdateCartCurrency(cart.id, currency);
-          await get().fetchCart(false);
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error('Failed to update cart currency');
-          set({ error, loading: false });
-          getLogger().error({ err }, 'Error updating cart currency');
-        }
+        });
       },
 
       clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => {
