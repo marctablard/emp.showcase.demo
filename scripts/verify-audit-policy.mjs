@@ -219,6 +219,19 @@ function collectAdvisories(vulnerabilities) {
   return [...advisoriesById.values()];
 }
 
+/** Optional `VERIFY_AUDIT_POLICY_TODAY=YYYY-MM-DD` pins "today" for Jest; CI leaves it unset. */
+function resolvePolicyToday() {
+  const asOf = process.env.VERIFY_AUDIT_POLICY_TODAY;
+  if (!asOf) {
+    return new Date();
+  }
+  const parsed = new Date(`${asOf}T12:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    fail(`VERIFY_AUDIT_POLICY_TODAY is not a valid YYYY-MM-DD date: "${asOf}"`);
+  }
+  return parsed;
+}
+
 function evaluateAdvisories(advisories, today) {
   const disallowed = [];
   const tolerated = [];
@@ -267,7 +280,7 @@ function main() {
     return;
   }
 
-  const { disallowed, tolerated } = evaluateAdvisories(advisories, new Date());
+  const { disallowed, tolerated } = evaluateAdvisories(advisories, resolvePolicyToday());
 
   if (disallowed.length > 0) {
     console.error(

@@ -761,35 +761,36 @@ class EmporixCartService implements CartService {
       throw new CartDiscountError('Coupon code is required');
     }
 
+    await this.requireSessionCart(cartId);
+
     try {
       await this.cartApi.applyDiscount(cartId, trimmedCode);
     } catch (error) {
       throw this.mapCartDiscountError(error, 'Failed to apply discount');
     }
 
-    let cart = await this.getCartById(cartId);
-    if (!cart) {
-      throw new CartDiscountError('Cart not found');
-    }
-
+    let cart = await this.requireSessionCart(cartId);
     if (this.isCartMissingDiscountsAndSavings(cart)) {
       await this.refreshCartWithCleanup(cartId);
-      cart = await this.getCartById(cartId);
-      if (!cart) {
-        throw new CartDiscountError('Cart not found');
-      }
+      cart = await this.requireSessionCart(cartId);
     }
 
     return cart;
   }
 
   async removeDiscount(cartId: string, discountIndex: number): Promise<Cart> {
+    await this.requireSessionCart(cartId);
+
     try {
       await this.cartApi.removeDiscount(cartId, discountIndex);
     } catch (error) {
       throw this.mapCartDiscountError(error, 'Failed to remove discount');
     }
 
+    return this.requireSessionCart(cartId);
+  }
+
+  private async requireSessionCart(cartId: string): Promise<Cart> {
     const cart = await this.getCartById(cartId);
     if (!cart) {
       throw new CartDiscountError('Cart not found');

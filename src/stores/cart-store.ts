@@ -121,12 +121,27 @@ const defaultState: CartState = {
 export const createCartStore = (initState: CartState = defaultState) => {
   /** Dedupes concurrent `fetchCart` calls; kept outside state to avoid re-renders. */
   let _fetchPromise: Promise<Cart | null | undefined> | null = null;
-  /** Serializes PATCH /shipping so parallel callers cannot race Emporix optimistic locking. */
-  let _shippingUpdateGate: Promise<void> = Promise.resolve();
-  /** Serializes apply/remove discount so out-of-order `set` cannot restore a stale chip list. */
-  let _discountMutationGate: Promise<void> = Promise.resolve();
+  /**
+   * Serializes cart mutations that write `currentCart` (shipping + discounts)
+   * so a promo apply cannot overwrite a shipping PATCH (or the reverse).
+   */
+  let _cartMutationGate: Promise<void> = Promise.resolve();
   /** Settling counter kept outside state so only 0→1 / N→0 transitions notify subscribers. */
   let _settlingCount = 0;
+
+  const enqueueCartMutation = async <T>(work: () => Promise<T>): Promise<T> => {
+    const afterPrevious = _cartMutationGate;
+    let releaseNext!: () => void;
+    _cartMutationGate = new Promise<void>((resolve) => {
+      releaseNext = resolve;
+    });
+    await afterPrevious.catch(() => {});
+    try {
+      return await work();
+    } finally {
+      releaseNext();
+    }
+  };
 
   return create<CartStore>()(
     subscribeWithSelector((set, get) => ({
@@ -480,131 +495,103 @@ export const createCartStore = (initState: CartState = defaultState) => {
       },
 
       updateShippingInfo: async (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => {
-        const afterPrevious = _shippingUpdateGate;
-        let releaseNext!: () => void;
-        _shippingUpdateGate = new Promise<void>((resolve) => {
-          releaseNext = resolve;
+        await enqueueCartMutation(async () => {
+          try {
+            let cart = get().currentCart;
+            if (!cart) {
+              await get().fetchCart();
+              cart = get().currentCart;
+            }
+            if (!cart) {
+              set({ loading: false });
+              return;
+            }
+
+            // Debounce after the real cart id is known. Same country+zip on a
+            // *new* cart must still PATCH (leftover ship-to after approval/quote).
+            if (shouldSkipShippingUpdate(get().lastShippingUpdate, cart.id, shippingAddress)) {
+              return;
+            }
+
+            await apiUpdateShippingInfo(cart.id, shippingAddress, billingAddress);
+            set({
+              error: null,
+              lastShippingUpdate: {
+                cartId: cart.id,
+                country: shippingAddress.country,
+                zipCode: shippingAddress.zipCode,
+                timestamp: Date.now(),
+              },
+            });
+
+            await get().fetchCart(false, { quiet: true });
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to update shipping info');
+            set({ error, loading: false });
+            getLogger().error({ err }, 'Error updating shipping info');
+          }
         });
-        await afterPrevious.catch(() => {});
-
-        try {
-          let cart = get().currentCart;
-          if (!cart) {
-            await get().fetchCart();
-            cart = get().currentCart;
-          }
-          if (!cart) {
-            set({ loading: false });
-            return;
-          }
-
-          // Debounce after the real cart id is known. Same country+zip on a
-          // *new* cart must still PATCH (leftover ship-to after approval/quote).
-          if (shouldSkipShippingUpdate(get().lastShippingUpdate, cart.id, shippingAddress)) {
-            return;
-          }
-
-          await apiUpdateShippingInfo(cart.id, shippingAddress, billingAddress);
-          set({
-            error: null,
-            lastShippingUpdate: {
-              cartId: cart.id,
-              country: shippingAddress.country,
-              zipCode: shippingAddress.zipCode,
-              timestamp: Date.now(),
-            },
-          });
-
-          await get().fetchCart(false, { quiet: true });
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error('Failed to update shipping info');
-          set({ error, loading: false });
-          getLogger().error({ err }, 'Error updating shipping info');
-        } finally {
-          releaseNext();
-        }
       },
 
       updateShippingMethod: async (method: CartShippingMethodSelection) => {
-        const afterPrevious = _shippingUpdateGate;
-        let releaseNext!: () => void;
-        _shippingUpdateGate = new Promise<void>((resolve) => {
-          releaseNext = resolve;
-        });
-        await afterPrevious.catch(() => {});
+        await enqueueCartMutation(async () => {
+          try {
+            const { currentCart } = get();
+            if (!currentCart) {
+              return;
+            }
 
-        try {
-          const { currentCart } = get();
-          if (!currentCart) {
-            return;
+            // Do not flip `loading` — checkout and the header total should keep showing
+            // the previous snapshot until the refreshed cart arrives.
+            const updatedCart = await apiUpdateShippingMethod(currentCart.id, method);
+            set({ currentCart: updatedCart, error: null });
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to update shipping method');
+            set({ error });
+            getLogger().error({ err }, 'Error updating shipping method');
           }
-
-          // Do not flip `loading` — checkout and the header total should keep showing
-          // the previous snapshot until the refreshed cart arrives.
-          const updatedCart = await apiUpdateShippingMethod(currentCart.id, method);
-          set({ currentCart: updatedCart, error: null });
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error('Failed to update shipping method');
-          set({ error });
-          getLogger().error({ err }, 'Error updating shipping method');
-        } finally {
-          releaseNext();
-        }
+        });
       },
 
       applyDiscount: async (code: string) => {
-        const afterPrevious = _discountMutationGate;
-        let releaseNext!: () => void;
-        _discountMutationGate = new Promise<void>((resolve) => {
-          releaseNext = resolve;
-        });
-        await afterPrevious.catch(() => {});
+        await enqueueCartMutation(async () => {
+          try {
+            const { currentCart } = get();
+            if (!currentCart) {
+              return;
+            }
 
-        try {
-          const { currentCart } = get();
-          if (!currentCart) {
-            return;
+            // Do not flip `loading` — checkout must keep the previous cart snapshot
+            // so a field error can show without a global spinner.
+            const updatedCart = await apiApplyCartDiscount(currentCart.id, code);
+            set({ currentCart: updatedCart, error: null });
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to apply cart discount');
+            set({ error });
+            getLogger().error({ err, cartId: get().currentCart?.id }, 'Error applying cart discount');
+            throw error;
           }
-
-          // Do not flip `loading` — checkout must keep the previous cart snapshot
-          // so a field error can show without a global spinner.
-          const updatedCart = await apiApplyCartDiscount(currentCart.id, code);
-          set({ currentCart: updatedCart, error: null });
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error('Failed to apply cart discount');
-          set({ error });
-          getLogger().error({ err, cartId: get().currentCart?.id }, 'Error applying cart discount');
-          throw error;
-        } finally {
-          releaseNext();
-        }
+        });
       },
 
       removeDiscount: async (discountIndex: number) => {
-        const afterPrevious = _discountMutationGate;
-        let releaseNext!: () => void;
-        _discountMutationGate = new Promise<void>((resolve) => {
-          releaseNext = resolve;
-        });
-        await afterPrevious.catch(() => {});
+        await enqueueCartMutation(async () => {
+          try {
+            const { currentCart } = get();
+            if (!currentCart) {
+              return;
+            }
 
-        try {
-          const { currentCart } = get();
-          if (!currentCart) {
-            return;
+            // Do not flip `loading` — same contract as updateShippingMethod / applyDiscount.
+            const updatedCart = await apiRemoveCartDiscount(currentCart.id, discountIndex);
+            set({ currentCart: updatedCart, error: null });
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to remove cart discount');
+            set({ error });
+            getLogger().error({ err, cartId: get().currentCart?.id }, 'Error removing cart discount');
+            throw error;
           }
-
-          // Do not flip `loading` — same contract as updateShippingMethod / applyDiscount.
-          const updatedCart = await apiRemoveCartDiscount(currentCart.id, discountIndex);
-          set({ currentCart: updatedCart, error: null });
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error('Failed to remove cart discount');
-          set({ error });
-          getLogger().error({ err, cartId: get().currentCart?.id }, 'Error removing cart discount');
-          throw error;
-        } finally {
-          releaseNext();
-        }
+        });
       },
 
       updateCurrency: async (currency: string) => {

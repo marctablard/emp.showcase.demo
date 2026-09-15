@@ -28,7 +28,7 @@ interface OrderSummaryProps {
   onSubmit: (approvalData?: { approverId: string; comment: string }) => void;
 }
 
-function CheckoutSavingsBadge(props: { amount: number; currency: string; label: string }) {
+function CheckoutSavingsBadge(props: Readonly<{ amount: number; currency: string; label: string }>) {
   return (
     <div className="flex justify-end">
       <div
@@ -42,7 +42,9 @@ function CheckoutSavingsBadge(props: { amount: number; currency: string; label: 
   );
 }
 
-function CheckoutGrossValueOfGoodsRow(props: { amount: number | undefined; currency: string; label: string }) {
+function CheckoutGrossValueOfGoodsRow(
+  props: Readonly<{ amount: number | undefined; currency: string; label: string }>,
+) {
   if (typeof props.amount !== 'number') {
     return null;
   }
@@ -63,7 +65,7 @@ type CheckoutGoodsTotalsProps = {
   idleGoodsCurrency: string;
 };
 
-function CheckoutGoodsTotals(props: CheckoutGoodsTotalsProps) {
+function CheckoutGoodsTotals(props: Readonly<CheckoutGoodsTotalsProps>) {
   const t = useTranslations('checkout.summary');
   const tCommon = useTranslations('common');
   const { breakdown, isGrossApplied, moneyCurrency, fallbackGross, idleGoodsAmount, idleGoodsCurrency } = props;

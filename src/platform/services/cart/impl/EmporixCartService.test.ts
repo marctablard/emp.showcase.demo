@@ -664,7 +664,10 @@ describe('EmporixCartService', () => {
         tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
       };
       mockCartApi.getCart.mockResolvedValue(rawCart);
-      mockMapper.mapToService.mockReturnValueOnce(mappedWithoutSavings).mockReturnValueOnce(mappedCartWithDiscount);
+      mockMapper.mapToService
+        .mockReturnValueOnce(mappedWithoutSavings)
+        .mockReturnValueOnce(mappedWithoutSavings)
+        .mockReturnValueOnce(mappedCartWithDiscount);
 
       const result = await cartService.applyDiscount('cart-1', 'LS10PTOTAL');
 
@@ -674,6 +677,8 @@ describe('EmporixCartService', () => {
     });
 
     it('throws CartDiscountError when apply is not OK', async () => {
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
       mockCartApi.applyDiscount.mockRejectedValue(
         new Error('Failed to apply discount to cart: 400 Bad Request {"status":400,"message":"not allowed"}'),
       );
@@ -686,7 +691,43 @@ describe('EmporixCartService', () => {
           upstreamBody: '{"status":400,"message":"not allowed"}',
         }),
       );
-      expect(mockCartApi.getCart).not.toHaveBeenCalled();
+      expect(mockCartApi.getCart).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not apply when the cart is missing', async () => {
+      mockCartApi.getCart.mockResolvedValue(null);
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Cart not found',
+        }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+    });
+
+    it('does not apply when the cart fails the session legal-entity guard', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        customerId: 'cust-1',
+        currency: 'EUR',
+        siteCode: 'main',
+        legalEntityId: 'le-session',
+        cartId: 'cart-1',
+      });
+      mockCartApi.getCart.mockResolvedValue({
+        ...rawCart,
+        legalEntityId: 'le-other',
+      });
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Cart not found',
+        }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
     });
   });
 
@@ -716,6 +757,12 @@ describe('EmporixCartService', () => {
     });
 
     it('throws CartDiscountError when remove is not OK', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
       mockCartApi.removeDiscount.mockRejectedValue(
         new Error('Failed to remove discount from cart: 404 Not Found {"status":404}'),
       );
@@ -727,6 +774,44 @@ describe('EmporixCartService', () => {
           upstreamStatus: 404,
         }),
       );
+    });
+
+    it('does not remove when the cart is missing', async () => {
+      mockCartApi.getCart.mockResolvedValue(null);
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Cart not found',
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('does not remove when the cart fails the session legal-entity guard', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        customerId: 'cust-1',
+        currency: 'EUR',
+        siteCode: 'main',
+        legalEntityId: 'le-session',
+        cartId: 'cart-1',
+      });
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+        legalEntityId: 'le-other',
+      });
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Cart not found',
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
     });
   });
 
