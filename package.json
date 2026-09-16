@@ -42,7 +42,7 @@
     "format": "prettier --write \"**/*.{tsx,jsx,ts,css,scss,md}\"",
     "setup": "ts-node --project scripts/tsconfig.json scripts/setup-api.ts",
     "generate:sso-password": "ts-node --project scripts/tsconfig.json scripts/generate-sso-password.ts",
-    "prepare": "husky",
+    "prepare": "node scripts/prepare-husky.cjs",
     "update-schemas": "ts-node --project scripts/tsconfig.json scripts/setup/schema-update.ts"
   },
   "lint-staged": {

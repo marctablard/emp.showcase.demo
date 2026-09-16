@@ -374,7 +374,7 @@ Q: Does Vercel need a custom build command?
 A: The repo uses `npm run build`, which runs DI generation + Next.js build + lint.
 
 Q: How to debug a failed deploy?
-A: Check GitHub Actions logs (build/test) and Vercel deployment logs. Common issues are missing env vars or invalid Emporix credentials.
+A: Check GitHub Actions logs (build/test) and Vercel deployment logs. Common issues are missing env vars or invalid Emporix credentials. Ignore `npm warn deprecated …` during install — those are transitive notices and do not fail the job. Ignore `.git can't be found` from an older `prepare`/`husky` run: Vercel has no git worktree; `scripts/prepare-husky.cjs` skips husky when `.git` is absent. A real Vercel failure after `next build` that says `verify-client-chunks: missing …/.next/static/chunks` means the Next 16.3 immutable-assets layout (`.next/static/immutable/chunks`) was not scanned — that script now checks both paths.
 
 ## Troubleshooting checklist (common questions)
 - App fails on startup: verify required envs and `.env` present.
