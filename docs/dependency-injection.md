@@ -202,7 +202,7 @@ After the dependency alias source is resolved, `DI_SEARCH_SERVICE` can override 
 5. Each file statically imports all bound modules and applies aliases from the resolved dependency alias source where configured.
 6. `DI_SEARCH_SERVICE` is build-time only. Changing it after a build does not mutate already-generated `server.ts` or `ssr.ts`; the env value that matters is the one available to the build that runs `npm run generate`.
 
-After a production build, `npm run verify:client-chunks` checks that known Emporix integration symbols do not appear under `.next/static/chunks` (run manually or in CI if needed).
+After a production build, `npm run verify:client-chunks` checks that known Emporix integration symbols do not appear under `.next/static/chunks` or `.next/static/immutable/chunks` (the latter is used when `experimental.supportsImmutableAssets` is on, e.g. on Vercel with Next.js 16.3+; run manually or in CI if needed).
 
 ### Container Initialization
 

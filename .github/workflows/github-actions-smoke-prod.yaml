@@ -1,18 +1,21 @@
 # Production-build smoke (EMP-16 Phase G).
 #
-# Standalone, NON-BLOCKING lane: it runs a real `next build` + `next start` and
-# asserts the running app is serviceable (`npm run smoke:prod` — /api/health 200
-# + home route non-5xx). It is deliberately NOT wired into the deploy pipelines —
+# Standalone lane: it runs a real `next build` + `next start` and asserts the
+# running app is serviceable (`npm run smoke:prod` — /api/health 200 + home
+# route non-5xx). It is deliberately NOT wired into the deploy pipelines —
 # those build inside Vercel, so adding a build step there would double-build.
 # This lane owns the production-bundle boot smoke on its own.
 #
-# Non-blocking by design:
-#   - `scripts/smoke-prod.sh` self-skips with exit 0 when the Tier-1 Emporix
-#     credentials are absent (a runner without secrets never goes red), and
-#   - the smoke step is `continue-on-error: true`, so even a hard failure
-#     surfaces as a signal without blocking a merge — but a follow-up step
-#     turns that failure into a visible `::warning` annotation + job summary,
-#     so a non-blocking red is never an invisible green tick.
+# Blocking vs non-blocking:
+#   - Install (`npm ci`) and `npm audit` (verify-audit-policy.mjs) are
+#     required gates. A lockfile/malware/audit failure fails the job. This
+#     matches PR preview and was already true for `npm ci` before the audit
+#     step was added.
+#   - Only the boot smoke itself is non-blocking:
+#     - `scripts/smoke-prod.sh` self-skips with exit 0 when the Tier-1
+#       Emporix credentials are absent, and
+#     - the smoke step is `continue-on-error: true`, so a build/boot/serve
+#       failure surfaces as a warning + job summary without blocking merge.
 #
 # Triggers: the integration MR for this work lives on Gitea
 # (feature/SHOW-323 → feature/SHOW-323-target), which GitHub Actions cannot
@@ -66,8 +69,25 @@ jobs:
       # both the Next build and jest), @parcel/watcher and unrs-resolver link
       # their native binaries from a postinstall. Disabling scripts here would
       # break the production build this smoke exists to exercise.
+      # PR runs use the preview-only age-gate skip (same as
+      # verify:ci-install:preview-override). Feature-branch / dispatch runs
+      # keep the full lockfile age gate. Real prod deploy is a separate
+      # workflow and always uses unmodified `npm ci`.
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm ci --safe-chain-skip-minimum-package-age
+          else
+            npm ci
+          fi
+      # Compensating check for the PR-only age skip (and unchanged on other
+      # smoke events): malware blocking already ran via setup-ci; audit still
+      # fails the job on high/critical advisories. Same policy script as
+      # PR preview. See docs/run-build-deploy.md.
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=high --json > audit-report.json || true
+          node scripts/verify-audit-policy.mjs audit-report.json
       # The smoke pulls its full runtime config (the NEXT_PUBLIC_EMPORIX_* /
       # NEXTAUTH_SECRET / NEXT_PUBLIC_DEFAULT_* keys that env-validation requires)
       # from the Vercel preview environment into `.env`. `scripts/smoke-prod.sh`
