@@ -471,6 +471,32 @@ describe('useProduct hook', () => {
       expect(result.current.loading).toBe(false);
     });
 
+    test('assigned mode drops an SSR seed after a catalog fetch error (COP-4822 fail closed)', async () => {
+      const sessionStore = createSessionStore({
+        session: { ...readySession, customerId: 'cust-42' },
+        loading: false,
+      });
+      const assignedWrapper = ({ children }: { children: ReactNode }) => {
+        const Inner = createBootstrapWrapper(sessionStore);
+        return (
+          <ProductsModeProvider value={{ mode: 'assigned', isSegmented: true, canToggleAllProducts: false }}>
+            <Inner>{children}</Inner>
+          </ProductsModeProvider>
+        );
+      };
+      (fetchProductById as jest.Mock).mockRejectedValue(new Error('Failed to fetch product: 500'));
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: assignedWrapper,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+        expect(result.current.product).toBeNull();
+      });
+      expect(result.current.error?.message).toContain('500');
+    });
+
     test('assigned mode drops an SSR seed after a confirmed catalog 404 (COP-4822 AC4)', async () => {
       const sessionStore = createSessionStore({
         session: { ...readySession, customerId: 'cust-42' },

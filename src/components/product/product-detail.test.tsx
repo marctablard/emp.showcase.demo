@@ -329,23 +329,27 @@ describe('ProductDetail — Not Found contract (true absence vs cold bootstrap)'
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 
-  it('does not invoke notFound in assigned mode when the hook reports an error (price / 5xx) and an SSR seed exists', () => {
+  it('shows a spinner (not the unscoped seed) while assigned-mode revalidation is in flight after a mode transition', () => {
+    useProductsModeMock.mockReturnValue({
+      mode: 'all',
+      isSegmented: true,
+      canToggleAllProducts: true,
+    });
+    mockReadyHooks({ product: ssrSeedProduct, loading: false, error: null });
+
+    const { rerender } = render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'EnjoySolar 200W Module' })).toBeInTheDocument();
+
     useProductsModeMock.mockReturnValue({
       mode: 'assigned',
       isSegmented: true,
       canToggleAllProducts: false,
     });
-    mockReadyHooks({
-      product: null,
-      loading: false,
-      error: new Error('Failed to fetch product: Failed to match prices'),
-    });
+    mockReadyHooks({ product: ssrSeedProduct, loading: true, error: null });
+    rerender(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />);
 
-    expect(() => render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />)).not.toThrow(
-      'NEXT_NOT_FOUND',
-    );
-
-    expect(screen.getByRole('heading', { level: 1, name: 'EnjoySolar 200W Module' })).toBeInTheDocument();
+    expect(screen.getByTestId('pdp-spinner')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'EnjoySolar 200W Module' })).not.toBeInTheDocument();
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 

@@ -17,6 +17,12 @@ jest.mock('@/hooks/session/useSession', () => ({
   useSession: () => ({ session: { currency: 'EUR' } }),
 }));
 
+let mockClientFetchScope = 'anonymous::';
+
+jest.mock('@/hooks/common/useClientFetchScope', () => ({
+  useClientFetchScope: () => mockClientFetchScope,
+}));
+
 jest.mock('@/hooks/useL10n', () => ({
   useL10n: () => ({
     l10n: (value: string) => value,
@@ -82,6 +88,7 @@ function buildProduct(overrides: Partial<Product> = {}): Product {
 
 describe('ProductVariantSelector', () => {
   beforeEach(() => {
+    mockClientFetchScope = 'anonymous::';
     fetchProductVariantsMock.mockReset();
     fetchProductPricesMock.mockReset();
   });
@@ -258,5 +265,46 @@ describe('ProductVariantSelector', () => {
       expect(container).toBeEmptyDOMElement();
     });
     expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1', 'anonymous::');
+  });
+
+  it('clears previous-scope variants while an assigned refetch is in flight', async () => {
+    fetchProductVariantsMock.mockResolvedValueOnce([
+      buildProduct({
+        id: 'v-all',
+        variantAttributes: [
+          {
+            key: 'capacity',
+            name: 'Capacity',
+            values: [{ key: '12 Ah', selected: true }],
+          },
+        ],
+      }),
+    ]);
+    fetchProductPricesMock.mockResolvedValue({});
+
+    const { rerender } = render(<ProductVariantSelector product={buildProduct()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-variant-selector')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('product-variant-carousel')).toBeInTheDocument();
+
+    let resolveAssigned: (value: Product[]) => void = () => {};
+    fetchProductVariantsMock.mockImplementationOnce(
+      () =>
+        new Promise<Product[]>((resolve) => {
+          resolveAssigned = resolve;
+        }),
+    );
+    mockClientFetchScope = 'assigned:main:cust-1';
+    rerender(<ProductVariantSelector product={buildProduct()} />);
+
+    expect(screen.getByTestId('product-variant-selector-loading')).toBeInTheDocument();
+    expect(screen.queryByTestId('product-variant-carousel')).not.toBeInTheDocument();
+
+    resolveAssigned([]);
+    await waitFor(() => {
+      expect(fetchProductVariantsMock).toHaveBeenLastCalledWith('parent-1', 'assigned:main:cust-1');
+    });
   });
 });

@@ -8,13 +8,13 @@ import type { Category } from '@/platform/services/model/category';
 import type { ProductsModeContext, ProductsModeService } from '@/platform/services/products-mode/ProductsModeService';
 import type SegmentFilterService from '@/platform/services/search/impl/SegmentFilterService';
 import type { SegmentCategoryScope } from '@/platform/services/search/impl/SegmentFilterService';
+import type { SessionService } from '@/platform/services/session';
 import ssr from '@/platform/ssr';
 import {
   getCachedBatteryIncludedCategorySnapshot,
   getCachedNavigationCategoryTrees,
 } from './navigation-category-trees';
 import { getActiveSearchEngine } from './search-engine';
-import { getSessionForSite } from './session';
 
 /**
  * Per-request products-mode helpers for Server Components (COP-4822).
@@ -43,8 +43,24 @@ const _getProductsModeContext = cache(async (siteCode: string): Promise<Products
     // resolver itself broke. Only a request without an authenticated customer (no id, or the
     // Emporix anonymous-session literal `ANONYMOUS`) may degrade to `anonymous` — a logged-in
     // customer must never see the full catalog because of an outage.
-    const session = await getSessionForSite(siteCode);
-    if (session !== undefined && !isAuthenticatedSessionCustomerId(session?.customerId)) {
+    // `getSessionForSite` / `getCurrent()` collapse a lookup failure into `null`
+    // (same as "no session"). Only `getCurrentOrThrow()` keeps that distinction:
+    // `undefined` / anonymous id = no customer (fallback); a throw = outage (fail closed).
+    let sessionCustomerId: string | undefined;
+    try {
+      sessionCustomerId = (await ssr.get<SessionService>('SessionService').getCurrentOrThrow())?.customerId;
+    } catch (sessionError) {
+      logger.error(
+        {
+          err: error instanceof Error ? error : String(error),
+          sessionError: sessionError instanceof Error ? sessionError.message : String(sessionError),
+          siteCode,
+        },
+        'SSR getProductsModeContext failed and session lookup failed; rethrowing (fail closed)',
+      );
+      throw error;
+    }
+    if (!isAuthenticatedSessionCustomerId(sessionCustomerId)) {
       logger.error(
         { err: error instanceof Error ? error : String(error), siteCode },
         'SSR getProductsModeContext failed; no customer in session, falling back to anonymous mode',
@@ -58,7 +74,7 @@ const _getProductsModeContext = cache(async (siteCode: string): Promise<Products
       };
     }
     logger.error(
-      { err: error instanceof Error ? error : String(error), siteCode, customerId: session?.customerId },
+      { err: error instanceof Error ? error : String(error), siteCode, customerId: sessionCustomerId },
       'SSR getProductsModeContext failed for a customer session; rethrowing (fail closed)',
     );
     throw error;

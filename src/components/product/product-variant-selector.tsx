@@ -38,8 +38,10 @@ export default function ProductVariantSelector({ product, className }: ProductVa
   const parentId = product.parentVariantId || product.id;
   const shouldLoadVariants = isVariantFamilyProduct(product);
   const [prevParentId, setPrevParentId] = useState(parentId);
-  if (prevParentId !== parentId) {
+  const [prevClientDedupeScope, setPrevClientDedupeScope] = useState(clientDedupeScope);
+  if (prevParentId !== parentId || prevClientDedupeScope !== clientDedupeScope) {
     setPrevParentId(parentId);
+    setPrevClientDedupeScope(clientDedupeScope);
     setVariants([]);
     setVariantsLoaded(false);
     setVariantPrices(undefined);

@@ -78,11 +78,19 @@ function applyProductFetchError(
   setProduct: (product: Product | null) => void,
   setError: (error: Error | null) => void,
   err: unknown,
+  failClosed: boolean,
+  invalidateCached?: (id: string) => void,
 ): void {
-  // Keep prior same-id product on failure (do not wipe to null); surface error instead.
-  const prior = resolvePriorSameIdProduct(productId, localProduct, getCached);
-  if (prior) {
-    setProduct(prior);
+  // Assigned-mode revalidation must fail closed: a 5xx / network error must not keep an
+  // anonymous/ALL seed on screen (COP-4822). Other modes keep the prior same-id product.
+  if (failClosed) {
+    invalidateCached?.(productId);
+    setProduct(null);
+  } else {
+    const prior = resolvePriorSameIdProduct(productId, localProduct, getCached);
+    if (prior) {
+      setProduct(prior);
+    }
   }
   setError(err instanceof Error ? err : new Error('An unknown error occurred'));
   getLogger().error({ err }, 'Error fetching product');
@@ -209,7 +217,16 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
         if (isStale()) {
           return;
         }
-        applyProductFetchError(id, productRef.current, getProduct, setProduct, setError, err);
+        applyProductFetchError(
+          id,
+          productRef.current,
+          getProduct,
+          setProduct,
+          setError,
+          err,
+          mustRevalidateAssignedSeed,
+          addProduct,
+        );
       } finally {
         // The newest fetch owns `loading`; a superseded one must not clear it early.
         if (!isStale()) {

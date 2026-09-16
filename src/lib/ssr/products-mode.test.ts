@@ -36,11 +36,6 @@ jest.mock('./search-engine', () => ({
   getActiveSearchEngine: jest.fn(),
 }));
 
-jest.mock('./session', () => ({
-  __esModule: true,
-  getSessionForSite: jest.fn(),
-}));
-
 const mockedSsr = jest.requireMock('@/platform/ssr') as {
   default: { get: jest.Mock; __services: Map<string, unknown> };
 };
@@ -52,7 +47,6 @@ const { getCachedNavigationCategoryTrees, getCachedBatteryIncludedCategorySnapsh
   getCachedBatteryIncludedCategorySnapshot: jest.Mock;
 };
 const { getActiveSearchEngine } = jest.requireMock('./search-engine') as { getActiveSearchEngine: jest.Mock };
-const { getSessionForSite } = jest.requireMock('./session') as { getSessionForSite: jest.Mock };
 
 /** Active segment ids of the resolved products mode used by the scope helpers in these tests. */
 const SEGMENTS = ['seg-1', 'seg-2'];
@@ -71,6 +65,7 @@ function buildContext(overrides: Partial<ProductsModeContext> = {}): ProductsMod
 describe('products-mode SSR helpers', () => {
   const productsModeService = { resolve: jest.fn() };
   const segmentFilterService = { getCategoryScope: jest.fn() };
+  const sessionService = { getCurrentOrThrow: jest.fn() };
   const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
   beforeEach(() => {
@@ -78,11 +73,12 @@ describe('products-mode SSR helpers', () => {
     mockedSsr.default.__services.clear();
     mockedSsr.default.__services.set('ProductsModeService', productsModeService);
     mockedSsr.default.__services.set('SegmentFilterService', segmentFilterService);
+    mockedSsr.default.__services.set('SessionService', sessionService);
     mockedSsr.default.__services.set('LoggerService', logger);
     mockedSsr.default.get.mockImplementation((id: string) => mockedSsr.default.__services.get(id));
     cookies.mockResolvedValue({ get: jest.fn().mockReturnValue(undefined) });
     getActiveSearchEngine.mockReturnValue('batteryincluded');
-    getSessionForSite.mockResolvedValue(null);
+    sessionService.getCurrentOrThrow.mockResolvedValue(null);
     getCachedBatteryIncludedCategorySnapshot.mockResolvedValue(null);
   });
 
@@ -112,7 +108,7 @@ describe('products-mode SSR helpers', () => {
     it('logs and rethrows when resolve rejects for a logged-in customer (no full-catalog fallback)', async () => {
       const failure = new Error('resolver exploded');
       productsModeService.resolve.mockRejectedValue(failure);
-      getSessionForSite.mockResolvedValue({ id: 's-1', siteCode: 'main', customerId: 'cust-1' });
+      sessionService.getCurrentOrThrow.mockResolvedValue({ id: 's-1', siteCode: 'main', customerId: 'cust-1' });
 
       await expect(getProductsModeContext('main')).rejects.toBe(failure);
 
@@ -126,17 +122,21 @@ describe('products-mode SSR helpers', () => {
     it('logs and rethrows when resolve rejects and the session lookup itself failed', async () => {
       const failure = new Error('resolver exploded');
       productsModeService.resolve.mockRejectedValue(failure);
-      getSessionForSite.mockResolvedValue(undefined);
+      sessionService.getCurrentOrThrow.mockRejectedValue(new Error('session-context down'));
 
       await expect(getProductsModeContext('main')).rejects.toBe(failure);
 
       expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionError: 'session-context down', siteCode: 'main' }),
+        expect.stringContaining('session lookup failed'),
+      );
     });
 
     it('logs and falls back to anonymous mode when resolve rejects and the session has no customer', async () => {
       const failure = new Error('resolver exploded');
       productsModeService.resolve.mockRejectedValue(failure);
-      getSessionForSite.mockResolvedValue({ id: 's-1', siteCode: 'main' });
+      sessionService.getCurrentOrThrow.mockResolvedValue({ id: 's-1', siteCode: 'main' });
       getActiveSearchEngine.mockReturnValue('emporix');
 
       await expect(getProductsModeContext('main')).resolves.toEqual({
@@ -147,7 +147,7 @@ describe('products-mode SSR helpers', () => {
         siteCode: 'main',
       });
 
-      expect(getSessionForSite).toHaveBeenCalledWith('main');
+      expect(sessionService.getCurrentOrThrow).toHaveBeenCalledTimes(1);
       expect(logger.error).toHaveBeenCalledTimes(1);
       expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ err: failure, siteCode: 'main' }),
@@ -158,7 +158,7 @@ describe('products-mode SSR helpers', () => {
     it('falls back to anonymous mode when resolve rejects for the Emporix "ANONYMOUS" session customerId', async () => {
       const failure = new Error('resolver exploded');
       productsModeService.resolve.mockRejectedValue(failure);
-      getSessionForSite.mockResolvedValue({ id: 's-1', siteCode: 'main', customerId: 'ANONYMOUS' });
+      sessionService.getCurrentOrThrow.mockResolvedValue({ id: 's-1', siteCode: 'main', customerId: 'ANONYMOUS' });
 
       await expect(getProductsModeContext('main')).resolves.toEqual({
         mode: 'anonymous',
@@ -177,7 +177,7 @@ describe('products-mode SSR helpers', () => {
 
     it('falls back to anonymous mode when resolve rejects and there is no session at all', async () => {
       productsModeService.resolve.mockRejectedValue(new Error('boom'));
-      getSessionForSite.mockResolvedValue(null);
+      sessionService.getCurrentOrThrow.mockResolvedValue(undefined);
 
       await expect(getProductsModeContext('main')).resolves.toMatchObject({ mode: 'anonymous', segmentIds: [] });
     });
