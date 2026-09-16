@@ -66,8 +66,16 @@ jobs:
       # both the Next build and jest), @parcel/watcher and unrs-resolver link
       # their native binaries from a postinstall. Disabling scripts here would
       # break the production build this smoke exists to exercise.
+      # PR runs use the preview-only age-gate skip (same as
+      # verify:ci-install:preview-override). Feature-branch / dispatch runs
+      # and real prod deploy keep the full minimum-package-age gate.
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm ci --safe-chain-skip-minimum-package-age
+          else
+            npm ci
+          fi
       # The smoke pulls its full runtime config (the NEXT_PUBLIC_EMPORIX_* /
       # NEXTAUTH_SECRET / NEXT_PUBLIC_DEFAULT_* keys that env-validation requires)
       # from the Vercel preview environment into `.env`. `scripts/smoke-prod.sh`
