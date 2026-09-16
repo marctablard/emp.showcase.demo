@@ -221,9 +221,6 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
               placeholder={t('descriptionPlaceholder')}
               data-testid="return-description"
             />
-            <p className="mt-2 text-xs text-text-on-disabled">
-              {reasonDetails.length}/{MAX_DESCRIPTION_LENGTH}
-            </p>
           </div>
 
           <div className="flex items-start gap-3 mt-4">
