@@ -34,9 +34,9 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
   ) {}
 
   /**
-   * Feature-detecting call to `me/segments` (COP-5908). On api-develop an unknown `me/*` route
-   * answers `200` with a 0-byte body and no `content-type`, so every non-JSON-array outcome
-   * resolves `null` and lets the service fall back to `getSegments()`.
+   * Feature-detecting call to `me/segments` (COP-5908). A non-JSON-array outcome
+   * (unknown `me/*` route, empty body, missing content-type) resolves `null` so the
+   * service can fail closed — `GET /segments` is not customer membership.
    */
   async getMySegments(params?: CustomerSegmentQueryParams): Promise<SegmentResponse[] | null> {
     const url = this.buildUrl('/me/segments', params);
@@ -167,11 +167,8 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
     const items = (await response.json()) as T[];
     const totalCount = this.parseTotalCount(response.headers.get(TOTAL_COUNT_HEADER));
     if (totalCount === undefined) {
-      this.logger.warn(
-        { route, itemCount: items.length, pageNumber },
-        'X-Total-Count header missing; pagination stops after this page',
-      );
-      return { items, totalCount: items.length };
+      this.logger.error({ route, itemCount: items.length, pageNumber }, 'X-Total-Count header missing; failing closed');
+      throw new Error('X-Total-Count header missing');
     }
     return { items, totalCount };
   }

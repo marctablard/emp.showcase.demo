@@ -353,6 +353,33 @@ describe('ProductDetail — Not Found contract (true absence vs cold bootstrap)'
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 
+  it('shows a spinner (not the previous customer seed) while assigned-mode revalidation is in flight after a customer switch', () => {
+    useProductsModeMock.mockReturnValue({
+      mode: 'assigned',
+      isSegmented: true,
+      canToggleAllProducts: false,
+    });
+    mockReadyHooks({ product: ssrSeedProduct, loading: false, error: null });
+    useSessionMock.mockReturnValue({
+      session: { id: 'sess-a', siteCode: 'main', currency: 'EUR', customerId: 'cust-a' },
+      loading: false,
+    });
+
+    const { rerender } = render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'EnjoySolar 200W Module' })).toBeInTheDocument();
+
+    mockReadyHooks({ product: ssrSeedProduct, loading: true, error: null });
+    useSessionMock.mockReturnValue({
+      session: { id: 'sess-b', siteCode: 'main', currency: 'EUR', customerId: 'cust-b' },
+      loading: false,
+    });
+    rerender(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />);
+
+    expect(screen.getByTestId('pdp-spinner')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'EnjoySolar 200W Module' })).not.toBeInTheDocument();
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
   it('invokes notFound in assigned mode when the catalog miss is confirmed even if an SSR seed exists', () => {
     useProductsModeMock.mockReturnValue({
       mode: 'assigned',

@@ -178,7 +178,9 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
   );
 
   const prevCacheGenRef = useRef(cacheGeneration);
-  const prevClientDedupeScopeRef = useRef(clientDedupeScope);
+  // `null` until the first effect: a new hook instance must not reuse id-keyed ProductStore
+  // entries from another customer/mode/site (COP-4822 CompareView / assigned first mount).
+  const prevClientDedupeScopeRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (productIds && productIds.length > 0) {

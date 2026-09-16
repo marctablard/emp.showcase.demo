@@ -13,10 +13,6 @@ import type { CustomerSegmentService } from '../CustomerSegmentService';
 const SEGMENT_ITEMS_PAGE_SIZE = 200;
 /** Hard cap on pages fetched by `getSegmentItems()` to protect against a runaway loop. */
 const SEGMENT_ITEMS_MAX_PAGES = 50;
-/** Page size for the `GET /segments` fallback. */
-const SEGMENTS_FALLBACK_PAGE_SIZE = 100;
-/** Hard cap on pages fetched by the `GET /segments` fallback. */
-const SEGMENTS_FALLBACK_MAX_PAGES = 50;
 
 type PagedItems<T> = { items: readonly T[]; totalCount: number };
 
@@ -149,14 +145,15 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
                 totalCount,
                 maxPages: SEGMENT_ITEMS_MAX_PAGES,
               },
-              'Segment items pagination stopped at the hard page cap; result is truncated',
+              'Segment items pagination stopped at the hard page cap; failing closed',
             );
-            return;
+            throw new Error('Segment items pagination stopped at the hard page cap');
           }
           this.logger.warn(
             { siteCode: baseParams.siteCode, collected, totalCount },
-            'Segment items pagination ended before X-Total-Count was reached; result is truncated',
+            'Segment items pagination ended before X-Total-Count was reached; failing closed',
           );
+          throw new Error('Segment items pagination ended before X-Total-Count was reached');
         },
       );
     } catch (error) {
@@ -195,9 +192,10 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
   }
 
   /**
-   * Primary `me/segments` when usable; otherwise every page of `GET /segments`. A fallback payload
-   * with no string ids is treated as shape drift and thrown so `ProductsModeService` fails closed
-   * (`assigned` / `segmentIds: []`) instead of granting the unsegmented catalog.
+   * Membership is only `GET …/me/segments` (Emporix "Retrieving own customer segments").
+   * `GET /segments` is the tenant catalogue visible to the session, not this customer's
+   * assignments — using it as a fallback would widen the assigned catalog. Unavailable or
+   * shape-drifted `me/segments` is thrown so `ProductsModeService` fails closed.
    */
   private async resolveMySegmentsSource(
     params: { legalEntityId?: string; siteCode?: string },
@@ -209,45 +207,11 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
       return primary as SegmentResponse[];
     }
 
-    this.logger.warn({ customerId, reason: fallbackReason }, 'me/segments unavailable; falling back to GET /segments');
-    const source = await this.fetchFallbackSegments(params, customerId);
-    if (this.getMySegmentsFallbackReason(source) === 'shape-drift') {
-      this.logger.error(
-        { customerId, reason: 'shape-drift' },
-        'GET /segments fallback returned unusable payload; failing closed',
-      );
-      throw new Error('GET /segments fallback returned unusable payload');
-    }
-    return source;
-  }
-
-  private async fetchFallbackSegments(
-    params: { legalEntityId?: string; siteCode?: string },
-    customerId: string | undefined,
-  ): Promise<SegmentResponse[]> {
-    return collectPagedItems(
-      (pageNumber) =>
-        this.customerSegmentApi.getSegments({
-          ...params,
-          pageSize: SEGMENTS_FALLBACK_PAGE_SIZE,
-          pageNumber,
-        }),
-      SEGMENTS_FALLBACK_MAX_PAGES,
-      (reason, collected, totalCount) => {
-        if (reason === 'cap') {
-          this.logger.warn(
-            { customerId, collected, totalCount, maxPages: SEGMENTS_FALLBACK_MAX_PAGES },
-            'GET /segments fallback pagination stopped at the hard page cap; failing closed',
-          );
-          throw new Error('GET /segments fallback pagination stopped at the hard page cap');
-        }
-        this.logger.warn(
-          { customerId, collected, totalCount },
-          'GET /segments fallback pagination ended before X-Total-Count was reached; failing closed',
-        );
-        throw new Error('GET /segments fallback pagination ended before X-Total-Count was reached');
-      },
+    this.logger.error(
+      { customerId, reason: fallbackReason },
+      'me/segments unavailable or unusable; failing closed (GET /segments is not customer membership)',
     );
+    throw new Error(`me/segments ${fallbackReason}; failing closed`);
   }
 
   /**

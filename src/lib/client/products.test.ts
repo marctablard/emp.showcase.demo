@@ -44,7 +44,11 @@ describe('fetchProductById', () => {
 
     expect(validation).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/products/p-1', expect.objectContaining({ cache: 'no-store' }));
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/products/p-1?site=main',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
   });
 });
 
@@ -75,6 +79,10 @@ describe('fetchProductVariants', () => {
     const [a, b] = await Promise.all([p1, p2]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/products/parent-1/variants?site=main',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
     expect(a).toEqual([{ id: 'v1' }]);
     expect(b).toEqual([{ id: 'v1' }]);
   });

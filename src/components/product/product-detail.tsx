@@ -29,6 +29,7 @@ import { useSite } from '@/hooks/site/useSite';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import { isEnergyEfficiencyClass } from '@/lib/common/energy-efficiency';
 import {
   PDP_TECHNICAL_INFORMATION_SECTION_ID,
@@ -793,7 +794,23 @@ export default function ProductDetail({
       setEnteredAssignedAfterMount(false);
     }
   }
-  const hideUnscopedSeed = enteredAssignedAfterMount && (loading || product === null);
+  const sessionCustomerId = session?.customerId;
+  const [prevSessionCustomerId, setPrevSessionCustomerId] = useState(sessionCustomerId);
+  const [customerChangedWhileAssigned, setCustomerChangedWhileAssigned] = useState(false);
+  if (prevSessionCustomerId !== sessionCustomerId) {
+    setPrevSessionCustomerId(sessionCustomerId);
+    if (
+      productsMode === 'assigned' &&
+      isAuthenticatedSessionCustomerId(prevSessionCustomerId) &&
+      isAuthenticatedSessionCustomerId(sessionCustomerId)
+    ) {
+      setCustomerChangedWhileAssigned(true);
+    }
+  }
+  if (productsMode !== 'assigned' && customerChangedWhileAssigned) {
+    setCustomerChangedWhileAssigned(false);
+  }
+  const hideUnscopedSeed = (enteredAssignedAfterMount || customerChangedWhileAssigned) && (loading || product === null);
   // COP-4822 AC4: assigned mode must not keep painting an out-of-segment seed after a
   // confirmed catalog miss or a fail-closed catalog error (5xx / network).
   const assignedCatalogMiss = productsMode === 'assigned' && product === null && !loading && shopContextReady;

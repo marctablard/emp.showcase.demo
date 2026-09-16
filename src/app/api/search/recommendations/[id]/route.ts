@@ -39,12 +39,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
     }
 
+    const requestSite = url.searchParams.get('site') || undefined;
     ctx = await server.get<ProductsModeService>('ProductsModeService').resolve({
       optInCookieValue: request.cookies.get(PRODUCTS_MODE_COOKIE_NAME)?.value,
+      siteCode: requestSite,
     });
     const assigned = ctx.mode === 'assigned';
-    // One site for mode, scope and engine call when the response is personalised.
-    const effectiveSite = isPersonalised(ctx) ? ctx.siteCode : undefined;
+    // One site for mode, scope and engine call. Prefer the resolved context site when personalised.
+    const effectiveSite = isPersonalised(ctx) ? (ctx.siteCode ?? requestSite) : requestSite;
 
     const searchService = server.get<SearchService>('SearchService');
     const recommendations = await searchService.getRecommendations(

@@ -94,4 +94,21 @@ describe('useProducts scope race (COP-4822)', () => {
     expect(store.getState().getProduct('p-1')).toBeNull();
     expect(result.current.loading).toBe(false);
   });
+
+  it('does not accept an id-keyed store entry from another scope on first assigned mount', async () => {
+    mockClientFetchScope = 'assigned:main:cust-b';
+    const store = createProductStore();
+    store.getState().addProduct(product('p-foreign'));
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(ProductStoreContext.Provider, { value: store }, children);
+
+    (fetchProductById as jest.Mock).mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() => useProducts(['p-foreign']), { wrapper });
+
+    await waitFor(() => expect(fetchProductById).toHaveBeenCalledTimes(1));
+    expect(fetchProductById).toHaveBeenCalledWith('p-foreign', undefined, 'assigned:main:cust-b');
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.products).toEqual([]);
+  });
 });

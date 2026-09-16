@@ -159,7 +159,7 @@ describe('EmporixCustomerSegmentApi', () => {
 
   describe('getSegments', () => {
     it('returns the JSON array with the session token and metrics', async () => {
-      apiClient.authenticatedFetch.mockResolvedValue(jsonResponse([segment]));
+      apiClient.authenticatedFetch.mockResolvedValue(jsonResponse([segment], { headers: { 'X-Total-Count': '1' } }));
 
       await expect(api.getSegments({ legalEntityId: 'le-1', siteCode: 'main', pageSize: 100 })).resolves.toEqual({
         items: [segment],
@@ -172,10 +172,7 @@ describe('EmporixCustomerSegmentApi', () => {
       expect(parsedUrl.searchParams.get('siteCode')).toBe('main');
       expect(parsedUrl.searchParams.get('pageSize')).toBe('100');
       expect(options).toEqual({ method: 'GET', headers: { 'X-Total-Count': 'true' } });
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({ route: '/customer-segment/{tenant}/segments', itemCount: 1 }),
-        expect.stringContaining('X-Total-Count'),
-      );
+      expect(logger.error).not.toHaveBeenCalled();
       expect(tokenType).toBe('session');
       expect(metrics).toEqual({ source: 'customer-segment', routePattern: '/customer-segment/{tenant}/segments' });
     });
@@ -228,14 +225,11 @@ describe('EmporixCustomerSegmentApi', () => {
       expect(lastCall().parsedUrl.searchParams.get('onlyActive')).toBe('false');
     });
 
-    it('falls back to items.length and warns when X-Total-Count is missing', async () => {
+    it('fails closed when X-Total-Count is missing', async () => {
       apiClient.authenticatedFetch.mockResolvedValue(jsonResponse([assignment, assignment]));
 
-      const result = await api.getSegmentItems({ pageNumber: 1 });
-
-      expect(result).toEqual({ items: [assignment, assignment], totalCount: 2 });
-      expect(logger.warn).toHaveBeenCalledTimes(1);
-      expect(logger.warn).toHaveBeenCalledWith(
+      await expect(api.getSegmentItems({ pageNumber: 1 })).rejects.toThrow('X-Total-Count header missing');
+      expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ itemCount: 2, pageNumber: 1 }),
         expect.stringContaining('X-Total-Count'),
       );

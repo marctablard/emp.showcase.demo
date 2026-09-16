@@ -114,99 +114,26 @@ describe('EmporixCustomerSegmentService', () => {
       expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    it('falls back to getSegments once and warns when the primary resolves null', async () => {
+    it('fails closed and does not call GET /segments when the primary resolves null', async () => {
       api.getMySegments.mockResolvedValue(null);
-      api.getSegments.mockResolvedValue({ items: [solarSegment], totalCount: 1 });
 
-      const result = await service.getMySegments();
-
-      expect(result.map((s) => s.id)).toEqual(['solarpanelfans']);
-      expect(api.getSegments).toHaveBeenCalledTimes(1);
-      expect(api.getSegments).toHaveBeenCalledWith({
-        legalEntityId: 'le-1',
-        siteCode: 'main',
-        pageSize: 100,
-        pageNumber: 1,
-      });
-      expect(logger.warn).toHaveBeenCalledTimes(1);
-      expect(logger.warn).toHaveBeenCalledWith(
+      await expect(service.getMySegments()).rejects.toThrow(
+        'Failed to retrieve customer segments: me/segments unavailable; failing closed',
+      );
+      expect(api.getSegments).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
         { customerId: 'customer-1', reason: 'unavailable' },
-        expect.stringContaining('falling back'),
+        expect.stringContaining('failing closed'),
       );
     });
 
-    it('treats a non-empty array without string ids as shape drift: falls back once and warns', async () => {
+    it('fails closed and does not call GET /segments when the primary is shape-drifted', async () => {
       api.getMySegments.mockResolvedValue([{ foo: 'bar' } as unknown as SegmentResponse]);
-      api.getSegments.mockResolvedValue({ items: [solarSegment], totalCount: 1 });
-
-      const result = await service.getMySegments();
-
-      expect(result.map((s) => s.id)).toEqual(['solarpanelfans']);
-      expect(api.getSegments).toHaveBeenCalledTimes(1);
-      expect(logger.warn).toHaveBeenCalledTimes(1);
-      expect(logger.warn).toHaveBeenCalledWith({ customerId: 'customer-1', reason: 'shape-drift' }, expect.any(String));
-    });
-
-    it('pages the GET /segments fallback until X-Total-Count is reached', async () => {
-      const page1 = Array.from({ length: 100 }, (_, i) => ({
-        ...solarSegment,
-        id: `seg-${i}`,
-      }));
-      const page2 = [{ ...solarSegment, id: 'seg-100' }];
-      api.getMySegments.mockResolvedValue(null);
-      api.getSegments
-        .mockResolvedValueOnce({ items: page1, totalCount: 101 })
-        .mockResolvedValueOnce({ items: page2, totalCount: 101 });
-
-      const result = await service.getMySegments();
-
-      expect(result).toHaveLength(101);
-      expect(api.getSegments).toHaveBeenCalledTimes(2);
-      expect(api.getSegments).toHaveBeenNthCalledWith(2, expect.objectContaining({ pageNumber: 2, pageSize: 100 }));
-    });
-
-    it('fails closed when the GET /segments fallback is truncated before X-Total-Count', async () => {
-      api.getMySegments.mockResolvedValue(null);
-      api.getSegments
-        .mockResolvedValueOnce({ items: [solarSegment], totalCount: 2 })
-        .mockResolvedValueOnce({ items: [], totalCount: 2 });
 
       await expect(service.getMySegments()).rejects.toThrow(
-        'Failed to retrieve customer segments: GET /segments fallback pagination ended before X-Total-Count was reached',
+        'Failed to retrieve customer segments: me/segments shape-drift; failing closed',
       );
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({ customerId: 'customer-1', collected: 1, totalCount: 2 }),
-        expect.stringContaining('failing closed'),
-      );
-    });
-
-    it('fails closed when the GET /segments fallback hits the hard page cap', async () => {
-      api.getMySegments.mockResolvedValue(null);
-      api.getSegments.mockImplementation(async (params) => ({
-        items: Array.from({ length: 100 }, (_, i) => ({
-          ...solarSegment,
-          id: `seg-${((params?.pageNumber ?? 1) - 1) * 100 + i}`,
-        })),
-        totalCount: 10_000,
-      }));
-
-      await expect(service.getMySegments()).rejects.toThrow(
-        'Failed to retrieve customer segments: GET /segments fallback pagination stopped at the hard page cap',
-      );
-      expect(api.getSegments).toHaveBeenCalledTimes(50);
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({ maxPages: 50, collected: 5_000, totalCount: 10_000 }),
-        expect.stringContaining('failing closed'),
-      );
-    });
-
-    it('fails closed when the fallback payload has no string ids (shape drift)', async () => {
-      api.getMySegments.mockResolvedValue(null);
-      api.getSegments.mockResolvedValue({ items: [{ foo: 'bar' } as unknown as SegmentResponse], totalCount: 1 });
-
-      await expect(service.getMySegments()).rejects.toThrow(
-        'Failed to retrieve customer segments: GET /segments fallback returned unusable payload',
-      );
+      expect(api.getSegments).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
         { customerId: 'customer-1', reason: 'shape-drift' },
         expect.stringContaining('failing closed'),
@@ -301,22 +228,18 @@ describe('EmporixCustomerSegmentService', () => {
         expect(api.getMySegments).toHaveBeenCalledWith({ legalEntityId: 'le-1', siteCode: 'other' });
       });
 
-      it('applies the same filtering to the fallback result', async () => {
-        api.getMySegments.mockResolvedValue(null);
-        api.getSegments.mockResolvedValue({
-          items: [solarSegment, { id: 'inactive', status: 'INACTIVE', siteCode: 'main' }],
-          totalCount: 2,
-        });
+      it('does not consult GET /segments when membership filtering is applied', async () => {
+        api.getMySegments.mockResolvedValue([solarSegment, { id: 'inactive', status: 'INACTIVE', siteCode: 'main' }]);
 
         const result = await service.getMySegments();
 
         expect(result.map((s) => s.id)).toEqual(['solarpanelfans']);
+        expect(api.getSegments).not.toHaveBeenCalled();
       });
     });
 
-    it('logs and rethrows a wrapped error when the fallback rejects', async () => {
-      api.getMySegments.mockResolvedValue(null);
-      api.getSegments.mockRejectedValue(new Error('upstream down'));
+    it('logs and rethrows a wrapped error when me/segments rejects', async () => {
+      api.getMySegments.mockRejectedValue(new Error('upstream down'));
 
       await expect(service.getMySegments()).rejects.toThrow('Failed to retrieve customer segments: upstream down');
       expect(logger.error).toHaveBeenCalledWith(
@@ -374,8 +297,7 @@ describe('EmporixCustomerSegmentService', () => {
       });
     });
 
-    it('stops after one page when X-Total-Count is missing (integration falls back to items.length)', async () => {
-      // Integration falls back to `items.length` when the header is missing → totalCount equals the page size.
+    it('returns a single page when the advertised total equals the page length', async () => {
       api.getSegmentItems.mockResolvedValueOnce({ items: assignments(120), totalCount: 120 });
 
       const result = await service.getSegmentItems();
@@ -400,36 +322,34 @@ describe('EmporixCustomerSegmentService', () => {
       expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    it('stops on an empty page and warns about the truncation when X-Total-Count was not reached', async () => {
+    it('fails closed when pagination ends before X-Total-Count is reached', async () => {
       api.getSegmentItems
         .mockResolvedValueOnce({ items: assignments(120), totalCount: 300 })
         .mockResolvedValueOnce({ items: [], totalCount: 300 });
 
-      const result = await service.getSegmentItems();
-
-      expect(result).toHaveLength(120);
+      await expect(service.getSegmentItems()).rejects.toThrow(
+        'Failed to retrieve customer segment items: Segment items pagination ended before X-Total-Count was reached',
+      );
       expect(api.getSegmentItems).toHaveBeenCalledTimes(2);
-      expect(logger.warn).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
         { siteCode: 'main', collected: 120, totalCount: 300 },
-        expect.stringContaining('truncated'),
+        expect.stringContaining('failing closed'),
       );
     });
 
-    it('stops at the hard cap of 50 pages with a warn', async () => {
+    it('fails closed at the hard cap of 50 pages', async () => {
       api.getSegmentItems.mockImplementation(async (params) => ({
         items: assignments(200, ((params?.pageNumber ?? 1) - 1) * 200),
         totalCount: 100_000,
       }));
 
-      const result = await service.getSegmentItems();
-
+      await expect(service.getSegmentItems()).rejects.toThrow(
+        'Failed to retrieve customer segment items: Segment items pagination stopped at the hard page cap',
+      );
       expect(api.getSegmentItems).toHaveBeenCalledTimes(50);
-      expect(result).toHaveLength(50 * 200);
-      expect(logger.warn).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ maxPages: 50, collected: 10_000, totalCount: 100_000 }),
-        expect.stringContaining('hard page cap'),
+        expect.stringContaining('failing closed'),
       );
     });
 

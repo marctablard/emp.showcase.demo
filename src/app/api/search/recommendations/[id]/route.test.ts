@@ -111,6 +111,17 @@ describe('GET /api/search/recommendations/[id]', () => {
   });
 
   describe('assigned mode', () => {
+    it('forwards ?site to ProductsModeService.resolve and uses the resolved site for the engine', async () => {
+      productsModeService.resolve.mockResolvedValue(context('assigned', { siteCode: 'us' }));
+
+      await callRoute('product-1', '?site=us');
+
+      expect(productsModeService.resolve).toHaveBeenCalledWith({ optInCookieValue: undefined, siteCode: 'us' });
+      expect(searchService.getRecommendations).toHaveBeenCalledWith('product-1', undefined, 'us', 12, undefined, {
+        segmentIds: ['seg-1', 'seg-2'],
+      });
+    });
+
     it('forwards segmentIds to getRecommendations and responds private, no-store', async () => {
       productsModeService.resolve.mockResolvedValue(context('assigned'));
 
@@ -119,7 +130,10 @@ describe('GET /api/search/recommendations/[id]', () => {
       expect(response.status).toBe(200);
       expect(response.headers.get('cache-control')).toBe('private, no-store');
       await expect(response.json()).resolves.toEqual({ products: RECOMMENDATIONS });
-      expect(productsModeService.resolve).toHaveBeenCalledWith({ optInCookieValue: 'assigned.cust-42' });
+      expect(productsModeService.resolve).toHaveBeenCalledWith({
+        optInCookieValue: 'assigned.cust-42',
+        siteCode: undefined,
+      });
       expect(searchService.getRecommendations).toHaveBeenCalledWith('product-1', undefined, 'main', 12, undefined, {
         segmentIds: ['seg-1', 'seg-2'],
       });
@@ -165,7 +179,10 @@ describe('GET /api/search/recommendations/[id]', () => {
       const response = await callRoute('product-1', '', { cookie: 'all.cust-42' });
 
       expect(response.headers.get('cache-control')).toBe('private, no-store');
-      expect(productsModeService.resolve).toHaveBeenCalledWith({ optInCookieValue: 'all.cust-42' });
+      expect(productsModeService.resolve).toHaveBeenCalledWith({
+        optInCookieValue: 'all.cust-42',
+        siteCode: undefined,
+      });
       expect(searchService.getRecommendations.mock.calls[0][OPTIONS_ARG]).toBeUndefined();
     });
   });
@@ -176,7 +193,7 @@ describe('GET /api/search/recommendations/[id]', () => {
 
       const response = await callRoute('product-1', '?segmentIds=seg-evil&mode=all');
 
-      expect(productsModeService.resolve).toHaveBeenCalledWith({ optInCookieValue: undefined });
+      expect(productsModeService.resolve).toHaveBeenCalledWith({ optInCookieValue: undefined, siteCode: undefined });
       expect(response.headers.get('cache-control')).toBeNull();
       expect(searchService.getRecommendations.mock.calls[0][OPTIONS_ARG]).toBeUndefined();
     });

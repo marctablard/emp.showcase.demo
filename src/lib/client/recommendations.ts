@@ -1,3 +1,4 @@
+import { appendSiteQuery, requestSiteFromClientDedupeScope } from '@/lib/client/client-fetch-scope';
 import type { ProductRecommendations } from '@/platform/services/model/product';
 
 const _recommendationsInflight = new Map<string, Promise<ProductRecommendations>>();
@@ -10,7 +11,9 @@ export async function fetchRecommendations(productId: string, clientDedupeScope 
   }
 
   const promise = (async () => {
-    const res = await fetch(`/api/search/recommendations/${productId}`);
+    const res = await fetch(
+      appendSiteQuery(`/api/search/recommendations/${productId}`, requestSiteFromClientDedupeScope(clientDedupeScope)),
+    );
     if (!res.ok) throw new Error('Failed to fetch recommendations');
     return (await res.json()) as ProductRecommendations;
   })();

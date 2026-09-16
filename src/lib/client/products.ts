@@ -2,6 +2,7 @@
  * Shared API layer for product-related data fetching
  * Can be used by both server and client components
  */
+import { appendSiteQuery, requestSiteFromClientDedupeScope } from '@/lib/client/client-fetch-scope';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Product } from '@/platform/services/model/product';
 import type { ProductFetchOptions } from '@/platform/services/product/ProductService';
@@ -49,8 +50,13 @@ export async function fetchProductById(
       }
     }
 
+    const requestSite =
+      (typeof options?.prices === 'object' && options.prices !== null ? options.prices.siteCode : undefined) ||
+      options?.siteCode ||
+      requestSiteFromClientDedupeScope(clientDedupeScope);
     const queryString = searchParams.toString();
-    const url = `/api/products/${id}${queryString ? `?${queryString}` : ''}`;
+    const productPath = queryString ? `/api/products/${id}?${queryString}` : `/api/products/${id}`;
+    const url = appendSiteQuery(productPath, requestSite);
 
     const response = await fetch(url, {
       cache: 'no-store',
@@ -92,10 +98,13 @@ export async function fetchProductVariants(parentId: string, clientDedupeScope =
   if (existing) return existing;
 
   const promise = (async () => {
-    const response = await fetch(`/api/products/${parentId}/variants`, {
-      cache: 'no-store',
-      next: { tags: [`product-variants-${parentId}`] },
-    });
+    const response = await fetch(
+      appendSiteQuery(`/api/products/${parentId}/variants`, requestSiteFromClientDedupeScope(clientDedupeScope)),
+      {
+        cache: 'no-store',
+        next: { tags: [`product-variants-${parentId}`] },
+      },
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch product variants: ${response.statusText}`);

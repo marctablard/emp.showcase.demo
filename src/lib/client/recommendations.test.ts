@@ -46,5 +46,6 @@ describe('fetchRecommendations', () => {
 
     expect(allMode).toEqual({ products: [{ id: 'rec-all' }] });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/search/recommendations/p-1?site=main');
   });
 });
