@@ -4,9 +4,9 @@
  * Vercel / disposable CI dirs have no `.git`; husky 9 would print
  * `.git can't be found` (exit 0) and look like a deploy failure. Skip instead.
  */
-const { existsSync } = require('fs');
-const { spawnSync } = require('child_process');
-const { delimiter, join } = require('path');
+const { existsSync } = require('node:fs');
+const { spawnSync } = require('node:child_process');
+const { delimiter, join } = require('node:path');
 
 if (process.env.HUSKY === '0' || !existsSync('.git')) {
   process.exit(0);
