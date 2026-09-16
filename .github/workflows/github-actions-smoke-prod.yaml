@@ -1,18 +1,21 @@
 # Production-build smoke (EMP-16 Phase G).
 #
-# Standalone, NON-BLOCKING lane: it runs a real `next build` + `next start` and
-# asserts the running app is serviceable (`npm run smoke:prod` — /api/health 200
-# + home route non-5xx). It is deliberately NOT wired into the deploy pipelines —
+# Standalone lane: it runs a real `next build` + `next start` and asserts the
+# running app is serviceable (`npm run smoke:prod` — /api/health 200 + home
+# route non-5xx). It is deliberately NOT wired into the deploy pipelines —
 # those build inside Vercel, so adding a build step there would double-build.
 # This lane owns the production-bundle boot smoke on its own.
 #
-# Non-blocking by design:
-#   - `scripts/smoke-prod.sh` self-skips with exit 0 when the Tier-1 Emporix
-#     credentials are absent (a runner without secrets never goes red), and
-#   - the smoke step is `continue-on-error: true`, so even a hard failure
-#     surfaces as a signal without blocking a merge — but a follow-up step
-#     turns that failure into a visible `::warning` annotation + job summary,
-#     so a non-blocking red is never an invisible green tick.
+# Blocking vs non-blocking:
+#   - Install (`npm ci`) and `npm audit` (verify-audit-policy.mjs) are
+#     required gates. A lockfile/malware/audit failure fails the job. This
+#     matches PR preview and was already true for `npm ci` before the audit
+#     step was added.
+#   - Only the boot smoke itself is non-blocking:
+#     - `scripts/smoke-prod.sh` self-skips with exit 0 when the Tier-1
+#       Emporix credentials are absent, and
+#     - the smoke step is `continue-on-error: true`, so a build/boot/serve
+#       failure surfaces as a warning + job summary without blocking merge.
 #
 # Triggers: the integration MR for this work lives on Gitea
 # (feature/SHOW-323 → feature/SHOW-323-target), which GitHub Actions cannot
