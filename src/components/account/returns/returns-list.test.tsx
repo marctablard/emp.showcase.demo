@@ -561,16 +561,69 @@ describe('ReturnsList', () => {
     expect(correctedOptions.query).toBe('id:~(RET-7)');
   });
 
-  it('marks the search field invalid and announces the error to assistive technology', () => {
+  it('announces the error without pulling the retry button into the field description', () => {
     mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
     render(<ReturnsList initialReturns={[]} />);
 
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('errorLoading');
+    // The button must stay outside the live region and outside the description.
+    expect(alert).not.toHaveTextContent('tryAgain');
 
     const search = screen.getByLabelText('searchPlaceholder');
-    expect(search).toHaveAttribute('aria-invalid', 'true');
     expect(search).toHaveAttribute('aria-describedby', alert.id);
+  });
+
+  it('does not mark the field invalid for a plain load failure without a search term', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
+    render(<ReturnsList initialReturns={[]} />);
+
+    expect(screen.getByLabelText('searchPlaceholder')).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  it('blames the search term when a term is active, instead of advising a retry', () => {
+    const coded = new ReturnApiError('Failed to fetch returns', 500, { code: 'RETURNS_FETCH_FAILED' });
+    mockReturnsResult({ returns: [], totalCount: 0, error: coded });
+    render(<ReturnsList initialReturns={[]} />);
+
+    fireEvent.change(screen.getByLabelText('searchPlaceholder'), { target: { value: ')' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('errorLoadingSearch');
+    expect(screen.getByLabelText('searchPlaceholder')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('keeps heading and search mounted while the first page is still loading', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, loading: true });
+    render(<ReturnsList initialReturns={[]} />);
+
+    // The loading state used to replace the whole frame, which made the field vanish under the cursor.
+    expect(screen.getByLabelText('searchPlaceholder')).toBeInTheDocument();
+    expect(screen.getAllByText('loading').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the search mounted when the account has no returns at all', () => {
+    mockReturnsResult({ returns: [], totalCount: 0 });
+    render(<ReturnsList initialReturns={[]} />);
+
+    expect(screen.getByLabelText('searchPlaceholder')).toBeInTheDocument();
+    expect(screen.getByText('noReturns')).toBeInTheDocument();
+  });
+
+  it('retries with the corrected term instead of the one that failed', () => {
+    const refreshReturns = jest.fn();
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom'), refreshReturns });
+    render(<ReturnsList initialReturns={[]} />);
+
+    fireEvent.change(screen.getByLabelText('searchPlaceholder'), { target: { value: 'RET-7' } });
+    fireEvent.click(screen.getByText('tryAgain'));
+
+    // The debounce has not fired yet, so a plain refresh would repeat the old query.
+    expect(refreshReturns).not.toHaveBeenCalled();
+    const [, options] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(options.query).toBe('id:~(RET-7)');
   });
 
   it('shows the error instead of the empty state when a load fails without a search term', () => {

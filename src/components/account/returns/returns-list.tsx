@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
@@ -12,6 +11,8 @@ import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRo
 import { TablePagination } from '@/components/ui/table-pagination';
 import { useReturns } from '@/hooks/return/useReturns';
 import { useRouter } from '@/i18n/navigation';
+import { ReturnApiError } from '@/lib/client/returns';
+import { RETURN_ERROR_CODE } from '@/lib/common/returns/return-error-codes';
 import { cn } from '@/lib/utils';
 import type { Return } from '@/platform/services/model/return';
 import {
@@ -163,40 +164,29 @@ export function ReturnsList({
     setCurrentPage((prev) => Math.max(prev - 1, 1));
   };
 
+  // The debounce lags behind the input, so a plain refresh would repeat the term that just failed.
+  const handleRetry = () => {
+    const nextNormalizedSearch = quickSearch.trim();
+    if (nextNormalizedSearch !== normalizedSearch) {
+      setCurrentPage(1);
+      setNormalizedSearch(nextNormalizedSearch);
+      return;
+    }
+
+    void refreshReturns();
+  };
+
   const handleNextPage = () => {
     setCurrentPage((prev) => (hasServerTotalCount ? Math.min(prev + 1, totalPages) : prev + 1));
   };
 
-  if (isInitialLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[48px] font-bold leading-[52px]">{t('title')}</CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <div className="flex flex-col items-center space-y-2">
-            <Spinner color="primary" variant="md" />
-            <div>{t('loading')}</div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!error && visibleReturns.length === 0 && !quickSearch) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[48px] font-bold leading-[52px]">{t('title')}</CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center py-8">
-          <p className="text-text-placeholders">{t('noReturns')}</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const isSearchFailure =
+    normalizedSearch.length > 0 &&
+    error instanceof ReturnApiError &&
+    error.code === RETURN_ERROR_CODE.RETURNS_FETCH_FAILED;
+  const errorMessage = isSearchFailure
+    ? t('errorLoadingSearch', { term: normalizedSearch })
+    : (returnErrorMessage(error) ?? t('errorLoading'));
 
   return (
     <div className="space-y-6">
@@ -216,7 +206,7 @@ export function ReturnsList({
               className="pr-10"
               endIcon={isTableReloading ? undefined : Search}
               aria-label={t('searchPlaceholder')}
-              aria-invalid={!!error}
+              aria-invalid={isSearchFailure}
               aria-describedby={error ? ERROR_MESSAGE_ID : undefined}
               data-testid="returns-search"
             />
@@ -232,16 +222,21 @@ export function ReturnsList({
         </div>
 
         {error ? (
-          <div
-            id={ERROR_MESSAGE_ID}
-            role="alert"
-            className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3"
-          >
-            {/* Loading a list reads differently from submitting a return, so the context sentence is ours. */}
-            <p>{returnErrorMessage(error) ?? t('errorLoading')}</p>
-            <Button onClick={() => refreshReturns()} data-testid="returns-retryButton">
+          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
+            {/* The button stays out of the live region: it would be read as part of the field description. */}
+            <p id={ERROR_MESSAGE_ID} role="alert">
+              {errorMessage}
+            </p>
+            <Button onClick={handleRetry} data-testid="returns-retryButton">
               {t('tryAgain')}
             </Button>
+          </div>
+        ) : isInitialLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="flex flex-col items-center space-y-2">
+              <Spinner color="primary" variant="md" />
+              <div>{t('loading')}</div>
+            </div>
           </div>
         ) : (
           <>
@@ -262,10 +257,10 @@ export function ReturnsList({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!loading && visibleReturns.length === 0 && quickSearch && (
+                  {!loading && visibleReturns.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-4">
-                        {t('noMatches')}
+                      <TableCell colSpan={7} className="text-center py-4 text-text-placeholders">
+                        {quickSearch ? t('noMatches') : t('noReturns')}
                       </TableCell>
                     </TableRow>
                   )}

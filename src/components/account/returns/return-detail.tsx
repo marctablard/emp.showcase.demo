@@ -301,7 +301,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
 
     return {
       id: item.id,
-      name: item.name,
+      name: item.name || l10n(catalogProduct?.name ?? '') || item.itemNumber || item.productId || '',
       brand: coalesceBrandLabel(item.brand ?? item.vendorName, resolveProductBrandLabel(catalogProduct, l10n)),
       itemNumber: item.itemNumber,
       quantity: item.quantity,
@@ -544,7 +544,7 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
           <CircleAlert className="h-4 w-4" />
           <AlertTitle>{t('error')}</AlertTitle>
           <AlertDescription>
-            {error ? (returnErrorMessage(error) ?? t('errorLoading')) : t('returnNotFound')}
+            {error ? (returnErrorMessage(error) ?? t('apiError.RETURN_FETCH_FAILED')) : t('returnNotFound')}
           </AlertDescription>
         </Alert>
         <div className="flex gap-4">

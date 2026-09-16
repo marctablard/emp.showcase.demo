@@ -359,7 +359,7 @@ describe('CreateReturnDialog', () => {
 
     await waitFor(() =>
       expect(mockNotify).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'submitError', description: undefined }),
+        expect.objectContaining({ title: 'submitError', description: 'submitErrorGeneric' }),
       ),
     );
     expect(loggerError).toHaveBeenCalledWith(
@@ -402,7 +402,7 @@ describe('CreateReturnDialog', () => {
 
     await waitFor(() =>
       expect(mockNotify).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'submitError', description: undefined }),
+        expect.objectContaining({ title: 'submitError', description: 'submitErrorGeneric' }),
       ),
     );
   });

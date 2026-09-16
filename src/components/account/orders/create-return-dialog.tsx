@@ -135,7 +135,7 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
       );
       notify({
         title: t('submitError'),
-        description: returnErrorMessage(err),
+        description: returnErrorMessage(err) ?? t('submitErrorGeneric'),
         type: ToastType.Error,
       });
     } finally {
