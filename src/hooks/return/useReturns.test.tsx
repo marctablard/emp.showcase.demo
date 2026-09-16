@@ -43,6 +43,24 @@ describe('useReturns', () => {
     mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
   });
 
+  it('clears a previous error once a changed query succeeds, so the error card gives way', async () => {
+    // The in-form error card of the returns list relies on this: without the reset the corrected
+    // search would render new rows underneath a stale error, and the dead end would be back.
+    mockFetchReturnsPage.mockRejectedValueOnce(new Error('boom'));
+
+    const { result, rerender } = renderHook(({ query }: { query?: string }) => useReturns(undefined, { query }), {
+      initialProps: { query: 'id:~())' as string | undefined },
+    });
+
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    mockFetchReturnsPage.mockResolvedValueOnce({ items: [buildReturn('ret-1')], totalCount: 1 });
+    rerender({ query: 'id:~(RET-7)' });
+
+    await waitFor(() => expect(result.current.error).toBeNull());
+    expect(result.current.returns).toHaveLength(1);
+  });
+
   it('reuses SSR-provided initialReturns for the default page-one, no-query/no-sort load without refetching', async () => {
     const initialReturns = [buildReturn('ssr-1')];
 
