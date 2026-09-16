@@ -56,6 +56,7 @@ import type { ProductPrice } from '@/platform/services/model/price';
 import type { GroupedSpecification, Product, ProductSpecification } from '@/platform/services/model/product';
 import type { Session } from '@/platform/services/model/session/session';
 import type { ProductFetchOptions } from '@/platform/services/product';
+import type { ProductsMode } from '@/platform/services/products-mode/ProductsModeService';
 import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import Recommendations from '../cms/recommendations';
 import { Button } from '../ui/button';
@@ -767,6 +768,54 @@ function PdpDetailView({
   );
 }
 
+function ssrSeedFromInitialProduct(initialProduct: string | Product | undefined): Product | undefined {
+  return initialProduct && typeof initialProduct !== 'string' ? initialProduct : undefined;
+}
+
+/** Login / ALL→ASSIGNED after mount: hide the previous unscoped seed while scoped refetch runs. */
+function useEnteredAssignedAfterMount(productsMode: ProductsMode): boolean {
+  const [prevProductsMode, setPrevProductsMode] = useState(productsMode);
+  const [enteredAssignedAfterMount, setEnteredAssignedAfterMount] = useState(false);
+  if (prevProductsMode !== productsMode) {
+    setPrevProductsMode(productsMode);
+    setEnteredAssignedAfterMount(productsMode === 'assigned' && prevProductsMode !== 'assigned');
+  }
+  return enteredAssignedAfterMount;
+}
+
+/** Assigned A→B customer switch: hide customer A's same-id seed while B's scoped refetch runs. */
+function useCustomerChangedWhileAssigned(productsMode: ProductsMode, sessionCustomerId: string | undefined): boolean {
+  const [prevSessionCustomerId, setPrevSessionCustomerId] = useState(sessionCustomerId);
+  const [customerChangedWhileAssigned, setCustomerChangedWhileAssigned] = useState(false);
+  if (prevSessionCustomerId !== sessionCustomerId) {
+    setPrevSessionCustomerId(sessionCustomerId);
+    setCustomerChangedWhileAssigned(
+      productsMode === 'assigned' &&
+        isAuthenticatedSessionCustomerId(prevSessionCustomerId) &&
+        isAuthenticatedSessionCustomerId(sessionCustomerId),
+    );
+  }
+  if (productsMode !== 'assigned' && customerChangedWhileAssigned) {
+    setCustomerChangedWhileAssigned(false);
+  }
+  return customerChangedWhileAssigned;
+}
+
+function resolvePaintedPdpProduct(
+  productsMode: ProductsMode,
+  product: Product | null,
+  loading: boolean,
+  shopContextReady: boolean,
+  hideUnscopedSeed: boolean,
+  ssrSeedProduct: Product | undefined,
+): Product | null {
+  const assignedCatalogMiss = productsMode === 'assigned' && product === null && !loading && shopContextReady;
+  if (assignedCatalogMiss || hideUnscopedSeed) {
+    return null;
+  }
+  return product ?? ssrSeedProduct ?? null;
+}
+
 export default function ProductDetail({
   product: initialProduct,
   options,
@@ -780,41 +829,18 @@ export default function ProductDetail({
   const { site } = useSite();
   // Usable SSR seed = full Product object (not an id string). Keep it as fallback during
   // session/pricing bootstrap so a transient null/error does not become false Not Found.
-  const ssrSeedProduct = initialProduct && typeof initialProduct !== 'string' ? initialProduct : undefined;
-  // Initial assigned SSR already passed AC4; keep that seed during first client refetch.
-  // A later transition into `assigned` (login / ALL→ASSIGNED) must not keep painting the
-  // previous unscoped product while the scoped request is in flight.
-  const [prevProductsMode, setPrevProductsMode] = useState(productsMode);
-  const [enteredAssignedAfterMount, setEnteredAssignedAfterMount] = useState(false);
-  if (prevProductsMode !== productsMode) {
-    setPrevProductsMode(productsMode);
-    if (productsMode === 'assigned' && prevProductsMode !== 'assigned') {
-      setEnteredAssignedAfterMount(true);
-    } else if (productsMode !== 'assigned') {
-      setEnteredAssignedAfterMount(false);
-    }
-  }
-  const sessionCustomerId = session?.customerId;
-  const [prevSessionCustomerId, setPrevSessionCustomerId] = useState(sessionCustomerId);
-  const [customerChangedWhileAssigned, setCustomerChangedWhileAssigned] = useState(false);
-  if (prevSessionCustomerId !== sessionCustomerId) {
-    setPrevSessionCustomerId(sessionCustomerId);
-    if (
-      productsMode === 'assigned' &&
-      isAuthenticatedSessionCustomerId(prevSessionCustomerId) &&
-      isAuthenticatedSessionCustomerId(sessionCustomerId)
-    ) {
-      setCustomerChangedWhileAssigned(true);
-    }
-  }
-  if (productsMode !== 'assigned' && customerChangedWhileAssigned) {
-    setCustomerChangedWhileAssigned(false);
-  }
+  const ssrSeedProduct = ssrSeedFromInitialProduct(initialProduct);
+  const enteredAssignedAfterMount = useEnteredAssignedAfterMount(productsMode);
+  const customerChangedWhileAssigned = useCustomerChangedWhileAssigned(productsMode, session?.customerId);
   const hideUnscopedSeed = (enteredAssignedAfterMount || customerChangedWhileAssigned) && (loading || product === null);
-  // COP-4822 AC4: assigned mode must not keep painting an out-of-segment seed after a
-  // confirmed catalog miss or a fail-closed catalog error (5xx / network).
-  const assignedCatalogMiss = productsMode === 'assigned' && product === null && !loading && shopContextReady;
-  const resolvedProduct = assignedCatalogMiss || hideUnscopedSeed ? null : (product ?? ssrSeedProduct ?? null);
+  const resolvedProduct = resolvePaintedPdpProduct(
+    productsMode,
+    product,
+    loading,
+    shopContextReady,
+    hideUnscopedSeed,
+    ssrSeedProduct,
+  );
   const { price, availability } = usePdpPurchaseData(resolvedProduct, session, site);
   usePdpCurrentProduct(resolvedProduct, setAsCurrent);
 

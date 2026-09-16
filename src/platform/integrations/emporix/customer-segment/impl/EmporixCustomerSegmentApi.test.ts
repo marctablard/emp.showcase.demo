@@ -57,7 +57,9 @@ describe('EmporixCustomerSegmentApi', () => {
   };
 
   beforeEach(() => {
-    apiClient = { authenticatedFetch: jest.fn().mockResolvedValue(jsonResponse([])) };
+    apiClient = {
+      authenticatedFetch: jest.fn().mockResolvedValue(jsonResponse([], { headers: { 'X-Total-Count': '0' } })),
+    };
     logger = {
       trace: jest.fn(),
       debug: jest.fn(),

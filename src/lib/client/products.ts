@@ -10,6 +10,56 @@ import type { ProductFetchOptions } from '@/platform/services/product/ProductSer
 const _productInflight = new Map<string, Promise<Product | null>>();
 const _variantInflight = new Map<string, Promise<Product[]>>();
 
+function priceFetchSiteCode(options?: ProductFetchOptions): string | undefined {
+  return typeof options?.prices === 'object' && options.prices !== null ? options.prices.siteCode : undefined;
+}
+
+function appendPriceSearchParams(
+  searchParams: URLSearchParams,
+  prices: NonNullable<ProductFetchOptions['prices']>,
+): void {
+  searchParams.set('prices', 'true');
+  if (typeof prices !== 'object' || prices === null) {
+    return;
+  }
+  searchParams.set('priceSiteCode', prices.siteCode);
+  if (prices.currency) {
+    searchParams.set('priceCurrency', prices.currency);
+  }
+  if (prices.country) {
+    searchParams.set('priceCountry', prices.country);
+  }
+}
+
+function buildProductByIdUrl(id: string, options: ProductFetchOptions | undefined, clientDedupeScope: string): string {
+  const searchParams = new URLSearchParams();
+  if (options?.variants) {
+    searchParams.set('variants', 'true');
+  }
+  if (options?.prices) {
+    appendPriceSearchParams(searchParams, options.prices);
+  }
+  const requestSite =
+    priceFetchSiteCode(options) || options?.siteCode || requestSiteFromClientDedupeScope(clientDedupeScope);
+  const queryString = searchParams.toString();
+  const productPath = queryString ? `/api/products/${id}?${queryString}` : `/api/products/${id}`;
+  return appendSiteQuery(productPath, requestSite);
+}
+
+async function readProductByIdResponse(id: string, url: string): Promise<Product | null> {
+  const response = await fetch(url, {
+    cache: 'no-store',
+    next: { tags: [`product-${id}`] },
+  });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to fetch product: ${response.statusText}`);
+  }
+  return (await response.json()) as Product;
+}
+
 /**
  * Fetch a product by ID.
  * Uses module-level in-flight map to deduplicate concurrent requests for the same product.
@@ -32,46 +82,7 @@ export async function fetchProductById(
   const existing = _productInflight.get(cacheKey);
   if (existing) return existing;
 
-  const promise = (async () => {
-    const searchParams = new URLSearchParams();
-    if (options?.variants) {
-      searchParams.set('variants', 'true');
-    }
-    if (options?.prices) {
-      searchParams.set('prices', 'true');
-      if (typeof options.prices === 'object' && options.prices !== null) {
-        searchParams.set('priceSiteCode', options.prices.siteCode);
-        if (options.prices.currency) {
-          searchParams.set('priceCurrency', options.prices.currency);
-        }
-        if (options.prices.country) {
-          searchParams.set('priceCountry', options.prices.country);
-        }
-      }
-    }
-
-    const requestSite =
-      (typeof options?.prices === 'object' && options.prices !== null ? options.prices.siteCode : undefined) ||
-      options?.siteCode ||
-      requestSiteFromClientDedupeScope(clientDedupeScope);
-    const queryString = searchParams.toString();
-    const productPath = queryString ? `/api/products/${id}?${queryString}` : `/api/products/${id}`;
-    const url = appendSiteQuery(productPath, requestSite);
-
-    const response = await fetch(url, {
-      cache: 'no-store',
-      next: { tags: [`product-${id}`] },
-    });
-
-    if (!response.ok) {
-      if (response.status == 404) {
-        return null;
-      }
-      throw new Error(`Failed to fetch product: ${response.statusText}`);
-    }
-
-    return await response.json();
-  })();
+  const promise = readProductByIdResponse(id, buildProductByIdUrl(id, options, clientDedupeScope));
 
   _productInflight.set(cacheKey, promise);
   void promise.finally(() => {
