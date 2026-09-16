@@ -6,9 +6,11 @@ describe('EmporixProductService template meta enrichment', () => {
     searchProducts?: jest.Mock;
     getProductTemplate?: jest.Mock;
     getProduct?: jest.Mock;
+    getProductPrices?: jest.Mock;
     mapToService?: jest.Mock;
     filterProductIdsInScope?: jest.Mock;
     getCurrent?: jest.Mock;
+    logger?: { warn: jest.Mock; error: jest.Mock };
   }): EmporixProductService {
     const searchProducts =
       overrides?.searchProducts ??
@@ -39,8 +41,10 @@ describe('EmporixProductService template meta enrichment', () => {
         ],
       });
 
+    const logger = overrides?.logger ?? { error: jest.fn(), warn: jest.fn() };
+
     return new EmporixProductService(
-      { getProductPrices: jest.fn().mockResolvedValue(new Map()) } as never,
+      { getProductPrices: overrides?.getProductPrices ?? jest.fn().mockResolvedValue(new Map()) } as never,
       { mapToService: overrides?.mapToService ?? jest.fn() } as never,
       { searchProducts, getProduct: overrides?.getProduct ?? jest.fn() } as never,
       { getBrand: jest.fn() } as never,
@@ -49,7 +53,7 @@ describe('EmporixProductService template meta enrichment', () => {
       { getCategoriesForProduct: jest.fn() } as never,
       { filterProductIdsInScope: overrides?.filterProductIdsInScope ?? jest.fn() } as never,
       { getCurrent: overrides?.getCurrent ?? jest.fn().mockResolvedValue(null) } as never,
-      { error: jest.fn(), warn: jest.fn() } as never,
+      logger as never,
     );
   }
 
@@ -519,6 +523,34 @@ describe('EmporixProductService template meta enrichment', () => {
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.objectContaining({ message: expect.stringContaining('503') }) }),
       'Failed to resolve product template refs; continuing without them',
+    );
+  });
+
+  it('keeps the catalog product when price enrichment fails (COP-4822: price 404 is not a PDP 404)', async () => {
+    const getProductPrices = jest.fn().mockRejectedValue(new Error('Failed to match prices: Not Found'));
+    const logger = { error: jest.fn(), warn: jest.fn() };
+    const service = createService({ getProductPrices, logger });
+    const products: Product[] = [
+      {
+        id: 'prod-priced',
+        name: { en: 'Priced' },
+        description: {},
+        purchasable: true,
+      },
+    ];
+
+    const [enriched] = await service.addAdditionalData(products, {
+      prices: true,
+      variants: false,
+      categories: false,
+    });
+
+    expect(enriched.id).toBe('prod-priced');
+    expect(enriched.price).toBeUndefined();
+    expect(getProductPrices).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ productIds: ['prod-priced'] }),
+      'Product price lookup failed; continuing without prices',
     );
   });
 });

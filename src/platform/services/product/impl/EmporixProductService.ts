@@ -620,29 +620,9 @@ class EmporixProductService implements ProductService {
           options?.categories ? this.categoryService.getCategoriesForProduct(id, true) : undefined,
         ),
       ),
-      (async () => {
-        const ids = [...productIds];
-        if (typeof options?.prices === 'object' && options.prices !== null) {
-          return this.priceService.getProductPrices(ids, undefined, undefined, options.prices);
-        } else if (options?.prices === true) {
-          sessionForProductPrices = await this.sessionService.getCurrent();
-          if (sessionForProductPrices) {
-            return this.priceService.getProductPrices(
-              ids,
-              undefined,
-              undefined,
-              priceFetchOptionsFromSession(sessionForProductPrices) ?? {
-                siteCode: sessionForProductPrices.siteCode,
-                currency: sessionForProductPrices.currency,
-                country: sessionForProductPrices.country,
-                useFallback: false,
-              },
-            );
-          }
-          return this.priceService.getProductPrices(ids);
-        }
-        return new Map<string, ProductPrice | null>();
-      })(),
+      this.fetchProductPricesForEnrichment(productIds, options, (session) => {
+        sessionForProductPrices = session;
+      }),
       // Forward ONLY the segment scope (`segmentIds` + effective `siteCode`): passing the full options
       // would re-enter variant/price enrichment per variant.
       options?.variants
@@ -690,6 +670,48 @@ class EmporixProductService implements ProductService {
       );
 
     return { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap };
+  }
+
+  /**
+   * Price enrichment is best-effort. A 404 / failed Price API must not fail the catalog
+   * identity — the PDP still renders and omits the price (COP-4822 QA).
+   */
+  private async fetchProductPricesForEnrichment(
+    productIds: Set<string>,
+    options: ProductFetchOptions | undefined,
+    rememberSession: (session: Awaited<ReturnType<SessionService['getCurrent']>>) => void,
+  ): Promise<Map<string, ProductPrice | null>> {
+    const ids = [...productIds];
+    try {
+      if (typeof options?.prices === 'object' && options.prices !== null) {
+        return await this.priceService.getProductPrices(ids, undefined, undefined, options.prices);
+      }
+      if (options?.prices === true) {
+        const session = await this.sessionService.getCurrent();
+        if (session) {
+          rememberSession(session);
+          return await this.priceService.getProductPrices(
+            ids,
+            undefined,
+            undefined,
+            priceFetchOptionsFromSession(session) ?? {
+              siteCode: session.siteCode,
+              currency: session.currency,
+              country: session.country,
+              useFallback: false,
+            },
+          );
+        }
+        return await this.priceService.getProductPrices(ids);
+      }
+      return new Map<string, ProductPrice | null>();
+    } catch (error) {
+      this.logger.warn(
+        { err: error instanceof Error ? error : String(error), productIds: ids },
+        'Product price lookup failed; continuing without prices',
+      );
+      return new Map<string, ProductPrice | null>();
+    }
   }
 }
 

@@ -773,15 +773,18 @@ export default function ProductDetail({
   catalogDisplayName,
 }: Readonly<ProductDetailProps>) {
   const { ready: shopContextReady } = useShopContextReady();
-  const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
+  const { product, loading, error, setAsCurrent } = useProduct(initialProduct, options);
   const { mode: productsMode } = useProductsMode();
   const { session } = useSession();
   const { site } = useSite();
   // Usable SSR seed = full Product object (not an id string). Keep it as fallback during
   // session/pricing bootstrap so a transient null/error does not become false Not Found.
   const ssrSeedProduct = initialProduct && typeof initialProduct !== 'string' ? initialProduct : undefined;
-  // COP-4822 AC4: assigned mode must not keep painting an out-of-segment seed after a catalog miss.
-  const assignedCatalogMiss = productsMode === 'assigned' && product === null && !loading && shopContextReady;
+  // COP-4822 AC4: assigned mode must not keep painting an out-of-segment seed after a
+  // confirmed catalog miss. A hook `error` is not a catalog miss (price / session / 5xx) —
+  // keep the SSR seed and omit the price instead of sending the customer to Not Found.
+  const assignedCatalogMiss =
+    productsMode === 'assigned' && product === null && error == null && !loading && shopContextReady;
   const resolvedProduct = assignedCatalogMiss ? null : (product ?? ssrSeedProduct ?? null);
   const { price, availability } = usePdpPurchaseData(resolvedProduct, session, site);
   usePdpCurrentProduct(resolvedProduct, setAsCurrent);

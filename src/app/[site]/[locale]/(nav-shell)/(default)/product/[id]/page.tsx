@@ -148,8 +148,14 @@ export async function renderProductPage(
 
   const product = await getProductById(id, options, locale, siteCode);
 
-  if (!product) {
+  // `null` is a confirmed catalog / segment miss (COP-4822 AC4). `undefined` is an SSR
+  // load error (e.g. price API) and must not become the Not Found page — QA: only
+  // out-of-segment / missing products 404; a missing price still renders the PDP.
+  if (product === null) {
     notFound();
+  }
+  if (!product) {
+    throw new Error(`Failed to load product ${id}`);
   }
 
   const navigationRoots = siteCode

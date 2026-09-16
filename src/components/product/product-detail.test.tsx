@@ -329,6 +329,26 @@ describe('ProductDetail — Not Found contract (true absence vs cold bootstrap)'
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 
+  it('does not invoke notFound in assigned mode when the hook reports an error (price / 5xx) and an SSR seed exists', () => {
+    useProductsModeMock.mockReturnValue({
+      mode: 'assigned',
+      isSegmented: true,
+      canToggleAllProducts: false,
+    });
+    mockReadyHooks({
+      product: null,
+      loading: false,
+      error: new Error('Failed to fetch product: Failed to match prices'),
+    });
+
+    expect(() => render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />)).not.toThrow(
+      'NEXT_NOT_FOUND',
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'EnjoySolar 200W Module' })).toBeInTheDocument();
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
   it('invokes notFound in assigned mode when the catalog miss is confirmed even if an SSR seed exists', () => {
     useProductsModeMock.mockReturnValue({
       mode: 'assigned',

@@ -164,7 +164,7 @@ H1, last breadcrumb crumb, document title, Open Graph, and JSON-LD share the cat
 
 | Bound implementation | Identity / copy |
 | --- | --- |
-| `BatteryIncludedSearchService` | In `assigned` mode, Emporix membership (`isInSegmentScope`) runs first — out of scope is `undefined` / `notFound()` with no BI call (COP-4822 AC4). In scope (and when unscoped), visibility-scoped BI browse by URL id (`f[_product.id]`, then one retry with `f[id]`). Mapped like PLP. A miss is not a Product GET fallback. |
+| `BatteryIncludedSearchService` | In `assigned` mode, Emporix membership (`isInSegmentScope`) runs first — out of scope is `undefined` / `notFound()` with no BI call (COP-4822 AC4). In scope (and when unscoped), visibility-scoped BI browse by URL id (`f[_product.id]`, then one retry with `f[id]`). Mapped like PLP. A miss is not a Product GET fallback. Price / stock enrichment is best-effort: a Price API 404 or failure omits the price and still returns the catalog product — only a catalog or segment miss is a PDP 404. |
 | `EmporixSearchService` | Full Emporix Product GET via `ProductService.getProductById`. |
 
 For Battery Included, `BatteryIncludedProductMapper` sets `Product.name` from `_product_i18n` when any i18n name exists — not from `_product.name`:
