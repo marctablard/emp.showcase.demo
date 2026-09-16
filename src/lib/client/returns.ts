@@ -7,6 +7,14 @@ import type { Return } from '@/platform/services/model/return';
 
 const REQUEST_CACHE_TTL_MS = 60_000;
 const returnsRequestCache = new Map<string, { expiresAt: number; value: ReturnsPageResult }>();
+
+/**
+ * Drops every cached returns response. A new return changes the returnable quantity of its order,
+ * so leaving the cache in place lets the order pages offer quantities that no longer exist.
+ */
+export function invalidateReturnsCache(): void {
+  returnsRequestCache.clear();
+}
 const inflightReturnsRequests = new Map<string, Promise<ReturnsPageResult>>();
 
 /**
@@ -125,6 +133,8 @@ export async function createReturn(
     const errorData = await readErrorResponse(response);
     throw new ReturnApiError(formatCreateReturnError(response, errorData), response.status, errorData);
   }
+
+  invalidateReturnsCache();
 
   return response.json();
 }
@@ -254,11 +264,14 @@ export async function fetchReturnById(returnId: string): Promise<Return> {
   });
 
   if (!response.ok) {
-    // A 404 needs no body: the code is implied by the status.
-    if (response.status === 404) {
-      throw new ReturnApiError('Return not found', response.status, { code: RETURN_ERROR_CODE.RETURN_NOT_FOUND });
-    }
+    // The route owns the code; a 404 body that is empty or not JSON falls back to the status.
     const errorData = await readErrorResponse(response);
+    if (response.status === 404) {
+      throw new ReturnApiError(errorData.error || 'Return not found', response.status, {
+        ...errorData,
+        code: errorData.code ?? RETURN_ERROR_CODE.RETURN_NOT_FOUND,
+      });
+    }
     throw new ReturnApiError(errorData.error || 'Failed to fetch return', response.status, errorData);
   }
 
