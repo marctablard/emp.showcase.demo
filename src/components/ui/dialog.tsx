@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -63,6 +64,7 @@ function DialogContent({
   const shouldCloseOnOutsideClick =
     closeOnOutsideClick ?? process.env.NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK === 'true';
   const resolvedCloseTestId = closeTestId ?? (dataTestId ? `${dataTestId}-closeButton` : undefined);
+  const tCommon = useTranslations('common');
 
   return (
     <DialogPortal data-slot="dialog-portal">
@@ -98,7 +100,7 @@ function DialogContent({
               className="ring-offset-surface-page focus:ring-border-focus data-[state=open]:bg-surface-disabled data-[state=open]:text-text-on-disabled absolute top-4 right-4 sm:top-6 sm:right-6 rounded-sm focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-6 cursor-pointer disabled:cursor-default"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{tCommon('close')}</span>
             </DialogPrimitive.Close>
           )}
         </DialogPrimitive.Content>
