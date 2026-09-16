@@ -7,8 +7,8 @@
  * `experimental.supportsImmutableAssets` (forced on by Vercel's Next.js 16.3+ builder)
  * Turbopack emits them under `.next/static/immutable/chunks` instead, so both layouts are scanned.
  */
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const CANDIDATE_CHUNK_DIRS = ['.next/static/chunks', '.next/static/immutable/chunks'];
 const forbidden = [
