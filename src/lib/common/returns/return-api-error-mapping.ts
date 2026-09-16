@@ -65,15 +65,23 @@ function getStatusForUpstreamFailure(upstreamStatus: number): number {
 }
 
 /**
- * 401/403 are not an input problem: the session expired or the scope is missing. Telling the
- * shopper to check their entries would send them down the wrong path, so they get their own code.
+ * Neither 401 nor 403 is an input problem, and they need different advice: an expired session is
+ * fixed by signing in again, a missing permission is not. Both paths below use this, because the
+ * returnability lookup runs first and would otherwise swallow the distinction.
  */
-function getCreateErrorCode(upstreamStatus: number): ReturnErrorCode {
-  if (upstreamStatus === 401 || upstreamStatus === 403) {
-    return RETURN_ERROR_CODE.UPSTREAM_UNAUTHORIZED;
+function getAuthErrorCode(upstreamStatus: number): ReturnErrorCode | undefined {
+  if (upstreamStatus === 401) {
+    return RETURN_ERROR_CODE.UPSTREAM_SESSION_EXPIRED;
   }
 
-  return upstreamStatus >= 500 ? RETURN_ERROR_CODE.UPSTREAM_FAILURE : RETURN_ERROR_CODE.UPSTREAM_REJECTED;
+  return upstreamStatus === 403 ? RETURN_ERROR_CODE.UPSTREAM_FORBIDDEN : undefined;
+}
+
+function getCreateErrorCode(upstreamStatus: number): ReturnErrorCode {
+  return (
+    getAuthErrorCode(upstreamStatus) ??
+    (upstreamStatus >= 500 ? RETURN_ERROR_CODE.UPSTREAM_FAILURE : RETURN_ERROR_CODE.UPSTREAM_REJECTED)
+  );
 }
 
 export function mapReturnCreateError(error: unknown): ReturnApiErrorMapping {
@@ -86,7 +94,6 @@ export function mapReturnCreateError(error: unknown): ReturnApiErrorMapping {
       response: {
         error: isUpstreamServerError ? 'Returns service failed upstream' : 'Returns service rejected the request',
         code: getCreateErrorCode(error.status),
-        params: { upstreamStatus: error.status },
         reason: isUpstreamServerError ? RETURN_API_REASON.UPSTREAM_FAILURE : RETURN_API_REASON.UPSTREAM_REJECTED,
         upstreamStatus: error.status,
         upstreamMessage,
@@ -120,8 +127,7 @@ export function mapReturnValidationError(error: unknown): ReturnApiErrorMapping 
       status: 503,
       response: {
         error: 'Failed to validate return request',
-        code: RETURN_ERROR_CODE.VALIDATION_UNAVAILABLE,
-        params: { upstreamStatus: error.status },
+        code: getAuthErrorCode(error.status) ?? RETURN_ERROR_CODE.VALIDATION_UNAVAILABLE,
         reason: RETURN_API_REASON.VALIDATION_UNAVAILABLE,
         upstreamStatus: error.status,
         upstreamMessage,

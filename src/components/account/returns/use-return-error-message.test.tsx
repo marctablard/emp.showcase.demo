@@ -42,13 +42,13 @@ describe('useReturnErrorMessage', () => {
   it('drops absent values instead of passing them through as undefined', () => {
     const error = new ReturnApiError('Failed to fetch returns', 500, {
       code: 'RETURNS_FETCH_FAILED',
-      params: { sku: undefined, upstreamStatus: 500 },
+      params: { sku: undefined, remaining: 1 },
     });
 
-    expect(resolve(error)).toBe('RETURNS_FETCH_FAILED({"upstreamStatus":500})');
+    expect(resolve(error)).toBe('RETURNS_FETCH_FAILED({"remaining":1})');
     // Asserted on the object itself, not on its JSON: JSON.stringify would hide a
     // `sku: undefined` that actually reached next-intl.
-    expect(receivedValues).toHaveBeenLastCalledWith({ upstreamStatus: 500 });
+    expect(receivedValues).toHaveBeenLastCalledWith({ remaining: 1 });
     expect(receivedValues.mock.lastCall?.[0]).not.toHaveProperty('sku');
   });
 

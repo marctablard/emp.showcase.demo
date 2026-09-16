@@ -156,8 +156,9 @@ export async function POST(request: NextRequest) {
         const returnability = computeOrderReturnability(orderId, order.items, orderReturns);
 
         const remainingMap = new Map(returnability.orderItemSummaries.map((s) => [s.itemId, s.remaining]));
-        // The shopper only ever sees the article number, never the order-entry id.
-        const skuByItemId = new Map(order.items.map((orderItem) => [orderItem.id, orderItem.sku]));
+        // The shopper only ever sees the article number, never the order-entry id. Same chain as
+        // the item selector; productId is mandatory, so this never falls through to the id.
+        const skuByItemId = new Map(order.items.map((item) => [item.id, item.sku || item.productId]));
 
         for (const item of items) {
           const remaining = remainingMap.get(item.id);
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
               {
                 error: `Item ${item.id} exceeds returnable quantity (requested: ${item.quantity}, remaining: ${remaining})`,
                 code: RETURN_ERROR_CODE.ITEM_EXCEEDS_RETURNABLE_QUANTITY,
-                params: { sku: skuByItemId.get(item.id) ?? item.id, requested: item.quantity, remaining },
+                params: { sku: skuByItemId.get(item.id), requested: item.quantity, remaining },
               },
               { status: 422 },
             );

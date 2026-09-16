@@ -51,12 +51,26 @@ describe('return-api-error-mapping', () => {
     expect(mapping.response.upstreamStatus).toBe(503);
   });
 
-  it.each([401, 403])('maps upstream %s to its own code instead of blaming the input', (status) => {
+  it.each([
+    [401, RETURN_ERROR_CODE.UPSTREAM_SESSION_EXPIRED],
+    [403, RETURN_ERROR_CODE.UPSTREAM_FORBIDDEN],
+  ])('maps a create failure with upstream %s to its own code instead of blaming the input', (status, expected) => {
     const mapping = mapReturnCreateError(
       new EmporixApiError({ operation: 'Create return', status, statusText: 'Denied' }),
     );
 
-    expect(mapping.response.code).toBe(RETURN_ERROR_CODE.UPSTREAM_UNAUTHORIZED);
-    expect(mapping.response.code).not.toBe(RETURN_ERROR_CODE.UPSTREAM_REJECTED);
+    expect(mapping.response.code).toBe(expected);
+  });
+
+  it.each([
+    [401, RETURN_ERROR_CODE.UPSTREAM_SESSION_EXPIRED],
+    [403, RETURN_ERROR_CODE.UPSTREAM_FORBIDDEN],
+  ])('maps a validation failure with upstream %s the same way, since that lookup runs first', (status, expected) => {
+    const mapping = mapReturnValidationError(
+      new EmporixApiError({ operation: 'Get returns', status, statusText: 'Denied' }),
+    );
+
+    expect(mapping.response.code).toBe(expected);
+    expect(mapping.response.code).not.toBe(RETURN_ERROR_CODE.VALIDATION_UNAVAILABLE);
   });
 });
