@@ -154,22 +154,22 @@ Scripts are skipped only because the disposable directory has no `.git` (the `pr
 
 ### Preview-Only Safe-Chain Minimum-Package-Age Override
 
-The **Install Vercel CLI** and **Install dependencies** steps of `.github/workflows/github-actions-deploy-pr-preview.yaml` pass `--safe-chain-skip-minimum-package-age` (`npm i -g vercel` and `npm ci`). This is a narrow, explicit, and temporary policy exception used to unblock urgent security patches and too-new Vercel CLI transitives (e.g. `@napi-rs/wasm-runtime`) that plain `npm install`/`npm ci` would resolve fine but that safe-chain's minimum release-age gate has not yet aged in.
+The **Install Vercel CLI** and **Install dependencies** steps of the dev-preview workflows — `.github/workflows/github-actions-deploy-pr-preview.yaml` and `.github/workflows/github-actions-deploy-dev.yaml` — pass `--safe-chain-skip-minimum-package-age` (`npm i -g vercel` and `npm ci`). This matches `npm run verify:ci-install:preview-override` (`SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1`). It is a narrow, explicit policy exception used to unblock urgent security patches and too-new packages (app dependency bumps or Vercel CLI transitives such as `@napi-rs/wasm-runtime`) that plain `npm install`/`npm ci` would resolve fine but that safe-chain's minimum release-age gate has not yet aged in.
 
 Scope of the override — read carefully, this is not a general safe-chain bypass:
 - It skips **only** safe-chain's minimum-package-age check.
 - `safe-chain setup-ci` still runs first, and every other safe-chain protection (malware/dependency-confusion blocking) stays fully enforced for this install.
 - `npm audit --audit-level=high` still runs immediately after, unchanged.
 - The step is a normal, non-`continue-on-error` step: any other install failure (network, integrity, malware block, unresolved dependency, etc.) still fails the job exactly as before.
-- It applies **only** to the PR preview workflow. Every other workflow in `.github/workflows/` continues to run plain `npm ci` with the full, unmodified safe-chain policy.
+- It applies **only** to PR preview and develop preview. Production and other non-preview workflows keep plain `npm ci` with the full, unmodified safe-chain age gate.
 
-To reproduce this exact CI behavior locally (e.g. to confirm a patch installs cleanly before opening the PR), use:
+To reproduce this exact preview CI behavior locally (e.g. to confirm a patch installs cleanly before opening the PR), use:
 
 ```bash
 npm run verify:ci-install:preview-override
 ```
 
-which is equivalent to `SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install` and only ever skips the minimum-package-age gate — never the malware checks or the audit step. Do not add this override to any other workflow, and remove it from the preview workflow once the underlying package has aged past safe-chain's policy window (or a permanent exception is agreed) rather than leaving it in place indefinitely.
+which is equivalent to `SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install` and only ever skips the minimum-package-age gate — never the malware checks or the audit step. Do not add this override to production workflows.
 
 ### npm audit Policy Exceptions
 

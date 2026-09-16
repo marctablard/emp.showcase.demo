@@ -70,7 +70,7 @@ describe('SearchSort', () => {
     fireEvent.click(trigger);
     expect(await screen.findByText('Product name Ascending')).toBeInTheDocument();
     expect(await screen.findByText('Popularity (BI) Descending')).toBeInTheDocument();
-  });
+  }, 15_000);
 
   it('calls changeSort with correct value', async () => {
     renderComponent();

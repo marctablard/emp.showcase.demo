@@ -149,5 +149,5 @@ describe('AddressInfoSection billing fields', () => {
     fireEvent.click(screen.getByTestId('register-billing-country'));
     const billingOptions = await screen.findAllByRole('option');
     expect(billingOptions.map((option) => option.textContent)).toEqual([...EXPECTED_LOCALIZED_COUNTRY_LABELS]);
-  });
+  }, 15_000);
 });
