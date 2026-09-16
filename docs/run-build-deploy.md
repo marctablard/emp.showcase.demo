@@ -154,22 +154,34 @@ Scripts are skipped only because the disposable directory has no `.git` (the `pr
 
 ### Preview-Only Safe-Chain Minimum-Package-Age Override
 
-The **Install Vercel CLI** and **Install dependencies** steps of the dev-preview workflows — `.github/workflows/github-actions-deploy-pr-preview.yaml` and `.github/workflows/github-actions-deploy-dev.yaml` — pass `--safe-chain-skip-minimum-package-age` (`npm i -g vercel` and `npm ci`). The **Install dependencies** step of `.github/workflows/github-actions-smoke-prod.yaml` uses the same skip **only when the workflow runs on a `pull_request`**. Feature-branch / `workflow_dispatch` smoke runs and production deploy keep the full age gate. This matches `npm run verify:ci-install:preview-override` (`SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1`). It is a narrow, explicit policy exception used to unblock urgent security patches and too-new packages (app dependency bumps or Vercel CLI transitives such as `@napi-rs/wasm-runtime`) that plain `npm install`/`npm ci` would resolve fine but that safe-chain's minimum release-age gate has not yet aged in.
+Two separate skips exist. Neither is a general safe-chain bypass.
 
-Scope of the override — read carefully, this is not a general safe-chain bypass:
-- It skips **only** safe-chain's minimum-package-age check.
-- `safe-chain setup-ci` still runs first, and every other safe-chain protection (malware/dependency-confusion blocking) stays fully enforced for this install.
-- `npm audit --audit-level=high` still runs immediately after, unchanged.
-- The step is a normal, non-`continue-on-error` step: any other install failure (network, integrity, malware block, unresolved dependency, etc.) still fails the job exactly as before.
-- It applies **only** to PR preview, develop preview, and `smoke_prod` when that job is triggered by a pull request. Production deploy and non-PR smoke runs keep plain `npm ci` with the full, unmodified safe-chain age gate.
+**1. App lockfile (`npm ci`)** — standing preview exception, matching `npm run verify:ci-install:preview-override` (`SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1`):
 
-To reproduce this exact preview CI behavior locally (e.g. to confirm a patch installs cleanly before opening the PR), use:
+- PR preview and develop preview always: `npm ci --safe-chain-skip-minimum-package-age`
+- `smoke_prod` **only** when `github.event_name == pull_request`
+- Production deploy (`github-actions-deploy-prod.yaml`) and non-PR smoke (`push` to `feature/**`, `workflow_dispatch`) keep plain `npm ci` with the full lockfile age gate
+
+**2. Vercel CLI (`npm i -g vercel`)** — CLI-only exception, not the app lockfile:
+
+- PR preview, develop preview, and `smoke_prod` (all events) skip age for the Vercel CLI install because that CLI currently pulls a too-new `@napi-rs/wasm-runtime`
+- Production deploy does **not** pass this flag on `npm i -g vercel`
+
+Scope of both skips — read carefully:
+- They skip **only** safe-chain's minimum-package-age check.
+- `safe-chain setup-ci` still runs first, and every other safe-chain protection (malware/dependency-confusion blocking) stays fully enforced.
+- After `npm ci`, PR preview and `smoke_prod` run `npm audit --audit-level=high` through `scripts/verify-audit-policy.mjs`; develop preview runs the same `npm audit --audit-level=high` command directly. The age skip does not weaken that audit.
+- The install step is a normal, non-`continue-on-error` step: any other install failure (network, integrity, malware block, unresolved dependency, etc.) still fails the job exactly as before.
+
+This is a **standing preview-lane exception**, not a one-package time-box: preview/PR may install freshly published lockfile versions; production deploy must still wait for safe-chain's age window. Do not copy the `npm ci` skip onto production deploy.
+
+To reproduce the preview lockfile install locally:
 
 ```bash
 npm run verify:ci-install:preview-override
 ```
 
-which is equivalent to `SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install` and only ever skips the minimum-package-age gate — never the malware checks or the audit step. Do not add this override to production workflows.
+which is equivalent to `SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install` and only ever skips the minimum-package-age gate — never the malware checks or the audit step.
 
 ### npm audit Policy Exceptions
 
