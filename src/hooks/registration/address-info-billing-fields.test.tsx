@@ -1,13 +1,11 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { AddressInfoSection } from '@/components/register/address-info-section';
 import { Form } from '@/components/ui/form';
 import type { RegistrationData } from '@/lib/validation/form-schemas';
 
-window.HTMLElement.prototype.scrollIntoView = jest.fn();
-window.HTMLElement.prototype.releasePointerCapture = jest.fn();
-window.HTMLElement.prototype.hasPointerCapture = () => false;
+jest.mock('@/components/ui/select', () => jest.requireActual('../../../jest/mocks/ui-select'));
 
 jest.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -135,19 +133,19 @@ describe('AddressInfoSection billing fields', () => {
   it('lists shipping and billing country options in localized-name order', async () => {
     renderSection();
 
-    fireEvent.click(screen.getByTestId('register-country'));
-    const shippingOptions = await screen.findAllByRole('option');
+    const shippingRoot = screen.getByTestId('register-country').closest('[data-slot="select"]');
+    expect(shippingRoot).not.toBeNull();
+    const shippingOptions = within(shippingRoot as HTMLElement).getAllByRole('option');
     expect(shippingOptions.map((option) => option.textContent)).toEqual([...EXPECTED_LOCALIZED_COUNTRY_LABELS]);
-
-    fireEvent.keyDown(shippingOptions[0], { key: 'Escape' });
 
     fireEvent.click(screen.getByTestId('register-shippingSameAsBilling'));
     await waitFor(() => {
       expect(screen.getByTestId('register-billing-country')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId('register-billing-country'));
-    const billingOptions = await screen.findAllByRole('option');
+    const billingRoot = screen.getByTestId('register-billing-country').closest('[data-slot="select"]');
+    expect(billingRoot).not.toBeNull();
+    const billingOptions = within(billingRoot as HTMLElement).getAllByRole('option');
     expect(billingOptions.map((option) => option.textContent)).toEqual([...EXPECTED_LOCALIZED_COUNTRY_LABELS]);
-  }, 15_000);
+  });
 });

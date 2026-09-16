@@ -472,6 +472,7 @@ test('should fetch product', async () => {
 2. Use `jest.mock()` at the top of test files
 3. Reset mocks between tests with `jest.clearAllMocks()`
 4. Provide predictable mock implementations
+5. Do not open a real Radix `Select` portal in unit tests (`fireEvent.click` + `findByRole('option')` / `findByText`). On GitHub Actions the Floating UI `autoUpdate` loop often keeps `act()` from settling, so the test hits Jest's timeout even though the same file passes locally. Use `jest/mocks/ui-select.ts` (see `jest/mocks/README.md`) and query options that stay in the document.
 
 ## Sample Tests
 
@@ -734,6 +735,12 @@ const wrapper = ({ children }) => <StoreContext.Provider value={sharedStore}>{ch
 const { result: hook1 } = renderHook(() => useHook1(), { wrapper });
 const { result: hook2 } = renderHook(() => useHook2(), { wrapper });
 ```
+
+### "Exceeded timeout" in Jest on CI, passes locally
+
+Two different suites run. Local `npm run jest` skips Emporix integration tests unless `RUN_INTEGRATION_TESTS=true` and tenant credentials are set. CI (`CI=true` / `GITHUB_ACTIONS=true`) includes those suites and is also a slower 2-core runner.
+
+If the failure is `thrown: "Exceeded timeout of … ms for a test"` on a Radix `Select` (not "Unable to find element"), the dropdown `act()` never settled — raising the `it(..., 15_000)` timeout only waits longer. Mock `@/components/ui/select` with `jest/mocks/ui-select.ts` instead of opening the real portal.
 
 ### "Test timed out" in Playwright Tests
 

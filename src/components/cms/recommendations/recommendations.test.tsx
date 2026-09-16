@@ -25,9 +25,19 @@ import RecommendationsCarousel from './recommendations-carousel';
 
 jest.mock('./recommendations-carousel', () => ({
   __esModule: true,
-  default: jest.fn(({ className, ...rest }: { className?: string } & Record<string, unknown>) => (
-    <div className={['py-8', 'content-container', className].filter(Boolean).join(' ')} {...rest} />
-  )),
+  default: jest.fn(
+    ({
+      className,
+      productId: _productId,
+      products: _products,
+      overline: _overline,
+      headline: _headline,
+      locale: _locale,
+      ...rest
+    }: { className?: string } & Record<string, unknown>) => (
+      <div className={['py-8', 'content-container', className].filter(Boolean).join(' ')} {...rest} />
+    ),
+  ),
 }));
 
 const mockedCarousel = RecommendationsCarousel as unknown as jest.Mock;
@@ -54,9 +64,20 @@ const WITH_PRODUCTS: RecommendationsData = {
 };
 
 beforeEach(() => {
-  mockedCarousel.mockImplementation(({ className, ...rest }: { className?: string } & Record<string, unknown>) => (
-    <div className={['py-8', 'content-container', className].filter(Boolean).join(' ')} {...rest} />
-  ));
+  // Domain props stay off the stub <div> — React 19 warns on unknown DOM attrs.
+  mockedCarousel.mockImplementation(
+    ({
+      className,
+      productId: _productId,
+      products: _products,
+      overline: _overline,
+      headline: _headline,
+      locale: _locale,
+      ...rest
+    }: { className?: string } & Record<string, unknown>) => (
+      <div className={['py-8', 'content-container', className].filter(Boolean).join(' ')} {...rest} />
+    ),
+  );
 });
 
 describe('Recommendations — schema', () => {
