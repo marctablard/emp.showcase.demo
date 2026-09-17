@@ -469,6 +469,7 @@ async function runAddToCart(
 /**
  * Empty carts still keep applied coupons on the platform, which then block currency
  * changes and cannot be edited on the "Oh no" empty-cart screen (COP-4815 QA).
+ * Best-effort: a cleanup failure must not fail the already-successful line-item write.
  */
 async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promise<void> {
   const emptied = ctx.get().currentCart;
@@ -476,13 +477,19 @@ async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promi
     return;
   }
   const indexes = removableCartDiscountIndexes(emptied.discounts);
-  for (const discountIndex of indexes) {
-    if (!ctx.isCurrent()) {
-      return;
+  try {
+    for (const discountIndex of indexes) {
+      if (!ctx.isCurrent()) {
+        return;
+      }
+      await apiRemoveCartDiscount(emptied.id, discountIndex);
     }
-    await apiRemoveCartDiscount(emptied.id, discountIndex);
+    if (ctx.isCurrent()) {
+      await ctx.refetch();
+    }
+  } catch (err) {
+    getLogger().error({ err, cartId: emptied.id }, 'Failed to strip leftover coupons from empty cart');
   }
-  await ctx.refetch();
 }
 
 /**

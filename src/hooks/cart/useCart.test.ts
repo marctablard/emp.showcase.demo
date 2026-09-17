@@ -1247,7 +1247,7 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 1);
   });
 
-  it('rejects removeItem when leftover coupon cleanup fails', async () => {
+  it('still completes removeItem when leftover coupon cleanup fails', async () => {
     const emptiedWithCoupon = buildCart('cart-1', {
       items: [],
       discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
@@ -1263,8 +1263,34 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     mockRemoveCartDiscount.mockRejectedValueOnce(new Error('coupon cleanup failed'));
 
     await act(async () => {
-      await expect(store.getState().removeItem('item-1')).rejects.toThrow('coupon cleanup failed');
+      await store.getState().removeItem('item-1');
     });
+
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+    expect(store.getState().error).toBeNull();
+  });
+
+  it('still completes updateItemQuantity when leftover coupon cleanup fails', async () => {
+    const emptiedWithCoupon = buildCart('cart-1', {
+      items: [],
+      discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+    });
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+      }),
+    );
+    mockUpdateCartItemQuantity.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithCoupon));
+    mockRemoveCartDiscount.mockRejectedValueOnce(new Error('coupon cleanup failed'));
+
+    await act(async () => {
+      await store.getState().updateItemQuantity('item-1', 0);
+    });
+
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+    expect(store.getState().error).toBeNull();
   });
 
   it('sets mutating while a snapshot mutation is in flight without flipping loading', async () => {
