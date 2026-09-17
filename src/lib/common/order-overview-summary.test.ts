@@ -36,6 +36,8 @@ describe('buildOrderOverviewBreakdown', () => {
     expect(breakdown.originalGoodsGross).toBeUndefined();
     expect(breakdown.savingsTotal).toBeUndefined();
     expect(breakdown.goodsDiscountedGross).toBeUndefined();
+    expect(breakdown.goodsDiscounted).toBeUndefined();
+    expect(breakdown.shippingFree).toBeUndefined();
     expect(breakdown.discounts).toBeUndefined();
   });
 
@@ -61,6 +63,8 @@ describe('buildOrderOverviewBreakdown', () => {
 
     expect(breakdown.hasAppliedCoupons).toBe(true);
     expect(breakdown.couponApplyBasis).toBe('net');
+    expect(breakdown.goodsDiscounted).toBe(true);
+    expect(breakdown.shippingFree).toBeUndefined();
     expect(breakdown.discounts?.map((discount) => discount.code)).toEqual(['TOTAL', '10POFF']);
     expect(breakdown.originalGoodsNet).toBe(1010.99);
     expect(breakdown.originalGoodsVat).toBeUndefined();
@@ -92,6 +96,8 @@ describe('buildOrderOverviewBreakdown', () => {
 
     expect(breakdown.hasAppliedCoupons).toBe(true);
     expect(breakdown.couponApplyBasis).toBe('gross');
+    expect(breakdown.goodsDiscounted).toBe(true);
+    expect(breakdown.shippingFree).toBeUndefined();
     expect(breakdown.discounts).toEqual([{ code: 'GROSS10', value: 16.11, currency: 'EUR' }]);
     expect(breakdown.originalGoodsNet).toBe(82.45);
     expect(breakdown.originalGoodsVat).toBe(15.66);
@@ -118,7 +124,20 @@ describe('buildOrderOverviewBreakdown', () => {
 
     expect(breakdown.hasAppliedCoupons).toBe(true);
     expect(breakdown.couponApplyBasis).toBe('gross');
+    expect(breakdown.goodsDiscounted).toBe(false);
     expect(breakdown.originalGoodsGross).toBe(119);
     expect(breakdown.goodsDiscountedGross).toBeUndefined();
+  });
+
+  it('flags shippingFree and not goodsDiscounted for a free-shipping-only order', () => {
+    const breakdown = buildOrderOverviewBreakdown({
+      ...noCouponOrder,
+      discounts: [{ code: 'VKTEST-COUPON05', value: 0, currency: 'EUR', type: 'FREE_SHIPPING' }],
+    });
+
+    expect(breakdown.hasAppliedCoupons).toBe(true);
+    expect(breakdown.goodsDiscounted).toBe(false);
+    expect(breakdown.shippingFree).toBe(true);
+    expect(breakdown.goodsNet).toBe(100);
   });
 });

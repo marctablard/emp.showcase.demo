@@ -373,4 +373,69 @@ describe('EmporixOrderMapper', () => {
       type: 'FREE_SHIPPING',
     });
   });
+
+  it('uses the first applied row that has a recognized type, not a typeless earlier match', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'VKTEST-COUPON05', amount: 0, currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 100, grossValue: 119, taxValue: 19 },
+          totalShipping: {
+            netValue: 0,
+            grossValue: 0,
+            appliedDiscounts: [{ id: 'VKTEST-COUPON05', value: 0 }],
+          },
+          totalDiscount: {
+            value: 0,
+            appliedDiscounts: [{ id: 'VKTEST-COUPON05', value: 4.95, discountType: 'FREE_SHIPPING' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({
+      code: 'VKTEST-COUPON05',
+      type: 'FREE_SHIPPING',
+    });
+  });
+
+  it('falls back to discount name when description is missing', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: '10POFF', amount: 10, currency: 'EUR', name: '10 percent off' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 90, grossValue: 107.1, taxValue: 17.1 },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]?.description).toBe('10 percent off');
+  });
+
+  it('fills a missing coupon amount from the calculated applied-discount value', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'LS10PTOTAL', currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 90, grossValue: 107.1, taxValue: 17.1 },
+          totalDiscount: {
+            value: 10,
+            appliedDiscounts: [{ id: 'LS10PTOTAL', value: 10, discountType: 'PERCENT' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({
+      code: 'LS10PTOTAL',
+      value: 10,
+      type: 'PERCENT',
+    });
+  });
 });

@@ -48,6 +48,16 @@ function asOrderDiscountType(value: string | undefined): OrderDiscount['type'] |
   return undefined;
 }
 
+function matchingAppliedDiscountRows(
+  discount: EmporixDiscount,
+  calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+): Array<{ id?: string; value: number; discountType?: string }> {
+  return [
+    ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
+    ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
+  ].filter((row) => row.id === discount.code);
+}
+
 function resolveOrderDiscountType(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
@@ -56,11 +66,24 @@ function resolveOrderDiscountType(
   if (fromDiscount) {
     return fromDiscount;
   }
-  const applied = [
-    ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
-    ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
-  ];
-  return asOrderDiscountType(applied.find((row) => row.id === discount.code)?.discountType);
+  for (const row of matchingAppliedDiscountRows(discount, calculatedPrice)) {
+    const type = asOrderDiscountType(row.discountType);
+    if (type) {
+      return type;
+    }
+  }
+  return undefined;
+}
+
+function resolveOrderDiscountValue(
+  discount: EmporixDiscount,
+  calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+): number {
+  if (typeof discount.amount === 'number') {
+    return discount.amount;
+  }
+  const withValue = matchingAppliedDiscountRows(discount, calculatedPrice).find((row) => typeof row.value === 'number');
+  return withValue?.value ?? 0;
 }
 
 function mapOrderDiscount(
@@ -70,9 +93,9 @@ function mapOrderDiscount(
   const type = resolveOrderDiscountType(discount, calculatedPrice);
   return {
     code: discount.code,
-    value: discount.amount,
+    value: resolveOrderDiscountValue(discount, calculatedPrice),
     currency: discount.currency,
-    description: discount.description,
+    description: discount.description ?? discount.name,
     ...(type ? { type } : {}),
   };
 }

@@ -55,10 +55,15 @@ export function orderGoodsSavings(
     return undefined;
   }
   const currency = order.discounts?.find((discount) => discount.currency)?.currency ?? order.currency ?? '';
+  const facing = shopperFacingOrderPromos(order.discounts);
+  const goodsPromos = facing.filter((discount) => !isFreeShippingPromo(discount));
+  if (facing.length > 0 && goodsPromos.length === 0) {
+    return undefined;
+  }
   if (typeof order.savingsTotal === 'number' && order.savingsTotal > 0) {
     return { amount: order.savingsTotal, currency };
   }
-  const amount = shopperFacingOrderPromos(order.discounts).reduce((sum, discount) => sum + (discount.value || 0), 0);
+  const amount = goodsPromos.reduce((sum, discount) => sum + (discount.value || 0), 0);
   if (amount <= 0) {
     return undefined;
   }

@@ -1,4 +1,5 @@
 import { shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
+import { isFreeShippingPromo } from '@/lib/common/applied-promo-display';
 import type { Order, OrderDiscount } from '@/platform/services/model/order/order';
 
 export type CouponApplyBasis = 'net' | 'gross';
@@ -18,6 +19,13 @@ export type OrderOverviewSummaryBreakdown = {
   originalGoodsGross?: number;
   savingsTotal?: number;
   goodsDiscountedGross?: number;
+  /**
+   * Whether applied coupons lowered the goods value. False for a free-shipping-only
+   * order so Overview must not strike through an unchanged goods figure.
+   */
+  goodsDiscounted?: boolean;
+  /** A coupon waives shipping — "Your savings" belongs on the shipping row, not goods. */
+  shippingFree?: boolean;
   discounts?: OrderDiscount[];
 };
 
@@ -29,6 +37,14 @@ function orderHasAppliedCoupons(order: Order | null | undefined): boolean {
     return true;
   }
   return typeof order.savingsTotal === 'number' && order.savingsTotal > 0;
+}
+
+function isLowerThan(candidate: number | undefined, reference: number): boolean {
+  return typeof candidate === 'number' && reference - candidate >= 0.005;
+}
+
+function orderHasFreeShipping(order: Order | null | undefined): boolean {
+  return (order?.discounts ?? []).some((discount) => isFreeShippingPromo(discount));
 }
 
 function appliedCouponBreakdownFields(
@@ -43,19 +59,25 @@ function appliedCouponBreakdownFields(
   | 'originalGoodsGross'
   | 'savingsTotal'
   | 'goodsDiscountedGross'
+  | 'goodsDiscounted'
+  | 'shippingFree'
   | 'discounts'
 > {
   const savingsFields = typeof order?.savingsTotal === 'number' ? { savingsTotal: order.savingsTotal } : {};
   const discountFields = order?.discounts?.length ? { discounts: order.discounts } : {};
+  const shippingFields = orderHasFreeShipping(order) ? { shippingFree: true } : {};
 
   if (order?.totalDiscountCalculationType === 'ApplyDiscountAfterTax') {
+    const originalGoodsGross = order.price?.subtotal.gross ?? 0;
     return {
       hasAppliedCoupons: true,
       couponApplyBasis: 'gross',
       originalGoodsNet,
       originalGoodsVat: order.price?.subtotal.tax ?? 0,
-      originalGoodsGross: order.price?.subtotal.gross ?? 0,
+      originalGoodsGross,
+      goodsDiscounted: isLowerThan(order.goodsDiscountedGross, originalGoodsGross),
       ...savingsFields,
+      ...shippingFields,
       ...discountFields,
       ...(typeof order.goodsDiscountedGross === 'number' ? { goodsDiscountedGross: order.goodsDiscountedGross } : {}),
     };
@@ -65,7 +87,9 @@ function appliedCouponBreakdownFields(
     hasAppliedCoupons: true,
     couponApplyBasis: 'net',
     originalGoodsNet,
+    goodsDiscounted: isLowerThan(order?.goodsDiscountedNet, originalGoodsNet),
     ...savingsFields,
+    ...shippingFields,
     ...discountFields,
   };
 }

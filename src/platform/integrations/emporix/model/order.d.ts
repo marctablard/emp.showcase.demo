@@ -107,7 +107,8 @@ export interface EmporixShipping {
  */
 export interface EmporixDiscount {
   code: string;
-  amount: number;
+  /** Optional on some coupon rows (`discountRate` only); fall back to calculated applied amounts. */
+  amount?: number;
   currency: string;
   sequenceId?: number;
   name?: string;

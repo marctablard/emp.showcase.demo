@@ -94,6 +94,25 @@ describe('applied-promo-display', () => {
     ).toEqual({ amount: 101.1, currency: 'EUR' });
   });
 
+  it('does not treat a free-shipping waiver as goods savings', () => {
+    expect(
+      orderGoodsSavings({
+        currency: 'EUR',
+        savingsTotal: 6.5,
+        discounts: [{ code: 'SHIPFREE', value: 6.5, currency: 'EUR', type: 'FREE_SHIPPING' }],
+      }),
+    ).toBeUndefined();
+    expect(
+      orderGoodsSavings({
+        currency: 'EUR',
+        discounts: [
+          { code: 'TOTAL', value: 6.5, currency: 'EUR' },
+          { code: 'SHIPFREE', value: 6.5, currency: 'EUR', type: 'FREE_SHIPPING' },
+        ],
+      }),
+    ).toBeUndefined();
+  });
+
   it('returns removable coupon indexes without the TOTAL rollup, highest first', () => {
     expect(
       removableCartDiscountIndexes([

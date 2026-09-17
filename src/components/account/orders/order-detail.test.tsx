@@ -769,6 +769,8 @@ describe('OrderDetail', () => {
     expect(screen.queryByTestId('order-appliedPromo-TOTAL')).not.toBeInTheDocument();
     expect(screen.queryByTestId('order-appliedPromo-NOMATCH')).not.toBeInTheDocument();
     expect(screen.queryByTestId('order-yourSavings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalGrossValue')).not.toBeInTheDocument();
   });
 
   it('hides Your savings when savingsTotal is zero', () => {
@@ -783,6 +785,7 @@ describe('OrderDetail', () => {
 
     expect(screen.getByTestId('order-appliedPromo-VKTEST-COUPON05')).toBeInTheDocument();
     expect(screen.queryByTestId('order-yourSavings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalValueOfGoods')).not.toBeInTheDocument();
   });
 
   it('renders a gross-applied coupon box with pre-discount VAT and no remove control', () => {
@@ -833,7 +836,9 @@ describe('OrderDetail', () => {
   it('hides Gross Value of Goods when after-tax orders have no discounted goods amount', () => {
     const shippingOnlyCouponOrder: Order = {
       ...baseOrder,
-      discounts: [{ code: 'SHIPFREE', value: 6.5, currency: 'EUR', description: 'Free shipping' }],
+      discounts: [
+        { code: 'SHIPFREE', value: 6.5, currency: 'EUR', description: 'Free shipping', type: 'FREE_SHIPPING' },
+      ],
       savingsTotal: 6.5,
       totalDiscountCalculationType: 'ApplyDiscountAfterTax',
       includesTax: true,
@@ -842,8 +847,10 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={shippingOnlyCouponOrder.id} initialOrder={shippingOnlyCouponOrder} />);
 
-    expect(screen.getByTestId('order-originalGrossValue')).toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalGrossValue')).not.toBeInTheDocument();
     expect(screen.queryByTestId('order-grossValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-yourSavings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalValueOfGoods')).not.toBeInTheDocument();
   });
 
   it('omits an optional Shipping VAT row when the order model has no independent shipping-tax value', () => {

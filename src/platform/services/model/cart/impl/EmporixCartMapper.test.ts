@@ -521,6 +521,23 @@ describe('EmporixCartMapper', () => {
     expect(mapped.shippingCosts?.amount).toBe(0);
   });
 
+  it('propagates FREE_SHIPPING onto the sole coupon when shipping is zeroed without a typed row', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        shipping: { netValue: 4.95, grossValue: 4.95, taxValue: 0, taxCode: 'ZERO', taxRate: 0 },
+        totalShipping: { netValue: 0, grossValue: 0, taxValue: 0, taxCode: 'ZERO', taxRate: 0 },
+      }),
+      discounts: [{ code: 'SHIPFREE', discountIndex: 0, amount: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.freeShipping).toBe(true);
+    expect(mapped.discounts?.[0]).toMatchObject({
+      code: 'SHIPFREE',
+      amount: 0,
+      type: 'FREE_SHIPPING',
+    });
+  });
+
   it('does not flag freeShipping when shipping is simply zero everywhere', () => {
     const mapped = mapper.mapToService(
       showcaseDevCart({

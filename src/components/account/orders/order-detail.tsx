@@ -134,7 +134,8 @@ function OrderOverviewTotals({ order }: { readonly order: Order }) {
   const breakdown = buildOrderOverviewBreakdown(order);
   const currency = breakdown.currency || order.price.subtotal.currency;
   const hasAppliedCoupons = Boolean(breakdown.hasAppliedCoupons);
-  const isGrossApplied = hasAppliedCoupons && breakdown.couponApplyBasis === 'gross';
+  const goodsDiscounted = breakdown.goodsDiscounted ?? true;
+  const isGrossApplied = hasAppliedCoupons && breakdown.couponApplyBasis === 'gross' && goodsDiscounted;
   const goodsTaxInput = {
     taxRate: order.price.subtotal.taxRate,
     taxAmount: isGrossApplied ? (breakdown.originalGoodsVat ?? 0) : breakdown.goodsVat,
@@ -183,7 +184,7 @@ function OrderOverviewTotals({ order }: { readonly order: Order }) {
         </div>
       </>
     );
-  } else if (hasAppliedCoupons) {
+  } else if (hasAppliedCoupons && goodsDiscounted) {
     goodsTotals = (
       <>
         <div className="flex flex-col gap-2">
@@ -202,11 +203,21 @@ function OrderOverviewTotals({ order }: { readonly order: Order }) {
       </>
     );
   } else {
+    const showPlainSavings = hasAppliedCoupons && breakdown.shippingFree !== true;
     goodsTotals = (
-      <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
-        <span>{tOrder('netValueOfGoods')}</span>
-        <span className="text-right font-normal">{formatOverviewAmount(breakdown.goodsNet, currency)}</span>
-      </div>
+      <>
+        <div
+          className={
+            hasAppliedCoupons
+              ? 'flex justify-between items-start gap-4'
+              : 'flex justify-between items-start gap-4 border-b border-border-primary pb-4'
+          }
+        >
+          <span>{tOrder('netValueOfGoods')}</span>
+          <span className="text-right font-normal">{formatOverviewAmount(breakdown.goodsNet, currency)}</span>
+        </div>
+        {showPlainSavings ? savingsBadge : null}
+      </>
     );
   }
 

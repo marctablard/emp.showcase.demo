@@ -108,15 +108,26 @@ function mapCartDiscounts(
   shippingLevel: EmporixCalculatedAppliedDiscount[],
   lineLevel: EmporixCalculatedAppliedDiscount[],
   currency: string,
+  inferFreeShipping: boolean,
 ): CartAppliedDiscount[] | undefined {
   if (!sourceDiscounts || sourceDiscounts.length === 0) {
     return undefined;
   }
+  const soleNonTotal =
+    sourceDiscounts.filter((discount) => discount.valid !== false && discount.code !== 'TOTAL').length === 1;
   const mapped = sourceDiscounts.flatMap((discount, arrayIndex) => {
     if (discount.valid === false) {
       return [];
     }
     const applied = resolveAppliedDiscount(cartLevel, shippingLevel, lineLevel, discount);
+    let type = applied?.discountType;
+    if (!type && inferFreeShipping && discount.code !== 'TOTAL') {
+      const shippingMatch = matchAppliedDiscount(shippingLevel, discount);
+      const noGoodsAmount = (applied?.value ?? discount.amount ?? 0) === 0;
+      if (shippingMatch || (soleNonTotal && noGoodsAmount)) {
+        type = 'FREE_SHIPPING';
+      }
+    }
     return [
       {
         code: discount.code,
@@ -124,7 +135,7 @@ function mapCartDiscounts(
         discountIndex: discount.discountIndex ?? arrayIndex,
         amount: applied?.value ?? discount.amount ?? 0,
         currency: discount.currency ?? currency,
-        ...(applied?.discountType ? { type: applied.discountType } : {}),
+        ...(type ? { type } : {}),
       },
     ];
   });
@@ -135,23 +146,28 @@ function hasFreeShippingDiscount(applied: EmporixCalculatedAppliedDiscount[] | u
   return (applied ?? []).some((discount) => discount.discountType === 'FREE_SHIPPING');
 }
 
+function hasTypedFreeShipping(calculatedPrice: EmporixCart['calculatedPrice']): boolean {
+  return (
+    hasFreeShippingDiscount(calculatedPrice?.totalDiscount?.appliedDiscounts) ||
+    hasFreeShippingDiscount(calculatedPrice?.shipping?.appliedDiscounts) ||
+    hasFreeShippingDiscount(calculatedPrice?.totalShipping?.appliedDiscounts)
+  );
+}
+
 /**
  * True when a coupon waives shipping: a `FREE_SHIPPING` applied discount anywhere on the
  * calculated price, or `totalShipping` zeroed while the pre-discount `shipping` is non-zero.
  */
 function isShippingWaived(calculatedPrice: EmporixCart['calculatedPrice']): boolean {
-  if (!calculatedPrice) {
+  return hasTypedFreeShipping(calculatedPrice) || isZeroedShippingWaiver(calculatedPrice);
+}
+
+/** Shipping was waived without a typed `FREE_SHIPPING` applied row. */
+function isZeroedShippingWaiver(calculatedPrice: EmporixCart['calculatedPrice']): boolean {
+  if (!calculatedPrice || hasTypedFreeShipping(calculatedPrice)) {
     return false;
   }
-  const { totalDiscount, shipping, totalShipping } = calculatedPrice;
-  if (
-    hasFreeShippingDiscount(totalDiscount?.appliedDiscounts) ||
-    hasFreeShippingDiscount(shipping?.appliedDiscounts) ||
-    hasFreeShippingDiscount(totalShipping?.appliedDiscounts)
-  ) {
-    return true;
-  }
-  return totalShipping?.grossValue === 0 && (shipping?.grossValue ?? 0) > 0;
+  return calculatedPrice.totalShipping?.grossValue === 0 && (calculatedPrice.shipping?.grossValue ?? 0) > 0;
 }
 
 /**
@@ -212,6 +228,7 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
       shippingAppliedDiscounts(emporixCart.calculatedPrice),
       lineLevelAppliedDiscounts(emporixCart.items),
       currency,
+      isZeroedShippingWaiver(emporixCart.calculatedPrice),
     );
     return {
       id: emporixCart.id,
