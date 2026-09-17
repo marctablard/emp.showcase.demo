@@ -221,7 +221,7 @@ export function ReturnsList({
           </div>
         </div>
 
-        {error ? (
+        {error && (
           <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
             {/* The button stays out of the live region: it would be read as part of the field description. */}
             <p id={ERROR_MESSAGE_ID} role="alert">
@@ -231,14 +231,16 @@ export function ReturnsList({
               {t('tryAgain')}
             </Button>
           </div>
-        ) : isInitialLoading ? (
+        )}
+        {!error && isInitialLoading && (
           <div className="flex justify-center py-8">
             <div className="flex flex-col items-center space-y-2">
               <Spinner color="primary" variant="md" />
               <div>{t('loading')}</div>
             </div>
           </div>
-        ) : (
+        )}
+        {!error && !isInitialLoading && (
           <>
             <div
               className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}
