@@ -25,7 +25,8 @@ export function CartSummary({ cart, boundingContent, onRequestQuote }: Readonly<
   const fixedContainer = useRef<HTMLDivElement>(null);
   const topPosition = 112;
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, topPosition, boundingContent);
-  const { cartTotal, goodsNet, goodsVat, shippingCosts, shippingVat, showShippingVat, currency } = useCartTotal();
+  const { cartTotal, goodsGross, goodsNet, goodsVat, shippingCosts, shippingVat, showShippingVat, currency } =
+    useCartTotal();
 
   return (
     <div className="mb-6 flex">
@@ -54,7 +55,7 @@ export function CartSummary({ cart, boundingContent, onRequestQuote }: Readonly<
                 </div>
                 <div className="flex justify-between">
                   <span className="">{t('valueOfGoods')}</span>
-                  <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
+                  <span>{formatCurrency(goodsGross, currency)}</span>
                 </div>
 
                 <div className="flex justify-between text-base pt-4 border-t border-border-primary">

@@ -45,6 +45,7 @@ describe('HeaderMiniCartContent', () => {
   beforeEach(() => {
     mockUseCartTotal.mockReturnValue({
       cartTotal: 82.3,
+      goodsGross: 82.29,
       goodsNet: 69.15,
       goodsVat: 13.14,
       shippingCosts: 0.01,
@@ -71,6 +72,7 @@ describe('HeaderMiniCartContent', () => {
   it('shows Shipping VAT when the mapped cart tax amount is greater than 0', () => {
     mockUseCartTotal.mockReturnValue({
       cartTotal: 129.24,
+      goodsGross: 82.29,
       goodsNet: 69.15,
       goodsVat: 13.14,
       shippingCosts: 20,
@@ -95,6 +97,7 @@ describe('HeaderMiniCartContent', () => {
   it('shows a 0 shipping fee instead of calculatedAtCheckout', () => {
     mockUseCartTotal.mockReturnValue({
       cartTotal: 82.29,
+      goodsGross: 82.29,
       goodsNet: 69.15,
       goodsVat: 13.14,
       shippingCosts: 0,
@@ -119,6 +122,7 @@ describe('HeaderMiniCartContent', () => {
   it('uses the coupon-adjusted goods VAT instead of pre-discount cart.tax', () => {
     mockUseCartTotal.mockReturnValue({
       cartTotal: 71.11,
+      goodsGross: 68.94,
       goodsNet: 57.93,
       goodsVat: 11.01,
       shippingCosts: undefined,
@@ -136,7 +140,9 @@ describe('HeaderMiniCartContent', () => {
       />,
     );
 
+    expect(screen.getByText('summary.valueOfGoods').nextElementSibling).toHaveTextContent(money(68.94));
     expect(screen.getByText('tax').nextElementSibling).toHaveTextContent(money(11.01));
+    expect(screen.queryByText(money(82.29))).not.toBeInTheDocument();
     expect(screen.queryByText(money(13.14))).not.toBeInTheDocument();
   });
 });

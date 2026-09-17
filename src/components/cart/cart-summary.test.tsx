@@ -56,6 +56,7 @@ describe('CartSummary', () => {
   beforeEach(() => {
     mockUseCartTotal.mockReturnValue({
       cartTotal: 82.3,
+      goodsGross: 82.29,
       goodsNet: 69.15,
       goodsVat: 13.14,
       shippingCosts: 0.01,
@@ -83,6 +84,7 @@ describe('CartSummary', () => {
   it('shows Shipping VAT when the mapped cart tax amount is greater than 0', () => {
     mockUseCartTotal.mockReturnValue({
       cartTotal: 129.24,
+      goodsGross: 82.29,
       goodsNet: 69.15,
       goodsVat: 13.14,
       shippingCosts: 20,
@@ -101,6 +103,7 @@ describe('CartSummary', () => {
   it('uses the coupon-adjusted goods breakdown instead of pre-discount cart.tax', () => {
     mockUseCartTotal.mockReturnValue({
       cartTotal: 71.11,
+      goodsGross: 68.94,
       goodsNet: 57.93,
       goodsVat: 11.01,
       shippingCosts: undefined,
@@ -111,8 +114,10 @@ describe('CartSummary', () => {
 
     render(<CartSummary cart={CART} boundingContent={createRef<HTMLDivElement>()} onRequestQuote={jest.fn()} />);
 
+    expect(screen.getByText('valueOfGoods').nextElementSibling).toHaveTextContent(money(68.94));
     expect(screen.getByText('netValueOfGoods').nextElementSibling).toHaveTextContent(money(57.93));
     expect(screen.getByText('tax').nextElementSibling).toHaveTextContent(money(11.01));
+    expect(screen.queryByText(money(82.29))).not.toBeInTheDocument();
     expect(screen.queryByText(money(69.15))).not.toBeInTheDocument();
     expect(screen.queryByText(money(13.14))).not.toBeInTheDocument();
   });

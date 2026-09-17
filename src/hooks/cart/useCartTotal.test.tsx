@@ -235,6 +235,7 @@ describe('useCartTotal', () => {
 
     const { result } = renderHook(() => useCartTotal());
 
+    expect(result.current.goodsGross).toBe(68.94);
     expect(result.current.goodsNet).toBe(57.93);
     expect(result.current.goodsVat).toBe(11.01);
     expect(result.current.cartTotal).toBe(71.11);
