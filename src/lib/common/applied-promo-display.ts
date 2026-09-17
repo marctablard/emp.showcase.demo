@@ -44,13 +44,20 @@ export function shopperFacingOrderPromos(discounts: OrderDiscount[] | undefined)
   return (discounts ?? []).filter(isShopperFacingOrderPromo);
 }
 
+function isRemovableCartPromo(discount: CartAppliedDiscount): boolean {
+  const code = discount.code.trim();
+  return code.length > 0 && !AGGREGATE_PROMO_CODES.has(code);
+}
+
 /** Codes that still live on the cart (including zero-effect) — used in toasts, not TOTAL. */
 export function cartCouponCodesForMessage(discounts: CartAppliedDiscount[] | undefined): string[] {
-  return [
-    ...new Set(
-      (discounts ?? [])
-        .map((discount) => discount.code.trim())
-        .filter((code) => code.length > 0 && !AGGREGATE_PROMO_CODES.has(code)),
-    ),
-  ];
+  return [...new Set((discounts ?? []).filter(isRemovableCartPromo).map((discount) => discount.code.trim()))];
+}
+
+/** DELETE indexes for real coupons, highest first so later removals do not shift earlier ones. */
+export function removableCartDiscountIndexes(discounts: CartAppliedDiscount[] | undefined): number[] {
+  return (discounts ?? [])
+    .filter(isRemovableCartPromo)
+    .map((discount) => discount.discountIndex)
+    .sort((left, right) => right - left);
 }

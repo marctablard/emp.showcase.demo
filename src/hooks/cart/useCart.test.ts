@@ -1206,6 +1206,34 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     expect(store.getState().currentCart?.items).toHaveLength(0);
   });
 
+  it('does not DELETE the TOTAL rollup when stripping leftover coupons from an empty cart', async () => {
+    const emptiedWithRollup = buildCart('cart-1', {
+      items: [],
+      discounts: [
+        { code: 'TOTAL', discountIndex: 0, amount: 1.5, currency: 'EUR' },
+        { code: 'ACCESSORIES15', discountIndex: 1, amount: 1.5, currency: 'EUR' },
+      ],
+    });
+    const emptiedClean = buildCart('cart-1', { items: [] });
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: emptiedWithRollup.discounts,
+      }),
+    );
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithRollup));
+    mockRemoveCartDiscount.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedClean));
+
+    await act(async () => {
+      await store.getState().removeItem('item-1');
+    });
+
+    expect(mockRemoveCartDiscount).toHaveBeenCalledTimes(1);
+    expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 1);
+  });
+
   it('drops a GET issued before a discount write that resolves after the write published its snapshot', async () => {
     const store = seedStore(buildCart('cart-1'));
     const staleGet = deferred<ReturnType<typeof fcResult>>();

@@ -102,7 +102,7 @@
     "yourSavings": "Ihre Ersparnis",
     "originalGrossValue": "Ursprünglicher Bruttowert",
     "grossValueOfGoods": "Brutto-Warenwert",
-    "removePromo": "Promo-Code entfernen",
+    "removePromo": "Promo-Code {code} entfernen",
     "promoFreeShipping": "Kostenloser Versand",
     "subtotal": "Zwischensumme",
     "total": "Gesamt",

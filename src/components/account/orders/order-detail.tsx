@@ -143,7 +143,7 @@ function OrderOverviewTotals({ order }: { readonly order: Order }) {
   const showGoodsVat = shouldDisplayTaxLine(goodsTaxInput);
   const goodsVatAmount = isGrossApplied ? (breakdown.originalGoodsVat ?? 0) : breakdown.goodsVat;
   const savingsBadge =
-    typeof breakdown.savingsTotal === 'number' ? (
+    typeof breakdown.savingsTotal === 'number' && breakdown.savingsTotal > 0 ? (
       <OrderSavingsBadge amount={breakdown.savingsTotal} currency={currency} />
     ) : null;
 

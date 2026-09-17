@@ -19,12 +19,14 @@ function formatSignedAmount(amount: number, currency: string): string {
 function AppliedPromoChip({
   discount,
   removingThis,
+  mutationLocked,
   onRemove,
   removeLabel,
   freeShippingLabel,
 }: Readonly<{
   discount: CartAppliedDiscount;
   removingThis: boolean;
+  mutationLocked: boolean;
   onRemove: (discountIndex: number) => void;
   removeLabel: string;
   freeShippingLabel: string;
@@ -43,11 +45,11 @@ function AppliedPromoChip({
           type="button"
           className={cn(
             'shrink-0 cursor-pointer rounded-sm text-text-body focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-            removingThis && 'cursor-progress',
+            mutationLocked && 'cursor-progress',
           )}
           data-testid={`checkout-removePromo-${discount.code}`}
           aria-label={removeLabel}
-          disabled={removingThis}
+          disabled={mutationLocked}
           onClick={() => onRemove(discount.discountIndex)}
         >
           <X className="size-[18px]" aria-hidden />
@@ -77,7 +79,8 @@ export function CheckoutPromoCodeBox() {
   const { code, setCode, applying, removingIndex, fieldError, apply, remove, discounts } = useCheckoutPromoCode();
 
   const isInvalid = Boolean(fieldError);
-  const canApply = Boolean(code.trim()) && !applying;
+  const mutationLocked = applying || removingIndex !== null;
+  const canApply = Boolean(code.trim()) && !mutationLocked;
   const visibleDiscounts = shopperFacingCartPromos(discounts);
 
   return (
@@ -108,8 +111,8 @@ export function CheckoutPromoCodeBox() {
               aria-describedby={isInvalid ? errorId : undefined}
               data-dirty-error={isInvalid || undefined}
               data-testid="checkout-promoCode"
-              disabled={applying}
-              className={cn('h-12', !isInvalid && 'bg-surface-primary', applying && 'cursor-progress')}
+              disabled={mutationLocked}
+              className={cn('h-12', !isInvalid && 'bg-surface-primary', mutationLocked && 'cursor-progress')}
             />
           </div>
           <Button
@@ -140,8 +143,9 @@ export function CheckoutPromoCodeBox() {
               key={`${discount.code}-${discount.discountIndex}`}
               discount={discount}
               removingThis={removingIndex === discount.discountIndex}
+              mutationLocked={mutationLocked}
               onRemove={remove}
-              removeLabel={t('removePromo')}
+              removeLabel={t('removePromo', { code: discount.code })}
               freeShippingLabel={t('promoFreeShipping')}
             />
           ))}

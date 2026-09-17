@@ -17,6 +17,7 @@ import {
   loadSavedCart,
 } from '@/lib/client/carts';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
+import { removableCartDiscountIndexes } from '@/lib/common/applied-promo-display';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type {
   CartShippingAddress,
@@ -451,7 +452,7 @@ async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promi
   if (!emptied || emptied.items.length > 0 || !emptied.discounts?.length || !ctx.isCurrent()) {
     return;
   }
-  const indexes = emptied.discounts.map((discount) => discount.discountIndex).sort((left, right) => right - left);
+  const indexes = removableCartDiscountIndexes(emptied.discounts);
   for (const discountIndex of indexes) {
     if (!ctx.isCurrent()) {
       return;

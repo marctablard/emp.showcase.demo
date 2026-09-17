@@ -28,7 +28,12 @@ function money(amount: number): RegExp {
 }
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => (key === 'promoCodeError' ? FIGMA_PROMO_ERROR : key),
+  useTranslations: () => (key: string, values?: { code?: string }) => {
+    if (key === 'promoCodeError') {
+      return FIGMA_PROMO_ERROR;
+    }
+    return values?.code ? `${key} ${values.code}` : key;
+  },
 }));
 
 jest.mock('@/hooks/checkout/useCheckoutPromoCode', () => ({
@@ -167,7 +172,7 @@ describe('CheckoutPromoCodeBox', () => {
     const removeButton = screen.getByTestId('checkout-removePromo-ACCESSORIES15');
     expect(removeButton).toHaveAttribute('type', 'button');
     expect(removeButton).toHaveClass('cursor-pointer');
-    expect(removeButton).toHaveAccessibleName('removePromo');
+    expect(removeButton).toHaveAccessibleName('removePromo ACCESSORIES15');
 
     fireEvent.click(removeButton);
     expect(mockPromo.remove).toHaveBeenCalledWith(0);
@@ -208,7 +213,7 @@ describe('CheckoutPromoCodeBox', () => {
     expect(screen.getByTestId('checkout-applyPromo')).toHaveClass('cursor-progress');
   });
 
-  it('marks only the chip being removed as busy', () => {
+  it('marks only the chip being removed as busy and disables every remove control', () => {
     mockPromo.discounts = [
       { code: 'ACCESSORIES15', name: '15% discount', discountIndex: 0, amount: 1.5, currency: 'EUR' },
       { code: 'SOLAR10', name: '10% discount', discountIndex: 1, amount: 10, currency: 'EUR' },
@@ -220,7 +225,9 @@ describe('CheckoutPromoCodeBox', () => {
     expect(screen.getByTestId('checkout-appliedPromo-ACCESSORIES15')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByTestId('checkout-removePromo-ACCESSORIES15')).toBeDisabled();
     expect(screen.getByTestId('checkout-appliedPromo-SOLAR10')).not.toHaveAttribute('aria-busy');
-    expect(screen.getByTestId('checkout-removePromo-SOLAR10')).not.toBeDisabled();
+    expect(screen.getByTestId('checkout-removePromo-SOLAR10')).toBeDisabled();
+    expect(screen.getByTestId('checkout-removePromo-ACCESSORIES15')).toHaveAccessibleName('removePromo ACCESSORIES15');
+    expect(screen.getByTestId('checkout-removePromo-SOLAR10')).toHaveAccessibleName('removePromo SOLAR10');
   });
 
   it('shows Free shipping instead of a money amount on a free-shipping coupon chip', () => {

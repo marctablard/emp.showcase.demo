@@ -285,4 +285,32 @@ describe('useCheckoutPromoCode', () => {
     expect(result.current.removingIndex).toBeNull();
     expect(result.current.removing).toBe(false);
   });
+
+  it('ignores a second remove while a remove is already in flight', async () => {
+    let resolveFirst!: () => void;
+    mockRemoveDiscount.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    let firstRemove: Promise<void>;
+    act(() => {
+      firstRemove = result.current.remove(0);
+    });
+    await act(async () => {
+      await result.current.remove(1);
+    });
+
+    expect(mockRemoveDiscount).toHaveBeenCalledTimes(1);
+    expect(mockRemoveDiscount).toHaveBeenCalledWith(0);
+    expect(result.current.removingIndex).toBe(0);
+
+    await act(async () => {
+      resolveFirst();
+      await firstRemove;
+    });
+  });
 });

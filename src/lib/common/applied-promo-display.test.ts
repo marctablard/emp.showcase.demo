@@ -4,6 +4,7 @@ import {
   cartCouponCodesForMessage,
   isShopperFacingCartPromo,
   isShopperFacingOrderPromo,
+  removableCartDiscountIndexes,
   shopperFacingCartPromos,
 } from './applied-promo-display';
 
@@ -65,5 +66,15 @@ describe('applied-promo-display', () => {
         { code: 'NOMATCH', discountIndex: 2, amount: 0, currency: 'EUR' },
       ]),
     ).toEqual(['ACCESSORIES15', 'NOMATCH']);
+  });
+
+  it('returns removable coupon indexes without the TOTAL rollup, highest first', () => {
+    expect(
+      removableCartDiscountIndexes([
+        goods,
+        { code: 'TOTAL', discountIndex: 1, amount: 10, currency: 'EUR' },
+        { code: 'NOMATCH', discountIndex: 2, amount: 0, currency: 'EUR' },
+      ]),
+    ).toEqual([2, 0]);
   });
 });

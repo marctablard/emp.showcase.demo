@@ -403,6 +403,56 @@ describe('EmporixCartMapper', () => {
     });
   });
 
+  it('does not double-count a coupon present on both totalDiscount and totalShipping', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 4.95,
+          appliedDiscounts: [{ id: 'SHIPFREE', value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+        totalShipping: {
+          netValue: 0,
+          grossValue: 0,
+          taxValue: 0,
+          taxCode: 'ZERO',
+          taxRate: 0,
+          appliedDiscounts: [{ id: 'SHIPFREE', value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+      }),
+      discounts: [{ code: 'SHIPFREE', discountIndex: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toMatchObject({ code: 'SHIPFREE', amount: 4.95, type: 'FREE_SHIPPING' });
+  });
+
+  it('does not double-count a line coupon present on both totalDiscount and discountedPrice', () => {
+    const cart = showcaseDevCart();
+    cart.items = [
+      {
+        ...cart.items![0],
+        calculatedPrice: {
+          ...cart.items![0].calculatedPrice!,
+          totalDiscount: {
+            calculationType: 'ApplyDiscountBeforeTax',
+            value: 10.5,
+            appliedDiscounts: [{ id: 'VKTEST-PROMO02', value: 10.5, discountType: 'PERCENT', origin: 'INTERNAL' }],
+          },
+          discountedPrice: {
+            ...cart.items![0].calculatedPrice!.price,
+            appliedDiscounts: [{ id: 'VKTEST-PROMO02', value: 10, discountType: 'PERCENT', origin: 'INTERNAL' }],
+          },
+        },
+      },
+    ];
+    const mapped = mapper.mapToService({
+      ...cart,
+      discounts: [{ code: 'VKTEST-PROMO02', discountIndex: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toMatchObject({ code: 'VKTEST-PROMO02', amount: 10.5, type: 'PERCENT' });
+  });
+
   it('sums a category coupon that is applied only on line items', () => {
     const cart = showcaseDevCart();
     cart.items = [

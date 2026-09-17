@@ -768,6 +768,21 @@ describe('OrderDetail', () => {
     expect(chip).not.toHaveTextContent('-0');
     expect(screen.queryByTestId('order-appliedPromo-TOTAL')).not.toBeInTheDocument();
     expect(screen.queryByTestId('order-appliedPromo-NOMATCH')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-yourSavings')).not.toBeInTheDocument();
+  });
+
+  it('hides Your savings when savingsTotal is zero', () => {
+    const zeroSavingsOrder: Order = {
+      ...baseOrder,
+      discounts: [{ code: 'VKTEST-COUPON05', value: 0, currency: 'EUR', type: 'FREE_SHIPPING' }],
+      savingsTotal: 0,
+    };
+    mockUseOrder({ order: zeroSavingsOrder });
+
+    render(<OrderDetail orderId={zeroSavingsOrder.id} initialOrder={zeroSavingsOrder} />);
+
+    expect(screen.getByTestId('order-appliedPromo-VKTEST-COUPON05')).toBeInTheDocument();
+    expect(screen.queryByTestId('order-yourSavings')).not.toBeInTheDocument();
   });
 
   it('renders a gross-applied coupon box with pre-discount VAT and no remove control', () => {
