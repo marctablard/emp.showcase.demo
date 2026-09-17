@@ -214,6 +214,7 @@ If a new exception ever becomes necessary, it MUST carry an explicit short-lived
 - A missing, empty, unparsable, or unexpectedly-shaped audit report (e.g. a registry/network error instead of a real report) fails CI.
 - Trailing npm/safe-chain notices after the first JSON object are ignored so a valid report is not rejected as malformed. The first object must still be a real audit report.
 - It is robust to the two shapes `npm audit --json` uses inside each vulnerability's `via` array: a plain dependency-name string (transitive propagation through an already-reported package) versus an advisory object (an actual disclosed vulnerability, carrying its own `severity`/`url`/`title`). Only advisory objects are checked against the allowlist.
+- Clock override (`--as-of=YYYY-MM-DD`) is accepted only under Jest (`JEST_WORKER_ID`). CI always uses the real UTC date so an expired exception cannot be backdated.
 
 To reproduce this exact CI check locally:
 

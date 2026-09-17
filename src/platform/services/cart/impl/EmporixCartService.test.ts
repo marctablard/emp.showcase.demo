@@ -727,6 +727,21 @@ describe('EmporixCartService', () => {
       expect(mockCartApi.getCart).toHaveBeenCalledTimes(1);
     });
 
+    it('defaults unclassified apply failures (timeout / fetch) to upstream 500', async () => {
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+      mockCartApi.applyDiscount.mockRejectedValue(new Error('fetch failed'));
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to apply discount',
+          upstreamStatus: 500,
+        }),
+      );
+      expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+    });
+
     describe('rejection classification via coupon validation', () => {
       const cartRejection = new Error(
         'Failed to apply discount to cart: 400 Bad Request {"code":400,"message":"Discount with code X is not valid"}',
@@ -992,6 +1007,24 @@ describe('EmporixCartService', () => {
           name: 'CartDiscountError',
           message: 'Failed to remove discount',
           upstreamStatus: 404,
+        }),
+      );
+    });
+
+    it('defaults unclassified remove failures to upstream 500', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+      mockCartApi.removeDiscount.mockRejectedValue(new Error('network timeout'));
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to remove discount',
+          upstreamStatus: 500,
         }),
       );
     });

@@ -28,6 +28,9 @@
  * Usage:
  *   npm audit --audit-level=high --json > audit-report.json || true
  *   node scripts/verify-audit-policy.mjs audit-report.json
+ *
+ * Jest may pass `--as-of=YYYY-MM-DD` while `JEST_WORKER_ID` is set. CI must
+ * not set that flag or `VERIFY_AUDIT_POLICY_TODAY`.
  */
 import fs from 'node:fs';
 
@@ -223,15 +226,29 @@ function collectAdvisories(vulnerabilities) {
   return [...advisoriesById.values()];
 }
 
-/** Optional `VERIFY_AUDIT_POLICY_TODAY=YYYY-MM-DD` pins "today" for Jest; CI leaves it unset. */
-function resolvePolicyToday() {
-  const asOf = process.env.VERIFY_AUDIT_POLICY_TODAY;
-  if (!asOf) {
+function parseAsOfArg(argv) {
+  const flag = argv.find((arg) => arg.startsWith('--as-of='));
+  return flag ? flag.slice('--as-of='.length) : undefined;
+}
+
+/**
+ * Clock override is Jest-only (`JEST_WORKER_ID` + `--as-of=YYYY-MM-DD`).
+ * CI always uses the real UTC date so expired exceptions cannot be backdated.
+ */
+function resolvePolicyToday(argv = process.argv) {
+  const asOfFlag = parseAsOfArg(argv);
+  if (process.env.VERIFY_AUDIT_POLICY_TODAY && !process.env.JEST_WORKER_ID) {
+    fail('VERIFY_AUDIT_POLICY_TODAY is test-only; unset it so exception expiry cannot be backdated');
+  }
+  if (asOfFlag && !process.env.JEST_WORKER_ID) {
+    fail('clock override --as-of is test-only');
+  }
+  if (!asOfFlag || !process.env.JEST_WORKER_ID) {
     return new Date();
   }
-  const parsed = new Date(`${asOf}T12:00:00.000Z`);
+  const parsed = new Date(`${asOfFlag}T12:00:00.000Z`);
   if (Number.isNaN(parsed.getTime())) {
-    fail(`VERIFY_AUDIT_POLICY_TODAY is not a valid YYYY-MM-DD date: "${asOf}"`);
+    fail(`clock override --as-of is not a valid YYYY-MM-DD date: "${asOfFlag}"`);
   }
   return parsed;
 }

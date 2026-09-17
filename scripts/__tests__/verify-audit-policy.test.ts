@@ -44,14 +44,21 @@ function advisoryReport(id: string): string {
   });
 }
 
-function runPolicy(contents: string, env: Record<string, string> = {}): string {
+function runPolicy(
+  contents: string,
+  options: { args?: string[]; env?: NodeJS.ProcessEnv; inheritJest?: boolean } = {},
+): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-policy-'));
   const reportPath = path.join(dir, 'audit-report.json');
   fs.writeFileSync(reportPath, contents);
+  const env: NodeJS.ProcessEnv = { ...process.env, ...options.env };
+  if (options.inheritJest === false) {
+    delete env.JEST_WORKER_ID;
+  }
   try {
-    return execFileSync(process.execPath, [SCRIPT, reportPath], {
+    return execFileSync(process.execPath, [SCRIPT, reportPath, ...(options.args ?? [])], {
       encoding: 'utf8',
-      env: { ...process.env, ...env },
+      env,
     });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -95,11 +102,26 @@ describe('verify-audit-policy', () => {
     },
   ] as const)('gates $name', ({ id, asOf, ok }) => {
     const report = advisoryReport(id);
-    const env = { VERIFY_AUDIT_POLICY_TODAY: asOf };
+    const args = [`--as-of=${asOf}`];
     if (ok) {
-      expect(runPolicy(report, env)).toContain('verify-audit-policy: OK');
+      expect(runPolicy(report, { args })).toContain('verify-audit-policy: OK');
       return;
     }
-    expect(() => runPolicy(report, env)).toThrow(/one or more high\/critical advisories/);
+    expect(() => runPolicy(report, { args })).toThrow(/one or more high\/critical advisories/);
+  });
+
+  it('rejects --as-of outside Jest so CI cannot backdate exception expiry', () => {
+    expect(() =>
+      runPolicy(advisoryReport(ALLOWED_ID), { args: [`--as-of=${ALLOWED_EXPIRES}`], inheritJest: false }),
+    ).toThrow(/clock override --as-of is test-only/);
+  });
+
+  it('rejects VERIFY_AUDIT_POLICY_TODAY outside Jest', () => {
+    expect(() =>
+      runPolicy(advisoryReport(ALLOWED_ID), {
+        env: { VERIFY_AUDIT_POLICY_TODAY: ALLOWED_EXPIRES },
+        inheritJest: false,
+      }),
+    ).toThrow(/VERIFY_AUDIT_POLICY_TODAY is test-only/);
   });
 });

@@ -1026,7 +1026,7 @@ class EmporixCartService implements CartService {
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     return new CartDiscountError(message, {
-      upstreamStatus: extractUpstreamStatus(errorMessage),
+      upstreamStatus: extractUpstreamStatus(errorMessage) ?? 500,
       upstreamBody: extractUpstreamBody(errorMessage),
     });
   }
