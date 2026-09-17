@@ -23,7 +23,7 @@ export interface ItemAssignment {
 
 /**
  * Customer segment in the service layer. Tolerant projection of the Emporix segment
- * (`GET /segments`, `GET /me/segments`): only `id` is guaranteed.
+ * (`GET /segments`, `GET /segments/me`): only `id` is guaranteed.
  */
 export interface Segment {
   id: string;

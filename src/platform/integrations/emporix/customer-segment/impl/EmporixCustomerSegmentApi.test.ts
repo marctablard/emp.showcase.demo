@@ -133,23 +133,23 @@ describe('EmporixCustomerSegmentApi', () => {
       await expect(api.getMySegments()).resolves.toEqual([]);
     });
 
-    it('calls me/segments with the session token, metrics and forwarded legalEntityId/siteCode', async () => {
+    it('calls segments/me with the session token, metrics and forwarded legalEntityId/siteCode', async () => {
       await api.getMySegments({ legalEntityId: 'le-1', siteCode: 'main' });
 
       const { parsedUrl, options, tokenType, authOptions, metrics } = lastCall();
-      expect(parsedUrl.pathname).toBe('/customer-segment/test-tenant/me/segments');
+      expect(parsedUrl.pathname).toBe('/customer-segment/test-tenant/segments/me');
       expect(parsedUrl.searchParams.get('legalEntityId')).toBe('le-1');
       expect(parsedUrl.searchParams.get('siteCode')).toBe('main');
       expect(options).toEqual({ method: 'GET' });
       expect(tokenType).toBe('session');
       expect(authOptions).toBeUndefined();
-      expect(metrics).toEqual({ source: 'customer-segment', routePattern: '/customer-segment/{tenant}/me/segments' });
+      expect(metrics).toEqual({ source: 'customer-segment', routePattern: '/customer-segment/{tenant}/segments/me' });
     });
 
     it('omits the query string when no params are given', async () => {
       await api.getMySegments();
 
-      expect(lastCall().url).toBe('/customer-segment/test-tenant/me/segments');
+      expect(lastCall().url).toBe('/customer-segment/test-tenant/segments/me');
     });
 
     it('propagates invoker errors instead of swallowing them', async () => {

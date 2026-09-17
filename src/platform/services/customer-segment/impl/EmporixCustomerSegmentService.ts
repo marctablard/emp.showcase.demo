@@ -192,10 +192,10 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
   }
 
   /**
-   * Membership is only `GET …/me/segments` (Emporix "Retrieving own customer segments").
+   * Membership is only `GET …/segments/me` (Emporix "Retrieving own customer segments").
    * `GET /segments` is the tenant catalogue visible to the session, not this customer's
    * assignments — using it as a fallback would widen the assigned catalog. Unavailable or
-   * shape-drifted `me/segments` is thrown so `ProductsModeService` fails closed.
+   * shape-drifted `segments/me` is thrown so `ProductsModeService` fails closed.
    */
   private async resolveMySegmentsSource(
     params: { legalEntityId?: string; siteCode?: string },
@@ -209,9 +209,9 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
 
     this.logger.error(
       { customerId, reason: fallbackReason },
-      'me/segments unavailable or unusable; failing closed (GET /segments is not customer membership)',
+      'segments/me unavailable or unusable; failing closed (GET /segments is not customer membership)',
     );
-    throw new Error(`me/segments ${fallbackReason}; failing closed`);
+    throw new Error(`segments/me ${fallbackReason}; failing closed`);
   }
 
   /**

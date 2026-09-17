@@ -101,7 +101,7 @@ describe('EmporixCustomerSegmentService', () => {
   });
 
   describe('getMySegments', () => {
-    it('uses the me/segments result and does not call getSegments when the primary returns segments with string ids', async () => {
+    it('uses the segments/me result and does not call getSegments when the primary returns segments with string ids', async () => {
       api.getMySegments.mockResolvedValue([solarSegment]);
 
       const result = await service.getMySegments();
@@ -118,7 +118,7 @@ describe('EmporixCustomerSegmentService', () => {
       api.getMySegments.mockResolvedValue(null);
 
       await expect(service.getMySegments()).rejects.toThrow(
-        'Failed to retrieve customer segments: me/segments unavailable; failing closed',
+        'Failed to retrieve customer segments: segments/me unavailable; failing closed',
       );
       expect(api.getSegments).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
@@ -131,7 +131,7 @@ describe('EmporixCustomerSegmentService', () => {
       api.getMySegments.mockResolvedValue([{ foo: 'bar' } as unknown as SegmentResponse]);
 
       await expect(service.getMySegments()).rejects.toThrow(
-        'Failed to retrieve customer segments: me/segments shape-drift; failing closed',
+        'Failed to retrieve customer segments: segments/me shape-drift; failing closed',
       );
       expect(api.getSegments).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
@@ -238,7 +238,7 @@ describe('EmporixCustomerSegmentService', () => {
       });
     });
 
-    it('logs and rethrows a wrapped error when me/segments rejects', async () => {
+    it('logs and rethrows a wrapped error when segments/me rejects', async () => {
       api.getMySegments.mockRejectedValue(new Error('upstream down'));
 
       await expect(service.getMySegments()).rejects.toThrow('Failed to retrieve customer segments: upstream down');

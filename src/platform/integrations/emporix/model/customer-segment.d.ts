@@ -37,8 +37,8 @@ export interface SegmentPageResponse {
 
 /**
  * Customer segment as returned by `GET /customer-segment/{tenant}/segments` and
- * `GET /customer-segment/{tenant}/me/segments`. Kept tolerant: only `id` is required and
- * unknown fields are preserved (COP-5908 contract not yet observable on api-develop).
+ * `GET /customer-segment/{tenant}/segments/me`. Kept tolerant: only `id` is required and
+ * unknown fields are preserved.
  * Observed on `GET /segments` (api-develop, 2026-09-10): `id`, `name`, `description`,
  * `siteCode`, `status`, `metadata`.
  */

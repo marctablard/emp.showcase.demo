@@ -136,7 +136,7 @@ class EmporixProductService implements ProductService {
       // Assigned scope is applied after the unscoped Product API page: the upstream `total` would
       // count out-of-segment products. Report the filtered page size so callers cannot paginate
       // past items that are actually visible (COP-4822). Assigned PLP uses SearchService, not this.
-      total: options?.segmentIds !== undefined ? enhancedProducts.length : paginated.total,
+      total: options?.segmentIds === undefined ? paginated.total : enhancedProducts.length,
     };
   }
 

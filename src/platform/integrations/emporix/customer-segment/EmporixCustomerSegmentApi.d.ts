@@ -8,7 +8,7 @@ import {
 
 export interface EmporixCustomerSegmentApi {
   /**
-   * Retrieve the segments assigned to the current customer (`GET /customer-segment/{tenant}/me/segments`).
+   * Retrieve the segments assigned to the current customer (`GET /customer-segment/{tenant}/segments/me`).
    * Feature-detecting: resolves `null` (never throws for an HTTP-level outcome) when the endpoint is
    * not available — non-`ok` status, missing JSON `content-type`, empty body, or a body that is not
    * a JSON array. Errors thrown by the invoker itself (network, token refresh) are propagated.

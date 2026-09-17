@@ -17,7 +17,7 @@ import type { EmporixCustomerSegmentApi as IEmporixCustomerSegmentApi } from '..
 
 const createCustomerSegmentMetrics = (route: string) => createFetchMetricsParams('customer-segment', route);
 
-const MY_SEGMENTS_ROUTE = '/customer-segment/{tenant}/me/segments';
+const MY_SEGMENTS_ROUTE = '/customer-segment/{tenant}/segments/me';
 const SEGMENTS_ROUTE = '/customer-segment/{tenant}/segments';
 const SEGMENT_ITEMS_ROUTE = '/customer-segment/{tenant}/segments/items';
 const CATEGORY_TREES_ROUTE = '/customer-segment/{tenant}/segments/items/category-trees';
@@ -34,12 +34,13 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
   ) {}
 
   /**
-   * Feature-detecting call to `me/segments` (COP-5908). A non-JSON-array outcome
-   * (unknown `me/*` route, empty body, missing content-type) resolves `null` so the
-   * service can fail closed — `GET /segments` is not customer membership.
+   * Official “Retrieving own customer segments”: `GET /customer-segment/{tenant}/segments/me`.
+   * `200` + a JSON array is membership (`[]` = unsegmented). A non-JSON-array outcome
+   * (non-ok, empty body, missing content-type) resolves `null` so the service can fail
+   * closed — `GET /segments` is the tenant catalogue, not this customer's membership.
    */
   async getMySegments(params?: CustomerSegmentQueryParams): Promise<SegmentResponse[] | null> {
-    const url = this.buildUrl('/me/segments', params);
+    const url = this.buildUrl('/segments/me', params);
 
     const response = await this.apiClient.authenticatedFetch(
       url,
@@ -54,7 +55,7 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
     if (!response.ok) {
       this.logger.debug(
         { status: response.status, route: MY_SEGMENTS_ROUTE },
-        'me/segments unavailable: non-ok status',
+        'segments/me unavailable: non-ok status',
       );
       return null;
     }
@@ -63,14 +64,14 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
     if (!contentType?.includes('json')) {
       this.logger.debug(
         { status: response.status, contentType, route: MY_SEGMENTS_ROUTE },
-        'me/segments unavailable: response is not JSON',
+        'segments/me unavailable: response is not JSON',
       );
       return null;
     }
 
     const body = await response.text();
     if (!body) {
-      this.logger.debug({ status: response.status, route: MY_SEGMENTS_ROUTE }, 'me/segments unavailable: empty body');
+      this.logger.debug({ status: response.status, route: MY_SEGMENTS_ROUTE }, 'segments/me unavailable: empty body');
       return null;
     }
 
@@ -78,14 +79,14 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
     try {
       parsed = JSON.parse(body);
     } catch (err) {
-      this.logger.debug({ err, route: MY_SEGMENTS_ROUTE }, 'me/segments unavailable: body is not valid JSON');
+      this.logger.debug({ err, route: MY_SEGMENTS_ROUTE }, 'segments/me unavailable: body is not valid JSON');
       return null;
     }
 
     if (!Array.isArray(parsed)) {
       this.logger.debug(
         { bodyType: typeof parsed, route: MY_SEGMENTS_ROUTE },
-        'me/segments unavailable: body is not a JSON array',
+        'segments/me unavailable: body is not a JSON array',
       );
       return null;
     }

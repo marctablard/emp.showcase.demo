@@ -57,7 +57,7 @@ class DefaultProductsModeService implements ProductsModeService {
    * value is bound to the current customer id; with the flag off the cookie is ignored entirely.
    * localStorage / query params are never consulted.
    *
-   * Fail closed (Open Question 15): when the segment lookup rejects (`me/segments` unavailable,
+   * Fail closed (Open Question 15): when the segment lookup rejects (`segments/me` unavailable,
    * shape-drifted, or thrown — `GET /segments` is not membership and is never used as a fallback)
    * the customer is treated as `assigned` with `segmentIds: []`. Consumers forward `segmentIds`
    * only in `assigned` mode, and the services treat `segmentIds === undefined` as unscoped but

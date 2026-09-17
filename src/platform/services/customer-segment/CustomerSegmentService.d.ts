@@ -6,8 +6,10 @@ import { CategoryTree, CustomerSegmentQueryOptions, ItemAssignment, Segment } fr
 export interface CustomerSegmentService {
   /**
    * Retrieve the current customer's active segments for a site.
-   * Primary source is `GET /me/segments` (COP-5908); when that endpoint is unavailable the
-   * documented `GET /segments` (`segment_read_own`) is used as a `warn`-logged fallback.
+   * Official source is `GET /customer-segment/{tenant}/segments/me` (“Retrieving own customer
+   * segments”). `200` + `[]` is unsegmented, not an error. Unavailable or shape-drifted
+   * responses reject so `ProductsModeService` fails closed — `GET /segments` is the catalogue,
+   * not membership, and is never used as a fallback.
    * Segments are filtered to `status` ACTIVE (or absent), `siteCode` absent or equal to the
    * requested site (`options.siteCode` or the session site) and `validity` containing "now".
    * @param options `siteCode` overrides the session site
