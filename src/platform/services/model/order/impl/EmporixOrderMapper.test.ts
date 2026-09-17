@@ -333,4 +333,44 @@ describe('EmporixOrderMapper', () => {
     expect(result.goodsDiscountedNet).toBe(58.235);
     expect(result.goodsDiscountedVat).toBe(13.14);
   });
+
+  it('maps FREE_SHIPPING from the published discount type even when amount is 0', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'VKTEST-COUPON05', amount: 0, currency: 'EUR', discountType: 'FREE_SHIPPING' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 100, grossValue: 119, taxValue: 19 },
+          totalShipping: { netValue: 0, grossValue: 0, taxValue: 0 },
+        },
+      }),
+    );
+
+    expect(result.discounts).toEqual([{ code: 'VKTEST-COUPON05', value: 0, currency: 'EUR', type: 'FREE_SHIPPING' }]);
+  });
+
+  it('resolves FREE_SHIPPING from totalShipping appliedDiscounts when the discount row omits type', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'VKTEST-COUPON05', amount: 0, currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 100, grossValue: 119, taxValue: 19 },
+          totalShipping: {
+            netValue: 0,
+            grossValue: 0,
+            appliedDiscounts: [{ id: 'VKTEST-COUPON05', value: 4.95, discountType: 'FREE_SHIPPING' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({
+      code: 'VKTEST-COUPON05',
+      value: 0,
+      type: 'FREE_SHIPPING',
+    });
+  });
 });

@@ -80,6 +80,8 @@ export interface OrderDiscount {
   value: number;
   currency: string;
   description?: string;
+  /** Published `discount.discountType` / applied-discount type; `FREE_SHIPPING` chips stay visible at 0. */
+  type?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
 }
 
 /** Published `calculatedPrice.totalDiscount.calculationType` — not YAML `discountCalculationType` SUBTOTAL/TOTAL. */

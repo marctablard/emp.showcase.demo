@@ -20,7 +20,7 @@ import { useOrder } from '@/hooks/order/useOrder';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { isOrderAccessDeniedError } from '@/lib/client/orders';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
-import { shopperFacingOrderPromos } from '@/lib/common/applied-promo-display';
+import { isFreeShippingPromo, shopperFacingOrderPromos } from '@/lib/common/applied-promo-display';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { buildOrderOverviewBreakdown } from '@/lib/common/order-overview-summary';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
@@ -75,6 +75,7 @@ function formatOverviewSignedAmount(amount: number, currency: string): string {
 }
 
 function OrderAppliedPromoList({ discounts }: { readonly discounts: OrderDiscount[] }) {
+  const tOrder = useTranslations('orders');
   const visible = shopperFacingOrderPromos(discounts);
   if (visible.length === 0) {
     return null;
@@ -91,14 +92,17 @@ function OrderAppliedPromoList({ discounts }: { readonly discounts: OrderDiscoun
             <BadgePercent className="size-[18px] shrink-0 text-icon-success" aria-hidden />
             <p className="min-w-0 flex-1 text-sm leading-5 text-text-body">{discount.code}</p>
           </div>
-          {(discount.description || typeof discount.value === 'number') && (
-            <div className="flex items-start justify-between gap-2 text-sm leading-5 text-text-body">
-              {discount.description ? <p className="min-w-0 font-normal">{discount.description}</p> : <span />}
-              <p className="shrink-0 text-right text-sm font-normal leading-5">
-                {formatOverviewSignedAmount(discount.value, discount.currency)}
-              </p>
-            </div>
-          )}
+          <div className="flex items-start justify-between gap-2 text-sm leading-5 text-text-body">
+            {discount.description ? <p className="min-w-0 font-normal">{discount.description}</p> : <span />}
+            <p
+              className="shrink-0 text-right text-sm font-normal leading-5"
+              data-testid={`order-appliedPromoAmount-${discount.code}`}
+            >
+              {isFreeShippingPromo(discount)
+                ? tOrder('promoFreeShipping')
+                : formatOverviewSignedAmount(discount.value, discount.currency)}
+            </p>
+          </div>
         </li>
       ))}
     </ul>

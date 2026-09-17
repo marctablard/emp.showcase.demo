@@ -5,6 +5,7 @@ import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixDiscount,
   EmporixOrder,
+  EmporixOrderCalculatedPrice,
   EmporixOrderEntry,
   EmporixPayment,
   EmporixShipping,
@@ -38,6 +39,42 @@ function resolveOrderGoodsTaxRate(
 
 function isApplyBasis(value: string | undefined): value is TotalDiscountCalculationType {
   return value === 'ApplyDiscountBeforeTax' || value === 'ApplyDiscountAfterTax';
+}
+
+function asOrderDiscountType(value: string | undefined): OrderDiscount['type'] | undefined {
+  if (value === 'PERCENT' || value === 'ABSOLUTE' || value === 'FREE_SHIPPING') {
+    return value;
+  }
+  return undefined;
+}
+
+function resolveOrderDiscountType(
+  discount: EmporixDiscount,
+  calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+): OrderDiscount['type'] | undefined {
+  const fromDiscount = asOrderDiscountType(discount.discountType);
+  if (fromDiscount) {
+    return fromDiscount;
+  }
+  const applied = [
+    ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
+    ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
+  ];
+  return asOrderDiscountType(applied.find((row) => row.id === discount.code)?.discountType);
+}
+
+function mapOrderDiscount(
+  discount: EmporixDiscount,
+  calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+): OrderDiscount {
+  const type = resolveOrderDiscountType(discount, calculatedPrice);
+  return {
+    code: discount.code,
+    value: discount.amount,
+    currency: discount.currency,
+    description: discount.description,
+    ...(type ? { type } : {}),
+  };
 }
 
 function resolveTotalDiscountCalculationType(
@@ -109,12 +146,9 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
         ? this.addressMapper.mapToService(integrationModel.shippingAddress)
         : undefined,
       payments: this.mapPayments(integrationModel.payments),
-      discounts: integrationModel.discounts?.map((discount) => ({
-        code: discount.code,
-        value: discount.amount,
-        currency: discount.currency,
-        description: discount.description,
-      })),
+      discounts: integrationModel.discounts?.map((discount) =>
+        mapOrderDiscount(discount, integrationModel.calculatedPrice),
+      ),
       shipping: this.mapShipping(
         integrationModel.shipping,
         integrationModel.calculatedPrice,

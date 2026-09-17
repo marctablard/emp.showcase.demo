@@ -116,7 +116,8 @@
     "yourSavings": "Your savings",
     "originalGrossValue": "Original Gross Value",
     "grossValueOfGoods": "Gross Value of Goods",
-    "removePromo": "Remove promo code"
+    "removePromo": "Remove promo code",
+    "promoFreeShipping": "Free shipping"
   },
   "promoCode": "Promo Code",
   "apply": "Apply",

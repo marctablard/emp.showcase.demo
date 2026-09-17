@@ -8,15 +8,19 @@ function hasGoodsEffect(amount: number | undefined): boolean {
   return typeof amount === 'number' && Math.abs(amount) >= 0.005;
 }
 
+export function isFreeShippingPromo(discount: { type?: string }): boolean {
+  return discount.type === 'FREE_SHIPPING';
+}
+
 /**
  * Shopper-facing promo chips: skip the platform `TOTAL` rollup and coupons that changed
- * neither goods nor shipping (COP-4815 QA 2026-09-16).
+ * neither goods nor shipping. Always keep `FREE_SHIPPING` (COP-4815 QA 2026-09-16 / 143688).
  */
 export function isShopperFacingCartPromo(discount: CartAppliedDiscount): boolean {
   if (AGGREGATE_PROMO_CODES.has(discount.code)) {
     return false;
   }
-  if (discount.type === 'FREE_SHIPPING') {
+  if (isFreeShippingPromo(discount)) {
     return true;
   }
   return hasGoodsEffect(discount.amount);
@@ -25,6 +29,9 @@ export function isShopperFacingCartPromo(discount: CartAppliedDiscount): boolean
 export function isShopperFacingOrderPromo(discount: OrderDiscount): boolean {
   if (AGGREGATE_PROMO_CODES.has(discount.code)) {
     return false;
+  }
+  if (isFreeShippingPromo(discount)) {
+    return true;
   }
   return hasGoodsEffect(discount.value);
 }

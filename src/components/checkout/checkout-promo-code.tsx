@@ -4,7 +4,7 @@ import { useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { BadgePercent, X } from 'lucide-react';
 import { useCheckoutPromoCode } from '@/hooks/checkout/useCheckoutPromoCode';
-import { shopperFacingCartPromos } from '@/lib/common/applied-promo-display';
+import { isFreeShippingPromo, shopperFacingCartPromos } from '@/lib/common/applied-promo-display';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import { Button } from '../ui/button';
@@ -21,14 +21,15 @@ function AppliedPromoChip({
   removingThis,
   onRemove,
   removeLabel,
+  freeShippingLabel,
 }: Readonly<{
   discount: CartAppliedDiscount;
   removingThis: boolean;
   onRemove: (discountIndex: number) => void;
   removeLabel: string;
+  freeShippingLabel: string;
 }>) {
-  // A free-shipping coupon has no goods amount — the name takes the whole line (COP-4815 QA follow-up).
-  const showAmount = discount.type !== 'FREE_SHIPPING';
+  const isFreeShipping = isFreeShippingPromo(discount);
   return (
     <div
       className={cn('flex w-full flex-col gap-0.5', removingThis && 'cursor-progress opacity-60')}
@@ -52,19 +53,15 @@ function AppliedPromoChip({
           <X className="size-[18px]" aria-hidden />
         </button>
       </div>
-      {(Boolean(discount.name) || showAmount) && (
-        <div className="flex items-start justify-between gap-2 text-sm leading-5 text-text-body">
-          {discount.name ? <p className="min-w-0 font-normal">{discount.name}</p> : <span />}
-          {showAmount ? (
-            <p
-              className="shrink-0 text-right text-sm font-normal leading-5"
-              data-testid={`checkout-appliedPromoAmount-${discount.code}`}
-            >
-              {formatSignedAmount(discount.amount, discount.currency)}
-            </p>
-          ) : null}
-        </div>
-      )}
+      <div className="flex items-start justify-between gap-2 text-sm leading-5 text-text-body">
+        {discount.name ? <p className="min-w-0 font-normal">{discount.name}</p> : <span />}
+        <p
+          className="shrink-0 text-right text-sm font-normal leading-5"
+          data-testid={`checkout-appliedPromoAmount-${discount.code}`}
+        >
+          {isFreeShipping ? freeShippingLabel : formatSignedAmount(discount.amount, discount.currency)}
+        </p>
+      </div>
     </div>
   );
 }
@@ -145,6 +142,7 @@ export function CheckoutPromoCodeBox() {
               removingThis={removingIndex === discount.discountIndex}
               onRemove={remove}
               removeLabel={t('removePromo')}
+              freeShippingLabel={t('promoFreeShipping')}
             />
           ))}
         </div>

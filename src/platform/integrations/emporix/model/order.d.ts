@@ -110,7 +110,10 @@ export interface EmporixDiscount {
   amount: number;
   currency: string;
   sequenceId?: number;
+  name?: string;
   description?: string;
+  /** YAML `discount.discountType` — `FREE_SHIPPING` coupons often have `amount: 0`. */
+  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
   /** YAML `discount.calculationType` — apply basis when `ApplyDiscountBeforeTax` | `ApplyDiscountAfterTax`. */
   calculationType?: string;
 }
@@ -139,6 +142,11 @@ export interface EmporixOrderCalculatedPrice {
     taxValue?: number;
     taxCode?: string;
     taxRate?: number;
+    appliedDiscounts?: Array<{
+      id?: string;
+      value: number;
+      discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+    }>;
   };
   /** YAML `orderCalculatedPrice.discountedPrice` — goods after discounts. */
   discountedPrice?: {
@@ -155,6 +163,7 @@ export interface EmporixOrderCalculatedPrice {
     appliedDiscounts?: Array<{
       id: string;
       value: number;
+      discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
     }>;
   };
 }

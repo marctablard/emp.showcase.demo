@@ -723,6 +723,7 @@ describe('OrderDetail', () => {
     expect(screen.queryByTestId('order-appliedPromo-TOTAL')).not.toBeInTheDocument();
     expect(tenOffChip).toHaveTextContent('10POFF');
     expect(tenOffChip).toHaveTextContent('-101.1 EUR');
+    expect(screen.getByTestId('order-appliedPromoAmount-10POFF')).toHaveTextContent('-101.1 EUR');
     expect(tenOffChip.querySelector('p.font-bold')).toBeNull();
     expect(within(tenOffChip).queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('order-removePromo-TOTAL')).not.toBeInTheDocument();
@@ -743,6 +744,30 @@ describe('OrderDetail', () => {
     expect(enOrdersTranslations.yourSavings).toBe('Your savings');
     expect(enOrdersTranslations.originalValueOfGoods).toBe('Original value of goods');
     expect(deOrdersTranslations.yourSavings).toBe('Ihre Ersparnis');
+    expect(enOrdersTranslations.promoFreeShipping).toBe('Free shipping');
+    expect(deOrdersTranslations.promoFreeShipping).toBe('Kostenloser Versand');
+  });
+
+  it('keeps a zero-amount free-shipping coupon on Order Overview and labels it Free shipping', () => {
+    const freeShippingOrder: Order = {
+      ...baseOrder,
+      discounts: [
+        { code: 'TOTAL', value: 0, currency: 'EUR' },
+        { code: 'VKTEST-COUPON05', value: 0, currency: 'EUR', type: 'FREE_SHIPPING' },
+        { code: 'NOMATCH', value: 0, currency: 'EUR', type: 'PERCENT' },
+      ],
+      shipping: { total: { value: 0, currency: 'EUR', tax: 0, taxRate: 19 } },
+    };
+    mockUseOrder({ order: freeShippingOrder });
+
+    render(<OrderDetail orderId={freeShippingOrder.id} initialOrder={freeShippingOrder} />);
+
+    const chip = screen.getByTestId('order-appliedPromo-VKTEST-COUPON05');
+    expect(chip).toHaveTextContent('VKTEST-COUPON05');
+    expect(screen.getByTestId('order-appliedPromoAmount-VKTEST-COUPON05')).toHaveTextContent('promoFreeShipping');
+    expect(chip).not.toHaveTextContent('-0');
+    expect(screen.queryByTestId('order-appliedPromo-TOTAL')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-appliedPromo-NOMATCH')).not.toBeInTheDocument();
   });
 
   it('renders a gross-applied coupon box with pre-discount VAT and no remove control', () => {

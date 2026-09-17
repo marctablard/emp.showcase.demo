@@ -36,6 +36,15 @@ describe('applied-promo-display', () => {
     ).toBe(false);
     expect(isShopperFacingOrderPromo({ code: 'TOTAL', value: 101.1, currency: 'EUR' })).toBe(false);
     expect(isShopperFacingOrderPromo({ code: '10POFF', value: 101.1, currency: 'EUR' } as OrderDiscount)).toBe(true);
+    expect(
+      isShopperFacingOrderPromo({
+        code: 'VKTEST-COUPON05',
+        value: 0,
+        currency: 'EUR',
+        type: 'FREE_SHIPPING',
+      }),
+    ).toBe(true);
+    expect(isShopperFacingOrderPromo({ code: 'NOMATCH', value: 0, currency: 'EUR', type: 'PERCENT' })).toBe(false);
   });
 
   it('filters a mixed chip list', () => {

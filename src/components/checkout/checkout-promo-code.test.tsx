@@ -223,10 +223,10 @@ describe('CheckoutPromoCodeBox', () => {
     expect(screen.getByTestId('checkout-removePromo-SOLAR10')).not.toBeDisabled();
   });
 
-  it('omits the amount for a free-shipping coupon chip so the name takes the whole line', () => {
+  it('shows Free shipping instead of a money amount on a free-shipping coupon chip', () => {
     mockPromo.discounts = [
       {
-        code: 'VKTEST-PROMO03',
+        code: 'VKTEST-COUPON05',
         name: 'Free shipping over 100',
         discountIndex: 0,
         amount: 0,
@@ -237,13 +237,13 @@ describe('CheckoutPromoCodeBox', () => {
 
     render(<CheckoutPromoCodeBox />);
 
-    const chip = screen.getByTestId('checkout-appliedPromo-VKTEST-PROMO03');
+    const chip = screen.getByTestId('checkout-appliedPromo-VKTEST-COUPON05');
     expect(chip).toHaveTextContent('Free shipping over 100');
-    expect(screen.queryByTestId('checkout-appliedPromoAmount-VKTEST-PROMO03')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-appliedPromoAmount-VKTEST-COUPON05')).toHaveTextContent('promoFreeShipping');
     expect(chip).not.toHaveTextContent(money(0));
   });
 
-  it('renders only the code row for a nameless free-shipping chip', () => {
+  it('still labels a nameless free-shipping chip as Free shipping', () => {
     mockPromo.discounts = [
       { code: 'FREESHIP', discountIndex: 0, amount: 4.95, currency: 'EUR', type: 'FREE_SHIPPING' },
     ];
@@ -251,7 +251,7 @@ describe('CheckoutPromoCodeBox', () => {
     render(<CheckoutPromoCodeBox />);
 
     const chip = screen.getByTestId('checkout-appliedPromo-FREESHIP');
-    expect(chip.children).toHaveLength(1);
+    expect(chip).toHaveTextContent('promoFreeShipping');
     expect(chip).not.toHaveTextContent(money(4.95));
   });
 
