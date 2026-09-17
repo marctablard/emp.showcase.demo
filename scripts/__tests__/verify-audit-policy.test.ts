@@ -138,6 +138,23 @@ describe('verify-audit-policy', () => {
     ).toThrow(/exceptions override --exceptions-json is test-only/);
   });
 
+  it('rejects a securitySignOff that only records the implementing GitHub PR', () => {
+    const selfSigned = JSON.stringify([
+      {
+        id: FIXTURE_ID,
+        expires: FIXTURE_EXPIRES,
+        reason: 'unsigned fixture',
+        securitySignOff: {
+          ticket: 'TEST',
+          recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+        },
+      },
+    ]);
+    expect(() => runPolicy(advisoryReport(FIXTURE_ID), { args: [`--exceptions-json=${selfSigned}`] })).toThrow(
+      /missing securitySignOff/,
+    );
+  });
+
   it('rejects an injected exception that has no securitySignOff', () => {
     const unsigned = JSON.stringify([{ id: FIXTURE_ID, expires: FIXTURE_EXPIRES, reason: 'unsigned fixture' }]);
     expect(() => runPolicy(advisoryReport(FIXTURE_ID), { args: [`--exceptions-json=${unsigned}`] })).toThrow(

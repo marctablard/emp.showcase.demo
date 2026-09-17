@@ -912,8 +912,11 @@ class EmporixCartService implements CartService {
       if (!options?.checkSite) {
         return cart;
       }
-      const session = await this.sessionService.getCurrent();
-      if (session && cart.site && cart.site !== session.siteCode) {
+      const session = await this.sessionService.getCurrentOrThrow();
+      if (!session) {
+        throw new CartDiscountError('Failed to get session context', { upstreamStatus: 401 });
+      }
+      if (cart.site && cart.site !== session.siteCode) {
         this.logger.warn(
           { cartId, cartSite: cart.site, sessionSite: session.siteCode },
           'Cart belongs to different site during discount write — aborting',

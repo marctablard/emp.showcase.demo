@@ -43,7 +43,9 @@ describe('EmporixCartService', () => {
     >
   >;
   let mockLogger: jest.Mocked<LoggerService>;
-  let mockSessionService: jest.Mocked<Pick<SessionService, 'getCurrent' | 'setCart' | 'clearCart'>>;
+  let mockSessionService: jest.Mocked<
+    Pick<SessionService, 'getCurrent' | 'getCurrentOrThrow' | 'setCart' | 'clearCart'>
+  >;
   let mockSiteService: jest.Mocked<Pick<SiteService, 'getSite' | 'invalidateSiteCache'>>;
   let mockPriceService: jest.Mocked<Pick<PriceService, 'getProductPrice'>>;
   let mockProductService: jest.Mocked<Pick<ProductService, 'getProductById'>>;
@@ -93,6 +95,7 @@ describe('EmporixCartService', () => {
 
     mockSessionService = {
       getCurrent: jest.fn().mockResolvedValue(null),
+      getCurrentOrThrow: jest.fn().mockImplementation(() => mockSessionService.getCurrent()),
       setCart: jest.fn().mockResolvedValue(undefined),
       clearCart: jest.fn().mockResolvedValue(undefined),
     };
@@ -712,6 +715,14 @@ describe('EmporixCartService', () => {
       savingsTotal: 10,
     };
 
+    beforeEach(() => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        siteCode: 'main',
+        currency: 'EUR',
+      });
+    });
+
     it('applies a trimmed code and returns the mapped cart', async () => {
       mockCartApi.getCart.mockResolvedValue(rawCart);
       mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
@@ -743,6 +754,21 @@ describe('EmporixCartService', () => {
         { cartId: 'cart-1', cartSite: 'main', sessionSite: 'other-site' },
         'Cart belongs to different site during discount write — aborting',
       );
+    });
+
+    it('refuses a discount write when the session lookup is missing', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(null);
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to get session context',
+          upstreamStatus: 401,
+        }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
     });
 
     it('maps a 403 from the session cart guard to CartDiscountError before applying', async () => {
@@ -1145,6 +1171,14 @@ describe('EmporixCartService', () => {
       tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
       discounts: [{ code: 'SAVE10', discountIndex: 0, amount: 5, currency: 'EUR' }],
     };
+
+    beforeEach(() => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        siteCode: 'main',
+        currency: 'EUR',
+      });
+    });
 
     it('removes by index and returns the mapped cart', async () => {
       mockCartApi.getCart.mockResolvedValue({

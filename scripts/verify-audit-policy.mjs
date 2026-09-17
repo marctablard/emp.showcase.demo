@@ -49,7 +49,7 @@ const ALLOWED_EXCEPTIONS = [
       'Next 16.3.x lockfile rewrite OOMs npm ci on GitHub runners; stay on the last installable 16.2.12 lockfile until a generated lockfile installs.',
     securitySignOff: {
       ticket: 'COP-5589',
-      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
       scope: 'CI audit gate only; no runtime dependency version change',
     },
   },
@@ -60,7 +60,7 @@ const ALLOWED_EXCEPTIONS = [
       'Same Next 16.3.x lockfile OOM; stay on the last installable 16.2.12 lockfile until a generated lockfile installs.',
     securitySignOff: {
       ticket: 'COP-5589',
-      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
       scope: 'CI audit gate only; no runtime dependency version change',
     },
   },
@@ -70,7 +70,7 @@ const ALLOWED_EXCEPTIONS = [
     reason: 'sharp 0.35.4 lockfile rewrite OOMs npm ci; keep 0.35.3 until a generated lockfile installs.',
     securitySignOff: {
       ticket: 'COP-5589',
-      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
       scope: 'CI audit gate only; no runtime dependency version change',
     },
   },
@@ -80,7 +80,7 @@ const ALLOWED_EXCEPTIONS = [
     reason: 'js-yaml 3.15.2/4.3.2 lockfile rewrite OOMs npm ci; keep current pins until a generated lockfile installs.',
     securitySignOff: {
       ticket: 'COP-5589',
-      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
       scope: 'CI audit gate only; no runtime dependency version change',
     },
   },
@@ -91,7 +91,7 @@ const ALLOWED_EXCEPTIONS = [
       'A single @tiptap/core override mismatches @tiptap/pm 3.30.0 peers. Leave the Storyblok-owned 3.30.0 set until a full 3.30.5 lockfile can be generated.',
     securitySignOff: {
       ticket: 'COP-5589',
-      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
       scope: 'CI audit gate only; no runtime dependency version change',
     },
   },
@@ -305,6 +305,8 @@ function resolveExceptions(argv = process.argv) {
   return parsed;
 }
 
+const IMPLEMENTING_PR_SIGN_OFF = /github\.com\/[^/]+\/[^/]+\/pull\/\d+/i;
+
 function hasSecuritySignOff(exception) {
   const signOff = exception?.securitySignOff;
   return Boolean(
@@ -312,7 +314,8 @@ function hasSecuritySignOff(exception) {
       typeof signOff.ticket === 'string' &&
       signOff.ticket.length > 0 &&
       typeof signOff.recordedIn === 'string' &&
-      signOff.recordedIn.length > 0,
+      signOff.recordedIn.length > 0 &&
+      !IMPLEMENTING_PR_SIGN_OFF.test(signOff.recordedIn),
   );
 }
 

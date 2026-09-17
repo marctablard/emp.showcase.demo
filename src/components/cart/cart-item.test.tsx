@@ -236,5 +236,6 @@ describe('CartItemRow quantity restore', () => {
       expect(mockRemoveItem).toHaveBeenCalledWith('item-1');
     });
     expect(notify).not.toHaveBeenCalled();
+    expect(screen.getByTestId('cart-item-quantity-prod-1')).toHaveDisplayValue('1');
   });
 });

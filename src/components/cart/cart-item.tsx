@@ -134,10 +134,10 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
         });
       }
     } catch (error) {
+      setQuantity(item.quantity);
       if (isCartMutationCancelledError(error)) {
         return;
       }
-      setQuantity(item.quantity);
       getLogger().error({ err: error }, 'Error removing item from cart');
     } finally {
       setIsProcessing(false);
