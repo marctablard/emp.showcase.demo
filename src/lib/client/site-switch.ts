@@ -4,9 +4,11 @@ import type { StoreApi } from 'zustand';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { updateSessionContext } from '@/lib/client/session';
 import { cartCouponCodesForMessage } from '@/lib/common/applied-promo-display';
+import { isCouponCurrencyConflictClientError } from '@/lib/common/cart-api-error-mapping';
 import { writeLocaleCookie } from '@/lib/common/locale-cookie';
 import { resolveCountryForSite } from '@/lib/common/site-country';
 import { type LoggerService, getLogger } from '@/lib/logger/use-logger-client';
+import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import type { Session } from '@/platform/services/model/session/session';
 import type { CartStore } from '@/stores/cart-store';
 import type { SessionStore } from '@/stores/session-store-context';
@@ -315,11 +317,13 @@ async function reconcileSiteSwitchCartCurrency(
 
   let extraUpstreamCalls = 0;
   let repriceFailed = false;
+  let repriceError: unknown;
   try {
     await cartStore.getState().syncCurrencyWithSession(sessionCurrency, updatedSession.siteCode);
     extraUpstreamCalls += 2;
   } catch (err) {
     repriceFailed = true;
+    repriceError = err;
     logger.error(
       {
         err,
@@ -341,6 +345,7 @@ async function reconcileSiteSwitchCartCurrency(
     cartCurrencyDidNotConverge(cartStore.getState().currentCart, updatedSession.siteCode, sessionCurrency)
   ) {
     repriceFailed = true;
+    repriceError = cartStore.getState().error;
     logger.warn(
       {
         siteCode: updatedSession.siteCode,
@@ -378,16 +383,33 @@ async function reconcileSiteSwitchCartCurrency(
   if (!rolledBack) {
     return { activeSession: updatedSession, extraUpstreamCalls };
   }
-  const couponCodes = cartCouponCodesForMessage(cartStore.getState().currentCart?.discounts);
   return {
     activeSession: rolledBack.activeSession,
     extraUpstreamCalls: extraUpstreamCalls + rolledBack.extraUpstreamCalls,
-    currencyFallback: {
-      from: sessionCurrency,
-      to: targetDefaultCurrency,
-      ...(couponCodes.length > 0 ? { couponCodes } : {}),
-    },
+    currencyFallback: currencyFallbackForReprice(
+      sessionCurrency,
+      targetDefaultCurrency,
+      repriceError,
+      cartStore.getState().currentCart?.discounts,
+    ),
   };
+}
+
+/** Coupon toast codes only when `/changeCurrency` failed as a classified coupon conflict. */
+function currencyFallbackForReprice(
+  from: string,
+  to: string,
+  repriceError: unknown,
+  discounts: CartAppliedDiscount[] | undefined,
+): { from: string; to: string; couponCodes?: string[] } {
+  if (!isCouponCurrencyConflictClientError(repriceError)) {
+    return { from, to };
+  }
+  const couponCodes = cartCouponCodesForMessage(discounts);
+  if (couponCodes.length === 0) {
+    return { from, to };
+  }
+  return { from, to, couponCodes };
 }
 
 function navigateAfterUserSiteSwitch(

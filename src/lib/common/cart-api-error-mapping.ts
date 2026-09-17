@@ -35,6 +35,18 @@ export type CartApiErrorMapping = {
   logContext: Record<string, unknown>;
 };
 
+/** True when a cart-currency client/store error was classified as a coupon/promo conflict. */
+export function isCouponCurrencyConflictClientError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const record = error as { reason?: unknown; code?: unknown };
+  if (record.reason === CART_API_REASON.COUPON_CURRENCY_CONFLICT) {
+    return true;
+  }
+  return record.code === CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT;
+}
+
 export function mapCartGetError(error: unknown): CartApiErrorMapping {
   if (error instanceof CartCurrencyUpdateError) {
     if (error.code === CART_CURRENCY_UPDATE_ERROR_CODE.CART_NOT_FOUND) {

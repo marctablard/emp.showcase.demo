@@ -285,7 +285,8 @@ export async function updateCartCurrency(cartId: string, currency: string): Prom
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update cart currency: ${response.statusText}`);
+    const errorData = await response.json().catch(() => null);
+    throwCartDiscountClientError(errorData, `Failed to update cart currency: ${response.statusText}`, response.status);
   }
 
   return await response.json();

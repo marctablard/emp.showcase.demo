@@ -127,6 +127,7 @@ describe('buildOrderOverviewBreakdown', () => {
     expect(breakdown.goodsDiscounted).toBe(false);
     expect(breakdown.originalGoodsGross).toBe(119);
     expect(breakdown.goodsDiscountedGross).toBeUndefined();
+    expect(breakdown.savingsTotal).toBeUndefined();
   });
 
   it('uses the goods delta, not savingsTotal, when a shipping waiver is also applied', () => {

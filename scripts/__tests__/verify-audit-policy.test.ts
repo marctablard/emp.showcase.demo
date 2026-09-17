@@ -4,13 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 
 const SCRIPT = path.resolve(__dirname, '../verify-audit-policy.mjs');
-const SCRIPT_SOURCE = fs.readFileSync(SCRIPT, 'utf8');
-const FIRST_EXCEPTION = /id: '(GHSA-[^']+)',\s*\n\s*expires: '(\d{4}-\d{2}-\d{2})'/.exec(SCRIPT_SOURCE);
-if (!FIRST_EXCEPTION) {
-  throw new Error('Could not read the first ALLOWED_EXCEPTIONS entry from verify-audit-policy.mjs');
-}
-const ALLOWED_ID = FIRST_EXCEPTION[1];
-const ALLOWED_EXPIRES = FIRST_EXCEPTION[2];
+/** Fixture allowlist — independent of production ALLOWED_EXCEPTIONS (review 5235825162). */
+const FIXTURE_ID = 'GHSA-aaaa-bbbb-cccc';
+const FIXTURE_EXPIRES = '2030-01-15';
+const FIXTURE_EXCEPTIONS_JSON = JSON.stringify([
+  { id: FIXTURE_ID, expires: FIXTURE_EXPIRES, reason: 'jest fixture; not a production exception' },
+]);
 const EMPTY_REPORT = JSON.stringify({
   vulnerabilities: {},
   metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0, total: 0 } },
@@ -78,31 +77,31 @@ describe('verify-audit-policy', () => {
   it.each([
     {
       name: 'an active allowed ID',
-      id: ALLOWED_ID,
-      asOf: shiftUtcDay(ALLOWED_EXPIRES, -1),
+      id: FIXTURE_ID,
+      asOf: shiftUtcDay(FIXTURE_EXPIRES, -1),
       ok: true,
     },
     {
       name: 'an unlisted high advisory',
       id: 'GHSA-0000-1111-2222',
-      asOf: ALLOWED_EXPIRES,
+      asOf: FIXTURE_EXPIRES,
       ok: false,
     },
     {
       name: 'an expired exception',
-      id: ALLOWED_ID,
-      asOf: shiftUtcDay(ALLOWED_EXPIRES, 1),
+      id: FIXTURE_ID,
+      asOf: shiftUtcDay(FIXTURE_EXPIRES, 1),
       ok: false,
     },
     {
       name: 'the expiry-day boundary',
-      id: ALLOWED_ID,
-      asOf: ALLOWED_EXPIRES,
+      id: FIXTURE_ID,
+      asOf: FIXTURE_EXPIRES,
       ok: true,
     },
   ] as const)('gates $name', ({ id, asOf, ok }) => {
     const report = advisoryReport(id);
-    const args = [`--as-of=${asOf}`];
+    const args = [`--as-of=${asOf}`, `--exceptions-json=${FIXTURE_EXCEPTIONS_JSON}`];
     if (ok) {
       expect(runPolicy(report, { args })).toContain('verify-audit-policy: OK');
       return;
@@ -112,16 +111,25 @@ describe('verify-audit-policy', () => {
 
   it('rejects --as-of outside Jest so CI cannot backdate exception expiry', () => {
     expect(() =>
-      runPolicy(advisoryReport(ALLOWED_ID), { args: [`--as-of=${ALLOWED_EXPIRES}`], inheritJest: false }),
+      runPolicy(advisoryReport(FIXTURE_ID), { args: [`--as-of=${FIXTURE_EXPIRES}`], inheritJest: false }),
     ).toThrow(/clock override --as-of is test-only/);
   });
 
   it('rejects VERIFY_AUDIT_POLICY_TODAY outside Jest', () => {
     expect(() =>
-      runPolicy(advisoryReport(ALLOWED_ID), {
-        env: { VERIFY_AUDIT_POLICY_TODAY: ALLOWED_EXPIRES },
+      runPolicy(advisoryReport(FIXTURE_ID), {
+        env: { VERIFY_AUDIT_POLICY_TODAY: FIXTURE_EXPIRES },
         inheritJest: false,
       }),
     ).toThrow(/VERIFY_AUDIT_POLICY_TODAY is test-only/);
+  });
+
+  it('rejects --exceptions-json outside Jest so CI cannot inject a fake allowlist', () => {
+    expect(() =>
+      runPolicy(advisoryReport(FIXTURE_ID), {
+        args: [`--exceptions-json=${FIXTURE_EXCEPTIONS_JSON}`],
+        inheritJest: false,
+      }),
+    ).toThrow(/exceptions override --exceptions-json is test-only/);
   });
 });

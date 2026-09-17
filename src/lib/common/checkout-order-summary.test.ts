@@ -404,7 +404,7 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     expect(breakdown.hasAppliedCoupons).toBe(true);
     expect(breakdown.couponApplyBasis).toBe('net');
     expect(breakdown.originalGoodsNet).toBe(69.15);
-    expect(breakdown.savingsTotal).toBe(6.915);
+    expect(breakdown.savingsTotal).toBeUndefined();
     expect(breakdown.goodsNet).toBe(69.15);
     expect(breakdown.goodsVat).toBe(13.14);
   });

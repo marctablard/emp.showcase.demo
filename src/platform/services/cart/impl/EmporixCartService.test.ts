@@ -1034,6 +1034,7 @@ describe('EmporixCartService', () => {
       totalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
       subTotalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
       tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+      discounts: [{ code: 'SAVE10', discountIndex: 0, amount: 5, currency: 'EUR' }],
     };
 
     it('removes by index and returns the mapped cart', async () => {
@@ -1156,6 +1157,45 @@ describe('EmporixCartService', () => {
       );
       expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
       expect(mockSessionService.clearCart).toHaveBeenCalled();
+    });
+
+    it('does not DELETE a TOTAL rollup index', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue({
+        ...mappedCart,
+        discounts: [{ code: 'TOTAL', discountIndex: 0, amount: 10, currency: 'EUR' }],
+      });
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Discount is not removable',
+          upstreamStatus: 400,
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('does not DELETE an unknown discount index', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      await expect(cartService.removeDiscount('cart-1', 9)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Discount is not removable',
+          upstreamStatus: 400,
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
     });
   });
 

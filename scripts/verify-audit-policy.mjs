@@ -29,8 +29,8 @@
  *   npm audit --audit-level=high --json > audit-report.json || true
  *   node scripts/verify-audit-policy.mjs audit-report.json
  *
- * Jest may pass `--as-of=YYYY-MM-DD` while `JEST_WORKER_ID` is set. CI must
- * not set that flag or `VERIFY_AUDIT_POLICY_TODAY`.
+ * Jest may pass `--as-of=YYYY-MM-DD` and `--exceptions-json=...` while
+ * `JEST_WORKER_ID` is set. CI must not set those flags or `VERIFY_AUDIT_POLICY_TODAY`.
  */
 import fs from 'node:fs';
 
@@ -253,12 +253,37 @@ function resolvePolicyToday(argv = process.argv) {
   return parsed;
 }
 
-function evaluateAdvisories(advisories, today) {
+function parseExceptionsJsonArg(argv) {
+  const flag = argv.find((arg) => arg.startsWith('--exceptions-json='));
+  return flag ? flag.slice('--exceptions-json='.length) : undefined;
+}
+
+function resolveExceptions(argv = process.argv) {
+  const raw = parseExceptionsJsonArg(argv);
+  if (!raw) {
+    return ALLOWED_EXCEPTIONS;
+  }
+  if (!process.env.JEST_WORKER_ID) {
+    fail('exceptions override --exceptions-json is test-only');
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    fail(`exceptions override --exceptions-json is not valid JSON: ${err.message}`);
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    fail('exceptions override --exceptions-json must be a non-empty array');
+  }
+  return parsed;
+}
+
+function evaluateAdvisories(advisories, today, exceptions = ALLOWED_EXCEPTIONS) {
   const disallowed = [];
   const tolerated = [];
 
   for (const advisory of advisories) {
-    const exception = ALLOWED_EXCEPTIONS.find((e) => e.id.toLowerCase() === advisory.id.toLowerCase());
+    const exception = exceptions.find((e) => e.id.toLowerCase() === advisory.id.toLowerCase());
     if (!exception) {
       disallowed.push({ ...advisory, reason: 'not in ALLOWED_EXCEPTIONS' });
       continue;
@@ -301,7 +326,7 @@ function main() {
     return;
   }
 
-  const { disallowed, tolerated } = evaluateAdvisories(advisories, resolvePolicyToday());
+  const { disallowed, tolerated } = evaluateAdvisories(advisories, resolvePolicyToday(), resolveExceptions());
 
   if (disallowed.length > 0) {
     console.error(

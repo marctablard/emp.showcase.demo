@@ -1,5 +1,6 @@
 import {
   CART_API_REASON,
+  isCouponCurrencyConflictClientError,
   mapCartCurrencyPutError,
   mapCartDiscountApplyError,
   mapCartDiscountRemoveError,
@@ -62,6 +63,19 @@ describe('cart-api-error-mapping', () => {
 
       expect(mapping.status).toBe(500);
       expect(mapping.response.reason).toBe(CART_API_REASON.UPSTREAM_FAILURE);
+    });
+
+    it('detects a classified coupon-currency conflict on a client error', () => {
+      const byReason = Object.assign(new Error('Coupon blocks currency'), {
+        reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+      });
+      const byCode = Object.assign(new Error('Coupon blocks currency'), {
+        code: CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT,
+      });
+      expect(isCouponCurrencyConflictClientError(byReason)).toBe(true);
+      expect(isCouponCurrencyConflictClientError(byCode)).toBe(true);
+      expect(isCouponCurrencyConflictClientError(new Error('Failed to update cart currency'))).toBe(false);
+      expect(isCouponCurrencyConflictClientError({ reason: CART_API_REASON.CONTEXT_MISMATCH })).toBe(false);
     });
   });
 

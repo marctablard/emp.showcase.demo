@@ -18,6 +18,8 @@ function roundedPositiveDelta(original: number, discounted: number | undefined):
 /**
  * Goods-only savings for the "Your savings" badge. Prefer the goods-figure delta so a mixed
  * goods + FREE_SHIPPING order does not include the shipping waiver in the goods total.
+ * `savingsTotal` / `shippingFree` stay on the input for callers; they are not a goods fallback
+ * when discounted figures are omitted (fee-only rollup, COP-4815 review 5235825162).
  */
 export function resolveGoodsSavingsAmount(input: {
   savingsTotal?: number;
@@ -34,12 +36,8 @@ export function resolveGoodsSavingsAmount(input: {
   if (typeof fromFigures === 'number') {
     return fromFigures;
   }
-  if (input.shippingFree) {
-    return undefined;
-  }
-  if (typeof input.savingsTotal === 'number' && input.savingsTotal > 0) {
-    return input.savingsTotal;
-  }
+  // Do not treat `savingsTotal` as goods savings when discounted figures are omitted:
+  // that rollup can be fee-only (COP-4815 review 5235825162).
   return undefined;
 }
 
@@ -102,7 +100,7 @@ export function orderGoodsSavings(
   const currency = order.discounts?.find((discount) => discount.currency)?.currency ?? order.currency ?? '';
   const facing = shopperFacingOrderPromos(order.discounts);
   const goodsPromos = facing.filter((discount) => !isFreeShippingPromo(discount));
-  if (facing.length > 0 && goodsPromos.length === 0) {
+  if (goodsPromos.length === 0) {
     return undefined;
   }
   if (facing.some(isFreeShippingPromo) && goodsPromos.length > 0) {
@@ -119,9 +117,19 @@ export function orderGoodsSavings(
   return { amount, currency };
 }
 
-function isRemovableCartPromo(discount: CartAppliedDiscount): boolean {
+export function isRemovableCartPromo(discount: CartAppliedDiscount): boolean {
   const code = discount.code.trim();
   return code.length > 0 && !AGGREGATE_PROMO_CODES.has(code);
+}
+
+/** Shopper-facing coupon at a DELETE index, or undefined for TOTAL / unknown / empty code. */
+export function removableCartPromoAtIndex(
+  discounts: CartAppliedDiscount[] | undefined,
+  discountIndex: number,
+): CartAppliedDiscount | undefined {
+  return (discounts ?? []).find(
+    (discount) => discount.discountIndex === discountIndex && isRemovableCartPromo(discount),
+  );
 }
 
 /** Codes that still live on the cart (including zero-effect) — used in toasts, not TOTAL. */
@@ -142,9 +150,13 @@ export function currentDiscountIndexForCode(
   discounts: CartAppliedDiscount[] | undefined,
   code: string | undefined,
 ): number | undefined {
-  if (typeof code === 'string' && code.length > 0) {
-    const match = (discounts ?? []).find((discount) => discount.code === code && isRemovableCartPromo(discount));
-    return match?.discountIndex;
+  if (typeof code !== 'string' || code.length === 0) {
+    return undefined;
   }
-  return undefined;
+  const matches = (discounts ?? []).filter((discount) => discount.code === code && isRemovableCartPromo(discount));
+  const visible = matches.find((discount) => discount.valid !== false);
+  if (visible) {
+    return visible.discountIndex;
+  }
+  return matches[0]?.discountIndex;
 }

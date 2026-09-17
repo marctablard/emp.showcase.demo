@@ -8,6 +8,7 @@ import {
   optionalSavingsTotal,
   orderGoodsSavings,
   removableCartDiscountIndexes,
+  removableCartPromoAtIndex,
   resolveGoodsSavingsAmount,
   shopperFacingCartPromos,
 } from './applied-promo-display';
@@ -124,6 +125,16 @@ describe('applied-promo-display', () => {
     ).toBeUndefined();
   });
 
+  it('does not treat fee-only savingsTotal as goods savings when discounted figures are omitted', () => {
+    expect(
+      resolveGoodsSavingsAmount({
+        savingsTotal: 4.95,
+        shippingFree: false,
+        originalNet: 69.15,
+      }),
+    ).toBeUndefined();
+  });
+
   it('sums goods coupons instead of savingsTotal when a free-shipping promo is also applied', () => {
     expect(
       orderGoodsSavings({
@@ -135,6 +146,17 @@ describe('applied-promo-display', () => {
         ],
       }),
     ).toEqual({ amount: 11.22, currency: 'EUR' });
+  });
+
+  it('does not treat fee-only savingsTotal as order goods savings', () => {
+    expect(
+      orderGoodsSavings({
+        currency: 'EUR',
+        savingsTotal: 4.95,
+        discounts: [{ code: 'FEEONLY', value: 0, currency: 'EUR', type: 'PERCENT' }],
+      }),
+    ).toBeUndefined();
+    expect(orderGoodsSavings({ currency: 'EUR', savingsTotal: 4.95 })).toBeUndefined();
   });
 
   it('does not treat a free-shipping waiver as goods savings', () => {
@@ -172,5 +194,15 @@ describe('applied-promo-display', () => {
     expect(shopperFacingCartPromos([goods, stale])).toEqual([goods]);
     expect(currentDiscountIndexForCode([goods, stale], 'STALE10')).toBe(3);
     expect(currentDiscountIndexForCode([goods, stale], 'GONE')).toBeUndefined();
+  });
+
+  it('prefers the shopper-visible row when the same code has a stale invalid and a later valid index', () => {
+    const stale = { code: 'SAVE10', discountIndex: 0, amount: 0, currency: 'EUR', valid: false as const };
+    const fresh = { code: 'SAVE10', discountIndex: 2, amount: 1.5, currency: 'EUR', valid: true as const };
+    expect(currentDiscountIndexForCode([stale, fresh], 'SAVE10')).toBe(2);
+    expect(
+      removableCartPromoAtIndex([stale, { code: 'TOTAL', discountIndex: 1, amount: 10, currency: 'EUR' }], 1),
+    ).toBeUndefined();
+    expect(removableCartPromoAtIndex([goods], 0)).toEqual(goods);
   });
 });
