@@ -898,9 +898,13 @@ class EmporixCartService implements CartService {
     if (error.upstreamStatus !== 400) {
       return error;
     }
-    if (cart.discounts?.some((discount) => discount.code === code)) {
-      return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
-    }
+if (
+  cart.discounts?.some(
+    (discount) => discount.code === code && discount.code !== 'TOTAL' && discount.valid !== false,
+  )
+) {
+  return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
+}
     try {
       const outcome = await this.couponApi.validateCoupon(code, {
         orderTotal: { amount: cart.subTotalPrice.amount, currency: cart.currency },
