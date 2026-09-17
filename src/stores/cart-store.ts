@@ -443,6 +443,25 @@ async function runAddToCart(
 }
 
 /**
+ * Empty carts still keep applied coupons on the platform, which then block currency
+ * changes and cannot be edited on the "Oh no" empty-cart screen (COP-4815 QA).
+ */
+async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promise<void> {
+  const emptied = ctx.get().currentCart;
+  if (!emptied || emptied.items.length > 0 || !emptied.discounts?.length || !ctx.isCurrent()) {
+    return;
+  }
+  const indexes = emptied.discounts.map((discount) => discount.discountIndex).sort((left, right) => right - left);
+  for (const discountIndex of indexes) {
+    if (!ctx.isCurrent()) {
+      return;
+    }
+    await apiRemoveCartDiscount(emptied.id, discountIndex);
+  }
+  await ctx.refetch();
+}
+
+/**
  * Line-item write whose fresh state comes from a follow-up `fetchCart`. Item ids belong to the
  * cart that was current when the user acted, so a reset while queued cancels the write.
  */
@@ -464,6 +483,7 @@ async function runLineItemMutation(
     ctx.commit({ loading: true, error: null });
     await args.call(cart.id);
     await ctx.refetch();
+    await stripOrphanCouponsAfterEmptyCart(ctx);
   } catch (err) {
     ctx.commit({ error: toError(err, args.failureMessage), loading: false });
     getLogger().error({ err }, args.logMessage);

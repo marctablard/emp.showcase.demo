@@ -403,6 +403,33 @@ describe('EmporixCartMapper', () => {
     });
   });
 
+  it('sums a category coupon that is applied only on line items', () => {
+    const cart = showcaseDevCart();
+    cart.items = [
+      {
+        ...cart.items![0],
+        calculatedPrice: {
+          ...cart.items![0].calculatedPrice!,
+          totalDiscount: {
+            calculationType: 'ApplyDiscountBeforeTax',
+            value: 1.16,
+            appliedDiscounts: [{ id: 'VKTEST-PROMO02', value: 1.16, discountType: 'PERCENT', origin: 'INTERNAL' }],
+          },
+        },
+      },
+    ];
+    const mapped = mapper.mapToService({
+      ...cart,
+      discounts: [{ code: 'VKTEST-PROMO02', discountIndex: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toMatchObject({
+      code: 'VKTEST-PROMO02',
+      amount: 1.16,
+      type: 'PERCENT',
+    });
+  });
+
   it('types a chip from totalShipping applied discounts and leaves unmatched chips untyped', () => {
     const mapped = mapper.mapToService({
       ...showcaseDevCart({

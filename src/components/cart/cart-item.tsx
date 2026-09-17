@@ -7,12 +7,14 @@ import { Coins, Loader2, Minus, Package, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { UINotification } from '@/components/ui/molecules/ui-notification';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useCart } from '@/hooks/cart/useCart';
 import { useSyncedState } from '@/hooks/common/use-synced-state';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
+import { cartCouponCodesForMessage } from '@/lib/common/applied-promo-display';
 import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Cart, CartItem, CartItemPriceChange, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
@@ -26,6 +28,19 @@ interface CartItemProps {
   cart: Cart;
   item: CartItem;
   showQty?: boolean;
+}
+
+function resolveCartItemNetAmount(item: CartItem): number {
+  const net = item.tax?.netValue;
+  if (typeof net === 'number' && net > 0) {
+    return net;
+  }
+  return item.price.amount;
+}
+
+function resolveCartItemGrossAmount(item: CartItem): number | undefined {
+  const gross = item.tax?.grossValue;
+  return typeof gross === 'number' && gross > 0 ? gross : undefined;
 }
 
 export function CartItemRow({ cart, item, showQty }: CartItemProps) {
@@ -46,6 +61,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
   const [showPriceChangeModal, setShowPriceChangeModal] = useState(false);
   const { availability } = useAvailability(item.product?.id);
   const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
+  const itemGrossAmount = resolveCartItemGrossAmount(item);
 
   // Handler for cart notifications
   const handleCartNotification = useCallback(
@@ -102,7 +118,16 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
     setIsProcessing(true);
     try {
       setQuantity(0);
+      const couponCodes = cartCouponCodesForMessage(cart.discounts);
+      const removingLastItem = cart.items.length === 1;
       await removeItem(item.id);
+      if (removingLastItem && couponCodes.length > 0) {
+        notify({
+          type: ToastType.Info,
+          title: t('couponsRemovedFromEmptyCart', { codes: couponCodes.join(', ') }),
+          duration: 8000,
+        });
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -324,7 +349,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
             </p>
           )}
           <div className="font-bold sm:text-end relative">
-            {formatCurrency(item.tax?.netValue || item.price.amount, item.price.currency)}
+            {formatCurrency(resolveCartItemNetAmount(item), item.price.currency)}
             {priceChange && (
               <div className="cursor-pointer" onClick={() => setShowPriceChangeModal(true)}>
                 <UINotification
@@ -336,10 +361,10 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
               </div>
             )}
           </div>
-          {item.tax?.netValue && (
+          {itemGrossAmount !== undefined && (
             <span className="text-sm text-text-on-disabled sm:text-end">
               {t('gross')}
-              {formatCurrency(item.tax?.grossValue, item.price.currency)}
+              {formatCurrency(itemGrossAmount, item.price.currency)}
             </span>
           )}
         </div>

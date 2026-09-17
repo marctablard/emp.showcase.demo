@@ -14,6 +14,7 @@ const mockPromo = {
   setCode: jest.fn(),
   applying: false,
   removing: false,
+  removingIndex: null as number | null,
   fieldError: null as string | null,
   apply: jest.fn(),
   remove: jest.fn(),
@@ -41,6 +42,7 @@ function resetPromoMock() {
   });
   mockPromo.applying = false;
   mockPromo.removing = false;
+  mockPromo.removingIndex = null;
   mockPromo.fieldError = null;
   mockPromo.apply = jest.fn();
   mockPromo.remove = jest.fn();
@@ -52,7 +54,7 @@ describe('CheckoutPromoCodeBox', () => {
     resetPromoMock();
   });
 
-  it('promo box is available: idle field, Apply control, and info copy without an error', () => {
+  it('promo box is available: idle field and Apply control without an error or info note', () => {
     render(<CheckoutPromoCodeBox />);
 
     const input = screen.getByTestId('checkout-promoCode');
@@ -62,14 +64,9 @@ describe('CheckoutPromoCodeBox', () => {
     const applyButton = screen.getByTestId('checkout-applyPromo');
     expect(applyButton).toBeDisabled();
     expect(applyButton).toHaveClass('font-headlines', 'tracking-[var(--desktop-spacing-action-button)]', 'w-[91px]');
-    const promoInfo = screen.getByTestId('checkout-promoInfo');
-    expect(promoInfo).toHaveTextContent('promoCodeOnePerProduct');
-    expect(promoInfo).toHaveTextContent('promoCodeBestPrice');
-    const infoCopy = promoInfo.querySelector('p');
-    expect(infoCopy).toHaveClass('text-sm', 'font-normal', 'leading-5', 'text-text-body');
-    expect(infoCopy).not.toHaveClass('font-bold');
-    expect(infoCopy?.querySelector('.font-bold')).not.toBeInTheDocument();
-    expect(promoInfo.querySelector('svg')).toHaveClass('text-icon-information');
+    expect(screen.queryByTestId('checkout-promoInfo')).not.toBeInTheDocument();
+    expect(screen.queryByText('promoCodeBestPrice')).not.toBeInTheDocument();
+    expect(screen.queryByText('promoCodeOnePerProduct')).not.toBeInTheDocument();
     expect(screen.queryByTestId('checkout-promoError')).not.toBeInTheDocument();
     expect(screen.queryByTestId('checkout-appliedPromo-ACCESSORIES15')).not.toBeInTheDocument();
   });
@@ -122,16 +119,15 @@ describe('CheckoutPromoCodeBox', () => {
     expect(screen.queryByText(/currency/i)).not.toBeInTheDocument();
   });
 
-  it('always shows info copy on idle, error, and applied chip states', () => {
+  it('never shows the dropped best-price info note on idle, error, or applied states', () => {
     const { rerender } = render(<CheckoutPromoCodeBox />);
-    expect(screen.getByTestId('checkout-promoInfo')).toHaveTextContent('promoCodeOnePerProduct');
-    expect(screen.getByTestId('checkout-promoInfo')).toHaveTextContent('promoCodeBestPrice');
+    expect(screen.queryByTestId('checkout-promoInfo')).not.toBeInTheDocument();
 
     mockPromo.code = 'SOLAR500';
     mockPromo.fieldError = FIGMA_PROMO_ERROR;
     rerender(<CheckoutPromoCodeBox />);
     expect(screen.getByTestId('checkout-promoError')).toHaveTextContent(FIGMA_PROMO_ERROR);
-    expect(screen.getByTestId('checkout-promoInfo')).toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-promoInfo')).not.toBeInTheDocument();
 
     mockPromo.fieldError = null;
     mockPromo.discounts = [
@@ -145,7 +141,7 @@ describe('CheckoutPromoCodeBox', () => {
     ];
     rerender(<CheckoutPromoCodeBox />);
     expect(screen.getByTestId('checkout-appliedPromo-ACCESSORIES15')).toBeInTheDocument();
-    expect(screen.getByTestId('checkout-promoInfo')).toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-promoInfo')).not.toBeInTheDocument();
   });
 
   it('renders an applied chip with remove button and does not invent Figma description copy', () => {
@@ -165,9 +161,12 @@ describe('CheckoutPromoCodeBox', () => {
     expect(chip).toHaveTextContent('ACCESSORIES15');
     expect(chip).toHaveTextContent('15% discount');
     expect(chip).not.toHaveTextContent('on accessories*');
+    expect(chip.querySelector('p.font-normal')).toHaveTextContent('15% discount');
+    expect(chip.querySelector('p.font-bold')).toBeNull();
 
     const removeButton = screen.getByTestId('checkout-removePromo-ACCESSORIES15');
     expect(removeButton).toHaveAttribute('type', 'button');
+    expect(removeButton).toHaveClass('cursor-pointer');
     expect(removeButton).toHaveAccessibleName('removePromo');
 
     fireEvent.click(removeButton);
@@ -182,6 +181,46 @@ describe('CheckoutPromoCodeBox', () => {
     render(<CheckoutPromoCodeBox />);
 
     expect(screen.getByTestId('checkout-appliedPromoAmount-ACCESSORIES15')).toHaveTextContent(money(1.5));
+    expect(screen.getByTestId('checkout-appliedPromoAmount-ACCESSORIES15')).toHaveClass('text-sm');
+  });
+
+  it('hides TOTAL rollup and zero-effect goods coupons from the chip list', () => {
+    mockPromo.discounts = [
+      { code: 'TOTAL', name: '10% off order', discountIndex: 0, amount: 10, currency: 'EUR' },
+      { code: 'NOMATCH', name: 'No match', discountIndex: 1, amount: 0, currency: 'EUR', type: 'PERCENT' },
+      { code: 'ACCESSORIES15', name: '15% discount', discountIndex: 2, amount: 1.5, currency: 'EUR' },
+    ];
+
+    render(<CheckoutPromoCodeBox />);
+
+    expect(screen.queryByTestId('checkout-appliedPromo-TOTAL')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-appliedPromo-NOMATCH')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-appliedPromo-ACCESSORIES15')).toBeInTheDocument();
+  });
+
+  it('uses a progress cursor on the apply control while applying', () => {
+    mockPromo.code = 'ACCESSORIES15';
+    mockPromo.applying = true;
+
+    render(<CheckoutPromoCodeBox />);
+
+    expect(screen.getByTestId('checkout-promoCode')).toHaveClass('cursor-progress');
+    expect(screen.getByTestId('checkout-applyPromo')).toHaveClass('cursor-progress');
+  });
+
+  it('marks only the chip being removed as busy', () => {
+    mockPromo.discounts = [
+      { code: 'ACCESSORIES15', name: '15% discount', discountIndex: 0, amount: 1.5, currency: 'EUR' },
+      { code: 'SOLAR10', name: '10% discount', discountIndex: 1, amount: 10, currency: 'EUR' },
+    ];
+    mockPromo.removingIndex = 0;
+
+    render(<CheckoutPromoCodeBox />);
+
+    expect(screen.getByTestId('checkout-appliedPromo-ACCESSORIES15')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByTestId('checkout-removePromo-ACCESSORIES15')).toBeDisabled();
+    expect(screen.getByTestId('checkout-appliedPromo-SOLAR10')).not.toHaveAttribute('aria-busy');
+    expect(screen.getByTestId('checkout-removePromo-SOLAR10')).not.toBeDisabled();
   });
 
   it('omits the amount for a free-shipping coupon chip so the name takes the whole line', () => {

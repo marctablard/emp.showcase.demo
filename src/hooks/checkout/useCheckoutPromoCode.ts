@@ -12,6 +12,7 @@ export interface UseCheckoutPromoCode {
   setCode: (value: string) => void;
   applying: boolean;
   removing: boolean;
+  removingIndex: number | null;
   fieldError: string | null;
   apply: () => Promise<void>;
   remove: (discountIndex: number) => Promise<void>;
@@ -60,7 +61,7 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
   const { cart, applyDiscount, removeDiscount } = useCart();
   const [code, setCode] = useState('');
   const [applying, setApplying] = useState(false);
-  const [removing, setRemoving] = useState(false);
+  const [removingIndex, setRemovingIndex] = useState<number | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
   const genericError = t('promoCodeError');
@@ -96,7 +97,7 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
         return;
       }
 
-      setRemoving(true);
+      setRemovingIndex(discountIndex);
       setFieldError(null);
       try {
         await removeDiscount(discountIndex);
@@ -104,7 +105,7 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
         setFieldError(genericError);
         logger.error({ err, cartId, upstreamStatus: getUpstreamStatus(err) }, 'Failed to remove checkout promo code');
       } finally {
-        setRemoving(false);
+        setRemovingIndex(null);
       }
     },
     [cartId, genericError, logger, removeDiscount],
@@ -114,7 +115,8 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
     code,
     setCode,
     applying,
-    removing,
+    removing: removingIndex !== null,
+    removingIndex,
     fieldError,
     apply,
     remove,

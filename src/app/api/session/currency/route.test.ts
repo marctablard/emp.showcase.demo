@@ -116,14 +116,24 @@ describe('PUT /api/session/currency', () => {
 
   it('does NOT set the cookie when cart update fails with a non-recoverable code (409)', async () => {
     sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
-    cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({
+      id: 'c1',
+      site: 'us',
+      currency: 'EUR',
+      discounts: [
+        { code: 'TOTAL', discountIndex: 0 },
+        { code: 'ACCESSORIES15', discountIndex: 1 },
+      ],
+    });
     cartService.updateCurrency.mockRejectedValue(
       new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.UNSUPPORTED_CURRENCY, 'nope'),
     );
 
     const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { couponCodes?: string[] };
 
     expect(response.status).toBe(409);
+    expect(body.couponCodes).toEqual(['ACCESSORIES15']);
     expect(sessionService.setCurrency).not.toHaveBeenCalled();
     expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
   });

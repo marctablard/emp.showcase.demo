@@ -717,15 +717,13 @@ describe('OrderDetail', () => {
 
     const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
     const overviewCard = overviewHeading.closest('[data-slot="card"]') as HTMLElement;
-    const totalChip = screen.getByTestId('order-appliedPromo-TOTAL');
     const tenOffChip = screen.getByTestId('order-appliedPromo-10POFF');
 
     expect(overviewHeading).toBeInTheDocument();
-    expect(totalChip).toHaveTextContent('TOTAL');
-    expect(totalChip).toHaveTextContent('10% off order');
-    expect(totalChip).toHaveTextContent('-101.1 EUR');
+    expect(screen.queryByTestId('order-appliedPromo-TOTAL')).not.toBeInTheDocument();
     expect(tenOffChip).toHaveTextContent('10POFF');
-    expect(within(totalChip).queryByRole('button')).not.toBeInTheDocument();
+    expect(tenOffChip).toHaveTextContent('-101.1 EUR');
+    expect(tenOffChip.querySelector('p.font-bold')).toBeNull();
     expect(within(tenOffChip).queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('order-removePromo-TOTAL')).not.toBeInTheDocument();
     expect(screen.queryByTestId('checkout-removePromo-TOTAL')).not.toBeInTheDocument();
@@ -734,6 +732,7 @@ describe('OrderDetail', () => {
     expect(screen.getByTestId('order-originalValueOfGoods')).toHaveTextContent('1010.99 EUR');
     expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('yourSavings');
     expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('-101.1 EUR');
+    expect(screen.getByTestId('order-yourSavings')).toHaveClass('text-sm');
     expect(overviewCard).toHaveTextContent('909.89 EUR');
     expect(overviewCard).toHaveTextContent('172.88 EUR');
     expect(overviewCard).not.toHaveTextContent('192.09 EUR');

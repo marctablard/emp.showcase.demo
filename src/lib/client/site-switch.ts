@@ -3,6 +3,7 @@
 import type { StoreApi } from 'zustand';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { updateSessionContext } from '@/lib/client/session';
+import { cartCouponCodesForMessage } from '@/lib/common/applied-promo-display';
 import { writeLocaleCookie } from '@/lib/common/locale-cookie';
 import { resolveCountryForSite } from '@/lib/common/site-country';
 import { type LoggerService, getLogger } from '@/lib/logger/use-logger-client';
@@ -66,6 +67,7 @@ export interface SiteSwitchResult {
   currencyFallback?: {
     from: string;
     to: string;
+    couponCodes?: string[];
   };
 }
 
@@ -300,7 +302,7 @@ async function reconcileSiteSwitchCartCurrency(
   },
 ): Promise<{
   activeSession: Session;
-  currencyFallback?: { from: string; to: string };
+  currencyFallback?: { from: string; to: string; couponCodes?: string[] };
   extraUpstreamCalls: number;
 }> {
   const { sessionStore, cartStore } = stores;
@@ -376,10 +378,15 @@ async function reconcileSiteSwitchCartCurrency(
   if (!rolledBack) {
     return { activeSession: updatedSession, extraUpstreamCalls };
   }
+  const couponCodes = cartCouponCodesForMessage(cartStore.getState().currentCart?.discounts);
   return {
     activeSession: rolledBack.activeSession,
     extraUpstreamCalls: extraUpstreamCalls + rolledBack.extraUpstreamCalls,
-    currencyFallback: { from: sessionCurrency, to: targetDefaultCurrency },
+    currencyFallback: {
+      from: sessionCurrency,
+      to: targetDefaultCurrency,
+      ...(couponCodes.length > 0 ? { couponCodes } : {}),
+    },
   };
 }
 

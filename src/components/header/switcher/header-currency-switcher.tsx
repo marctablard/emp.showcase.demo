@@ -13,6 +13,7 @@ import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
 import { useL10n } from '@/hooks/useL10n';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import { currencySwitchBlockedCopy } from '@/lib/common/currency-switch-message';
 import { storefrontCurrencyHrefAfterSwitch } from '@/lib/common/currency-url';
 
 function CurrencySwitcherContent() {
@@ -67,11 +68,9 @@ function CurrencySwitcherContent() {
         }
         router.refresh();
       } else if (result.cartCurrencyBlocked) {
+        const blocked = currencySwitchBlockedCopy(fromCurrency, currency, result.couponCodes);
         notify({
-          title: tRegions('currencySwitchCartBlocked', {
-            fromCurrency,
-            toCurrency: currency,
-          }),
+          title: tRegions(blocked.key, blocked.values),
           type: ToastType.Info,
           duration: 8000,
         });

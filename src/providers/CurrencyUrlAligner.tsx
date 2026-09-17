@@ -9,6 +9,7 @@ import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { fetchCurrentSession } from '@/lib/client/session';
+import { currencySwitchBlockedCopy } from '@/lib/common/currency-switch-message';
 import {
   CURRENCY_QUERY_PARAM,
   isCurrencyAllowedOnSite,
@@ -119,11 +120,9 @@ function CurrencyUrlAlignerContent() {
         if (result.cartCurrencyBlocked) {
           lastFailedAttemptRef.current = attemptKey;
           rewriteToSession();
+          const blocked = currencySwitchBlockedCopy(fromCurrency, parsed, result.couponCodes);
           notify({
-            title: tRegions('currencySwitchCartBlocked', {
-              fromCurrency,
-              toCurrency: parsed,
-            }),
+            title: tRegions(blocked.key, blocked.values),
             type: ToastType.Info,
             duration: 8000,
           });

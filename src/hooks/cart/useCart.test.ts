@@ -40,6 +40,7 @@ const mockUpdateShippingInfo = require('@/lib/client/carts').updateShippingInfo;
 const mockApplyCartDiscount = require('@/lib/client/carts').applyCartDiscount;
 const mockUpdateCartItemQuantity = require('@/lib/client/carts').updateCartItemQuantity;
 const mockRemoveCartItem = require('@/lib/client/carts').removeCartItem;
+const mockRemoveCartDiscount = require('@/lib/client/carts').removeCartDiscount;
 
 /** Manually settled promise so a test can hold an API call in flight. */
 function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
@@ -1177,6 +1178,32 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
 
     expect(store.getState().currentCart?.items).toHaveLength(0);
     expect(store.getState().loading).toBe(false);
+  });
+
+  it('strips leftover coupons after the last line item is removed', async () => {
+    const emptiedWithCoupon = buildCart('cart-1', {
+      items: [],
+      discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+    });
+    const emptiedClean = buildCart('cart-1', { items: [] });
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+      }),
+    );
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithCoupon));
+    mockRemoveCartDiscount.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedClean));
+
+    await act(async () => {
+      await store.getState().removeItem('item-1');
+    });
+
+    expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 0);
+    expect(store.getState().currentCart?.discounts).toBeUndefined();
+    expect(store.getState().currentCart?.items).toHaveLength(0);
   });
 
   it('drops a GET issued before a discount write that resolves after the write published its snapshot', async () => {

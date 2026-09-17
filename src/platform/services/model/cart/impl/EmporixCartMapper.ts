@@ -25,18 +25,10 @@ function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: '
   };
 }
 
-function findAppliedDiscount(
-  appliedDiscounts: EmporixCalculatedAppliedDiscount[],
-  discount: EmporixCartDiscount,
-): EmporixCalculatedAppliedDiscount | undefined {
-  // Both ids are optional upstream; never let `undefined === undefined` pair unrelated entries.
-  return appliedDiscounts.find(
-    (applied) => applied.id !== undefined && (applied.id === discount.code || applied.id === discount.id),
-  );
-}
-
-/** Every applied-discount list on the calculated price; free-shipping coupons live on the shipping ones. */
-function allAppliedDiscounts(calculatedPrice: EmporixCart['calculatedPrice']): EmporixCalculatedAppliedDiscount[] {
+/** Cart-level applied-discount lists; free-shipping coupons live on the shipping ones. */
+function cartLevelAppliedDiscounts(
+  calculatedPrice: EmporixCart['calculatedPrice'],
+): EmporixCalculatedAppliedDiscount[] {
   return [
     ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
     ...(calculatedPrice?.shipping?.appliedDiscounts ?? []),
@@ -44,9 +36,51 @@ function allAppliedDiscounts(calculatedPrice: EmporixCart['calculatedPrice']): E
   ];
 }
 
+/** Line-level lists — category/product coupons often appear only here, not on `totalDiscount`. */
+function lineLevelAppliedDiscounts(items: EmporixCart['items']): EmporixCalculatedAppliedDiscount[] {
+  return (items ?? []).flatMap((item) => [
+    ...(item.calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
+    ...(item.calculatedPrice?.price?.appliedDiscounts ?? []),
+    ...(item.calculatedPrice?.discountedPrice?.appliedDiscounts ?? []),
+    ...(item.calculatedPrice?.finalPrice?.appliedDiscounts ?? []),
+  ]);
+}
+
+function matchAppliedDiscount(
+  appliedDiscounts: EmporixCalculatedAppliedDiscount[],
+  discount: EmporixCartDiscount,
+): EmporixCalculatedAppliedDiscount | undefined {
+  const matches = appliedDiscounts.filter(
+    (applied) => applied.id !== undefined && (applied.id === discount.code || applied.id === discount.id),
+  );
+  if (matches.length === 0) {
+    return undefined;
+  }
+  if (matches.length === 1) {
+    return matches[0];
+  }
+  return {
+    ...matches[0],
+    value: matches.reduce((sum, match) => sum + match.value, 0),
+  };
+}
+
+/**
+ * Prefer the cart-level applied row (already aggregated). If the code is only on lines
+ * (COP-4815 QA: category coupons), sum those line values so the chip is not 0 / missing.
+ */
+function resolveAppliedDiscount(
+  cartLevel: EmporixCalculatedAppliedDiscount[],
+  lineLevel: EmporixCalculatedAppliedDiscount[],
+  discount: EmporixCartDiscount,
+): EmporixCalculatedAppliedDiscount | undefined {
+  return matchAppliedDiscount(cartLevel, discount) ?? matchAppliedDiscount(lineLevel, discount);
+}
+
 function mapCartDiscounts(
   sourceDiscounts: EmporixCartDiscount[] | undefined,
-  appliedDiscounts: EmporixCalculatedAppliedDiscount[],
+  cartLevel: EmporixCalculatedAppliedDiscount[],
+  lineLevel: EmporixCalculatedAppliedDiscount[],
   currency: string,
 ): CartAppliedDiscount[] | undefined {
   if (!sourceDiscounts || sourceDiscounts.length === 0) {
@@ -56,7 +90,7 @@ function mapCartDiscounts(
     if (discount.valid === false) {
       return [];
     }
-    const applied = findAppliedDiscount(appliedDiscounts, discount);
+    const applied = resolveAppliedDiscount(cartLevel, lineLevel, discount);
     return [
       {
         code: discount.code,
@@ -148,7 +182,8 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     const discountedPrice = emporixCart.calculatedPrice?.discountedPrice;
     const discounts = mapCartDiscounts(
       emporixCart.discounts,
-      allAppliedDiscounts(emporixCart.calculatedPrice),
+      cartLevelAppliedDiscounts(emporixCart.calculatedPrice),
+      lineLevelAppliedDiscounts(emporixCart.items),
       currency,
     );
     return {

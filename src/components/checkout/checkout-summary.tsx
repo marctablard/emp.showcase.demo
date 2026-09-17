@@ -32,7 +32,7 @@ function CheckoutSavingsBadge(props: Readonly<{ amount: number; currency: string
   return (
     <div className="flex justify-end">
       <div
-        className="rounded-sm bg-surface-success px-2 py-1 text-xs leading-5 text-text-body"
+        className="rounded-sm bg-surface-success px-2 py-1 text-sm leading-5 text-text-body"
         data-testid="checkout-yourSavings"
       >
         <span>{props.label} </span>

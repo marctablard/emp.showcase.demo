@@ -258,4 +258,31 @@ describe('useCheckoutPromoCode', () => {
     expect(result.current.fieldError).toBeNull();
     expect(result.current.discounts).toEqual([firstDiscount, secondDiscount]);
   });
+
+  it('tracks removingIndex while a chip is being removed', async () => {
+    let resolveRemove!: () => void;
+    mockRemoveDiscount.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveRemove = resolve;
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+    expect(result.current.removingIndex).toBeNull();
+
+    let removePromise: Promise<void>;
+    act(() => {
+      removePromise = result.current.remove(0);
+    });
+    expect(result.current.removingIndex).toBe(0);
+    expect(result.current.removing).toBe(true);
+
+    await act(async () => {
+      resolveRemove();
+      await removePromise;
+    });
+
+    expect(result.current.removingIndex).toBeNull();
+    expect(result.current.removing).toBe(false);
+  });
 });

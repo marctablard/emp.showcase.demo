@@ -311,6 +311,7 @@ describe('CheckoutSummaryComponent', () => {
     expect(screen.getByTestId('checkout-originalValueOfGoods')).toHaveTextContent(money(100));
     expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent('yourSavings');
     expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent(money(10));
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveClass('text-sm');
     expect(screen.getByText('netValueOfGoods').nextElementSibling).toHaveTextContent(money(90));
     expect(screen.queryByTestId('checkout-originalGrossValue')).not.toBeInTheDocument();
     expect(screen.queryByTestId('checkout-grossValueOfGoods')).not.toBeInTheDocument();

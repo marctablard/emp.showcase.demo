@@ -2,8 +2,9 @@
 
 import { useId } from 'react';
 import { useTranslations } from 'next-intl';
-import { BadgePercent, Info, X } from 'lucide-react';
+import { BadgePercent, X } from 'lucide-react';
 import { useCheckoutPromoCode } from '@/hooks/checkout/useCheckoutPromoCode';
+import { shopperFacingCartPromos } from '@/lib/common/applied-promo-display';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import { Button } from '../ui/button';
@@ -17,38 +18,48 @@ function formatSignedAmount(amount: number, currency: string): string {
 
 function AppliedPromoChip({
   discount,
-  removing,
+  removingThis,
   onRemove,
   removeLabel,
 }: Readonly<{
   discount: CartAppliedDiscount;
-  removing: boolean;
+  removingThis: boolean;
   onRemove: (discountIndex: number) => void;
   removeLabel: string;
 }>) {
   // A free-shipping coupon has no goods amount — the name takes the whole line (COP-4815 QA follow-up).
   const showAmount = discount.type !== 'FREE_SHIPPING';
   return (
-    <div className="flex w-full flex-col gap-0.5" data-testid={`checkout-appliedPromo-${discount.code}`}>
+    <div
+      className={cn('flex w-full flex-col gap-0.5', removingThis && 'cursor-progress opacity-60')}
+      data-testid={`checkout-appliedPromo-${discount.code}`}
+      aria-busy={removingThis || undefined}
+    >
       <div className="flex items-center gap-1">
         <BadgePercent className="size-[18px] shrink-0 text-icon-success" aria-hidden />
-        <p className="min-w-0 flex-1 text-xs leading-5 text-text-body">{discount.code}</p>
+        <p className="min-w-0 flex-1 text-sm leading-5 text-text-body">{discount.code}</p>
         <button
           type="button"
-          className="shrink-0 rounded-sm text-text-body focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+          className={cn(
+            'shrink-0 cursor-pointer rounded-sm text-text-body focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+            removingThis && 'cursor-progress',
+          )}
           data-testid={`checkout-removePromo-${discount.code}`}
           aria-label={removeLabel}
-          disabled={removing}
+          disabled={removingThis}
           onClick={() => onRemove(discount.discountIndex)}
         >
           <X className="size-[18px]" aria-hidden />
         </button>
       </div>
       {(Boolean(discount.name) || showAmount) && (
-        <div className="flex items-start justify-between gap-2 text-xs leading-5 text-text-body">
-          {discount.name ? <p className="min-w-0 font-bold">{discount.name}</p> : <span />}
+        <div className="flex items-start justify-between gap-2 text-sm leading-5 text-text-body">
+          {discount.name ? <p className="min-w-0 font-normal">{discount.name}</p> : <span />}
           {showAmount ? (
-            <p className="shrink-0 text-right font-bold" data-testid={`checkout-appliedPromoAmount-${discount.code}`}>
+            <p
+              className="shrink-0 text-right text-sm font-normal leading-5"
+              data-testid={`checkout-appliedPromoAmount-${discount.code}`}
+            >
               {formatSignedAmount(discount.amount, discount.currency)}
             </p>
           ) : null}
@@ -59,24 +70,24 @@ function AppliedPromoChip({
 }
 
 /**
- * Checkout coupon field: input + Apply, generic field error, info copy, and applied chips.
- * COP-5589 — compose Input + Button so both controls can take data-testid (InputButton cannot).
+ * Checkout coupon field: input + Apply, generic field error, and applied chips.
+ * COP-4815 QA: drop the Figma "best-price / one per product" note (only on a subset of frames
+ * and not factually true when absolute + percent codes stack).
  */
 export function CheckoutPromoCodeBox() {
   const t = useTranslations('checkout.summary');
   const errorId = useId();
-  const infoId = useId();
-  const { code, setCode, applying, removing, fieldError, apply, remove, discounts } = useCheckoutPromoCode();
+  const { code, setCode, applying, removingIndex, fieldError, apply, remove, discounts } = useCheckoutPromoCode();
 
   const isInvalid = Boolean(fieldError);
   const canApply = Boolean(code.trim()) && !applying;
-  const describedBy = isInvalid ? `${errorId} ${infoId}` : infoId;
+  const visibleDiscounts = shopperFacingCartPromos(discounts);
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className={cn('flex w-full flex-col gap-4', applying && 'cursor-progress')}>
       <div className="flex w-full flex-col gap-0.5">
         <form
-          className="flex h-12 w-full items-stretch"
+          className={cn('flex h-12 w-full items-stretch', applying && 'cursor-progress')}
           onSubmit={(event) => {
             event.preventDefault();
             // `apply` surfaces failures through `fieldError`; nothing left to handle here.
@@ -97,17 +108,20 @@ export function CheckoutPromoCodeBox() {
               placeholder={t('promoCode')}
               aria-label={t('promoCode')}
               aria-invalid={isInvalid || undefined}
-              aria-describedby={describedBy}
+              aria-describedby={isInvalid ? errorId : undefined}
               data-dirty-error={isInvalid || undefined}
               data-testid="checkout-promoCode"
               disabled={applying}
-              className={cn('h-12', !isInvalid && 'bg-surface-primary')}
+              className={cn('h-12', !isInvalid && 'bg-surface-primary', applying && 'cursor-progress')}
             />
           </div>
           <Button
             type="submit"
             variant="input"
-            className="-ml-px h-12 w-[91px] shrink-0 font-headlines tracking-[var(--desktop-spacing-action-button)]"
+            className={cn(
+              '-ml-px h-12 w-[91px] shrink-0 font-headlines tracking-[var(--desktop-spacing-action-button)]',
+              applying && 'cursor-progress',
+            )}
             data-testid="checkout-applyPromo"
             disabled={!canApply}
           >
@@ -122,29 +136,13 @@ export function CheckoutPromoCodeBox() {
         ) : null}
       </div>
 
-      <div
-        id={infoId}
-        className="flex w-full rounded-md border border-border-secondary bg-surface-page px-4 py-2"
-        data-testid="checkout-promoInfo"
-      >
-        <div className="flex items-start gap-1">
-          <Info className="size-[18px] shrink-0 text-icon-information" aria-hidden />
-          {/* Desktop/body/s (4476:119171): Open Sans 12/20 weight 400 → text-sm font-normal text-text-body. */}
-          <p className="min-w-0 flex-1 text-sm font-normal leading-5 text-text-body">
-            {t('promoCodeOnePerProduct')}
-            <br aria-hidden />
-            {t('promoCodeBestPrice')}
-          </p>
-        </div>
-      </div>
-
-      {discounts.length > 0 ? (
+      {visibleDiscounts.length > 0 ? (
         <div className="flex w-full flex-col gap-3 rounded-md border border-border-success bg-surface-success px-4 py-2">
-          {discounts.map((discount) => (
+          {visibleDiscounts.map((discount) => (
             <AppliedPromoChip
               key={`${discount.code}-${discount.discountIndex}`}
               discount={discount}
-              removing={removing}
+              removingThis={removingIndex === discount.discountIndex}
               onRemove={remove}
               removeLabel={t('removePromo')}
             />
