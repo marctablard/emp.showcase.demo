@@ -395,6 +395,25 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     expect(breakdown.savingsTotal).toBe(11.22);
   });
 
+  it('preserves freeShipping when that is the only coupon signal so a picked fee is not added back', () => {
+    const waivedCart: Cart = {
+      ...cart,
+      freeShipping: true,
+      shippingCosts: {
+        amount: 0,
+        currency: 'EUR',
+        tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0, taxCode: 'ZERO', taxRate: 0 },
+      },
+      totalPrice: { amount: 82.29, currency: 'EUR' },
+    };
+
+    const picked = buildCheckoutOrderSummaryFromCart(waivedCart, { amount: 4.95 });
+    expect(picked.hasAppliedCoupons).toBeUndefined();
+    expect(picked.shippingFree).toBe(true);
+    expect(picked.shippingFee).toBe(4.95);
+    expect(picked.total).toBe(82.29);
+  });
+
   it('keeps current goodsNet when savings exist without discounted net', () => {
     const breakdown = buildCheckoutOrderSummaryFromCart({
       ...cart,

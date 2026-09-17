@@ -198,6 +198,10 @@ export function buildCheckoutOrderSummaryFromCart(
     total: cart?.totalPrice?.amount ?? 0,
     currency: cart?.tax?.currency ?? cart?.currency ?? '',
     ...(hasAppliedCoupons ? appliedCouponBreakdownFields(cart, originalGoodsNet) : {}),
+    // Mapper can set `freeShipping` from zeroed shipping with no coupon rows
+    // (COP-4815 review 5238545021). Keep the flag so a picked method is not
+    // added back onto an already waived `totalPrice`.
+    ...(cart?.freeShipping === true ? { shippingFree: true } : {}),
   };
 
   if (!cart) {

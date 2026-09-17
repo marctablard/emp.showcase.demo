@@ -540,6 +540,21 @@ describe('EmporixCartMapper', () => {
       currency: 'EUR',
     });
     expect(mapped.discounts?.[0]).not.toHaveProperty('type');
+    expect(mapped.freeShipping).toBeUndefined();
+  });
+
+  it('does not flag freeShipping from an EXTERNAL-only FREE_SHIPPING applied row', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalShipping: {
+          netValue: 4.95,
+          grossValue: 4.95,
+          appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING', origin: 'EXTERNAL' }],
+        },
+      }),
+    } as EmporixCart);
+
+    expect(mapped.freeShipping).toBeUndefined();
   });
 
   it('types the sole coupon FREE_SHIPPING when the only applied row is typed but id-less', () => {

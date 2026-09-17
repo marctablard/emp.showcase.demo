@@ -75,15 +75,43 @@ function couponRejectionText(error: CartDiscountError): string {
   return `${error.message} ${error.upstreamBody ?? ''}`;
 }
 
-function isDocumentedCouponAlreadyAppliedRejection(error: CartDiscountError): boolean {
-  if (error.upstreamStatus === 409) {
-    return true;
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function rejectionNamesSubmittedCode(text: string, submittedCode: string): boolean {
+  if (!submittedCode) {
+    return false;
   }
-  return error.upstreamStatus === 500 && DOCUMENTED_COUPON_ALREADY_EXISTS.test(couponRejectionText(error));
+  return new RegExp(`\\b${escapeRegExp(submittedCode)}\\b`, 'i').test(text);
+}
+
+function cartAlreadyHasSubmittedCode(cart: Cart, submittedCode: string): boolean {
+  return (
+    cart.discounts?.some(
+      (discount) => discount.code === submittedCode && discount.code !== 'TOTAL' && discount.valid !== false,
+    ) === true
+  );
+}
+
+function isDocumentedCouponAlreadyAppliedRejection(
+  error: CartDiscountError,
+  submittedCode: string,
+  cart: Cart,
+): boolean {
+  const text = couponRejectionText(error);
+  const namesThisCode = rejectionNamesSubmittedCode(text, submittedCode);
+  const alreadyOnCart = cartAlreadyHasSubmittedCode(cart, submittedCode);
+  if (error.upstreamStatus === 409) {
+    return namesThisCode || alreadyOnCart;
+  }
+  return (
+    error.upstreamStatus === 500 && DOCUMENTED_COUPON_ALREADY_EXISTS.test(text) && (namesThisCode || alreadyOnCart)
+  );
 }
 
 function shouldClassifyCouponRejection(error: CartDiscountError): boolean {
-  if (error.upstreamStatus === 400) {
+  if (error.upstreamStatus === 400 || error.upstreamStatus === 409) {
     return true;
   }
   return error.upstreamStatus === 500 && DOCUMENTED_COUPON_CURRENCY_REJECTION.test(couponRejectionText(error));
@@ -918,7 +946,7 @@ class EmporixCartService implements CartService {
     if (error.reason) {
       return error;
     }
-    if (isDocumentedCouponAlreadyAppliedRejection(error)) {
+    if (isDocumentedCouponAlreadyAppliedRejection(error, code, cart)) {
       return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
     }
     if (!shouldClassifyCouponRejection(error)) {

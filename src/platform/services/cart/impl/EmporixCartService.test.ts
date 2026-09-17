@@ -905,15 +905,33 @@ describe('EmporixCartService', () => {
         expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
       });
 
-      it('classifies a cart-service 409 as ALREADY_APPLIED even when the mapped cart no longer lists the code', async () => {
+      it('classifies a 409 as ALREADY_APPLIED when the response names the submitted code', async () => {
         mockCartApi.applyDiscount.mockRejectedValue(
-          new Error('Failed to apply discount to cart: 409 Conflict {"status":409,"message":"already applied"}'),
+          new Error(
+            'Failed to apply discount to cart: 409 Conflict {"status":409,"message":"Another discount already exists in cart. Discount code found: NOT-ON-MAPPED-CART"}',
+          ),
         );
 
         await expect(cartService.applyDiscount('cart-1', 'NOT-ON-MAPPED-CART')).rejects.toEqual(
           expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 409 }),
         );
         expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('does not treat a 409 exclusive-coupon conflict as ALREADY_APPLIED for a different code', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(
+            'Failed to apply discount to cart: 409 Conflict {"status":409,"message":"Another discount already exists in cart. Discount code found: 15OFF"}',
+          ),
+        );
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SAVE20')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_APPLICABLE, upstreamStatus: 409 }),
+        );
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SAVE20', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+        });
       });
 
       it('classifies a 400 for a code already on the cart as ALREADY_APPLIED without a lookup', async () => {

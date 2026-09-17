@@ -102,9 +102,7 @@ function matchAppliedDiscount(
     return undefined;
   }
   return collapseAppliedMatches(
-    appliedDiscounts.filter(
-      (applied) => applied.id === undefined && (applied.origin === 'INTERNAL' || applied.origin === undefined),
-    ),
+    appliedDiscounts.filter((applied) => applied.id === undefined && isInternalOrUnoriginated(applied)),
   );
 }
 
@@ -134,8 +132,7 @@ function uniqueInternalFreeShippingIdentities(calculatedPrice: EmporixCart['calc
     ...(calculatedPrice?.shipping?.appliedDiscounts ?? []),
     ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
   ]) {
-    const isInternalOrigin = row.origin === 'INTERNAL' || row.origin === undefined;
-    if (row.discountType === 'FREE_SHIPPING' && isInternalOrigin) {
+    if (row.discountType === 'FREE_SHIPPING' && isInternalOrUnoriginated(row)) {
       if (row.id === undefined) {
         sawIdLess = true;
       } else {
@@ -292,8 +289,14 @@ function mapCartDiscounts(
   return mapped.length > 0 ? mapped : undefined;
 }
 
+function isInternalOrUnoriginated(row: { origin?: string }): boolean {
+  return row.origin === 'INTERNAL' || row.origin === undefined;
+}
+
 function hasFreeShippingDiscount(applied: EmporixCalculatedAppliedDiscount[] | undefined): boolean {
-  return (applied ?? []).some((discount) => discount.discountType === 'FREE_SHIPPING');
+  return (applied ?? []).some(
+    (discount) => discount.discountType === 'FREE_SHIPPING' && isInternalOrUnoriginated(discount),
+  );
 }
 
 function hasTypedFreeShipping(calculatedPrice: EmporixCart['calculatedPrice']): boolean {
