@@ -436,6 +436,50 @@ describe('EmporixCartMapper', () => {
     ]);
   });
 
+  it('fills a missing amount from cart-level discountedPrice.appliedDiscounts when totalDiscount omits the row', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        discountedPrice: {
+          netValue: 59.15,
+          grossValue: 70.39,
+          taxValue: 11.24,
+          taxCode: 'STANDARD',
+          taxRate: 19,
+          appliedDiscounts: [{ id: 'GOODS10', value: 10, discountType: 'PERCENT', origin: 'INTERNAL' }],
+        },
+      }),
+      discounts: [{ code: 'GOODS10', discountIndex: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toMatchObject({
+      code: 'GOODS10',
+      amount: 10,
+      type: 'PERCENT',
+    });
+  });
+
+  it('fills a missing amount from cart-level totalFee.appliedDiscounts when totalDiscount omits the row', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalFee: {
+          netValue: 0,
+          grossValue: 0,
+          taxValue: 0,
+          taxCode: 'STANDARD',
+          taxRate: 19,
+          appliedDiscounts: [{ id: 'FEE5', value: 5, discountType: 'ABSOLUTE', origin: 'INTERNAL' }],
+        },
+      }),
+      discounts: [{ code: 'FEE5', discountIndex: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toMatchObject({
+      code: 'FEE5',
+      amount: 5,
+      type: 'ABSOLUTE',
+    });
+  });
+
   it('fills a missing amount from an id-less PERCENT row when it is the sole shopper coupon', () => {
     const mapped = mapper.mapToService({
       ...ls10pTotalOpenApiCart(),

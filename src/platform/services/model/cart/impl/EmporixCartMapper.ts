@@ -53,6 +53,16 @@ function cartAggregateAppliedDiscounts(
   return calculatedPrice?.totalDiscount?.appliedDiscounts ?? [];
 }
 
+/** Cart-level goods/fee rows — used only when `totalDiscount.appliedDiscounts` does not match. */
+function cartGoodsAndFeeAppliedDiscounts(
+  calculatedPrice: EmporixCart['calculatedPrice'],
+): EmporixCalculatedAppliedDiscount[] {
+  return [
+    ...(calculatedPrice?.discountedPrice?.appliedDiscounts ?? []),
+    ...(calculatedPrice?.totalFee?.appliedDiscounts ?? []),
+  ];
+}
+
 function shippingAppliedDiscounts(calculatedPrice: EmporixCart['calculatedPrice']): EmporixCalculatedAppliedDiscount[] {
   return firstAppliedDiscountList(
     calculatedPrice?.totalShipping?.appliedDiscounts,
@@ -112,6 +122,7 @@ function matchAppliedDiscount(
  */
 function resolveAppliedDiscount(
   cartLevel: EmporixCalculatedAppliedDiscount[],
+  goodsFeeLevel: EmporixCalculatedAppliedDiscount[],
   shippingLevel: EmporixCalculatedAppliedDiscount[],
   lineLevel: EmporixCalculatedAppliedDiscount[],
   discount: EmporixCartDiscount,
@@ -119,6 +130,7 @@ function resolveAppliedDiscount(
 ): EmporixCalculatedAppliedDiscount | undefined {
   return (
     matchAppliedDiscount(cartLevel, discount, inferSoleIdLess) ??
+    matchAppliedDiscount(goodsFeeLevel, discount, inferSoleIdLess) ??
     matchAppliedDiscount(shippingLevel, discount, inferSoleIdLess) ??
     matchAppliedDiscount(lineLevel, discount, inferSoleIdLess)
   );
@@ -245,6 +257,7 @@ function resolveMappedDiscountType(
 function mapCartDiscounts(
   sourceDiscounts: EmporixCartDiscount[] | undefined,
   cartLevel: EmporixCalculatedAppliedDiscount[],
+  goodsFeeLevel: EmporixCalculatedAppliedDiscount[],
   shippingLevel: EmporixCalculatedAppliedDiscount[],
   lineLevel: EmporixCalculatedAppliedDiscount[],
   currency: string,
@@ -267,7 +280,14 @@ function mapCartDiscounts(
         valid: false,
       };
     }
-    const applied = resolveAppliedDiscount(cartLevel, shippingLevel, lineLevel, discount, inferSoleIdLess);
+    const applied = resolveAppliedDiscount(
+      cartLevel,
+      goodsFeeLevel,
+      shippingLevel,
+      lineLevel,
+      discount,
+      inferSoleIdLess,
+    );
     const type = resolveMappedDiscountType(
       discount,
       applied,
@@ -378,6 +398,7 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     const discounts = mapCartDiscounts(
       emporixCart.discounts,
       cartAggregateAppliedDiscounts(emporixCart.calculatedPrice),
+      cartGoodsAndFeeAppliedDiscounts(emporixCart.calculatedPrice),
       shippingAppliedDiscounts(emporixCart.calculatedPrice),
       lineLevelAppliedDiscounts(emporixCart.items),
       currency,
