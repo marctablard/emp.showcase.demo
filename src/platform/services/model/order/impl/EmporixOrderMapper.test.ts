@@ -469,6 +469,55 @@ describe('EmporixOrderMapper', () => {
     });
   });
 
+  it('fills a missing coupon amount from discountedPrice.appliedDiscounts when totals omit the row', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'GOODS10', currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 90, grossValue: 107.1, taxValue: 17.1 },
+          discountedPrice: {
+            netValue: 90,
+            grossValue: 107.1,
+            taxValue: 17.1,
+            appliedDiscounts: [{ id: 'GOODS10', value: 10, discountType: 'PERCENT', origin: 'INTERNAL' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({
+      code: 'GOODS10',
+      value: 10,
+      type: 'PERCENT',
+    });
+  });
+
+  it('fills a missing coupon amount from totalFee.appliedDiscounts when totals omit the row', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'FEE5', currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 100, grossValue: 119, taxValue: 19 },
+          totalFee: {
+            netValue: 0,
+            grossValue: 0,
+            appliedDiscounts: [{ id: 'FEE5', value: 5, discountType: 'ABSOLUTE', origin: 'INTERNAL' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({
+      code: 'FEE5',
+      value: 5,
+      type: 'ABSOLUTE',
+    });
+  });
+
   it('does not infer an id-less EXTERNAL applied row onto the sole shopper coupon', () => {
     const result = mapper.mapToService(
       buildOrder({

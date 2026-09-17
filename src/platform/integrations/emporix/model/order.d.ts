@@ -119,6 +119,14 @@ export interface EmporixDiscount {
   calculationType?: string;
 }
 
+/** YAML `calculatedAppliedDiscount` — id is optional on some Order API rows. */
+export interface EmporixCalculatedAppliedDiscount {
+  id?: string;
+  value: number;
+  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+  origin?: string;
+}
+
 /**
  * Calculated price information for an order
  */
@@ -143,12 +151,7 @@ export interface EmporixOrderCalculatedPrice {
     taxValue?: number;
     taxCode?: string;
     taxRate?: number;
-    appliedDiscounts?: Array<{
-      id?: string;
-      value: number;
-      discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
-      origin?: string;
-    }>;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
   };
   /** YAML `orderCalculatedPrice.discountedPrice` — goods after discounts. */
   discountedPrice?: {
@@ -157,18 +160,22 @@ export interface EmporixOrderCalculatedPrice {
     taxValue: number;
     taxCode?: string;
     taxRate?: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
+  };
+  /** YAML `orderCalculatedPrice.totalFee` — fees after discounts. */
+  totalFee?: {
+    netValue: number;
+    grossValue: number;
+    taxValue?: number;
+    taxCode?: string;
+    taxRate?: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
   };
   /** YAML `orderCalculatedPrice.totalDiscount`. */
   totalDiscount?: {
     calculationType?: 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
     value: number;
-    appliedDiscounts?: Array<{
-      /** Optional in the Order API `calculatedAppliedDiscount` schema. */
-      id?: string;
-      value: number;
-      discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
-      origin?: string;
-    }>;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
   };
 }
 

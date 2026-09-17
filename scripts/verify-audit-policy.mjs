@@ -38,7 +38,8 @@ import fs from 'node:fs';
 // Every entry MUST have an explicit, short-lived `expires` date (YYYY-MM-DD,
 // exception is valid through the end of that UTC day), a `reason` explaining
 // why upgrading is not currently safe, and `securitySignOff` ({ ticket,
-// recordedIn }) so a gate relaxation cannot land without a recorded approval.
+// recordedIn: Atlassian browse URL }) so a gate relaxation cannot land
+// without a recorded approval tracker.
 // Remove the entry once a real fix lands or the date passes — do not silently
 // extend `expires`.
 const ALLOWED_EXCEPTIONS = [
@@ -305,7 +306,7 @@ function resolveExceptions(argv = process.argv) {
   return parsed;
 }
 
-const IMPLEMENTING_PR_SIGN_OFF = /github\.com\/[^/]+\/[^/]+\/pull\/\d+/i;
+const TRUSTED_SIGN_OFF_RECORDED_IN = /^https:\/\/[a-z0-9.-]+\.atlassian\.net\/browse\/[A-Z][A-Z0-9]+-\d+$/i;
 
 function hasSecuritySignOff(exception) {
   const signOff = exception?.securitySignOff;
@@ -314,8 +315,7 @@ function hasSecuritySignOff(exception) {
       typeof signOff.ticket === 'string' &&
       signOff.ticket.length > 0 &&
       typeof signOff.recordedIn === 'string' &&
-      signOff.recordedIn.length > 0 &&
-      !IMPLEMENTING_PR_SIGN_OFF.test(signOff.recordedIn),
+      TRUSTED_SIGN_OFF_RECORDED_IN.test(signOff.recordedIn),
   );
 }
 

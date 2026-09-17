@@ -52,23 +52,42 @@ function isInternalOrUnoriginated(row: { origin?: string }): boolean {
   return row.origin === 'INTERNAL' || row.origin === undefined;
 }
 
+type CalculatedAppliedDiscountRow = {
+  id?: string;
+  value: number;
+  discountType?: string;
+  origin?: string;
+};
+
+function appliedDiscountSources(
+  calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+): CalculatedAppliedDiscountRow[][] {
+  return [
+    calculatedPrice?.totalDiscount?.appliedDiscounts ?? [],
+    calculatedPrice?.discountedPrice?.appliedDiscounts ?? [],
+    calculatedPrice?.totalFee?.appliedDiscounts ?? [],
+    calculatedPrice?.totalShipping?.appliedDiscounts ?? [],
+  ];
+}
+
 function matchingAppliedDiscountRows(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
   inferSoleIdLess: boolean,
-): Array<{ id?: string; value: number; discountType?: string; origin?: string }> {
-  const aggregate = calculatedPrice?.totalDiscount?.appliedDiscounts ?? [];
-  const shipping = calculatedPrice?.totalShipping?.appliedDiscounts ?? [];
-  const byId = [...aggregate, ...shipping].filter((row) => typeof row.id === 'string' && row.id === discount.code);
+): CalculatedAppliedDiscountRow[] {
+  const sources = appliedDiscountSources(calculatedPrice);
+  const byId = sources.flat().filter((row) => typeof row.id === 'string' && row.id === discount.code);
   if (byId.length > 0) {
     return byId;
   }
-  if (inferSoleIdLess) {
-    const idLessAggregate = aggregate.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
-    if (idLessAggregate.length > 0) {
-      return idLessAggregate;
+  if (!inferSoleIdLess) {
+    return [];
+  }
+  for (const source of sources) {
+    const idLess = source.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
+    if (idLess.length > 0) {
+      return idLess;
     }
-    return shipping.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
   }
   return [];
 }

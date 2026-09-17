@@ -12,7 +12,7 @@ const FIXTURE_EXCEPTIONS_JSON = JSON.stringify([
     id: FIXTURE_ID,
     expires: FIXTURE_EXPIRES,
     reason: 'jest fixture; not a production exception',
-    securitySignOff: { ticket: 'TEST', recordedIn: 'jest-fixture' },
+    securitySignOff: { ticket: 'TEST', recordedIn: 'https://emporix.atlassian.net/browse/TEST-1' },
   },
 ]);
 const EMPTY_REPORT = JSON.stringify({
@@ -138,21 +138,25 @@ describe('verify-audit-policy', () => {
     ).toThrow(/exceptions override --exceptions-json is test-only/);
   });
 
-  it('rejects a securitySignOff that only records the implementing GitHub PR', () => {
-    const selfSigned = JSON.stringify([
-      {
-        id: FIXTURE_ID,
-        expires: FIXTURE_EXPIRES,
-        reason: 'unsigned fixture',
-        securitySignOff: {
-          ticket: 'TEST',
-          recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+  it('rejects a securitySignOff that is not an Atlassian browse URL', () => {
+    const invalidRecordedIn = [
+      'approved',
+      'https://github.com/emporix/emporix-showcase/pull/424',
+      'https://emporix.atlassian.net/browse/not-a-ticket',
+    ];
+    for (const recordedIn of invalidRecordedIn) {
+      const payload = JSON.stringify([
+        {
+          id: FIXTURE_ID,
+          expires: FIXTURE_EXPIRES,
+          reason: 'unsigned fixture',
+          securitySignOff: { ticket: 'TEST', recordedIn },
         },
-      },
-    ]);
-    expect(() => runPolicy(advisoryReport(FIXTURE_ID), { args: [`--exceptions-json=${selfSigned}`] })).toThrow(
-      /missing securitySignOff/,
-    );
+      ]);
+      expect(() => runPolicy(advisoryReport(FIXTURE_ID), { args: [`--exceptions-json=${payload}`] })).toThrow(
+        /missing securitySignOff/,
+      );
+    }
   });
 
   it('rejects an injected exception that has no securitySignOff', () => {
