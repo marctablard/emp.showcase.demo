@@ -33,7 +33,7 @@ export function WishlistPinButton({
   iconChildren,
   testId,
   itemName,
-}: WishlistPinButtonProps) {
+}: Readonly<WishlistPinButtonProps>) {
   const tProduct = useTranslations('product');
   const isBlocked = disabled || isAdding;
   const tooltip = disabled && disabledTooltip ? disabledTooltip : tProduct('addToWishlist');

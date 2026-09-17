@@ -35,7 +35,7 @@ export function ComparisonNameStrip({
   rowRef,
   visible,
   hasSeparator,
-}: ComparisonNameStripProps) {
+}: Readonly<ComparisonNameStripProps>) {
   const locale = useLocale();
   const { l10n } = useL10n(locale);
 

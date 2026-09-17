@@ -117,7 +117,7 @@ interface ComparisonTableProps {
   hasSeparator: (columnIndex: number) => boolean;
 }
 
-export function ComparisonTable({ products, labelPlacement, hasSeparator }: ComparisonTableProps) {
+export function ComparisonTable({ products, labelPlacement, hasSeparator }: Readonly<ComparisonTableProps>) {
   const locale = useLocale();
   const { l10n } = useL10n(locale);
   const t = useTranslations('comparison');

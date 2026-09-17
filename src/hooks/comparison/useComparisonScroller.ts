@@ -179,7 +179,7 @@ export function useComparisonScroller(productCount: number): ComparisonScroller 
   const scrollByColumn = useCallback(
     (direction: -1 | 1) => {
       // Asked at click time, not once at module scope: the setting can change while the page is open.
-      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+      const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
       element?.scrollBy({ left: direction * columnWidth, behavior: reducedMotion ? 'auto' : 'smooth' });
     },

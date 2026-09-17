@@ -36,7 +36,7 @@ export function ComparisonProductCard({
   onRemove,
   variant = 'roomy',
   separator = false,
-}: ComparisonProductCardProps) {
+}: Readonly<ComparisonProductCardProps>) {
   const compact = variant === 'compact';
   const stackedActions = variant !== 'roomy';
   const locale = useLocale();

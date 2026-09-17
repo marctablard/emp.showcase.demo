@@ -30,7 +30,7 @@ export function ComparisonScrollControls({
   total,
   onScroll,
   className,
-}: ComparisonScrollControlsProps) {
+}: Readonly<ComparisonScrollControlsProps>) {
   const t = useTranslations('comparison');
 
   // Everything fits: nothing to page, and no position worth reporting.
@@ -82,13 +82,13 @@ function ArrowButton({
   label,
   onScroll,
   testId,
-}: {
+}: Readonly<{
   direction: -1 | 1;
   enabled: boolean;
   label: string;
   onScroll: (direction: -1 | 1) => void;
   testId: string;
-}) {
+}>) {
   return (
     <Button
       type="button"
