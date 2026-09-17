@@ -17,7 +17,11 @@ import {
   loadSavedCart,
 } from '@/lib/client/carts';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
-import { currentDiscountIndexForCode, removableCartDiscountIndexes } from '@/lib/common/applied-promo-display';
+import {
+  cartCouponCodesForMessage,
+  currentDiscountIndexForCode,
+  removableCartDiscountIndexes,
+} from '@/lib/common/applied-promo-display';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type {
   CartShippingAddress,
@@ -73,7 +77,7 @@ interface CartActions {
   fetchCart: (createCurrent?: boolean, options?: { quiet?: boolean }) => Promise<Cart | null | undefined>;
   addToCart: (productId: string, quantity: number, _retryCount?: number) => Promise<ModifyCartItemResult>;
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
-  removeItem: (itemId: string) => Promise<void>;
+  removeItem: (itemId: string) => Promise<{ leftoverCouponsCleared: boolean }>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
   updateShippingMethod: (method: CartShippingMethodSelection) => Promise<void>;
   applyDiscount: (code: string) => Promise<void>;
@@ -471,16 +475,26 @@ async function runAddToCart(
  * changes and cannot be edited on the "Oh no" empty-cart screen (COP-4815 QA).
  * Best-effort: a cleanup failure must not fail the already-successful line-item write.
  */
-async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promise<void> {
+function leftoverCouponsCleared(cart: Cart | null | undefined): boolean {
+  return cartCouponCodesForMessage(cart?.discounts).length === 0;
+}
+
+async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promise<boolean> {
   const emptied = ctx.get().currentCart;
-  if (!emptied || emptied.items.length > 0 || !emptied.discounts?.length || !ctx.isCurrent()) {
-    return;
+  if (!ctx.isCurrent()) {
+    return false;
+  }
+  if (!emptied || emptied.items.length > 0) {
+    return leftoverCouponsCleared(emptied);
+  }
+  if (!emptied.discounts?.length) {
+    return true;
   }
   const indexes = removableCartDiscountIndexes(emptied.discounts);
   try {
     for (const discountIndex of indexes) {
       if (!ctx.isCurrent()) {
-        return;
+        return false;
       }
       await apiRemoveCartDiscount(emptied.id, discountIndex);
     }
@@ -490,6 +504,10 @@ async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promi
   } catch (err) {
     getLogger().error({ err, cartId: emptied.id }, 'Failed to strip leftover coupons from empty cart');
   }
+  if (!ctx.isCurrent()) {
+    return false;
+  }
+  return leftoverCouponsCleared(ctx.get().currentCart);
 }
 
 /**
@@ -499,13 +517,13 @@ async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promi
 async function runLineItemMutation(
   ctx: CartMutationContext,
   args: { call: (cartId: string) => Promise<unknown>; failureMessage: string; logMessage: string },
-): Promise<void> {
+): Promise<boolean> {
   if (ctx.resetWhileQueued) {
-    return;
+    return false;
   }
   const cart = ctx.get().currentCart ?? (await ctx.refetch());
   if (!ctx.isCurrent()) {
-    return;
+    return false;
   }
   if (!cart) {
     throw new Error('No cart available');
@@ -514,7 +532,7 @@ async function runLineItemMutation(
     ctx.commit({ loading: true, error: null });
     await args.call(cart.id);
     await ctx.refetch();
-    await stripOrphanCouponsAfterEmptyCart(ctx);
+    return stripOrphanCouponsAfterEmptyCart(ctx);
   } catch (err) {
     ctx.commit({ error: toError(err, args.failureMessage), loading: false });
     getLogger().error({ err }, args.logMessage);
@@ -527,10 +545,10 @@ function runUpdateItemQuantity(ctx: CartMutationContext, itemId: string, quantit
     call: (cartId) => apiUpdateCartItemQuantity(cartId, itemId, quantity),
     failureMessage: 'Failed to update cart item',
     logMessage: 'Error updating cart item',
-  });
+  }).then(() => undefined);
 }
 
-function runRemoveItem(ctx: CartMutationContext, itemId: string): Promise<void> {
+function runRemoveItem(ctx: CartMutationContext, itemId: string): Promise<{ leftoverCouponsCleared: boolean }> {
   if (ctx.resetWhileQueued) {
     throw new CartMutationCancelledError('removeItem');
   }
@@ -538,7 +556,7 @@ function runRemoveItem(ctx: CartMutationContext, itemId: string): Promise<void> 
     call: (cartId) => apiRemoveCartItem(cartId, itemId),
     failureMessage: 'Failed to remove cart item',
     logMessage: 'Error removing cart item',
-  });
+  }).then((leftoverCouponsCleared) => ({ leftoverCouponsCleared }));
 }
 
 /**
@@ -575,6 +593,12 @@ async function runCartSnapshotMutation(
   }
   try {
     const updatedCart = await args.call(currentCart.id);
+    if (!ctx.isCurrent()) {
+      if (args.rethrow) {
+        throw new CartMutationCancelledError('discount');
+      }
+      return;
+    }
     ctx.commit({ currentCart: updatedCart, error: null });
   } catch (err) {
     const error = toError(err, args.failureMessage);

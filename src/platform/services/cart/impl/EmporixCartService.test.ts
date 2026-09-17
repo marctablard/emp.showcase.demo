@@ -908,6 +908,7 @@ describe('EmporixCartService', () => {
         expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
           orderTotal: { amount: 90, currency: 'EUR' },
           legalEntityId: 'le-1',
+          customerNumber: 'cust-1',
         });
       });
 

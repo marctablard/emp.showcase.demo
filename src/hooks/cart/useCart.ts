@@ -22,7 +22,7 @@ interface UseCart {
 
   addItem: (productId: string, quantity: number) => Promise<ModifyCartItemResult>;
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
-  removeItem: (itemId: string) => Promise<void>;
+  removeItem: (itemId: string) => Promise<{ leftoverCouponsCleared: boolean }>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
   updateShippingMethod: (method: CartShippingMethodSelection) => Promise<void>;
   applyDiscount: (code: string) => Promise<void>;

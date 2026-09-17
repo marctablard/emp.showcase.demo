@@ -170,7 +170,7 @@ describe('CartItemRow quantity restore', () => {
     mockUpdateItemQuantity.mockReset();
     mockRemoveItem.mockReset();
     mockUpdateItemQuantity.mockResolvedValue(undefined);
-    mockRemoveItem.mockResolvedValue(undefined);
+    mockRemoveItem.mockResolvedValue({ leftoverCouponsCleared: true });
     (notify as jest.Mock).mockClear();
   });
 
@@ -218,6 +218,24 @@ describe('CartItemRow quantity restore', () => {
         }),
       );
     });
+  });
+
+  it('does not toast leftover coupons when empty-cart coupon cleanup failed', async () => {
+    mockRemoveItem.mockResolvedValueOnce({ leftoverCouponsCleared: false });
+    const lastItem = buildItem();
+    const lastItemCart: Cart = {
+      ...cart,
+      items: [lastItem],
+      discounts: [{ code: 'SAVE10', discountIndex: 0, amount: 1, currency: 'EUR' }],
+    };
+
+    render(<CartItemRow cart={lastItemCart} item={lastItem} showQty />);
+    fireEvent.click(screen.getByTestId('cart-item-remove-prod-1'));
+
+    await waitFor(() => {
+      expect(mockRemoveItem).toHaveBeenCalledWith('item-1');
+    });
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it('does not toast leftover coupons when last-item remove is cancelled by a cart reset', async () => {

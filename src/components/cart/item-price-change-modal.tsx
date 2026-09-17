@@ -47,8 +47,8 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
     try {
       const couponCodes = cartCouponCodesForMessage(cart?.discounts);
       const removingLastItem = (cart?.items.length ?? 0) === 1;
-      await removeItem(cartItem.id);
-      if (removingLastItem && couponCodes.length > 0) {
+      const { leftoverCouponsCleared } = await removeItem(cartItem.id);
+      if (removingLastItem && couponCodes.length > 0 && leftoverCouponsCleared) {
         notify({
           type: ToastType.Info,
           title: t('couponsRemovedFromEmptyCart', { codes: couponCodes.join(', ') }),

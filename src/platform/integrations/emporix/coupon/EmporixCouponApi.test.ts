@@ -42,7 +42,7 @@ function createApi(fetchResponse: Response) {
 }
 
 describe('EmporixCouponApi.validateCoupon (mocked)', () => {
-  it('POSTs orderTotal + zero discount with the session token to the encoded validation URL', async () => {
+  it('POSTs orderTotal + zero discount with the service token to the encoded validation URL', async () => {
     const { api, apiClient } = createApi(response({ status: 200 }));
 
     await expect(api.validateCoupon('SUMMER 10%', { orderTotal: { amount: 90, currency: 'EUR' } })).resolves.toEqual({
@@ -57,8 +57,8 @@ describe('EmporixCouponApi.validateCoupon (mocked)', () => {
       orderTotal: { amount: 90, currency: 'EUR' },
       discount: { amount: 0, currency: 'EUR' },
     });
-    expect(tokenType).toBe('session');
-    expect(authOptions).toBeUndefined();
+    expect(tokenType).toBe('service');
+    expect(authOptions).toEqual({ scopes: ['coupon.coupon_redeem', 'coupon.coupon_redeem_on_behalf'] });
     expect(metrics).toEqual({ source: 'coupon', routePattern: '/coupon/{tenant}/coupons/{code}/validation' });
   });
 
@@ -71,6 +71,21 @@ describe('EmporixCouponApi.validateCoupon (mocked)', () => {
       orderTotal: { amount: 10, currency: 'CHF' },
       discount: { amount: 0, currency: 'CHF' },
       legalEntityId: 'le-1',
+    });
+  });
+
+  it('includes customerNumber when validating on behalf of a shopper', async () => {
+    const { api, apiClient } = createApi(response({ status: 200 }));
+
+    await api.validateCoupon('CODE', {
+      orderTotal: { amount: 10, currency: 'EUR' },
+      customerNumber: 'cust-1',
+    });
+
+    expect(JSON.parse(String(apiClient.authenticatedFetch.mock.calls[0][1]?.body))).toEqual({
+      orderTotal: { amount: 10, currency: 'EUR' },
+      discount: { amount: 0, currency: 'EUR' },
+      customerNumber: 'cust-1',
     });
   });
 

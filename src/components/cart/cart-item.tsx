@@ -125,8 +125,8 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
       setQuantity(0);
       const couponCodes = cartCouponCodesForMessage(cart.discounts);
       const removingLastItem = cart.items.length === 1;
-      await removeItem(item.id);
-      if (removingLastItem && couponCodes.length > 0) {
+      const { leftoverCouponsCleared } = await removeItem(item.id);
+      if (removingLastItem && couponCodes.length > 0 && leftoverCouponsCleared) {
         notify({
           type: ToastType.Info,
           title: t('couponsRemovedFromEmptyCart', { codes: couponCodes.join(', ') }),

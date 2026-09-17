@@ -35,7 +35,7 @@ class EmporixCouponApi implements IEmporixCouponApi {
   ) {}
 
   async validateCoupon(code: string, request: EmporixCouponValidationRequest): Promise<EmporixCouponValidationOutcome> {
-    const { orderTotal, legalEntityId } = request;
+    const { orderTotal, legalEntityId, customerNumber } = request;
     const response = await this.apiClient.authenticatedFetch(
       `/coupon/${this.config.tenant}/coupons/${encodeURIComponent(code)}/validation`,
       {
@@ -48,10 +48,11 @@ class EmporixCouponApi implements IEmporixCouponApi {
           orderTotal,
           discount: { amount: 0, currency: orderTotal.currency },
           ...(legalEntityId ? { legalEntityId } : {}),
+          ...(customerNumber ? { customerNumber } : {}),
         }),
       },
-      'session',
-      undefined,
+      'service',
+      { scopes: ['coupon.coupon_redeem', 'coupon.coupon_redeem_on_behalf'] },
       createCouponMetrics('/coupon/{tenant}/coupons/{code}/validation'),
     );
 

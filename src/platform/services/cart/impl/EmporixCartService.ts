@@ -963,9 +963,11 @@ class EmporixCartService implements CartService {
       return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
     }
     try {
+      const session = await this.sessionService.getCurrentOrThrow();
       const outcome = await this.couponApi.validateCoupon(code, {
         orderTotal: { amount: cart.subTotalPrice.amount, currency: cart.currency },
         ...(cart.legalEntity ? { legalEntityId: cart.legalEntity } : {}),
+        ...(isAuthenticatedSessionCustomerId(session?.customerId) ? { customerNumber: session.customerId } : {}),
       });
       const reason = classifyCouponRejection(outcome);
       this.logger.info(

@@ -926,7 +926,7 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
 
     pendingApply.resolve(buildCart('cart-1', { currency: 'USD' }));
     await act(async () => {
-      await applyPromise;
+      await expect(applyPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
     });
 
     expect(store.getState().currentCart).toBeNull();
@@ -1086,7 +1086,7 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     pendingApply.resolve(buildCart('cart-1'));
     await act(async () => {
       await expect(removePromise).rejects.toBeInstanceOf(CartMutationCancelledError);
-      await applyPromise;
+      await expect(applyPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
     });
 
     expect(mockRemoveCartItem).not.toHaveBeenCalled();
@@ -1125,10 +1125,11 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
       await act(async () => {
         if (_name === 'applyDiscount' || _name === 'removeDiscount') {
           await expect(queuedPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
-          await holdPromise;
+          await expect(holdPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
           return;
         }
-        await Promise.all([holdPromise, queuedPromise]);
+        await expect(holdPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+        await queuedPromise;
       });
 
       expect(api().mock.calls.filter((call: unknown[]) => call[0] === 'cart-new')).toHaveLength(0);
@@ -1156,7 +1157,8 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
 
     pendingApply.resolve(buildCart('cart-1'));
     await act(async () => {
-      await Promise.all([holdPromise, currencyPromise]);
+      await expect(holdPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+      await currencyPromise;
     });
 
     // Currency is session intent, not bound to the old cart id: it must land on the new cart.
@@ -1210,10 +1212,12 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     mockRemoveCartDiscount.mockResolvedValueOnce(undefined);
     mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedClean));
 
+    let result: { leftoverCouponsCleared: boolean } | undefined;
     await act(async () => {
-      await store.getState().removeItem('item-1');
+      result = await store.getState().removeItem('item-1');
     });
 
+    expect(result).toEqual({ leftoverCouponsCleared: true });
     expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 0);
     expect(store.getState().currentCart?.discounts).toBeUndefined();
     expect(store.getState().currentCart?.items).toHaveLength(0);
@@ -1262,10 +1266,12 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithCoupon));
     mockRemoveCartDiscount.mockRejectedValueOnce(new Error('coupon cleanup failed'));
 
+    let result: { leftoverCouponsCleared: boolean } | undefined;
     await act(async () => {
-      await store.getState().removeItem('item-1');
+      result = await store.getState().removeItem('item-1');
     });
 
+    expect(result).toEqual({ leftoverCouponsCleared: false });
     expect(store.getState().currentCart?.items).toHaveLength(0);
     expect(store.getState().error).toBeNull();
   });
@@ -1390,7 +1396,7 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
 
     pendingApply.resolve(buildCart('cart-1'));
     await act(async () => {
-      await applyPromise;
+      await expect(applyPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
     });
 
     await waitFor(() => expect(mockUpdateCartCurrency).toHaveBeenCalledWith('cart-2', 'CHF'));

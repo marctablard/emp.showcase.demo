@@ -28,11 +28,16 @@ export interface EmporixCouponValidationRequest {
    */
   orderTotal: { amount: number; currency: string };
   legalEntityId?: string;
+  /**
+   * Shopper identity for service-token / on-behalf validation. Omit for anonymous
+   * so Coupon Service treats the lookup as an anonymous redemption check.
+   */
+  customerNumber?: string;
 }
 
 export interface EmporixCouponApi {
   /**
-   * Checks whether the current session could redeem `code` without redeeming it.
+   * Checks whether the current shopper could redeem `code` without redeeming it.
    * Never throws on a 4xx — the rejection is the result. Network/5xx errors are thrown.
    */
   validateCoupon(code: string, request: EmporixCouponValidationRequest): Promise<EmporixCouponValidationOutcome>;

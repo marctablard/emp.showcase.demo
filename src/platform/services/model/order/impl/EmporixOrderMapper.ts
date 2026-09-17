@@ -75,21 +75,24 @@ function matchingAppliedDiscountRows(
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
   inferSoleIdLess: boolean,
 ): CalculatedAppliedDiscountRow[] {
-  const sources = appliedDiscountSources(calculatedPrice);
-  const byId = sources.flat().filter((row) => typeof row.id === 'string' && row.id === discount.code);
-  if (byId.length > 0) {
-    return byId;
+  const [aggregate, goods, fees, shipping] = appliedDiscountSources(calculatedPrice);
+  const components = [...goods, ...fees, ...shipping];
+  const byIdAggregate = aggregate.filter((row) => typeof row.id === 'string' && row.id === discount.code);
+  if (byIdAggregate.length > 0) {
+    return byIdAggregate;
+  }
+  const byIdComponents = components.filter((row) => typeof row.id === 'string' && row.id === discount.code);
+  if (byIdComponents.length > 0) {
+    return byIdComponents;
   }
   if (!inferSoleIdLess) {
     return [];
   }
-  for (const source of sources) {
-    const idLess = source.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
-    if (idLess.length > 0) {
-      return idLess;
-    }
+  const idLessAggregate = aggregate.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
+  if (idLessAggregate.length > 0) {
+    return idLessAggregate;
   }
-  return [];
+  return components.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
 }
 
 function resolveOrderDiscountType(
@@ -118,10 +121,13 @@ function resolveOrderDiscountValue(
   if (typeof discount.amount === 'number') {
     return discount.amount;
   }
-  const withValue = matchingAppliedDiscountRows(discount, calculatedPrice, inferSoleIdLess).find(
+  const withValue = matchingAppliedDiscountRows(discount, calculatedPrice, inferSoleIdLess).filter(
     (row) => typeof row.value === 'number',
   );
-  return withValue?.value ?? 0;
+  if (withValue.length === 0) {
+    return 0;
+  }
+  return withValue.reduce((sum, row) => sum + row.value, 0);
 }
 
 function mapOrderDiscount(
