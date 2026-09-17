@@ -171,6 +171,20 @@ describe('applied-promo-display', () => {
     expect(orderGoodsSavings({ currency: 'EUR', savingsTotal: 4.95 })).toBeUndefined();
   });
 
+  it('uses published goods figures when the discounts array is omitted', () => {
+    expect(
+      orderGoodsSavings({
+        currency: 'EUR',
+        savingsTotal: 11.22,
+        goodsDiscountedNet: 57.93,
+        price: {
+          subtotal: { net: 69.15, gross: 82.29, tax: 13.14, currency: 'EUR' },
+          total: { net: 57.93, gross: 68.94, tax: 11.01, currency: 'EUR' },
+        },
+      }),
+    ).toEqual({ amount: 11.22, currency: 'EUR' });
+  });
+
   it('does not treat a free-shipping waiver as goods savings', () => {
     expect(
       orderGoodsSavings({

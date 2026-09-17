@@ -60,5 +60,11 @@ describe('cart errors', () => {
       ),
     ).toBe(true);
     expect(isCouponRelatedCurrencyFailure('Coupon blocks currency update')).toBe(true);
+    expect(
+      isCouponRelatedCurrencyFailure(
+        'Failed to change cart currency: Bad Request',
+        '{"code":400,"message":"Price not found","discount":null}',
+      ),
+    ).toBe(false);
   });
 });

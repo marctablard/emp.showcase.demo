@@ -1,5 +1,5 @@
 import { inject } from 'inversify';
-import { removableCartPromoAtIndex } from '@/lib/common/applied-promo-display';
+import { removableCartPromoAtIndex, shopperFacingCartPromos } from '@/lib/common/applied-promo-display';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import { baseUrl } from '@/lib/utils';
@@ -1053,8 +1053,13 @@ class EmporixCartService implements CartService {
     return canonicalRawCart;
   }
 
+  /**
+   * Apply can return before coupon rows hydrate. A free-shipping apply often has
+   * `savingsTotal === 0` with an omitted `discounts` array — treat that as missing
+   * so we refresh once for chips (COP-4815 review 5238303353).
+   */
   private isCartMissingDiscountsAndSavings(cart: Cart): boolean {
-    return !cart.discounts?.length && cart.savingsTotal == null;
+    return shopperFacingCartPromos(cart.discounts).length === 0;
   }
 
   private mapCartDiscountError(error: unknown, message: string): CartDiscountError {

@@ -626,6 +626,29 @@ describe('EmporixCartService', () => {
       );
     });
 
+    it('keeps a 400 price miss with a discount:null field as CONTEXT_MISMATCH', async () => {
+      const cart: EmporixCart = {
+        id: 'cart-1',
+        currency: 'USD',
+        siteCode: 'main',
+        metadata: { version: 1 },
+      };
+
+      mockCartApi.getCart.mockResolvedValue(cart);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error(
+          'Failed to change cart currency: Bad Request {"code":400,"message":"Price not found","discount":null}',
+        ),
+      );
+
+      await expect(cartService.updateCurrency('cart-1', 'EUR')).rejects.toEqual(
+        expect.objectContaining({
+          code: 'CONTEXT_MISMATCH',
+          upstreamStatus: 400,
+        }),
+      );
+    });
+
     it('keeps a 400 item/price miss as CONTEXT_MISMATCH', async () => {
       const cart: EmporixCart = {
         id: 'cart-1',
@@ -743,6 +766,34 @@ describe('EmporixCartService', () => {
 
       expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
       expect(mockCartApi.getCart).not.toHaveBeenCalled();
+    });
+
+    it('refreshes once when apply succeeds with zero savings and no coupon rows', async () => {
+      const mappedFreeShippingWithoutRows: Cart = {
+        id: 'cart-1',
+        currency: 'EUR',
+        site: 'main',
+        items: [],
+        totalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+        subTotalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+        tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+        savingsTotal: 0,
+      };
+      const mappedFreeShipping: Cart = {
+        ...mappedCartWithDiscount,
+        discounts: [{ code: 'FREESHIP', discountIndex: 0, amount: 0, currency: 'EUR', type: 'FREE_SHIPPING' }],
+        savingsTotal: 0,
+      };
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService
+        .mockReturnValueOnce(mappedFreeShippingWithoutRows)
+        .mockReturnValueOnce(mappedFreeShippingWithoutRows)
+        .mockReturnValueOnce(mappedFreeShipping);
+
+      const result = await cartService.applyDiscount('cart-1', 'FREESHIP');
+
+      expect(mockCartApi.refreshCart).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mappedFreeShipping);
     });
 
     it('refreshes once via cleanup when apply succeeds but discounts and savings are missing', async () => {

@@ -92,14 +92,34 @@ export function extractUpstreamStatus(message: string): number | undefined {
   return Number.isNaN(status) ? undefined : status;
 }
 
-const COUPON_CURRENCY_HINT = /\b(coupon|discount|promo)\b/i;
+const COUPON_CURRENCY_HINT =
+  /\b(coupon|promo(?:\s*code)?s?|discount\s+(?:currency|code|does|is|cannot|can'?t)|applied\s+discount)\b/i;
 
-/** True when an upstream currency-change payload names a coupon/discount, not a generic item/price miss. */
+function structuredCurrencyFailureText(body: string): string | undefined {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (!parsed || typeof parsed !== 'object') {
+      return undefined;
+    }
+    const record = parsed as Record<string, unknown>;
+    const parts = ['message', 'detail', 'error', 'description', 'code']
+      .map((key) => record[key])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+    return parts.length > 0 ? parts.join(' ') : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** True when an upstream currency-change payload names a coupon, not a generic item/price miss. */
 export function isCouponRelatedCurrencyFailure(message: string, upstreamBody?: string): boolean {
   if (COUPON_CURRENCY_HINT.test(message)) {
     return true;
   }
-  return typeof upstreamBody === 'string' && COUPON_CURRENCY_HINT.test(upstreamBody);
+  if (typeof upstreamBody !== 'string') {
+    return false;
+  }
+  return COUPON_CURRENCY_HINT.test(structuredCurrencyFailureText(upstreamBody) ?? upstreamBody);
 }
 
 export function extractUpstreamBody(message: string): string | undefined {

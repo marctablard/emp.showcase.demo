@@ -1,5 +1,5 @@
 import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
-import type { OrderDiscount } from '@/platform/services/model/order/order';
+import type { Order, OrderDiscount } from '@/platform/services/model/order/order';
 
 /** Emporix publishes a rollup row with this code; "Your savings" already shows that total. */
 const AGGREGATE_PROMO_CODES = new Set(['TOTAL']);
@@ -87,13 +87,42 @@ export function shopperFacingOrderPromos(discounts: OrderDiscount[] | undefined)
   return (discounts ?? []).filter(isShopperFacingOrderPromo);
 }
 
+type OrderGoodsSavingsInput = Pick<
+  Order,
+  | 'savingsTotal'
+  | 'discounts'
+  | 'currency'
+  | 'goodsDiscountedNet'
+  | 'goodsDiscountedGross'
+  | 'includesTax'
+  | 'totalDiscountCalculationType'
+  | 'price'
+>;
+
+function publishedGoodsSavings(order: OrderGoodsSavingsInput, shippingFree: boolean): number | undefined {
+  return resolveGoodsSavingsAmount({
+    savingsTotal: order.savingsTotal,
+    shippingFree,
+    discountedNet: order.goodsDiscountedNet,
+    discountedGross: order.goodsDiscountedGross,
+    originalNet: order.price?.subtotal.net ?? 0,
+    originalGross: order.price?.subtotal.gross,
+    afterTax: order.includesTax === true || order.totalDiscountCalculationType === 'ApplyDiscountAfterTax',
+  });
+}
+
 /**
  * Goods savings for confirmation / dashboard totals.
  * Prefer published `savingsTotal` so a `TOTAL` rollup plus coupon rows is not added twice.
+ * When the deprecated `discounts` array is omitted, use published goods figures
+ * (COP-4815 review 5238303353) — never `savingsTotal` alone (fee-only rollup).
  */
-export function orderGoodsSavings(
-  order: { savingsTotal?: number; discounts?: OrderDiscount[]; currency?: string } | null | undefined,
-): { amount: number; currency: string } | undefined {
+export function orderGoodsSavings(order: OrderGoodsSavingsInput | null | undefined):
+  | {
+      amount: number;
+      currency: string;
+    }
+  | undefined {
   if (!order) {
     return undefined;
   }
@@ -101,7 +130,8 @@ export function orderGoodsSavings(
   const facing = shopperFacingOrderPromos(order.discounts);
   const goodsPromos = facing.filter((discount) => !isFreeShippingPromo(discount));
   if (goodsPromos.length === 0) {
-    return undefined;
+    const fromFigures = publishedGoodsSavings(order, facing.some(isFreeShippingPromo));
+    return typeof fromFigures === 'number' ? { amount: fromFigures, currency } : undefined;
   }
   if (facing.some(isFreeShippingPromo) && goodsPromos.length > 0) {
     const mixedGoods = goodsPromos.reduce((sum, discount) => sum + (discount.value || 0), 0);
