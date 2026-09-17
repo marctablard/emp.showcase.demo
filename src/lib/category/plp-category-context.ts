@@ -1,5 +1,5 @@
 import type { Category } from '@/platform/services/model/category';
-import { findCategoryPath, getCategoryChildren } from './category-tree-utils';
+import { compareByPosition, findCategoryPath, getCategoryChildren } from './category-tree-utils';
 
 export type PlpBreadcrumbRow = { kind: 'virtual-all-products' } | { kind: 'category'; category: Category };
 
@@ -20,7 +20,7 @@ export function resolvePlpCategoryContext(
   roots: readonly Category[] | undefined,
   selectedCategoryId: string | undefined,
 ): PlpCategoryContext {
-  const rootCats = roots ? [...roots] : [];
+  const rootCats = roots ? [...roots].sort(compareByPosition) : [];
 
   if (!roots || roots.length === 0 || !selectedCategoryId) {
     return {
@@ -50,7 +50,7 @@ export function resolvePlpCategoryContext(
     { kind: 'virtual-all-products' },
     ...realAncestors.map((category) => ({ kind: 'category' as const, category })),
   ];
-  const currentChildren = getCategoryChildren(currentCategory);
+  const currentChildren = getCategoryChildren(currentCategory).sort(compareByPosition);
   const isLeaf = currentChildren.length === 0;
 
   let ribbonCategories: Category[];
@@ -60,7 +60,7 @@ export function resolvePlpCategoryContext(
   } else {
     if (realAncestors.length > 0) {
       const parent = realAncestors[realAncestors.length - 1];
-      ribbonCategories = getCategoryChildren(parent);
+      ribbonCategories = getCategoryChildren(parent).sort(compareByPosition);
     } else {
       ribbonCategories = rootCats;
     }

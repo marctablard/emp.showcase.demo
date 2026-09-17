@@ -185,6 +185,7 @@ describe('EmporixAuthService', () => {
 
     mockSessionService = {
       getCurrent: jest.fn(),
+      getCurrentOrThrow: jest.fn(),
       getById: jest.fn(),
       setLanguage: jest.fn(),
       setCurrency: jest.fn(),
@@ -208,6 +209,7 @@ describe('EmporixAuthService', () => {
       removeCartItem: jest.fn(),
       deleteCart: jest.fn(),
       updateShippingInfo: jest.fn(),
+      updateShippingMethod: jest.fn(),
       updateCurrency: jest.fn(),
       getSavedCarts: jest.fn(),
       saveCart: jest.fn(),

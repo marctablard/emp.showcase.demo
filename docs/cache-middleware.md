@@ -66,10 +66,23 @@ export const cacheRules: CacheRule[] = [
 ## What the middleware sets
 
 - **`Cache-Control`**
-  - when `revalidate` is positive: `s-maxage=<revalidate>` and `stale-while-revalidate=<2x revalidate>`
+  - when `revalidate` is positive: `public, max-age=<revalidate>, s-maxage=<revalidate>` and `stale-while-revalidate=<2x revalidate>`
   - when `revalidate` is `0` or negative: `private, no-store` (no `s-maxage`, no SWR)
+  - for authenticated requests: always `private, no-store` (see below)
 - **`X-Cache-Tags`**
   - tags after capture group substitution
+  - never set for authenticated requests
+
+### Authenticated requests bypass
+
+Responses for logged-in customers can be personalised (customer-segment scoped catalog, PDP, search suggestions — see [Search Service — Customer segments & products mode](./search-service.md#customer-segments--products-mode-cop-4822), COP-4822). A cache rule such as `/product/(.*)` would otherwise override route-level headers and mark them `public`.
+
+`hasAuthSession(req)` in `src/caching/cache-middleware.ts` therefore checks `NextRequest.cookies` for the Auth.js v5 default session cookie name (`src/auth/auth.config.ts` sets no custom name). A cookie matches only when its name is exactly `authjs.session-token`, the HTTPS form `__Secure-authjs.session-token`, or a numeric chunk of either (`authjs.session-token.0`, `__Secure-authjs.session-token.1`, …) via `isAuthJsSessionCookieName`. Names that merely contain that fragment (for example `xauthjs.session-token` or `authjs.session-token-old`) are ignored so anonymous traffic stays cacheable. When a match is present and a rule matches:
+
+- `Cache-Control` is forced to `private, no-store` regardless of the rule's `revalidate`
+- no `X-Cache-Tags` header is emitted
+
+Anonymous requests are unaffected. Rules that do not match still leave the response unchanged, so API routes that set `Cache-Control: private, no-store` themselves (for example `/api/search` in `assigned` mode) keep their own header.
 
 ## Examples
 

@@ -3,7 +3,7 @@
  */
 import type { ComponentProps, ReactNode } from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { Order } from '@/platform/services/model/order/order';
 import { MyOrdersTable } from './my-orders-table';
 
@@ -54,7 +54,7 @@ function buildOrder(overrides: Partial<Order>): Order {
   } as Order;
 }
 
-function renderTable(overrides: Partial<ComponentProps<typeof MyOrdersTable>> = {}) {
+async function renderTable(overrides: Partial<ComponentProps<typeof MyOrdersTable>> = {}) {
   const onSortChange = jest.fn();
   const props: ComponentProps<typeof MyOrdersTable> = {
     orders: [buildOrder({})],
@@ -69,22 +69,26 @@ function renderTable(overrides: Partial<ComponentProps<typeof MyOrdersTable>> = 
     ...overrides,
   };
 
+  const view = render(<MyOrdersTable {...props} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
   return {
-    ...render(<MyOrdersTable {...props} />),
+    ...view,
     props,
     onSortChange,
   };
 }
 
 describe('MyOrdersTable', () => {
-  it('renders the table with semantic table structure', () => {
-    renderTable();
+  it('renders the table with semantic table structure', async () => {
+    await renderTable();
 
     expect(screen.getByRole('table')).toBeInTheDocument();
   });
 
-  it('renders the canonical column sequence without a Payment column', () => {
-    renderTable();
+  it('renders the canonical column sequence without a Payment column', async () => {
+    await renderTable();
 
     const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
     expect(headers).toEqual([
@@ -102,15 +106,15 @@ describe('MyOrdersTable', () => {
     expect(screen.queryByText('columns.payment')).not.toBeInTheDocument();
   });
 
-  it('renders the Related Quote heading as the exact fourth column', () => {
-    renderTable();
+  it('renders the Related Quote heading as the exact fourth column', async () => {
+    await renderTable();
 
     const headers = screen.getAllByRole('columnheader');
     expect(headers[3]).toHaveTextContent('relatedQuote #');
   });
 
-  it('displays the net order value rather than gross', () => {
-    renderTable({
+  it('displays the net order value rather than gross', async () => {
+    await renderTable({
       orders: [
         buildOrder({
           price: {
@@ -125,8 +129,8 @@ describe('MyOrdersTable', () => {
     expect(screen.queryByText(/100/)).not.toBeInTheDocument();
   });
 
-  it('links the primary order id and the row/arrow to the same order destination', () => {
-    renderTable({ orders: [buildOrder({ id: 'order-42' })] });
+  it('links the primary order id and the row/arrow to the same order destination', async () => {
+    await renderTable({ orders: [buildOrder({ id: 'order-42' })] });
 
     const row = screen.getByText('order-42').closest('tr');
     expect(row).not.toBeNull();
@@ -139,8 +143,8 @@ describe('MyOrdersTable', () => {
     expect(push).toHaveBeenCalledWith('/account/orders/order-42');
   });
 
-  it('uses shared table-link styling (no underline, default cursor, and table typography) for table links', () => {
-    renderTable({ orders: [buildOrder({ id: 'order-42', quoteId: 'quote-9' })] });
+  it('uses shared table-link styling (no underline, default cursor, and table typography) for table links', async () => {
+    await renderTable({ orders: [buildOrder({ id: 'order-42', quoteId: 'quote-9' })] });
 
     const idLink = screen.getByRole('link', { name: 'order-42' });
     expect(idLink).toHaveClass(
@@ -163,8 +167,8 @@ describe('MyOrdersTable', () => {
     expect(arrowLink).toHaveClass('no-underline', 'cursor-default', 'font-secondary', 'text-[16px]', 'leading-[24px]');
   });
 
-  it('keeps the Action column non-sortable with no "View" text', () => {
-    renderTable();
+  it('keeps the Action column non-sortable with no "View" text', async () => {
+    await renderTable();
 
     const actionHeader = screen.getByRole('columnheader', { name: 'columns.action' });
     expect(actionHeader).not.toHaveAttribute('aria-sort');
@@ -172,8 +176,8 @@ describe('MyOrdersTable', () => {
     expect(screen.queryByText('columns.view')).not.toBeInTheDocument();
   });
 
-  it('renders expected delivery date using date formatting and falls back to a dash when absent', () => {
-    renderTable({
+  it('renders expected delivery date using date formatting and falls back to a dash when absent', async () => {
+    await renderTable({
       orders: [
         buildOrder({ id: 'order-a', expectedDeliveryDate: '2026-08-01' }),
         buildOrder({ id: 'order-b', expectedDeliveryDate: undefined }),
@@ -188,8 +192,8 @@ describe('MyOrdersTable', () => {
     expect(secondDeliveryCell).toHaveTextContent('-');
   });
 
-  it('requests server-side sort changes only from sortable headers', () => {
-    const { onSortChange } = renderTable({
+  it('requests server-side sort changes only from sortable headers', async () => {
+    const { onSortChange } = await renderTable({
       sortField: 'relatedQuote',
       sortDirection: 'desc',
       orders: [buildOrder({ id: 'order-a', quoteId: 'Q100' })],
@@ -206,8 +210,8 @@ describe('MyOrdersTable', () => {
     expect(onSortChange).toHaveBeenCalledWith('relatedQuote', 'asc');
   });
 
-  it('keeps server order as provided (no local client-side row reordering)', () => {
-    renderTable({
+  it('keeps server order as provided (no local client-side row reordering)', async () => {
+    await renderTable({
       sortField: 'orderDate',
       sortDirection: 'asc',
       orders: [
@@ -221,8 +225,8 @@ describe('MyOrdersTable', () => {
     expect(within(rows[1]).getByText('order-old')).toBeInTheDocument();
   });
 
-  it('does not locally slice the server page payload by current page/ordersPerPage', () => {
-    renderTable({
+  it('does not locally slice the server page payload by current page/ordersPerPage', async () => {
+    await renderTable({
       ordersPerPage: 1,
       currentPage: 2,
       totalCount: 6,
@@ -233,7 +237,7 @@ describe('MyOrdersTable', () => {
     expect(screen.getByText('order-b')).toBeInTheDocument();
   });
 
-  it('uses server totalCount for pagination boundaries, not the visible row count', () => {
+  it('uses server totalCount for pagination boundaries, not the visible row count', async () => {
     const onPreviousPage = jest.fn();
     const onNextPage = jest.fn();
 
@@ -250,6 +254,9 @@ describe('MyOrdersTable', () => {
         onSortChange={jest.fn()}
       />,
     );
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     expect(screen.queryByText('previous')).not.toBeInTheDocument();
     const nextButton = screen.getByText('next');
@@ -276,8 +283,8 @@ describe('MyOrdersTable', () => {
     expect(screen.queryByText('next')).not.toBeInTheDocument();
   });
 
-  it('reflects the active sort state through aria-sort', () => {
-    renderTable({ sortField: 'status', sortDirection: 'asc' });
+  it('reflects the active sort state through aria-sort', async () => {
+    await renderTable({ sortField: 'status', sortDirection: 'asc' });
 
     const statusHeader = screen.getByRole('columnheader', { name: 'columns.status' });
     const orderDateHeader = screen.getByRole('columnheader', { name: /columns\.orderDate/ });
@@ -289,17 +296,17 @@ describe('MyOrdersTable', () => {
   it('does not navigate the row when the related quote link is clicked', async () => {
     const order = buildOrder({ id: 'order-return', status: 'COMPLETED', quoteId: 'quote-9' });
 
-    renderTable({ orders: [order] });
+    await renderTable({ orders: [order] });
 
     const quoteLink = await screen.findByRole('link', { name: 'quote-9' });
     fireEvent.click(quoteLink);
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('renders the related quote link in the fourth column and keeps the Order Number cell link-only', () => {
+  it('renders the related quote link in the fourth column and keeps the Order Number cell link-only', async () => {
     const order = buildOrder({ id: 'order-return', status: 'COMPLETED', quoteId: 'Q1000375' });
 
-    renderTable({ orders: [order] });
+    await renderTable({ orders: [order] });
 
     const row = screen.getByText('order-return').closest('tr') as HTMLTableRowElement;
     const cells = within(row).getAllByRole('cell');
@@ -314,11 +321,11 @@ describe('MyOrdersTable', () => {
     expect(quoteLink).toHaveAttribute('href', '/account/quotes/Q1000375');
   });
 
-  it('shows a placeholder in the Related Quote column when an order has no related quote', () => {
+  it('shows a placeholder in the Related Quote column when an order has no related quote', async () => {
     const order = buildOrder({ id: 'order-no-quote' });
     delete (order as { quoteId?: string }).quoteId;
 
-    renderTable({ orders: [order] });
+    await renderTable({ orders: [order] });
 
     const row = screen.getByText('order-no-quote').closest('tr') as HTMLTableRowElement;
     const cells = within(row).getAllByRole('cell');
@@ -326,11 +333,11 @@ describe('MyOrdersTable', () => {
     expect(within(cells[3]).queryByRole('link')).not.toBeInTheDocument();
   });
 
-  it('opens order details when clicking the Related Quote placeholder for an order without a quote', () => {
+  it('opens order details when clicking the Related Quote placeholder for an order without a quote', async () => {
     const order = buildOrder({ id: 'order-no-quote' });
     delete (order as { quoteId?: string }).quoteId;
 
-    renderTable({ orders: [order] });
+    await renderTable({ orders: [order] });
 
     const row = screen.getByText('order-no-quote').closest('tr') as HTMLTableRowElement;
     const quoteCell = within(row).getAllByRole('cell')[3];
@@ -339,8 +346,8 @@ describe('MyOrdersTable', () => {
     expect(push).toHaveBeenCalledWith('/account/orders/order-no-quote');
   });
 
-  it('does not flash the empty state while reloading and no rows have loaded yet', () => {
-    const { rerender } = renderTable({ orders: [], loading: true, totalCount: 0 });
+  it('does not flash the empty state while reloading and no rows have loaded yet', async () => {
+    const { rerender } = await renderTable({ orders: [], loading: true, totalCount: 0 });
     expect(screen.queryByText('noOrders')).not.toBeInTheDocument();
     expect(screen.getAllByRole('row')).toHaveLength(1); // header row only
 
@@ -360,8 +367,8 @@ describe('MyOrdersTable', () => {
     expect(screen.getByText('noOrders')).toBeInTheDocument();
   });
 
-  it('keeps rows mounted and dimmed while reloading, showing a spinner only on the active sort column', () => {
-    renderTable({
+  it('keeps rows mounted and dimmed while reloading, showing a spinner only on the active sort column', async () => {
+    await renderTable({
       orders: [buildOrder({ id: 'order-42' })],
       loading: true,
       sortField: 'orderDate',
@@ -381,15 +388,15 @@ describe('MyOrdersTable', () => {
     expect(table.closest('[data-slot="table-container"]')?.parentElement).toHaveClass('opacity-70');
   });
 
-  it('shows only one search-specific empty-state message when active search returns no rows', () => {
-    renderTable({ orders: [], loading: false, totalCount: 0, hasActiveSearch: true });
+  it('shows only one search-specific empty-state message when active search returns no rows', async () => {
+    await renderTable({ orders: [], loading: false, totalCount: 0, hasActiveSearch: true });
 
     expect(screen.getByText('noMatches')).toBeInTheDocument();
     expect(screen.queryByText('noOrders')).not.toBeInTheDocument();
   });
 
-  it('gives the horizontal scroll container trailing padding so the last Action column is never clipped at max scroll', () => {
-    renderTable();
+  it('gives the horizontal scroll container trailing padding so the last Action column is never clipped at max scroll', async () => {
+    await renderTable();
 
     const table = screen.getByRole('table');
     const scrollContainer = table.parentElement as HTMLElement;

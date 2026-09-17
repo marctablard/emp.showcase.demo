@@ -673,11 +673,11 @@ describe('EmporixUserManagementService list/get', () => {
 
   it('uses expanded IAM groups enriched from selected catalog for list labels', async () => {
     const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
-    const group: EmporixGroup = {
+    const group = {
       id: 'g-admin',
       code: 'B2B_ADMIN',
       b2b: { role: 'Admin', legalEntityId: SELECTED_LE },
-    };
+    } satisfies EmporixGroup;
     mockAssignments([assignment(member.id, 'CONTACT', [{ id: group.id, role: 'Admin' }])]);
     mockHydrateByIdQuery([member]);
     iamApi.getGroupUsers.mockResolvedValue({
@@ -2426,7 +2426,13 @@ describe('EmporixUserManagementService create/update/delete', () => {
   });
 
   it('labels custom assignable groups from the localized IAM name for the session language', async () => {
-    sessionService.getCurrent.mockResolvedValue({ legalEntityId: SELECTED_LE, language: 'de' });
+    sessionService.getCurrent.mockResolvedValue({
+      id: 'session-1',
+      currency: 'EUR',
+      siteCode: 'main',
+      legalEntityId: SELECTED_LE,
+      language: 'de',
+    });
     iamApi.getGroups.mockResolvedValue([
       {
         id: GROUP_ADMIN,

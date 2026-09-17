@@ -61,6 +61,8 @@ const CART: Cart = {
   site: 'main',
   items: [{ id: 'item-1' } as Cart['items'][number]],
   totalPrice: { amount: 82.3, currency: 'EUR' },
+  subTotalPrice: { amount: 82.3, currency: 'EUR' },
+  tax: { amount: 0, currency: 'EUR', netValue: 82.3, grossValue: 82.3 },
 };
 
 describe('CartOverview quote dialog', () => {

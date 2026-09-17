@@ -55,4 +55,17 @@ describe('resolvePlpCategoryContext', () => {
     expect(ctx.ribbonCategories).toEqual(roots);
     expect(ctx.sidebarCountCategoryIds).toEqual(['root-leaf', 'parent-1']);
   });
+
+  it('sorts siblings by category position (nonzero ascending, zeros last)', () => {
+    const unordered: Category[] = [
+      { id: 'zero-a', name: { en: 'Zero A' }, position: 0 },
+      { id: 'five', name: { en: 'Five' }, position: 5 },
+      { id: 'one', name: { en: 'One' }, position: 1 },
+      { id: 'zero-b', name: { en: 'Zero B' }, position: 0 },
+      { id: 'three', name: { en: 'Three' }, position: 3 },
+    ];
+
+    const ctx = resolvePlpCategoryContext(unordered, undefined);
+    expect(ctx.currentChildren.map((category) => category.id)).toEqual(['one', 'three', 'five', 'zero-a', 'zero-b']);
+  });
 });

@@ -5,9 +5,17 @@ import { Session, SessionAttribute } from '@/platform/services/model/session/ses
  */
 export interface SessionService {
   /**
-   * Get the current session context
+   * Get the current session context. Resolves `undefined` both when there is no session and when
+   * the session lookup fails (best-effort read for SSR / display paths).
    */
   getCurrent(): Promise<Session | undefined>;
+
+  /**
+   * Get the current session context; `undefined` only when there is no session. A failed lookup
+   * rejects so access-gating callers (e.g. `ProductsModeService`) can fail closed instead of
+   * mistaking an outage for an anonymous visitor.
+   */
+  getCurrentOrThrow(): Promise<Session | undefined>;
 
   /**
    * Get the current session context

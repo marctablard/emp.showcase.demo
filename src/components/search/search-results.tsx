@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useCategoryDisplayLabelIndex } from '@/components/navigation/category-display-label-index-context';
+import { PlpProductsModeSwitch } from '@/components/search/list-view/plp-products-mode-switch';
 import { MobileCategoryDrawer } from '@/components/search/mobile-category-drawer';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
 import { SearchFilter } from '@/components/search/search-filter';
@@ -112,91 +113,106 @@ function usePendingCursor({
   return !loading && pendingUrlSig === urlSig;
 }
 
-export function SearchResultsComponent({
-  initialSearch,
-  initialResults,
-  initialLayout,
-  locale,
-  navigationRoots,
-  headingNode,
-}: SearchClientWrapperProps) {
-  const t = useTranslations('search.searchResults');
-  const tSearch = useTranslations('search');
-  const searchParams = useSearchParams();
-  const navigationLabelIndex = useCategoryDisplayLabelIndex();
-  const layout = initialLayout;
-  // Initialize the search hook with Product type and initial results
-  const {
-    data: products,
-    loading,
-    loadingMore,
-    hasMore,
-    total,
-    facets: availableFilters,
-    availableSorts,
-    batteryIncludedFacets,
-    currentPage,
-    pageSize,
-    currentQuery,
-    currentSort,
-    search,
-    loadMore,
-    changeSort: handleSortChange,
-    applyFacet,
-    applyRangeFacet,
-    applyAllFacets,
-    resetFacet,
-    resetAllFacets,
-    activeFilters,
-    syncBrowseSearchStateFromUrl,
-    error: searchError,
-  } = useSearch<Product>(initialSearch, initialResults);
+type BrowseFilters = ReturnType<typeof extractFiltersFromSearchParams>;
 
-  const baseFacets = useRetainedFacets(batteryIncludedFacets);
+interface BrowseUrlState {
+  /** URL keys that are neither `site`, `locale` nor `currency` (API-only context). */
+  meaningfulKeys: string[];
+  hasBrowseSearchParams: boolean;
+  filtersRecord: BrowseFilters;
+  /** `filtersRecord` or `undefined` when empty — the shape `search()` expects. */
+  filters: BrowseFilters | undefined;
+  query: string;
+  page: number;
+  size: number;
+  sort: string | undefined;
+  urlSig: string;
+}
 
-  const displayFacets = mergeActiveFilterFacetOptions(baseFacets, activeFilters);
-  const appliedFilterCount = getAppliedFilterCount(activeFilters);
+function isApiOnlyBrowseParam(key: string): boolean {
+  return key === 'site' || key === 'locale' || key === 'currency';
+}
 
-  const searchParamsKey = searchParams.toString();
+function firstValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
-  const isApiOnlyBrowseParam = (key: string) => key === 'site' || key === 'locale' || key === 'currency';
-  const meaningfulKeys = Array.from(searchParams.keys()).filter((k) => !isApiOnlyBrowseParam(k));
-  const hasBrowseSearchParams = meaningfulKeys.some(isBrowseUrlSearchParamKey);
+function parseIntegerOr(raw: string | undefined, fallback: number): number {
+  const parsed = raw === undefined ? fallback : Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+/** Reads the browse search state (query, paging, sort, filters) and its signature from the URL. */
+function parseBrowseUrlState(searchParams: URLSearchParams, defaultSize: number): BrowseUrlState {
+  const meaningfulKeys = Array.from(searchParams.keys()).filter((key) => !isApiOnlyBrowseParam(key));
   const raw = urlSearchParamsToNextRecord(searchParams);
   const filtersRecord = extractFiltersFromSearchParams(raw);
+  const filters = Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined;
+  const query = firstValue(raw.q) ?? '';
+  const page = parseIntegerOr(firstValue(raw.page), 0);
+  const size = parseIntegerOr(firstValue(raw.size), defaultSize);
+  const sort = firstValue(raw.sort);
 
-  const qVal = raw.q;
-  const query = (Array.isArray(qVal) ? qVal[0] : qVal) ?? '';
-  const pageRaw = raw.page;
-  const page = pageRaw !== undefined ? parseInt(Array.isArray(pageRaw) ? pageRaw[0] : pageRaw, 10) : 0;
-  const sizeRaw = raw.size;
-  const defaultSize = initialSearch?.size ?? BROWSE_DEFAULT_PAGE_SIZE;
-  const parsedSize = sizeRaw !== undefined ? parseInt(Array.isArray(sizeRaw) ? sizeRaw[0] : sizeRaw, 10) : defaultSize;
-  const size = Number.isFinite(parsedSize) ? parsedSize : defaultSize;
-  const sortRaw = raw.sort;
-  const sort = sortRaw !== undefined ? (Array.isArray(sortRaw) ? sortRaw[0] : sortRaw) : undefined;
-  const urlSig = browseSearchStateSignature({
+  return {
+    meaningfulKeys,
+    hasBrowseSearchParams: meaningfulKeys.some(isBrowseUrlSearchParamKey),
+    filtersRecord,
+    filters,
     query,
-    page: Number.isFinite(page) ? page : 0,
+    page,
     size,
     sort,
-    filters: Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined,
-  });
-  const currentSearchSig = browseSearchStateSignature({
-    query: currentQuery ?? '',
-    page: currentPage,
-    size: pageSize,
-    sort: currentSort,
-    filters: Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
-  });
+    urlSig: browseSearchStateSignature({ query, page, size, sort, filters }),
+  };
+}
 
-  const pendingCursor = usePendingCursor({
-    searchParamsKey,
-    hasBrowseSearchParams,
-    loading,
-    urlSig,
-    currentSearchSig,
+type SearchState = ReturnType<typeof useSearch<Product>>;
+
+function buildCurrentSearchSignature(state: SearchState): string {
+  return browseSearchStateSignature({
+    query: state.currentQuery ?? '',
+    page: state.currentPage,
+    size: state.pageSize,
+    sort: state.currentSort,
+    filters: Object.keys(state.activeFilters).length > 0 ? state.activeFilters : undefined,
   });
+}
+
+function buildInitialSearchSignature(initialSearch: SearchParams<Product> | undefined): string {
+  return browseSearchStateSignature({
+    query: initialSearch?.query ?? '',
+    page: initialSearch?.page ?? 0,
+    size: initialSearch?.size ?? BROWSE_DEFAULT_PAGE_SIZE,
+    sort: initialSearch?.sort,
+    filters: initialSearch?.filters,
+  });
+}
+
+interface UseBrowseUrlSyncInput {
+  searchParamsKey: string;
+  urlState: BrowseUrlState;
+  currentSearchSig: string;
+  initialSearch: SearchParams<Product> | undefined;
+  initialResults: SearchResult<Product> | undefined;
+  search: SearchState['search'];
+  syncBrowseSearchStateFromUrl: SearchState['syncBrowseSearchStateFromUrl'];
+}
+
+/**
+ * Keeps the search hook in step with the browse URL: releases the navigation wait cursor once the
+ * hook state matches the URL, and on URL changes either adopts the SSR state, skips a duplicate
+ * request, or runs the client search.
+ */
+function useBrowseUrlSync({
+  searchParamsKey,
+  urlState,
+  currentSearchSig,
+  initialSearch,
+  initialResults,
+  search,
+  syncBrowseSearchStateFromUrl,
+}: UseBrowseUrlSyncInput): void {
+  const { meaningfulKeys, filtersRecord, filters, query, page, size, sort, urlSig } = urlState;
 
   useLayoutEffect(() => {
     if (currentSearchSig !== urlSig) {
@@ -206,53 +222,6 @@ export function SearchResultsComponent({
     releaseNavigationWaitCursorLease({ targetSignature: urlSig });
   }, [currentSearchSig, urlSig]);
 
-  const rootCategories = navigationRoots ?? [];
-  const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);
-  const plpCategoryContext = navigationRoots
-    ? resolvePlpCategoryContext(navigationRoots, selectedCategoryId)
-    : undefined;
-  const showDesktopSearchFilter = !plpCategoryContext || layout !== 'list';
-  const showStandaloneActiveFilters = !plpCategoryContext || layout !== 'list';
-
-  const plpFacetPanelProps = {
-    facets: displayFacets,
-    activeFilters,
-    applyFacet,
-    applyRangeFacet,
-    resetFacet,
-    resetAllFacets,
-    categoryFilterLabelsById: navigationLabelIndex,
-    appliedFilterCount,
-  };
-
-  const searchSortProps = {
-    availableSorts,
-    currentSort,
-    changeSort: handleSortChange,
-  };
-
-  // Shared props for SearchFilter component (used in both mobile and desktop layouts)
-  const searchFilterProps = {
-    activeFilters,
-    availableFilters,
-    resetFacet,
-    resetAllFacets,
-    applyFacet,
-    applyRangeFacet,
-    applyAllFacets,
-    appliedFilterCount,
-  };
-
-  // Shared props for ActiveFiltersWithReset component
-  const activeFiltersProps = {
-    activeFilters,
-    resetFacet,
-    resetAllFacets,
-    resetLabel: t('resetFilter'),
-    categoryFilterLabelsById: navigationLabelIndex,
-    batteryIncludedFacets: displayFacets,
-  };
-
   useEffect(() => {
     const hasSearchParams = meaningfulKeys.some(isBrowseUrlSearchParamKey);
     // Ignore tracking params etc.; still run when URL only had site/locale (legacy bad URLs from old client sync).
@@ -260,25 +229,11 @@ export function SearchResultsComponent({
       return;
     }
 
-    const initSig = browseSearchStateSignature({
-      query: initialSearch?.query ?? '',
-      page: initialSearch?.page ?? 0,
-      size: initialSearch?.size ?? BROWSE_DEFAULT_PAGE_SIZE,
-      sort: initialSearch?.sort,
-      filters: initialSearch?.filters,
-    });
-
     // Avoid duplicate /api/search whenever the URL still matches SSR criteria (including total === 0).
     // Previously we only skipped on the first effect run; `useSearchParams()` can re-subscribe and re-run
     // this effect without the query string changing, which caused many redundant fetches on /browse.
-    if (initialResults !== undefined && urlSig === initSig) {
-      syncBrowseSearchStateFromUrl({
-        query,
-        page: Number.isFinite(page) ? page : 0,
-        size,
-        sort,
-        filtersRecord,
-      });
+    if (initialResults !== undefined && urlSig === buildInitialSearchSignature(initialSearch)) {
+      syncBrowseSearchStateFromUrl({ query, page, size, sort, filtersRecord });
       return;
     }
 
@@ -289,26 +244,70 @@ export function SearchResultsComponent({
     // SSR-off / failed SSR: the skips above do not apply. This search() is the first client fetch of
     // this hook instance. search() joins in-flight and skips a just-completed same key — do not add a
     // "run only once" ref (that missed later URL changes).
-    search({
-      query,
-      page: Number.isFinite(page) ? page : 0,
-      size,
-      sort,
-      filters: Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined,
-    });
+    search({ query, page, size, sort, filters });
     // Depend on searchParamsKey so we do not re-run when ReadonlyURLSearchParams identity changes without query updates.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- searchParams is read from the latest render whenever searchParamsKey changes
   }, [searchParamsKey, search, initialResults, initialSearch, syncBrowseSearchStateFromUrl]);
+}
 
-  // When the desktop filter row would have no content (PLP list view), hide the whole
-  // wrapper above 1024px so it does not produce an empty flex item with a gap.
-  const hideTopControlsOnDesktop = !showDesktopSearchFilter && !showStandaloneActiveFilters;
+function SearchErrorAlert({ error }: Readonly<{ error: SearchState['error'] }>) {
+  const tSearch = useTranslations('search');
 
-  const topControlsNode = (
-    <div className={cn('w-full', hideTopControlsOnDesktop && 'min-[1024px]:hidden')}>
+  if (!error) {
+    return null;
+  }
+
+  return (
+    <Alert variant="destructive" className="mb-4">
+      <AlertDescription>
+        {error === USE_SEARCH_CLIENT_ERROR.MISSING_SITE ? tSearch('errors.missingSite') : tSearch('errors.generic')}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+interface SearchTopControlsProps {
+  layout: SearchResultsLayout;
+  /** When the desktop filter row would have no content (PLP list view), hide the whole wrapper above 1024px. */
+  hideOnDesktop: boolean;
+  showDesktopSearchFilter: boolean;
+  showStandaloneActiveFilters: boolean;
+  plpCategoryContext: ReturnType<typeof resolvePlpCategoryContext> | undefined;
+  locale: string;
+  total: number;
+  plpFacetPanelProps: Omit<
+    React.ComponentProps<typeof MobileCategoryDrawer>,
+    'plpCategoryContext' | 'locale' | 'total' | 'navigationRoots' | 'selectedCategoryId'
+  >;
+  searchFilterProps: React.ComponentProps<typeof SearchFilter>;
+  searchSortProps: React.ComponentProps<typeof SearchSort>;
+  activeFiltersProps: React.ComponentProps<typeof SearchActiveFiltersWithReset> & { resetLabel: string };
+}
+
+/** Filter / sort / active-filter toolbar shared by the list and grid layouts. */
+function SearchTopControls({
+  layout,
+  hideOnDesktop,
+  showDesktopSearchFilter,
+  showStandaloneActiveFilters,
+  plpCategoryContext,
+  locale,
+  total,
+  plpFacetPanelProps,
+  searchFilterProps,
+  searchSortProps,
+  activeFiltersProps,
+}: Readonly<SearchTopControlsProps>) {
+  return (
+    <div className={cn('w-full', hideOnDesktop && 'min-[1024px]:hidden')}>
       {/* Row: SearchFilter controls on mobile and desktop. */}
       {/* Search Layout Top Bar */}
       <div className="flex w-full flex-col gap-4 lg:justify-between">
+        {/* COP-4822 CR-1: the grid layout has no category tree card, so the ASSIGNED / ALL switch gets its own row
+            above the Filter + Sort toolbar (single mount for every breakpoint). The list layout mounts it in the
+            "Categories" card header and the mobile category drawer instead. */}
+        {layout === 'grid' ? <PlpProductsModeSwitch /> : null}
+
         {/* Mobile / Tablet Filter + Sort */}
         <div className="flex w-full items-center gap-3 min-[1024px]:hidden">
           {plpCategoryContext ? (
@@ -349,22 +348,182 @@ export function SearchResultsComponent({
       ) : null}
     </div>
   );
+}
+
+interface SearchResultsGridLayoutProps extends React.ComponentProps<typeof SearchResultsGrid> {
+  headingNode: React.ReactNode;
+  topControlsNode: React.ReactNode;
+  hasMore: boolean;
+  loadingMore: boolean;
+  loadMore: () => void | Promise<void>;
+}
+
+/** Grid layout: heading, toolbar, product grid and the "load more" button. */
+function SearchResultsGridLayout({
+  headingNode,
+  topControlsNode,
+  hasMore,
+  loadingMore,
+  loadMore,
+  ...gridProps
+}: Readonly<SearchResultsGridLayoutProps>) {
+  const t = useTranslations('search.searchResults');
+
+  return (
+    <div className="flex flex-col gap-6">
+      {headingNode}
+      {topControlsNode}
+      <SearchResultsGrid {...gridProps} />
+      {hasMore ? (
+        <div className="flex justify-center mt-8">
+          <Button variant="secondary" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? t('loadingMore') : t('loadMore')}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function SearchResultsComponent({
+  initialSearch,
+  initialResults,
+  initialLayout,
+  locale,
+  navigationRoots,
+  headingNode,
+}: Readonly<SearchClientWrapperProps>) {
+  const t = useTranslations('search.searchResults');
+  const searchParams = useSearchParams();
+  const navigationLabelIndex = useCategoryDisplayLabelIndex();
+  const layout = initialLayout;
+  // Initialize the search hook with Product type and initial results
+  const searchState = useSearch<Product>(initialSearch, initialResults);
+  const {
+    data: products,
+    loading,
+    loadingMore,
+    hasMore,
+    total,
+    facets: availableFilters,
+    availableSorts,
+    batteryIncludedFacets,
+    currentPage,
+    pageSize,
+    currentSort,
+    search,
+    loadMore,
+    changeSort: handleSortChange,
+    applyFacet,
+    applyRangeFacet,
+    applyAllFacets,
+    resetFacet,
+    resetAllFacets,
+    activeFilters,
+    syncBrowseSearchStateFromUrl,
+    error: searchError,
+  } = searchState;
+
+  const baseFacets = useRetainedFacets(batteryIncludedFacets);
+
+  const displayFacets = mergeActiveFilterFacetOptions(baseFacets, activeFilters);
+  const appliedFilterCount = getAppliedFilterCount(activeFilters);
+
+  const searchParamsKey = searchParams.toString();
+  const urlState = parseBrowseUrlState(searchParams, initialSearch?.size ?? BROWSE_DEFAULT_PAGE_SIZE);
+  const { hasBrowseSearchParams, query, urlSig } = urlState;
+  const currentSearchSig = buildCurrentSearchSignature(searchState);
+
+  const pendingCursor = usePendingCursor({
+    searchParamsKey,
+    hasBrowseSearchParams,
+    loading,
+    urlSig,
+    currentSearchSig,
+  });
+
+  useBrowseUrlSync({
+    searchParamsKey,
+    urlState,
+    currentSearchSig,
+    initialSearch,
+    initialResults,
+    search,
+    syncBrowseSearchStateFromUrl,
+  });
+
+  const rootCategories = navigationRoots ?? [];
+  const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);
+  const plpCategoryContext = navigationRoots
+    ? resolvePlpCategoryContext(navigationRoots, selectedCategoryId)
+    : undefined;
+  // The PLP list view owns its own filter/sort chrome (category tree, facet panel, sort in the grid header).
+  const usesPlpListChrome = plpCategoryContext !== undefined && layout === 'list';
+  const showDesktopSearchFilter = !usesPlpListChrome;
+  const showStandaloneActiveFilters = !usesPlpListChrome;
+
+  const plpFacetPanelProps = {
+    facets: displayFacets,
+    activeFilters,
+    applyFacet,
+    applyRangeFacet,
+    resetFacet,
+    resetAllFacets,
+    categoryFilterLabelsById: navigationLabelIndex,
+    appliedFilterCount,
+  };
+
+  const searchSortProps = {
+    availableSorts,
+    currentSort,
+    changeSort: handleSortChange,
+  };
+
+  // Shared props for SearchFilter component (used in both mobile and desktop layouts)
+  const searchFilterProps = {
+    activeFilters,
+    availableFilters,
+    resetFacet,
+    resetAllFacets,
+    applyFacet,
+    applyRangeFacet,
+    applyAllFacets,
+    appliedFilterCount,
+  };
+
+  // Shared props for ActiveFiltersWithReset component
+  const activeFiltersProps = {
+    activeFilters,
+    resetFacet,
+    resetAllFacets,
+    resetLabel: t('resetFilter'),
+    categoryFilterLabelsById: navigationLabelIndex,
+    batteryIncludedFacets: displayFacets,
+  };
+
+  const topControlsNode = (
+    <SearchTopControls
+      layout={layout}
+      hideOnDesktop={usesPlpListChrome}
+      showDesktopSearchFilter={showDesktopSearchFilter}
+      showStandaloneActiveFilters={showStandaloneActiveFilters}
+      plpCategoryContext={plpCategoryContext}
+      locale={locale}
+      total={total}
+      plpFacetPanelProps={plpFacetPanelProps}
+      searchFilterProps={searchFilterProps}
+      searchSortProps={searchSortProps}
+      activeFiltersProps={activeFiltersProps}
+    />
+  );
 
   return (
     <>
-      {searchError ? (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>
-            {searchError === USE_SEARCH_CLIENT_ERROR.MISSING_SITE
-              ? tSearch('errors.missingSite')
-              : tSearch('errors.generic')}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <SearchErrorAlert error={searchError} />
 
       {/* Main product view area takes the full width and handles its own layout, receiving topControls */}
       <div className="w-full">
-        {layout === 'list' && (
+        {layout === 'list' ? (
           <SearchResultsList
             products={products}
             locale={locale}
@@ -390,29 +549,21 @@ export function SearchResultsComponent({
             topControlsNode={topControlsNode}
             searchQuery={query}
           />
-        )}
-
-        {layout === 'grid' && (
-          <div className="flex flex-col gap-6">
-            {headingNode}
-            {topControlsNode}
-            <SearchResultsGrid
-              products={products}
-              locale={locale}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              total={total}
-              loading={loading}
-              pendingCursor={pendingCursor}
-            />
-            {hasMore ? (
-              <div className="flex justify-center mt-8">
-                <Button variant="secondary" onClick={loadMore} disabled={loadingMore}>
-                  {loadingMore ? t('loadingMore') : t('loadMore')}
-                </Button>
-              </div>
-            ) : null}
-          </div>
+        ) : (
+          <SearchResultsGridLayout
+            headingNode={headingNode}
+            topControlsNode={topControlsNode}
+            products={products}
+            locale={locale}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            total={total}
+            loading={loading}
+            pendingCursor={pendingCursor}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            loadMore={loadMore}
+          />
         )}
       </div>
     </>

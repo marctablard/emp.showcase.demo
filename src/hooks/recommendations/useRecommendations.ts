@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useShopContextReady } from '@/hooks/common/useShopContextReady';
 import { useSession } from '@/hooks/session/useSession';
 import { fetchRecommendations } from '@/lib/client/recommendations';
@@ -6,6 +7,7 @@ import type { ProductRecommendations } from '@/platform/services/model/product';
 
 export function useRecommendations(productId?: string) {
   const { session } = useSession();
+  const clientDedupeScope = useClientFetchScope(session?.currency);
   const { ready: shopContextReady } = useShopContextReady();
   const [recommendations, setRecommendations] = useState<ProductRecommendations | undefined>(undefined);
   const [fetchLoading, setFetchLoading] = useState(false);
@@ -27,7 +29,7 @@ export function useRecommendations(productId?: string) {
       setFetchLoading(true);
       setError(null);
 
-      fetchRecommendations(productId)
+      fetchRecommendations(productId, clientDedupeScope)
         .then((result) => {
           if (!isCancelled) setRecommendations(result);
         })
@@ -45,7 +47,7 @@ export function useRecommendations(productId?: string) {
       isCancelled = true;
       setFetchLoading(false);
     };
-  }, [productId, shopContextReady, session?.currency, session?.siteCode]);
+  }, [productId, shopContextReady, session?.currency, session?.siteCode, clientDedupeScope]);
 
   const hasProduct = Boolean(productId);
   const waitingForShopContext = hasProduct && !shopContextReady;

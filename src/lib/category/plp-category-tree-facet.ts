@@ -4,7 +4,7 @@ import {
   getBatteryIncludedCategoryMetadata,
 } from '@/platform/services/model/category/batteryincluded-category';
 import type { BatteryIncludedFacet } from '@/platform/services/model/common';
-import { walkCategoryTree } from './category-tree-utils';
+import { compareByPosition, walkCategoryTree } from './category-tree-utils';
 import type { PlpBreadcrumbRow, PlpCategoryContext } from './plp-category-context';
 
 type PlpCategoryTreeFacet = Extract<BatteryIncludedFacet, { kind: 'tree' }>;
@@ -107,8 +107,19 @@ function buildTreeNodes(options: readonly NormalizedFacetOption[], staticCategor
   };
 
   rootNodes.forEach(finalizeCounts);
+  sortTreeNodesByCategoryPosition(rootNodes);
 
   return { rootNodes, nodeById, countsById };
+}
+
+/**
+ * Reorder live facet siblings with the nav-tree rule: defined non-zero `position`
+ * ascending, `position === 0` after those, missing `position` last. BatteryIncluded
+ * facet options typically arrive count-descending; that must not drive the PLP tree.
+ */
+function sortTreeNodesByCategoryPosition(nodes: TreeNode[]): void {
+  nodes.sort((a, b) => compareByPosition(a.staticCategory ?? {}, b.staticCategory ?? {}));
+  nodes.forEach((node) => sortTreeNodesByCategoryPosition(node.children));
 }
 
 function toCategory(node: TreeNode, locale: string): Category {

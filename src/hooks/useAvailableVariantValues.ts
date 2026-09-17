@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { fetchProductVariants } from '@/lib/client/products';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { LocalizedString } from '@/platform/services/model/common';
@@ -27,6 +28,7 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getVariants, setVariants } = useProductStore();
+  const clientDedupeScope = useClientFetchScope();
 
   useEffect(() => {
     const fetchAvailableValues = async () => {
@@ -54,11 +56,12 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
       setError(null);
 
       try {
-        // Check store cache before making a network call
-        let variants = getVariants(parentId);
+        const variantsCacheKey = `${parentId}:${clientDedupeScope}`;
+        // Check store cache before making a network call (keyed by parent + mode/customer scope)
+        let variants = getVariants(variantsCacheKey);
         if (!variants) {
-          variants = await fetchProductVariants(parentId);
-          setVariants(parentId, variants);
+          variants = await fetchProductVariants(parentId, clientDedupeScope);
+          setVariants(variantsCacheKey, variants);
         }
 
         const availableValues = new Set<string>();
@@ -107,7 +110,7 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
     };
 
     fetchAvailableValues();
-  }, [product, attributeKey, getVariants, setVariants]);
+  }, [product, attributeKey, getVariants, setVariants, clientDedupeScope]);
 
   return { values, loading, error };
 }

@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { act, render, screen, waitFor } from '@testing-library/react';
+import { type ProductsModeContextValue, ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
 import { resetInFlightSearchRequests } from '@/lib/client/search';
 import type { Product } from '@/platform/services/model/product';
@@ -71,6 +72,10 @@ jest.mock('@/providers/StoreProvider', () => ({
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
   getLogger: () => ({ warn: jest.fn(), error: jest.fn() }),
+}));
+
+jest.mock('@/lib/client/customer-segment', () => ({
+  setProductsMode: jest.fn(),
 }));
 
 jest.mock('@/hooks/site/useSiteCode', () => ({
@@ -604,6 +609,62 @@ describe('SearchResultsComponent', () => {
       products: [existingProduct],
     });
     expect(screen.queryByTestId('product-tile-skeleton')).not.toBeInTheDocument();
+  });
+
+  describe('products mode switch in the grid layout (COP-4822 CR-1)', () => {
+    const segmented = (canToggleAllProducts: boolean): ProductsModeContextValue => ({
+      mode: 'assigned',
+      isSegmented: true,
+      canToggleAllProducts,
+    });
+
+    const renderWithMode = (layout: 'grid' | 'list', value: ProductsModeContextValue) =>
+      render(
+        <ProductsModeProvider value={value}>
+          <SearchResultsComponent locale="en" initialLayout={layout} />
+        </ProductsModeProvider>,
+      );
+
+    it('mounts the switch once above the Filter + Sort toolbar when the toggle is available', () => {
+      renderWithMode('grid', segmented(true));
+
+      const switches = screen.getAllByTestId('plp-productsModeSwitch');
+      expect(switches).toHaveLength(1);
+
+      const control = switches[0];
+      const [firstFilter] = screen.getAllByTestId('SearchFilter');
+      const [firstSort] = screen.getAllByTestId('SearchSort');
+      const grid = screen.getByTestId('SearchResultsGrid');
+
+      expect(control).toHaveAttribute('role', 'radiogroup');
+      expect(screen.getByTestId('plp-productsModeAssigned')).toBeChecked();
+      expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProductsShort');
+      expect(screen.getByRole('radio', { name: 'allProductsShort' })).toBeInTheDocument();
+      expect(grid).not.toContainElement(control);
+      expect(control.compareDocumentPosition(firstFilter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(control.compareDocumentPosition(firstSort) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(control.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('does not mount the switch in the grid layout when the toggle is not available', () => {
+      renderWithMode('grid', segmented(false));
+
+      expect(screen.getByTestId('SearchResultsGrid')).toBeInTheDocument();
+      expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+    });
+
+    it('does not mount the switch in the grid layout for an anonymous products mode context', () => {
+      render(<SearchResultsComponent locale="en" initialLayout="grid" />);
+
+      expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+    });
+
+    it('leaves the list layout to the category tree header (no toolbar switch)', () => {
+      renderWithMode('list', segmented(true));
+
+      expect(screen.getByTestId('SearchResultsList')).toBeInTheDocument();
+      expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+    });
   });
 
   it('passes existing products to the grid while a refinement search is loading', () => {

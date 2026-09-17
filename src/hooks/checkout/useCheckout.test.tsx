@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { checkout } from '@/lib/client/checkout';
 import type { CheckoutAddress } from '@/platform/services/model/checkout';
+import type { ShippingMethod } from '@/platform/services/model/shipping';
 import { checkoutAddressToCartShipping, hasCheckoutShippingDestination, useCheckout } from './useCheckout';
 
 const mockUseCheckoutStore = jest.fn();
@@ -104,7 +105,7 @@ const buildCheckoutAddress = (type: 'SHIPPING' | 'BILLING', country: string, zip
 });
 
 const buildShippingMethodsValue = (overrides: {
-  methods: Array<{ id: string; name?: string; cost?: { amount: number } }>;
+  methods: Array<{ id: string; name?: string; zoneId?: string; cost?: { amount: number; currency?: string } }>;
   clearShippingMethods: jest.Mock;
   fetchShippingMethods: jest.Mock;
 }) => ({
@@ -549,6 +550,8 @@ describe('useCheckout', () => {
     expect(
       checkoutAddressToCartShipping({
         type: 'SHIPPING',
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
         country: ' ch ',
         zipCode: ' 6300 ',
         city: 'Zug',
@@ -563,6 +566,9 @@ describe('useCheckout', () => {
     expect(
       checkoutAddressToCartShipping({
         type: 'SHIPPING',
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
+        city: 'Zug',
         country: '   ',
         zipCode: '   ',
       }),
@@ -607,7 +613,12 @@ describe('useCheckout', () => {
   it('stores a newly selected shipping method without persisting it on the cart', () => {
     const updateShippingMethod = jest.fn();
     const setShippingMethod = jest.fn();
-    const selected = { id: 'new-shipping-7', name: 'New Shipping 7%', zoneId: 'zone-de', cost: { amount: 20 } };
+    const selected: ShippingMethod = {
+      id: 'new-shipping-7',
+      name: 'New Shipping 7%',
+      zoneId: 'zone-de',
+      cost: { amount: 20, currency: 'EUR' },
+    };
 
     mockUseCheckoutStore.mockReturnValue(
       buildCheckoutStoreValue({
@@ -670,7 +681,7 @@ describe('useCheckout', () => {
         id: 'de-standard',
         name: 'DE Standard',
         zoneId: 'zone-de',
-        cost: { amount: 5 },
+        cost: { amount: 5, currency: 'EUR' },
       });
     });
 

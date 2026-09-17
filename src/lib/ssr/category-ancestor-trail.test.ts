@@ -1,3 +1,6 @@
+// Module scope: `loadModule` is also declared by sibling SSR test files.
+export {};
+
 async function loadModule() {
   jest.resetModules();
 

@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronRight, MapPin } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { LocationSettingsDialog } from '@/components/header/mobile/location-settings-dialog';
 import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import type { SubMenuItem } from '@/data/navigation-menu';
 import { ALL_PRODUCTS_NAVIGATION_ITEM_ID, navigationMenuItems, serviceMenuItems } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
@@ -33,12 +34,15 @@ interface MobileDrillLevel {
 export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
   const t = useTranslations('layout.header');
   const { submenuItems: productCategorySubmenu, showSeeAllBrowse } = useNavigationProductSubmenu();
+  const { isSegmented } = useProductsMode();
 
   const menuItems = navigationMenuItems.map((item) => {
     const merged = mergeNavigationProductSubmenu(item, productCategorySubmenu);
+    // COP-4822 AC1: segmented customers see "Assigned Products" as the top-level label.
+    const isAssignedProductsItem = item.id === ALL_PRODUCTS_NAVIGATION_ITEM_ID && isSegmented;
     return {
       ...merged,
-      label: t(item.labelKey as any),
+      label: isAssignedProductsItem ? t('assignedProducts') : t(item.labelKey as any),
     };
   });
 
@@ -111,44 +115,55 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
   const currentItems = currentLevel?.items ?? [];
   const showMobileProductsSeeAll = currentLevel?.rootViewId === ALL_PRODUCTS_NAVIGATION_ITEM_ID && showSeeAllBrowse;
 
+  const renderMainMenuItem = (item: (typeof mainItems)[number]) => {
+    if (item.href && !item.hasSubmenu) {
+      return (
+        <>
+          <Link
+            href={item.href}
+            onClick={() => onClose?.()}
+            className="flex items-center justify-between px-5 py-4 text-lg"
+          >
+            {item.label}
+          </Link>
+          <hr className="mx-5 border-border-subtle" />
+        </>
+      );
+    }
+
+    if (item.hasSubmenu) {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => openTopLevel(item)}
+            className="w-full flex items-center justify-between px-5 py-4 text-lg cursor-pointer"
+            aria-label={t('openSubcategoriesFor', { name: item.label })}
+            data-testid={item.id === ALL_PRODUCTS_NAVIGATION_ITEM_ID ? 'headerMobile-allProductsMenu' : undefined}
+          >
+            {item.label}
+            <ChevronRight className="w-5 h-5 ms-1 shrink-0" aria-hidden />
+          </button>
+          <hr className="mx-5 border-border-subtle" />
+        </>
+      );
+    }
+
+    return (
+      <Link
+        href={item.href || '#'}
+        onClick={() => onClose?.()}
+        className="flex items-center justify-between px-5 py-4 text-lg"
+      >
+        {item.label}
+      </Link>
+    );
+  };
+
   const renderMainMenuItems = () => (
     <ul>
       {mainItems.map((item, index) => (
-        <li key={item.id || index}>
-          {item.href && !item.hasSubmenu ? (
-            <>
-              <Link
-                href={item.href}
-                onClick={() => onClose?.()}
-                className="flex items-center justify-between px-5 py-4 text-lg"
-              >
-                {item.label}
-              </Link>
-              <hr className="mx-5 border-border-subtle" />
-            </>
-          ) : item.hasSubmenu ? (
-            <>
-              <button
-                type="button"
-                onClick={() => openTopLevel(item)}
-                className="w-full flex items-center justify-between px-5 py-4 text-lg cursor-pointer"
-                aria-label={t('openSubcategoriesFor', { name: item.label })}
-              >
-                {item.label}
-                <ChevronRight className="w-5 h-5 ms-1 shrink-0" aria-hidden />
-              </button>
-              <hr className="mx-5 border-border-subtle" />
-            </>
-          ) : (
-            <Link
-              href={item.href || '#'}
-              onClick={() => onClose?.()}
-              className="flex items-center justify-between px-5 py-4 text-lg"
-            >
-              {item.label}
-            </Link>
-          )}
-        </li>
+        <li key={item.id || index}>{renderMainMenuItem(item)}</li>
       ))}
     </ul>
   );

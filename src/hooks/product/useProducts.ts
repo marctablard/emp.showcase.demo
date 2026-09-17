@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useLogger } from '@/hooks/common/useLogger';
 import { fetchProductById } from '@/lib/client/products';
 import type { Product } from '@/platform/services/model/product';
@@ -13,9 +14,45 @@ interface UseProductsResult {
   setAsCurrent: (index: number) => void;
 }
 
+/**
+ * Builds the hook result after a fetch pass. A confirmed miss (id was requested and
+ * not returned) is never filled from the id-keyed product store — that store is not
+ * scoped by customer/mode (COP-4822).
+ */
+export function mergeProductFetchResults(
+  productIds: Product['id'][],
+  fetched: readonly (Product | null)[],
+  getCached: (id: string) => Product | null | undefined,
+  requestedIds: ReadonlySet<string>,
+): Product[] {
+  const fetchedById = new Map<string, Product>();
+  for (const product of fetched) {
+    if (product) {
+      fetchedById.set(product.id, product);
+    }
+  }
+  const merged: Product[] = [];
+  for (const id of productIds) {
+    const hit = fetchedById.get(id);
+    if (hit) {
+      merged.push(hit);
+      continue;
+    }
+    if (requestedIds.has(id)) {
+      continue;
+    }
+    const cached = getCached(id);
+    if (cached) {
+      merged.push(cached);
+    }
+  }
+  return merged;
+}
+
 export function useProducts(productIds: Product['id'][] = [], fetchOptions?: ProductFetchOptions): UseProductsResult {
   const logger = useLogger();
-  const { getProduct, addProducts, cacheGeneration } = useProductStore();
+  const clientDedupeScope = useClientFetchScope();
+  const { getProduct, addProduct, addProducts, cacheGeneration } = useProductStore();
   const fetchOptionsKey = JSON.stringify({
     variants: fetchOptions?.variants ?? false,
     categories: fetchOptions?.categories ?? false,
@@ -44,8 +81,15 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
   const [error, setError] = useState<Error | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
 
+  // Monotonic fetch generation (COP-4822): a pass that resolves after a newer pass started
+  // (products-mode / customer scope change, id-list change, refetch) is discarded — neither the
+  // unscoped id-keyed store nor the returned list may be filled from a superseded scope.
+  const fetchGeneration = useRef(0);
+
   const fetchProducts = useCallback(
     async (forceRefresh = false) => {
+      const generation = ++fetchGeneration.current;
+      const isStale = () => generation !== fetchGeneration.current;
       setLoading(true);
       setError(null);
       try {
@@ -91,7 +135,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
           uniqueIdsToFetch.map(async (id) => {
             if (!id) return null;
             try {
-              const fetched = await fetchProductById(id, fetchOptionsRef.current);
+              const fetched = await fetchProductById(id, fetchOptionsRef.current, clientDedupeScope);
               return fetched;
             } catch (_err) {
               logger.error(
@@ -103,37 +147,54 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
           }),
         );
 
+        if (isStale()) {
+          return;
+        }
+
         // Add all fetched products to the store
         const validFetched = fetchedProducts.filter(Boolean) as Product[];
         if (validFetched.length > 0) {
           addProducts(validFetched);
         }
+        for (const id of uniqueIdsToFetch) {
+          if (id && !validFetched.some((product) => product.id === id)) {
+            addProduct(id);
+          }
+        }
 
-        // Return products in the same order as productIds
-        const allProducts = productIds
-          .map((id) => getProduct(id) || validFetched.find((p) => p.id === id))
-          .filter(Boolean) as Product[];
-
-        setProducts(allProducts);
+        setProducts(mergeProductFetchResults(productIds, fetchedProducts, getProduct, new Set(uniqueIdsToFetch)));
       } catch (err) {
-        setError(err as Error);
+        if (!isStale()) {
+          setError(err as Error);
+        }
       } finally {
-        setLoading(false);
+        // The newest pass owns `loading`; a superseded one must not clear it early.
+        if (!isStale()) {
+          setLoading(false);
+        }
       }
     },
-    [productIds, getProduct, addProducts, logger],
+    [productIds, getProduct, addProduct, addProducts, logger, clientDedupeScope],
   );
 
   const prevCacheGenRef = useRef(cacheGeneration);
+  // `null` until the first effect: a new hook instance must not reuse id-keyed ProductStore
+  // entries from another customer/mode/site (COP-4822 CompareView / assigned first mount).
+  const prevClientDedupeScopeRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (productIds && productIds.length > 0) {
       const generationChanged = prevCacheGenRef.current !== cacheGeneration;
+      const scopeChanged = prevClientDedupeScopeRef.current !== clientDedupeScope;
       prevCacheGenRef.current = cacheGeneration;
-      fetchProducts(generationChanged);
+      prevClientDedupeScopeRef.current = clientDedupeScope;
+      if (scopeChanged) {
+        setProducts([]);
+      }
+      fetchProducts(generationChanged || scopeChanged);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productIds.join(','), cacheGeneration, fetchOptionsKey]);
+  }, [productIds.join(','), cacheGeneration, fetchOptionsKey, clientDedupeScope]);
 
   const refetch = useCallback(() => fetchProducts(true), [fetchProducts]);
 

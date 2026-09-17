@@ -3,7 +3,8 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import { type ProductsModeContextValue, ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { PlpCategoryTree } from './plp-category-tree';
 
@@ -13,6 +14,11 @@ jest.mock('next-intl', () => ({
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),
+}));
+
+jest.mock('@/lib/client/customer-segment', () => ({
+  setProductsMode: jest.fn(),
 }));
 
 // Provide minimal mock for next/image if necessary, or other components
@@ -135,5 +141,75 @@ describe('PlpCategoryTree', () => {
 
     // Children
     expect(screen.getByText('Root 1')).toBeInTheDocument();
+  });
+
+  describe('products mode (COP-4822)', () => {
+    const renderWithMode = (mode: ProductsModeContextValue, isNested?: boolean) =>
+      render(
+        <ProductsModeProvider value={mode}>
+          <PlpCategoryTree
+            plpCategoryContext={mockNoFilterContext}
+            locale="en"
+            total={999}
+            categoryCountsById={{ 'root-1': 12 }}
+            isNested={isNested}
+          />
+        </ProductsModeProvider>,
+      );
+
+    it('renders the products mode switch in the card header when the toggle is available', () => {
+      renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: true });
+
+      const heading = screen.getByRole('heading', { level: 5, name: 'title' });
+      const header = heading.parentElement as HTMLElement;
+      const control = screen.getByTestId('plp-productsModeSwitch');
+
+      expect(header).toHaveAttribute('data-slot', 'card-header');
+      // Wraps the switch group onto its own row in the 274px sidebar instead of overflowing the card.
+      expect(header).toHaveClass('flex', 'flex-nowrap', 'items-center', 'justify-between', 'gap-x-2');
+      expect(header).not.toHaveClass('gap-4');
+      expect(header.firstElementChild).toBe(heading);
+      expect(header).toContainElement(control);
+      expect(header).toContainElement(screen.getByTestId('plp-productsModeLabel'));
+      expect(control).toHaveAttribute('role', 'radiogroup');
+      expect(screen.getByTestId('plp-productsModeAssigned')).toBeChecked();
+      expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProductsShort');
+      expect(screen.getByRole('radio', { name: 'allProductsShort' })).toBeInTheDocument();
+    });
+
+    it('does not render the products mode switch when the toggle is not available', () => {
+      renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: false });
+
+      expect(screen.getByRole('heading', { level: 5, name: 'title' })).toBeInTheDocument();
+      expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('plp-showAllProductsCheckbox')).not.toBeInTheDocument();
+    });
+
+    it('does not render a header or switch in the nested variant (the mobile drawer mounts its own)', () => {
+      renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: true }, true);
+
+      expect(screen.getByTestId('plp-category-tree-nested')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 5 })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+    });
+
+    it('labels the root row "Assigned Products" in assigned mode', () => {
+      renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: true });
+
+      const currLink = screen.getByTestId('plp-category-tree-current');
+      expect(currLink).toHaveTextContent('assignedProducts');
+      expect(currLink).toHaveAttribute('title', 'assignedProducts');
+      expect(currLink).toHaveAttribute('aria-current', 'page');
+      expect(currLink).toHaveAttribute('href', '/browse');
+      expect(within(currLink).queryByText('allProducts')).not.toBeInTheDocument();
+    });
+
+    it('keeps the "All Products" root row in ALL mode', () => {
+      renderWithMode({ mode: 'all', isSegmented: true, canToggleAllProducts: true });
+
+      const currLink = screen.getByTestId('plp-category-tree-current');
+      expect(currLink).toHaveTextContent('allProducts');
+      expect(within(currLink).queryByText('assignedProducts')).not.toBeInTheDocument();
+    });
   });
 });

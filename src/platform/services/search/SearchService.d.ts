@@ -4,6 +4,15 @@ import { Product } from '../model/product';
 import { SearchSuggestions } from '../model/search';
 import type { ProductFetchOptions } from '../product/ProductService';
 
+export interface RecommendationsOptions {
+  /**
+   * Customer segment scope (COP-4822). `undefined` → unscoped (anonymous / unsegmented / `all`);
+   * a non-empty array → recommendations restricted to products of these segments;
+   * `[]` → empty scope: the implementation returns `[]` without any upstream call (fail closed).
+   */
+  segmentIds?: string[];
+}
+
 export interface SearchService {
   /**
    * Search for products based on the provided parameters
@@ -35,7 +44,9 @@ export interface SearchService {
   getHighlights(visibility?: BatteryIncludedBrowseVariables): Promise<Product[]>;
 
   /**
-   * Get product recommendations based on a product ID
+   * Get product recommendations based on a product ID.
+   * `options.segmentIds` follows the `RecommendationsOptions` contract: `undefined` unscoped,
+   * array scoped, `[]` empty result with no upstream call.
    */
   getRecommendations(
     productId: string,
@@ -43,5 +54,6 @@ export interface SearchService {
     site?: string,
     limit?: number,
     visibility?: BatteryIncludedBrowseVariables,
+    options?: RecommendationsOptions,
   ): Promise<Product[]>;
 }

@@ -15,6 +15,7 @@ import {
   BATTERY_INCLUDED_BREADCRUMB_FILTER,
   BATTERY_INCLUDED_INDEX_ITEM_ID_FILTER,
   BATTERY_INCLUDED_PRODUCT_ID_FILTER,
+  BATTERY_INCLUDED_SEGMENT_IDS_FILTER,
 } from '@/platform/services/model/category/batteryincluded-category';
 import type {
   BatteryIncludedFacet,
@@ -30,17 +31,15 @@ import type {
 import type { Product } from '@/platform/services/model/product';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { BatteryIncludedCategoryTreeService } from '@/platform/services/search/BatteryIncludedCategoryTreeService';
-import type { SearchService } from '@/platform/services/search/SearchService';
+import type { RecommendationsOptions, SearchService } from '@/platform/services/search/SearchService';
 import type { SiteService } from '@/platform/services/site/SiteService';
 import type { CatalogPublishedRootCategoryService } from '../../catalog/impl/CatalogPublishedRootCategoryService';
-import type { CustomerService } from '../../customer/CustomerService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions, SuggestionsMapper } from '../../model/search';
 import type { SessionService } from '../../session';
 import { BatteryIncludedFacetsQueryBuilder } from './BatteryIncludedFacetsQueryBuilder';
 import { parseBatteryIncludedSortToken } from './BatteryIncludedSortContract';
 import { BATTERY_INCLUDED_DEFAULT_SORTS, resolveBatteryIncludedSort } from './BatteryIncludedSortResolver';
-import type SegmentFilterService from './SegmentFilterService';
 import {
   buildBatteryIncludedVisibilityFilters,
   buildBatteryIncludedVisibilityVariables,
@@ -73,8 +72,6 @@ class BatteryIncludedSearchService implements SearchService {
   private suggestionsMapper: SuggestionsMapper;
   private sessionService: SessionService;
   private readonly productService: ProductService;
-  private segmentFilterService: SegmentFilterService;
-  private customerService: CustomerService;
   private categoryTreeService: BatteryIncludedCategoryTreeService;
   private catalogPublishedRootCategoryService: CatalogPublishedRootCategoryService;
   private siteService: SiteService;
@@ -85,8 +82,6 @@ class BatteryIncludedSearchService implements SearchService {
     @inject('BatteryIncludedProductMapper') productMapper: ProductMapper<BatteryIncludedProduct>,
     @inject('SessionService') sessionService: SessionService,
     @inject('ProductService') productService: ProductService,
-    @inject('SegmentFilterService') segmentFilterService: SegmentFilterService,
-    @inject('CustomerService') customerService: CustomerService,
     @inject('BatteryIncludedCategoryTreeService') categoryTreeService: BatteryIncludedCategoryTreeService,
     @inject('CatalogPublishedRootCategoryService')
     catalogPublishedRootCategoryService: CatalogPublishedRootCategoryService,
@@ -99,8 +94,6 @@ class BatteryIncludedSearchService implements SearchService {
     this.suggestionsMapper = productMapper as unknown as SuggestionsMapper;
     this.sessionService = sessionService;
     this.productService = productService;
-    this.segmentFilterService = segmentFilterService;
-    this.customerService = customerService;
     this.categoryTreeService = categoryTreeService;
     this.catalogPublishedRootCategoryService = catalogPublishedRootCategoryService;
     this.siteService = siteService;
@@ -255,10 +248,11 @@ class BatteryIncludedSearchService implements SearchService {
     visibilityVariables: ReturnType<typeof buildBatteryIncludedVisibilityVariables>,
     resolvedSite?: string,
     currentCurrency?: string,
+    extraFilters?: SearchFilters,
   ): Promise<Product | undefined> {
     const visibilityFilters =
       mergeBatteryIncludedVisibilityFilters(
-        BatteryIncludedFacetsQueryBuilder.build({ [idFilterField]: id }) as SearchFilters | undefined,
+        BatteryIncludedFacetsQueryBuilder.build({ ...extraFilters, [idFilterField]: id }) as SearchFilters | undefined,
         publishedRootIds,
       ) ?? undefined;
 
@@ -568,27 +562,32 @@ class BatteryIncludedSearchService implements SearchService {
     return directions.has('asc') && directions.has('desc') && fieldNames.size === 1;
   }
 
-  private async applyCustomerSegmentFilters(
+  /**
+   * `true` when the caller is segment-scoped but the scope is empty (COP-4822 fail closed, e.g. the
+   * segment lookup failed): `undefined` means unscoped, `[]` means nothing is visible. Callers must
+   * return an empty result without any BI call.
+   */
+  private isEmptySegmentScope(segmentIds: string[] | undefined): boolean {
+    return segmentIds?.length === 0;
+  }
+
+  /**
+   * Scope BI results to the given segment ids (COP-4822). The array form is serialised by
+   * `appendFilters` as repeated `f[_product_siteAware.segmentIds][]` entries; unscoped callers
+   * (`segmentIds === undefined`) leave filters untouched. An empty scope never reaches this helper
+   * (see `isEmptySegmentScope`), but it is still applied as-is so an empty array can never widen.
+   */
+  private applyCustomerSegmentFilters(
     filters: SearchFilters | undefined,
-    customerSegments?: boolean,
-  ): Promise<SearchFilters | undefined> {
-    if (!customerSegments) {
-      return filters;
-    }
-
-    const currentCustomer = await this.customerService.getCustomer();
-    if (!currentCustomer) {
-      return filters;
-    }
-
-    const segmentIds = await this.segmentFilterService.getSegmentIds();
-    if (segmentIds.length === 0) {
+    segmentIds?: string[],
+  ): SearchFilters | undefined {
+    if (segmentIds === undefined) {
       return filters;
     }
 
     return {
       ...filters,
-      segmentIds: segmentIds.join(','),
+      [BATTERY_INCLUDED_SEGMENT_IDS_FILTER]: [...segmentIds],
     };
   }
 
@@ -685,7 +684,11 @@ class BatteryIncludedSearchService implements SearchService {
   }
 
   async searchProducts(params: SearchParams<Product>, locale?: string, site?: string): Promise<SearchResult<Product>> {
-    let filters = await this.applyCustomerSegmentFilters(params.filters, params.customerSegments);
+    if (this.isEmptySegmentScope(params.segmentIds)) {
+      return this.buildEmptySearchResult(params.size);
+    }
+
+    let filters = this.applyCustomerSegmentFilters(params.filters, params.segmentIds);
 
     const { resolvedLocale, resolvedSite, currentCountry, currentCurrency, visibilityVariables, publishedRootIds } =
       await this.resolveBatteryIncludedContext({
@@ -725,7 +728,7 @@ class BatteryIncludedSearchService implements SearchService {
 
     const translate = await this.resolveFacetTranslator(resolvedLocale);
     const batteryIncludedFacets = searchResult.facet_counts
-      .filter((facet) => facet.field_name !== 'segmentIds')
+      .filter((facet) => facet.field_name !== BATTERY_INCLUDED_SEGMENT_IDS_FILTER)
       .map((facet) => this.mapBatteryIncludedFacet(facet, filters, translate));
     const availableSorts = this.resolveAvailableSorts(batteryIncludedFacets);
     const availableFilters = batteryIncludedFacets
@@ -751,14 +754,12 @@ class BatteryIncludedSearchService implements SearchService {
   }
 
   async getSuggestions(params: SearchParams<Product>): Promise<SearchSuggestions> {
+    if (this.isEmptySegmentScope(params.segmentIds)) {
+      return this.buildEmptySuggestions();
+    }
+
     try {
-      let segmentIds: string[] | undefined;
-      if (params.customerSegments) {
-        const currentCustomer = await this.customerService.getCustomer();
-        if (currentCustomer) {
-          segmentIds = await this.segmentFilterService.getSegmentIds();
-        }
-      }
+      const segmentIds = params.segmentIds;
       const { resolvedSite, currentCurrency, visibilityVariables, publishedRootIds } =
         await this.resolveBatteryIncludedContext({
           locale: params.locale,
@@ -767,11 +768,7 @@ class BatteryIncludedSearchService implements SearchService {
         });
 
       if (publishedRootIds.length === 0) {
-        return {
-          queryCompletions: [],
-          products: [],
-          categories: [],
-        };
+        return this.buildEmptySuggestions();
       }
 
       const visibilityFilters: BatteryIncludedVisibilityFilters | undefined =
@@ -783,7 +780,7 @@ class BatteryIncludedSearchService implements SearchService {
           variables: visibilityVariables,
           filters: visibilityFilters,
         },
-        ...(segmentIds?.length ? { segmentIds } : {}),
+        ...(segmentIds === undefined ? {} : { segmentIds }),
       });
 
       return this.suggestionsMapper.mapSearchSuggestions(
@@ -791,12 +788,16 @@ class BatteryIncludedSearchService implements SearchService {
       );
     } catch (error) {
       this.logger.error({ err: error }, '[SearchService] Error getting suggestions');
-      return {
-        queryCompletions: [],
-        products: [],
-        categories: [],
-      };
+      return this.buildEmptySuggestions();
     }
+  }
+
+  private buildEmptySuggestions(): SearchSuggestions {
+    return {
+      queryCompletions: [],
+      products: [],
+      categories: [],
+    };
   }
 
   async getHighlights(_visibility?: ReturnType<typeof buildBatteryIncludedVisibilityVariables>): Promise<Product[]> {
@@ -833,7 +834,13 @@ class BatteryIncludedSearchService implements SearchService {
     _site?: string,
     limit?: number,
     _visibility?: ReturnType<typeof buildBatteryIncludedVisibilityVariables>,
+    options?: RecommendationsOptions,
   ): Promise<Product[]> {
+    // Empty segment scope: nothing is visible, so recommendations are empty without any BI call (COP-4822).
+    if (this.isEmptySegmentScope(options?.segmentIds)) {
+      return [];
+    }
+
     const { resolvedSite, currentCurrency, visibilityVariables, publishedRootIds } = _visibility
       ? await this.resolveBatteryIncludedContext({ site: _visibility.siteAware, currency: _visibility.currencyAware })
       : await this.resolveBatteryIncludedContext({
@@ -845,8 +852,12 @@ class BatteryIncludedSearchService implements SearchService {
       return [];
     }
 
-    const visibilityFilters: BatteryIncludedVisibilityFilters | undefined =
-      buildBatteryIncludedVisibilityFilters(publishedRootIds) ?? undefined;
+    // The BI `/recommendations` endpoint takes the same `f[...]` visibility filters as `/browse`, so the
+    // segment scope is applied natively as `f[_product_siteAware.segmentIds][]` (COP-4822).
+    const visibilityFilters: BatteryIncludedVisibilityFilters | undefined = this.applyCustomerSegmentFilters(
+      buildBatteryIncludedVisibilityFilters(publishedRootIds) ?? undefined,
+      options?.segmentIds,
+    );
 
     const recommendations = await this.shopApi.getRecommendations(productId, {
       variables: _visibility ?? visibilityVariables,
@@ -867,6 +878,24 @@ class BatteryIncludedSearchService implements SearchService {
     locale?: string,
     site?: string,
   ): Promise<Product | undefined> {
+    // Empty segment scope: nothing is visible, so the PDP lookup is a miss without any BI call (COP-4822).
+    if (this.isEmptySegmentScope(options?.segmentIds)) {
+      return undefined;
+    }
+
+    // COP-4822 AC4: Emporix membership is the source of truth (category-assigned + directly
+    // assigned products). The BI `_product_siteAware.segmentIds` field is not a reliable PDP
+    // gate — a direct URL must 404 when the product is outside the customer's segments.
+    if (options?.segmentIds !== undefined) {
+      const inScope = await this.productService.isInSegmentScope(id, {
+        segmentIds: options.segmentIds,
+        siteCode: options.siteCode ?? site,
+      });
+      if (!inScope) {
+        return undefined;
+      }
+    }
+
     const session = await this.sessionService.getCurrent();
     const { resolvedSite, currentCurrency, visibilityVariables, publishedRootIds } =
       await this.resolveBatteryIncludedContext({

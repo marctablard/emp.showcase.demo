@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import {
   Carousel,
   CarouselContent,
@@ -58,16 +59,24 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
   );
 
   const categoryIdsKey = useMemo(() => categories.map((c) => c.id).join('|'), [categories]);
+  const { mode: productsMode } = useProductsMode();
+  // COP-4822: the public `/api/categories/{id}/product-count` route is unscoped (site-wide, CDN-cached);
+  // in `assigned` mode it would show numbers that do not match the segment assortment, so it is never
+  // called there and only BI static counts (absent on the segment forest) are shown.
+  const onlyStaticCounts = productsMode === 'assigned';
   const { counts, requestCounts } = useCategoryProductCounts();
 
   useEffect(() => {
-    if (categoryIdsKey.length === 0) {
+    if (categoryIdsKey.length === 0 || onlyStaticCounts) {
       return;
     }
     requestCounts(categoryIdsKey.split('|').filter((id) => staticCounts[id] === undefined));
-  }, [categoryIdsKey, requestCounts, staticCounts]);
+  }, [categoryIdsKey, onlyStaticCounts, requestCounts, staticCounts]);
 
-  const mergedCounts = useMemo(() => ({ ...counts, ...staticCounts }), [counts, staticCounts]);
+  const mergedCounts = useMemo(
+    () => (onlyStaticCounts ? staticCounts : { ...counts, ...staticCounts }),
+    [counts, onlyStaticCounts, staticCounts],
+  );
 
   // Drop categories whose product count has resolved to 0. Unknown counts stay visible so the
   // carousel does not flicker while counts stream in.

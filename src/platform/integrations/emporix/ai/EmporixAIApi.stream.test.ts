@@ -18,9 +18,9 @@ const mockConfig: EmporixConfig = {
 };
 
 const chatContext: EmporixAIChatContext = {
-  siteCode: 'main',
-  languageCode: 'en',
-  currencyCode: 'USD',
+  siteId: 'main',
+  language: 'en',
+  currency: 'USD',
   sessionId: 'session-123',
 };
 
