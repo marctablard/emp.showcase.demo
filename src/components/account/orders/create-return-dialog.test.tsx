@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ReturnApiError } from '@/lib/client/returns';
 import type { OrderReturnability } from '@/lib/common/returns/returnability';
 import type { Order } from '@/platform/services/model/order/order';
@@ -25,6 +25,11 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
 }));
 
 const mockNotify = jest.fn();
+// The real Radix Select runs a Floating UI rAF loop while open, which keeps act() from
+// settling and makes findBy* hang until the test timeout. The shared stand-in keeps the
+// options in the document instead.
+jest.mock('@/components/ui/select', () => jest.requireActual('../../../../jest/mocks/ui-select'));
+
 jest.mock('@/components/ui/toast-notification', () => ({
   __esModule: true,
   ToastType: { Success: 'success', Error: 'error' },
@@ -127,15 +132,10 @@ beforeAll(() => {
   if (!proto.scrollIntoView) proto.scrollIntoView = () => {};
 });
 
-// Open the Radix Select (keyboard path works reliably in jsdom) and pick the option at `index`.
-// Scoped to the Radix listbox: in per-item reason mode the mocked selector also renders native
-// <option> elements, which carry the same implicit "option" role and would otherwise collide.
-const pickGlobalReason = async (orderId: string, index = 0) => {
-  fireEvent.keyDown(document.getElementById(`return-reason-global-${orderId}`)!, { key: 'Enter' });
-  const listbox = await screen.findByRole('listbox');
-  const options = within(listbox).getAllByRole('option');
-  fireEvent.click(options[index]);
-  await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+// Addressed by test id, not by role: in per-item reason mode the mocked selector also renders
+// native <option> elements, which carry the same implicit "option" role and would collide.
+const pickGlobalReason = (code = 'DEFECTIVE') => {
+  fireEvent.click(screen.getByTestId(`return-reason-${code}`));
 };
 
 const baseOrder: Order = {
@@ -221,7 +221,7 @@ describe('CreateReturnDialog', () => {
     fireEvent.click(screen.getByTestId('ris-inc-item-1'));
     expect(submit).toBeDisabled();
 
-    await pickGlobalReason('ORD-1000');
+    pickGlobalReason();
     expect(submit).not.toBeDisabled();
   });
 
@@ -286,7 +286,7 @@ describe('CreateReturnDialog', () => {
 
     fireEvent.click(screen.getByTestId('ris-inc-item-1'));
     fireEvent.click(screen.getByTestId('ris-inc-item-1'));
-    await pickGlobalReason('ORD-1000', 0);
+    pickGlobalReason();
     fireEvent.change(screen.getByPlaceholderText('descriptionPlaceholder'), { target: { value: '  a bit dented  ' } });
 
     fireEvent.click(screen.getByTestId('return-submitButton'));
@@ -316,7 +316,7 @@ describe('CreateReturnDialog', () => {
     // item-2 gets a quantity but no reason picked -> its per-item fields must fall back to undefined
     fireEvent.change(screen.getByTestId('ris-reason-details-item-2'), { target: { value: '   ' } });
 
-    await pickGlobalReason('ORD-1000', 1);
+    pickGlobalReason('WRONG_ITEM');
     fireEvent.click(screen.getByTestId('return-submitButton'));
 
     await waitFor(() => expect(mockCreateReturn).toHaveBeenCalledTimes(1));
@@ -336,7 +336,7 @@ describe('CreateReturnDialog', () => {
     render(<CreateReturnDialog open onOpenChange={jest.fn()} order={baseOrder} />);
 
     fireEvent.click(screen.getByTestId('ris-inc-item-1'));
-    await pickGlobalReason('ORD-1000');
+    pickGlobalReason();
     fireEvent.click(screen.getByTestId('return-submitButton'));
 
     await waitFor(() => expect(screen.getByTestId('return-submitButton')).toHaveTextContent('submitting'));
@@ -354,7 +354,7 @@ describe('CreateReturnDialog', () => {
     render(<CreateReturnDialog open onOpenChange={onOpenChange} order={baseOrder} />);
 
     fireEvent.click(screen.getByTestId('ris-inc-item-1'));
-    await pickGlobalReason('ORD-1000');
+    pickGlobalReason();
     fireEvent.click(screen.getByTestId('return-submitButton'));
 
     await waitFor(() =>
@@ -381,7 +381,7 @@ describe('CreateReturnDialog', () => {
     render(<CreateReturnDialog open onOpenChange={jest.fn()} order={baseOrder} />);
 
     fireEvent.click(screen.getByTestId('ris-inc-item-1'));
-    await pickGlobalReason('ORD-1000');
+    pickGlobalReason();
     fireEvent.click(screen.getByTestId('return-submitButton'));
 
     await waitFor(() =>
@@ -397,7 +397,7 @@ describe('CreateReturnDialog', () => {
     render(<CreateReturnDialog open onOpenChange={jest.fn()} order={baseOrder} />);
 
     fireEvent.click(screen.getByTestId('ris-inc-item-1'));
-    await pickGlobalReason('ORD-1000');
+    pickGlobalReason();
     fireEvent.click(screen.getByTestId('return-submitButton'));
 
     await waitFor(() =>
@@ -412,7 +412,7 @@ describe('CreateReturnDialog', () => {
     render(<CreateReturnDialog open onOpenChange={onOpenChange} order={baseOrder} />);
 
     fireEvent.click(screen.getByTestId('ris-inc-item-1'));
-    await pickGlobalReason('ORD-1000');
+    pickGlobalReason();
     fireEvent.change(screen.getByPlaceholderText('descriptionPlaceholder'), { target: { value: 'some notes' } });
     fireEvent.click(screen.getByLabelText('provideAdditionalPerItemDetails'));
 
