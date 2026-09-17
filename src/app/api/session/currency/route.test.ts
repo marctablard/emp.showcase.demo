@@ -133,9 +133,32 @@ describe('PUT /api/session/currency', () => {
     const body = (await response.json()) as { couponCodes?: string[] };
 
     expect(response.status).toBe(409);
-    expect(body.couponCodes).toEqual(['ACCESSORIES15']);
+    expect(body.couponCodes).toBeUndefined();
     expect(sessionService.setCurrency).not.toHaveBeenCalled();
     expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
+  });
+
+  it('includes couponCodes only when the Cart API reports a coupon-currency conflict', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({
+      id: 'c1',
+      site: 'us',
+      currency: 'EUR',
+      discounts: [
+        { code: 'TOTAL', discountIndex: 0 },
+        { code: 'ACCESSORIES15', discountIndex: 1 },
+      ],
+    });
+    cartService.updateCurrency.mockRejectedValue(
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH, 'coupon blocks currency'),
+    );
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { couponCodes?: string[] };
+
+    expect(response.status).toBe(409);
+    expect(body.couponCodes).toEqual(['ACCESSORIES15']);
+    expect(sessionService.setCurrency).not.toHaveBeenCalled();
   });
 
   it('does NOT set the cookie when the body is missing currency (400)', async () => {

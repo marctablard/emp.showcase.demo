@@ -77,7 +77,19 @@ describe('DELETE /api/cart/[id]/discounts/[discountIndex]', () => {
     });
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({ error: 'Discount index is required' });
+    await expect(response.json()).resolves.toEqual({ error: 'Discount index must be a non-negative integer' });
+    expect(cartService.removeDiscount).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for a non-numeric index', async () => {
+    sessionService.getCurrent.mockResolvedValue({ customerId: '69874565' });
+
+    const response = await DELETE({} as never, {
+      params: Promise.resolve({ id: 'cart-1', discountIndex: 'foo' }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: 'Discount index must be a non-negative integer' });
     expect(cartService.removeDiscount).not.toHaveBeenCalled();
   });
 
@@ -89,7 +101,7 @@ describe('DELETE /api/cart/[id]/discounts/[discountIndex]', () => {
     });
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({ error: 'Discount index is required' });
+    await expect(response.json()).resolves.toEqual({ error: 'Discount index must be a non-negative integer' });
     expect(cartService.removeDiscount).not.toHaveBeenCalled();
   });
 

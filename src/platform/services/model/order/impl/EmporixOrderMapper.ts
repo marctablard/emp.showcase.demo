@@ -53,8 +53,8 @@ function matchingAppliedDiscountRows(
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
 ): Array<{ id?: string; value: number; discountType?: string }> {
   return [
-    ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
     ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
+    ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
   ].filter((row) => row.id === discount.code);
 }
 

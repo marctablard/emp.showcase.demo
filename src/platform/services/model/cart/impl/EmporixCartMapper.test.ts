@@ -381,7 +381,7 @@ describe('EmporixCartMapper', () => {
     ]);
   });
 
-  it('does not pair an id-less applied discount with an id-less source coupon', () => {
+  it('does not pair an id-less applied discount when more than one coupon is present', () => {
     const mapped = mapper.mapToService({
       ...showcaseDevCart({
         totalDiscount: {
@@ -390,16 +390,40 @@ describe('EmporixCartMapper', () => {
           appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
         },
       }),
-      discounts: [{ code: 'NOID', discountIndex: 0, amount: 3, valid: true }],
+      discounts: [
+        { code: 'NOID', discountIndex: 0, amount: 3, valid: true },
+        { code: 'OTHER', discountIndex: 1, amount: 2, valid: true },
+      ],
     } as EmporixCart);
 
-    // `undefined === undefined` must not count as a match: keep the coupon's own amount, no type.
+    // `undefined === undefined` must not count as a match, and we must not guess which coupon is FREE_SHIPPING.
     expect(mapped.discounts?.[0]).toEqual({
       code: 'NOID',
       name: undefined,
       discountIndex: 0,
       amount: 3,
       currency: 'EUR',
+    });
+    expect(mapped.discounts?.[1]).not.toHaveProperty('type');
+  });
+
+  it('types the sole coupon FREE_SHIPPING when the only applied row is typed but id-less', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 4.95,
+          appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+      }),
+      discounts: [{ code: 'FREESHIP', discountIndex: 0, amount: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.freeShipping).toBe(true);
+    expect(mapped.discounts?.[0]).toMatchObject({
+      code: 'FREESHIP',
+      amount: 0,
+      type: 'FREE_SHIPPING',
     });
   });
 

@@ -29,7 +29,7 @@ export async function DELETE(
 
     const discountIndex = Number(discountIndexParam);
     if (!Number.isFinite(discountIndex) || !Number.isInteger(discountIndex) || discountIndex < 0) {
-      return NextResponse.json({ error: 'Discount index is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Discount index must be a non-negative integer' }, { status: 400 });
     }
 
     const updatedCart = await cartService.removeDiscount(cartId, discountIndex);

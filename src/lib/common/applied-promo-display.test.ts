@@ -6,6 +6,7 @@ import {
   isShopperFacingOrderPromo,
   orderGoodsSavings,
   removableCartDiscountIndexes,
+  resolveGoodsSavingsAmount,
   shopperFacingCartPromos,
 } from './applied-promo-display';
 
@@ -92,6 +93,41 @@ describe('applied-promo-display', () => {
         ],
       }),
     ).toEqual({ amount: 101.1, currency: 'EUR' });
+  });
+
+  it('uses the goods-figure delta when a shipping waiver is also in savingsTotal', () => {
+    expect(
+      resolveGoodsSavingsAmount({
+        savingsTotal: 16.17,
+        shippingFree: true,
+        discountedNet: 57.93,
+        originalNet: 69.15,
+      }),
+    ).toBe(11.22);
+  });
+
+  it('does not treat a shipping-only waiver as goods savings', () => {
+    expect(
+      resolveGoodsSavingsAmount({
+        savingsTotal: 4.95,
+        shippingFree: true,
+        discountedNet: 69.15,
+        originalNet: 69.15,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('sums goods coupons instead of savingsTotal when a free-shipping promo is also applied', () => {
+    expect(
+      orderGoodsSavings({
+        currency: 'EUR',
+        savingsTotal: 16.17,
+        discounts: [
+          { code: 'LS10PTOTAL', value: 11.22, currency: 'EUR' },
+          { code: 'FREESHIP', value: 4.95, currency: 'EUR', type: 'FREE_SHIPPING' },
+        ],
+      }),
+    ).toEqual({ amount: 11.22, currency: 'EUR' });
   });
 
   it('does not treat a free-shipping waiver as goods savings', () => {

@@ -16,6 +16,7 @@ import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
 import { cartCouponCodesForMessage } from '@/lib/common/applied-promo-display';
 import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
+import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Cart, CartItem, CartItemPriceChange, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
 import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
@@ -107,6 +108,8 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
     try {
       setQuantity(newQuantity);
       await updateItemQuantity(item.id, newQuantity);
+    } catch (error) {
+      getLogger().error({ err: error }, 'Error updating cart item quantity');
     } finally {
       setIsProcessing(false);
     }
@@ -128,6 +131,8 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
           duration: 8000,
         });
       }
+    } catch (error) {
+      getLogger().error({ err: error }, 'Error removing item from cart');
     } finally {
       setIsProcessing(false);
     }

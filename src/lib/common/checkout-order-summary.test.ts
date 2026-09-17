@@ -358,6 +358,25 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     expect(breakdown.goodsVat).toBe(12);
   });
 
+  it('uses the goods delta, not savingsTotal, when a shipping waiver is also applied', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart({
+      ...cart,
+      discounts: [
+        { code: 'LS10PTOTAL', discountIndex: 0, amount: 11.22, currency: 'EUR' },
+        { code: 'FREESHIP', discountIndex: 1, amount: 4.95, currency: 'EUR', type: 'FREE_SHIPPING' },
+      ],
+      savingsTotal: 16.17,
+      totalDiscountCalculationType: 'ApplyDiscountBeforeTax',
+      goodsDiscountedNet: 57.93,
+      goodsDiscountedVat: 11.01,
+      freeShipping: true,
+    });
+
+    expect(breakdown.goodsDiscounted).toBe(true);
+    expect(breakdown.shippingFree).toBe(true);
+    expect(breakdown.savingsTotal).toBe(11.22);
+  });
+
   it('keeps current goodsNet when savings exist without discounted net', () => {
     const breakdown = buildCheckoutOrderSummaryFromCart({
       ...cart,

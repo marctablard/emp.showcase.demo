@@ -49,6 +49,11 @@ export interface CartState {
   } | null;
   /** Consolidated loader for orchestrated flows — flips 0→1 / N→0 to drive a single UI spinner. */
   isSettling: boolean;
+  /**
+   * True while a cart write is queued or in flight. Promo apply/remove use
+   * `runCartSnapshotMutation` and do not flip `loading` — checkout submit must read this.
+   */
+  mutating: boolean;
 }
 
 interface CartActions {
@@ -110,10 +115,19 @@ class CartMutationQueue {
   private tail: Promise<void> = Promise.resolve();
   private inFlight = 0;
   private epoch = 0;
+  private onBusyChange?: (busy: boolean) => void;
 
   /** True while any mutation is queued or running. */
   get isBusy(): boolean {
     return this.inFlight > 0;
+  }
+
+  onBusy(listener: (busy: boolean) => void): void {
+    this.onBusyChange = listener;
+  }
+
+  private notifyBusy(): void {
+    this.onBusyChange?.(this.inFlight > 0);
   }
 
   get currentEpoch(): number {
@@ -143,11 +157,13 @@ class CartMutationQueue {
       release = resolve;
     });
     this.inFlight += 1;
+    this.notifyBusy();
     await afterPrevious;
     try {
       return await work({ enqueued, started: this.epoch });
     } finally {
       this.inFlight -= 1;
+      this.notifyBusy();
       release();
     }
   }
@@ -488,6 +504,7 @@ async function runLineItemMutation(
   } catch (err) {
     ctx.commit({ error: toError(err, args.failureMessage), loading: false });
     getLogger().error({ err }, args.logMessage);
+    throw err;
   }
 }
 
@@ -647,6 +664,7 @@ const defaultState: CartState = {
   lastLegalEntityId: null,
   pendingCurrencySync: null,
   isSettling: false,
+  mutating: false,
 };
 
 export const createCartStore = (initState: CartState = defaultState) => {
@@ -666,6 +684,11 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
   return create<CartStore>()(
     subscribeWithSelector((set, get) => {
+      _mutations.onBusy((busy) => {
+        if (get().mutating !== busy) {
+          set({ mutating: busy });
+        }
+      });
       const createMutationContext = ({
         enqueued,
         started: epoch,

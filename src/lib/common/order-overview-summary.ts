@@ -1,5 +1,5 @@
 import { shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
-import { isFreeShippingPromo } from '@/lib/common/applied-promo-display';
+import { isFreeShippingPromo, resolveGoodsSavingsAmount } from '@/lib/common/applied-promo-display';
 import type { Order, OrderDiscount } from '@/platform/services/model/order/order';
 
 export type CouponApplyBasis = 'net' | 'gross';
@@ -63,12 +63,21 @@ function appliedCouponBreakdownFields(
   | 'shippingFree'
   | 'discounts'
 > {
-  const savingsFields = typeof order?.savingsTotal === 'number' ? { savingsTotal: order.savingsTotal } : {};
   const discountFields = order?.discounts?.length ? { discounts: order.discounts } : {};
-  const shippingFields = orderHasFreeShipping(order) ? { shippingFree: true } : {};
+  const shippingFree = orderHasFreeShipping(order);
+  const shippingFields = shippingFree ? { shippingFree: true } : {};
 
   if (order?.totalDiscountCalculationType === 'ApplyDiscountAfterTax') {
     const originalGoodsGross = order.price?.subtotal.gross ?? 0;
+    const goodsSavings = resolveGoodsSavingsAmount({
+      savingsTotal: order.savingsTotal,
+      shippingFree,
+      discountedNet: order.goodsDiscountedNet,
+      discountedGross: order.goodsDiscountedGross,
+      originalNet: originalGoodsNet,
+      originalGross: originalGoodsGross,
+      afterTax: true,
+    });
     return {
       hasAppliedCoupons: true,
       couponApplyBasis: 'gross',
@@ -76,19 +85,25 @@ function appliedCouponBreakdownFields(
       originalGoodsVat: order.price?.subtotal.tax ?? 0,
       originalGoodsGross,
       goodsDiscounted: isLowerThan(order.goodsDiscountedGross, originalGoodsGross),
-      ...savingsFields,
+      ...(goodsSavings !== undefined ? { savingsTotal: goodsSavings } : {}),
       ...shippingFields,
       ...discountFields,
       ...(typeof order.goodsDiscountedGross === 'number' ? { goodsDiscountedGross: order.goodsDiscountedGross } : {}),
     };
   }
 
+  const goodsSavings = resolveGoodsSavingsAmount({
+    savingsTotal: order?.savingsTotal,
+    shippingFree,
+    discountedNet: order?.goodsDiscountedNet,
+    originalNet: originalGoodsNet,
+  });
   return {
     hasAppliedCoupons: true,
     couponApplyBasis: 'net',
     originalGoodsNet,
     goodsDiscounted: isLowerThan(order?.goodsDiscountedNet, originalGoodsNet),
-    ...savingsFields,
+    ...(goodsSavings !== undefined ? { savingsTotal: goodsSavings } : {}),
     ...shippingFields,
     ...discountFields,
   };

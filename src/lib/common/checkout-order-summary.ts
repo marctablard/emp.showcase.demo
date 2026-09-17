@@ -1,4 +1,5 @@
 import { shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
+import { resolveGoodsSavingsAmount } from '@/lib/common/applied-promo-display';
 import type { Cart } from '@/platform/services/model/cart';
 
 export type CheckoutOrderSummaryBreakdown = {
@@ -109,11 +110,20 @@ function appliedCouponBreakdownFields(
   | 'goodsDiscounted'
   | 'shippingFree'
 > {
-  const savingsFields = typeof cart?.savingsTotal === 'number' ? { savingsTotal: cart.savingsTotal } : {};
-  const shippingFields = cart?.freeShipping ? { shippingFree: true } : {};
+  const shippingFree = cart?.freeShipping === true;
+  const shippingFields = shippingFree ? { shippingFree: true } : {};
 
   if (cart?.totalDiscountCalculationType === 'ApplyDiscountAfterTax') {
     const originalGoodsGross = cart.tax?.grossValue ?? 0;
+    const goodsSavings = resolveGoodsSavingsAmount({
+      savingsTotal: cart.savingsTotal,
+      shippingFree,
+      discountedNet: cart.goodsDiscountedNet,
+      discountedGross: cart.goodsDiscountedGross,
+      originalNet: originalGoodsNet,
+      originalGross: originalGoodsGross,
+      afterTax: true,
+    });
     return {
       hasAppliedCoupons: true,
       couponApplyBasis: 'gross',
@@ -121,18 +131,24 @@ function appliedCouponBreakdownFields(
       originalGoodsVat: cart.tax?.amount ?? 0,
       originalGoodsGross,
       goodsDiscounted: isLowerThan(cart.goodsDiscountedGross, originalGoodsGross),
-      ...savingsFields,
+      ...(goodsSavings !== undefined ? { savingsTotal: goodsSavings } : {}),
       ...shippingFields,
       ...(typeof cart.goodsDiscountedGross === 'number' ? { goodsDiscountedGross: cart.goodsDiscountedGross } : {}),
     };
   }
 
+  const goodsSavings = resolveGoodsSavingsAmount({
+    savingsTotal: cart?.savingsTotal,
+    shippingFree,
+    discountedNet: cart?.goodsDiscountedNet,
+    originalNet: originalGoodsNet,
+  });
   return {
     hasAppliedCoupons: true,
     couponApplyBasis: 'net',
     originalGoodsNet,
     goodsDiscounted: isLowerThan(cart?.goodsDiscountedNet, originalGoodsNet),
-    ...savingsFields,
+    ...(goodsSavings !== undefined ? { savingsTotal: goodsSavings } : {}),
     ...shippingFields,
   };
 }

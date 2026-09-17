@@ -416,6 +416,35 @@ describe('EmporixOrderMapper', () => {
     expect(result.discounts?.[0]?.description).toBe('10 percent off');
   });
 
+  it('prefers the totalDiscount applied value when shipping also has a matching row', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'MIXED', currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 1010.99, grossValue: 1203.08, taxValue: 192.09 },
+          finalPrice: { netValue: 909.89, grossValue: 1082.77, taxValue: 172.88 },
+          totalDiscount: {
+            value: 101.1,
+            appliedDiscounts: [{ id: 'MIXED', value: 101.1, discountType: 'PERCENT' }],
+          },
+          totalShipping: {
+            netValue: 0,
+            grossValue: 0,
+            taxValue: 0,
+            appliedDiscounts: [{ id: 'MIXED', value: 4.95, discountType: 'FREE_SHIPPING' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({
+      code: 'MIXED',
+      value: 101.1,
+      type: 'PERCENT',
+    });
+  });
+
   it('fills a missing coupon amount from the calculated applied-discount value', () => {
     const result = mapper.mapToService(
       buildOrder({

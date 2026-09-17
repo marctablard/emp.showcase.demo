@@ -12,6 +12,7 @@ import CheckoutSummaryComponent from './checkout-summary';
 const mockUseCheckout = jest.fn();
 const mockUseCheckoutOrderSummary = jest.fn();
 const mockUseCartTotal = jest.fn();
+const mockUseIsCartMutating = jest.fn();
 const mockUseCheckoutPromoCode = jest.fn();
 const mockUseApprovalCheckout = jest.fn();
 const mockTranslate = jest.fn((key: string) => key);
@@ -31,6 +32,10 @@ jest.mock('@/hooks/checkout/useCheckoutOrderSummary', () => ({
 
 jest.mock('@/hooks/cart/useCartTotal', () => ({
   useCartTotal: () => mockUseCartTotal(),
+}));
+
+jest.mock('@/hooks/cart/useIsCartMutating', () => ({
+  useIsCartMutating: () => mockUseIsCartMutating(),
 }));
 
 jest.mock('@/hooks/checkout/useCheckoutPromoCode', () => ({
@@ -119,6 +124,7 @@ describe('CheckoutSummaryComponent', () => {
       shippingCosts: 20,
       currency: 'CHF',
     });
+    mockUseIsCartMutating.mockReturnValue(false);
     mockUseCheckoutPromoCode.mockReturnValue({
       code: '',
       setCode: jest.fn(),
@@ -280,6 +286,7 @@ describe('CheckoutSummaryComponent', () => {
     expect(screen.getByText('valueOfGoods')).toBeInTheDocument();
     expect(screen.queryByTestId('checkout-originalValueOfGoods')).not.toBeInTheDocument();
     expect(screen.getByTestId('checkout-submitOrder')).toHaveTextContent('submitOrder');
+    expect(screen.getByTestId('checkout-submitOrder')).toBeDisabled();
 
     cleanup();
     mockUseApprovalCheckout.mockReturnValue({
@@ -290,6 +297,12 @@ describe('CheckoutSummaryComponent', () => {
     renderSummary();
     expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
     expect(screen.getByText('inquireForApproval')).toBeInTheDocument();
+  });
+
+  it('disables Place Order while a cart mutation is in flight', () => {
+    mockUseIsCartMutating.mockReturnValue(true);
+    renderSummary();
+    expect(screen.getByTestId('checkout-submitOrder')).toBeDisabled();
   });
 
   it('Value of goods appearance change (net-applied): Original value of goods and Your savings', () => {

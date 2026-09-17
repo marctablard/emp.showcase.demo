@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LockKeyhole } from 'lucide-react';
 import { useApprovalCheckout } from '@/hooks/approval/useApprovalCheckout';
+import { useIsCartMutating } from '@/hooks/cart/useIsCartMutating';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useCheckoutOrderSummary } from '@/hooks/checkout/useCheckoutOrderSummary';
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
@@ -184,6 +185,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     shippingMethodsLoading = false,
   } = useCheckout();
   const { requiresApproval, loading: approvalLoading, setCartId } = useApprovalCheckout(cart?.id?.toString());
+  const cartMutating = useIsCartMutating();
   const loading = checkoutLoading || approvalLoading;
   const t = useTranslations('checkout.summary');
   const tCommon = useTranslations('common');
@@ -346,7 +348,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                 type="submit"
                 onClick={async (e) => {
                   e.preventDefault();
-                  if (isSubmitting || loading) {
+                  if (isSubmitting || loading || cartMutating) {
                     return;
                   }
                   setIsSubmitting(true);
@@ -386,7 +388,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                     setIsSubmitting(false);
                   }
                 }}
-                disabled={disabled || isSubmitting || loading || approvalLoading}
+                disabled={disabled || isSubmitting || loading || approvalLoading || cartMutating}
                 className="w-full"
                 data-testid="checkout-submitOrder"
               >

@@ -129,6 +129,28 @@ describe('buildOrderOverviewBreakdown', () => {
     expect(breakdown.goodsDiscountedGross).toBeUndefined();
   });
 
+  it('uses the goods delta, not savingsTotal, when a shipping waiver is also applied', () => {
+    const breakdown = buildOrderOverviewBreakdown({
+      ...noCouponOrder,
+      discounts: [
+        { code: 'LS10PTOTAL', value: 11.22, currency: 'EUR' },
+        { code: 'FREESHIP', value: 4.95, currency: 'EUR', type: 'FREE_SHIPPING' },
+      ],
+      savingsTotal: 16.17,
+      totalDiscountCalculationType: 'ApplyDiscountBeforeTax',
+      goodsDiscountedNet: 88.78,
+      goodsDiscountedVat: 16.87,
+      price: {
+        subtotal: { net: 100, gross: 119, tax: 19, currency: 'EUR' },
+        total: { net: 88.78, gross: 105.65, tax: 16.87, currency: 'EUR' },
+      },
+    });
+
+    expect(breakdown.goodsDiscounted).toBe(true);
+    expect(breakdown.shippingFree).toBe(true);
+    expect(breakdown.savingsTotal).toBe(11.22);
+  });
+
   it('flags shippingFree and not goodsDiscounted for a free-shipping-only order', () => {
     const breakdown = buildOrderOverviewBreakdown({
       ...noCouponOrder,

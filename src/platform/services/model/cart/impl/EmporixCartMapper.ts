@@ -102,13 +102,32 @@ function resolveAppliedDiscount(
   );
 }
 
+function typedFreeShippingRowCount(calculatedPrice: EmporixCart['calculatedPrice']): number {
+  return [
+    ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
+    ...(calculatedPrice?.shipping?.appliedDiscounts ?? []),
+    ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
+  ].filter((row) => row.discountType === 'FREE_SHIPPING').length;
+}
+
+/** Sole shopper coupon + exactly one typed FREE_SHIPPING row (even if that row has no id). */
+function inferSoleTypedFreeShipping(
+  sourceDiscounts: EmporixCartDiscount[],
+  calculatedPrice: EmporixCart['calculatedPrice'],
+): boolean {
+  const soleNonTotal =
+    sourceDiscounts.filter((discount) => discount.valid !== false && discount.code !== 'TOTAL').length === 1;
+  return soleNonTotal && typedFreeShippingRowCount(calculatedPrice) === 1;
+}
+
 function mapCartDiscounts(
   sourceDiscounts: EmporixCartDiscount[] | undefined,
   cartLevel: EmporixCalculatedAppliedDiscount[],
   shippingLevel: EmporixCalculatedAppliedDiscount[],
   lineLevel: EmporixCalculatedAppliedDiscount[],
   currency: string,
-  inferFreeShipping: boolean,
+  inferZeroedShipping: boolean,
+  inferSoleTypedFreeShippingType: boolean,
 ): CartAppliedDiscount[] | undefined {
   if (!sourceDiscounts || sourceDiscounts.length === 0) {
     return undefined;
@@ -121,12 +140,15 @@ function mapCartDiscounts(
     }
     const applied = resolveAppliedDiscount(cartLevel, shippingLevel, lineLevel, discount);
     let type = applied?.discountType;
-    if (!type && inferFreeShipping && discount.code !== 'TOTAL') {
+    if (!type && inferZeroedShipping && discount.code !== 'TOTAL') {
       const shippingMatch = matchAppliedDiscount(shippingLevel, discount);
       const noGoodsAmount = (applied?.value ?? discount.amount ?? 0) === 0;
       if (shippingMatch || (soleNonTotal && noGoodsAmount)) {
         type = 'FREE_SHIPPING';
       }
+    }
+    if (!type && inferSoleTypedFreeShippingType && discount.code !== 'TOTAL') {
+      type = 'FREE_SHIPPING';
     }
     return [
       {
@@ -229,6 +251,7 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
       lineLevelAppliedDiscounts(emporixCart.items),
       currency,
       isZeroedShippingWaiver(emporixCart.calculatedPrice),
+      inferSoleTypedFreeShipping(emporixCart.discounts ?? [], emporixCart.calculatedPrice),
     );
     return {
       id: emporixCart.id,

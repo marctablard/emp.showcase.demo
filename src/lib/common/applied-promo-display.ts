@@ -8,6 +8,41 @@ function hasGoodsEffect(amount: number | undefined): boolean {
   return typeof amount === 'number' && Math.abs(amount) >= 0.005;
 }
 
+function roundedPositiveDelta(original: number, discounted: number | undefined): number | undefined {
+  if (typeof discounted !== 'number' || original - discounted < 0.005) {
+    return undefined;
+  }
+  return Math.round((original - discounted) * 100) / 100;
+}
+
+/**
+ * Goods-only savings for the "Your savings" badge. Prefer the goods-figure delta so a mixed
+ * goods + FREE_SHIPPING order does not include the shipping waiver in the goods total.
+ */
+export function resolveGoodsSavingsAmount(input: {
+  savingsTotal?: number;
+  shippingFree?: boolean;
+  discountedNet?: number;
+  discountedGross?: number;
+  originalNet: number;
+  originalGross?: number;
+  afterTax?: boolean;
+}): number | undefined {
+  const fromFigures = input.afterTax
+    ? roundedPositiveDelta(input.originalGross ?? 0, input.discountedGross)
+    : roundedPositiveDelta(input.originalNet, input.discountedNet);
+  if (fromFigures !== undefined) {
+    return fromFigures;
+  }
+  if (input.shippingFree) {
+    return undefined;
+  }
+  if (typeof input.savingsTotal === 'number' && input.savingsTotal > 0) {
+    return input.savingsTotal;
+  }
+  return undefined;
+}
+
 export function isFreeShippingPromo(discount: { type?: string }): boolean {
   return discount.type === 'FREE_SHIPPING';
 }
@@ -59,6 +94,10 @@ export function orderGoodsSavings(
   const goodsPromos = facing.filter((discount) => !isFreeShippingPromo(discount));
   if (facing.length > 0 && goodsPromos.length === 0) {
     return undefined;
+  }
+  if (facing.some(isFreeShippingPromo) && goodsPromos.length > 0) {
+    const mixedGoods = goodsPromos.reduce((sum, discount) => sum + (discount.value || 0), 0);
+    return mixedGoods > 0 ? { amount: mixedGoods, currency } : undefined;
   }
   if (typeof order.savingsTotal === 'number' && order.savingsTotal > 0) {
     return { amount: order.savingsTotal, currency };

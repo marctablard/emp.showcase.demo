@@ -622,6 +622,7 @@ describe('CartStore - Fetch Deduplication', () => {
       lastLegalEntityId: null,
       pendingCurrencySync: null,
       isSettling: false,
+      mutating: false,
     });
 
     const createdCart = {
@@ -675,6 +676,7 @@ describe('CartStore - Fetch Deduplication', () => {
       lastLegalEntityId: null,
       pendingCurrencySync: null,
       isSettling: false,
+      mutating: false,
     });
     const updatedCart = {
       ...existingCart,
@@ -783,6 +785,7 @@ describe('CartStore - shipping destination debounce', () => {
       lastLegalEntityId: null,
       pendingCurrencySync: null,
       isSettling: false,
+      mutating: false,
     });
 
     await act(async () => {
@@ -813,6 +816,7 @@ describe('CartStore - shipping destination debounce', () => {
       lastLegalEntityId: null,
       pendingCurrencySync: null,
       isSettling: false,
+      mutating: false,
     });
 
     await act(async () => {
@@ -835,6 +839,7 @@ describe('CartStore - shipping destination debounce', () => {
       lastLegalEntityId: null,
       pendingCurrencySync: null,
       isSettling: false,
+      mutating: false,
     });
 
     await act(async () => {
@@ -875,6 +880,7 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
       lastLegalEntityId: null,
       pendingCurrencySync: null,
       isSettling: false,
+      mutating: false,
     });
 
   beforeEach(() => {
@@ -1232,6 +1238,42 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
 
     expect(mockRemoveCartDiscount).toHaveBeenCalledTimes(1);
     expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 1);
+  });
+
+  it('rejects removeItem when leftover coupon cleanup fails', async () => {
+    const emptiedWithCoupon = buildCart('cart-1', {
+      items: [],
+      discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+    });
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+      }),
+    );
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithCoupon));
+    mockRemoveCartDiscount.mockRejectedValueOnce(new Error('coupon cleanup failed'));
+
+    await act(async () => {
+      await expect(store.getState().removeItem('item-1')).rejects.toThrow('coupon cleanup failed');
+    });
+  });
+
+  it('sets mutating while a snapshot mutation is in flight without flipping loading', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pending = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pending.promise);
+
+    const apply = store.getState().applyDiscount('CODE');
+    expect(store.getState().mutating).toBe(true);
+    expect(store.getState().loading).toBe(false);
+
+    pending.resolve(buildCart('cart-1'));
+    await act(async () => {
+      await apply;
+    });
+    expect(store.getState().mutating).toBe(false);
   });
 
   it('drops a GET issued before a discount write that resolves after the write published its snapshot', async () => {
