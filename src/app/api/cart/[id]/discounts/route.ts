@@ -20,18 +20,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const resolvedParams = await params;
   const cartId = resolvedParams.id;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
   try {
     const sessionService = server.get<SessionService>('SessionService');
     const session = await sessionService.getCurrent();
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 401 });
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
     const cartService = server.get<CartService>('CartService');

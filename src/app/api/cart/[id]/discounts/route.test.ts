@@ -65,6 +65,18 @@ describe('POST /api/cart/[id]/discounts', () => {
     expect(cartService.applyDiscount).not.toHaveBeenCalled();
   });
 
+  it('returns 401 for a missing session even when the body is not JSON', async () => {
+    sessionService.getCurrent.mockResolvedValue(undefined);
+
+    const response = await POST({ json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token')) } as never, {
+      params: Promise.resolve({ id: 'cart-1' }),
+    });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'Session not found' });
+    expect(cartService.applyDiscount).not.toHaveBeenCalled();
+  });
+
   it('returns 401 when the session is missing', async () => {
     sessionService.getCurrent.mockResolvedValue(undefined);
 
