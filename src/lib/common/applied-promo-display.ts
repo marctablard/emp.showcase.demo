@@ -44,6 +44,27 @@ export function shopperFacingOrderPromos(discounts: OrderDiscount[] | undefined)
   return (discounts ?? []).filter(isShopperFacingOrderPromo);
 }
 
+/**
+ * Goods savings for confirmation / dashboard totals.
+ * Prefer published `savingsTotal` so a `TOTAL` rollup plus coupon rows is not added twice.
+ */
+export function orderGoodsSavings(
+  order: { savingsTotal?: number; discounts?: OrderDiscount[]; currency?: string } | null | undefined,
+): { amount: number; currency: string } | undefined {
+  if (!order) {
+    return undefined;
+  }
+  const currency = order.discounts?.find((discount) => discount.currency)?.currency ?? order.currency ?? '';
+  if (typeof order.savingsTotal === 'number' && order.savingsTotal > 0) {
+    return { amount: order.savingsTotal, currency };
+  }
+  const amount = shopperFacingOrderPromos(order.discounts).reduce((sum, discount) => sum + (discount.value || 0), 0);
+  if (amount <= 0) {
+    return undefined;
+  }
+  return { amount, currency };
+}
+
 function isRemovableCartPromo(discount: CartAppliedDiscount): boolean {
   const code = discount.code.trim();
   return code.length > 0 && !AGGREGATE_PROMO_CODES.has(code);

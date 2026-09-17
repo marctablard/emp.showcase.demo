@@ -4,6 +4,7 @@ import {
   cartCouponCodesForMessage,
   isShopperFacingCartPromo,
   isShopperFacingOrderPromo,
+  orderGoodsSavings,
   removableCartDiscountIndexes,
   shopperFacingCartPromos,
 } from './applied-promo-display';
@@ -66,6 +67,31 @@ describe('applied-promo-display', () => {
         { code: 'NOMATCH', discountIndex: 2, amount: 0, currency: 'EUR' },
       ]),
     ).toEqual(['ACCESSORIES15', 'NOMATCH']);
+  });
+
+  it('uses savingsTotal instead of summing TOTAL plus coupon rows', () => {
+    expect(
+      orderGoodsSavings({
+        currency: 'EUR',
+        savingsTotal: 101.1,
+        discounts: [
+          { code: 'TOTAL', value: 101.1, currency: 'EUR' },
+          { code: '10POFF', value: 101.1, currency: 'EUR' },
+        ],
+      }),
+    ).toEqual({ amount: 101.1, currency: 'EUR' });
+  });
+
+  it('falls back to shopper-facing coupon values when savingsTotal is missing', () => {
+    expect(
+      orderGoodsSavings({
+        currency: 'EUR',
+        discounts: [
+          { code: 'TOTAL', value: 101.1, currency: 'EUR' },
+          { code: '10POFF', value: 101.1, currency: 'EUR' },
+        ],
+      }),
+    ).toEqual({ amount: 101.1, currency: 'EUR' });
   });
 
   it('returns removable coupon indexes without the TOTAL rollup, highest first', () => {
