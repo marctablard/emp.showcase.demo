@@ -3,7 +3,7 @@
 import type { StoreApi } from 'zustand';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { updateSessionContext } from '@/lib/client/session';
-import { cartCouponCodesForMessage } from '@/lib/common/applied-promo-display';
+import { cartCouponCodesForCurrencyConflict } from '@/lib/common/applied-promo-display';
 import { isCouponCurrencyConflictClientError } from '@/lib/common/cart-api-error-mapping';
 import { writeLocaleCookie } from '@/lib/common/locale-cookie';
 import { resolveCountryForSite } from '@/lib/common/site-country';
@@ -405,7 +405,7 @@ function currencyFallbackForReprice(
   if (!isCouponCurrencyConflictClientError(repriceError)) {
     return { from, to };
   }
-  const couponCodes = cartCouponCodesForMessage(discounts);
+  const couponCodes = cartCouponCodesForCurrencyConflict(discounts);
   if (couponCodes.length === 0) {
     return { from, to };
   }

@@ -436,6 +436,41 @@ describe('EmporixCartMapper', () => {
     ]);
   });
 
+  it('fills a missing amount from an id-less PERCENT row when it is the sole shopper coupon', () => {
+    const mapped = mapper.mapToService({
+      ...ls10pTotalOpenApiCart(),
+      discounts: [
+        {
+          id: '0',
+          code: 'LS10PTOTAL',
+          name: 'LS10PTOTAL',
+          currency: 'EUR',
+          discountRate: 10,
+          valid: true,
+        },
+      ],
+      calculatedPrice: {
+        ...ls10pTotalOpenApiCart().calculatedPrice,
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 11.22,
+          appliedDiscounts: [{ value: 11.22, discountType: 'PERCENT', origin: 'INTERNAL' }],
+        },
+      },
+    } as EmporixCart);
+
+    expect(mapped.discounts).toEqual([
+      {
+        code: 'LS10PTOTAL',
+        name: 'LS10PTOTAL',
+        discountIndex: 0,
+        amount: 11.22,
+        currency: 'EUR',
+        type: 'PERCENT',
+      },
+    ]);
+  });
+
   it('does not pair an id-less applied discount when more than one coupon is present', () => {
     const mapped = mapper.mapToService({
       ...showcaseDevCart({
@@ -522,7 +557,7 @@ describe('EmporixCartMapper', () => {
     expect(mapped.freeShipping).toBe(true);
     expect(mapped.discounts?.[0]).toMatchObject({
       code: 'FREESHIP',
-      amount: 0,
+      amount: 4.95,
       type: 'FREE_SHIPPING',
     });
   });

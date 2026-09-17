@@ -1,6 +1,7 @@
 import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import type { OrderDiscount } from '@/platform/services/model/order/order';
 import {
+  cartCouponCodesForCurrencyConflict,
   cartCouponCodesForMessage,
   currentDiscountIndexForCode,
   isShopperFacingCartPromo,
@@ -69,8 +70,19 @@ describe('applied-promo-display', () => {
         goods,
         { code: 'TOTAL', discountIndex: 1, amount: 10, currency: 'EUR' },
         { code: 'NOMATCH', discountIndex: 2, amount: 0, currency: 'EUR' },
+        { code: 'STALE10', discountIndex: 3, amount: 0, currency: 'EUR', valid: false },
       ]),
-    ).toEqual(['ACCESSORIES15', 'NOMATCH']);
+    ).toEqual(['ACCESSORIES15', 'NOMATCH', 'STALE10']);
+  });
+
+  it('omits invalid coupons from currency-conflict toasts', () => {
+    expect(
+      cartCouponCodesForCurrencyConflict([
+        goods,
+        { code: 'TOTAL', discountIndex: 1, amount: 10, currency: 'EUR' },
+        { code: 'STALE10', discountIndex: 3, amount: 0, currency: 'EUR', valid: false },
+      ]),
+    ).toEqual(['ACCESSORIES15']);
   });
 
   it('uses savingsTotal instead of summing TOTAL plus coupon rows', () => {

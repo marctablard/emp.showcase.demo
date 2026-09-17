@@ -883,6 +883,46 @@ describe('EmporixCartService', () => {
         expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
       });
 
+      it('classifies a documented 500 wrong-discount-currency rejection via coupon validation', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(
+            'Failed to apply discount to cart: 500 Internal Server Error {"code":500,"status":"Internal Server Error","message":"Discount currency is CAD and is not equal to cart currency EUR."}',
+          ),
+        );
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'CADCODE')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_APPLICABLE, upstreamStatus: 500 }),
+        );
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('CADCODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+        });
+      });
+
+      it('classifies a documented 500 already-exists rejection as ALREADY_APPLIED', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(
+            'Failed to apply discount to cart: 500 Internal Server Error {"code":500,"message":"Discount code DEVIZU already exists in cart."}',
+          ),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'DEVIZU')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 500 }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('does not classify a generic 500 without a documented coupon-rejection payload', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error('Failed to apply discount to cart: 500 Internal Server Error {"code":500,"message":"boom"}'),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ upstreamStatus: 500, reason: undefined }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
       it('classifies an expired code as NOT_ACTIVE', async () => {
         mockCouponApi.validateCoupon.mockResolvedValue({
           ok: false,

@@ -67,6 +67,28 @@ const COUPON_NOT_ACTIVE_DETAIL_TYPES: ReadonlySet<string> = new Set(['coupon_exp
  * Anything else — auth/scope failures such as a 401 or a non-business 403 — is inconclusive
  * and returns `undefined` so the caller keeps the generic copy.
  */
+/** Cart API OpenAPI documents these apply-discount business rejections as HTTP 500. */
+const DOCUMENTED_COUPON_CURRENCY_REJECTION = /discount currency.+(?:not equal to|is not equal to) cart currency/i;
+const DOCUMENTED_COUPON_ALREADY_EXISTS = /already exists in cart/i;
+
+function couponRejectionText(error: CartDiscountError): string {
+  return `${error.message} ${error.upstreamBody ?? ''}`;
+}
+
+function isDocumentedCouponAlreadyAppliedRejection(error: CartDiscountError): boolean {
+  if (error.upstreamStatus === 409) {
+    return true;
+  }
+  return error.upstreamStatus === 500 && DOCUMENTED_COUPON_ALREADY_EXISTS.test(couponRejectionText(error));
+}
+
+function shouldClassifyCouponRejection(error: CartDiscountError): boolean {
+  if (error.upstreamStatus === 400) {
+    return true;
+  }
+  return error.upstreamStatus === 500 && DOCUMENTED_COUPON_CURRENCY_REJECTION.test(couponRejectionText(error));
+}
+
 export function classifyCouponRejection(outcome: EmporixCouponValidationOutcome): CartDiscountReason | undefined {
   if (outcome.ok) {
     return CART_DISCOUNT_REASON.NOT_APPLICABLE;
@@ -896,10 +918,10 @@ class EmporixCartService implements CartService {
     if (error.reason) {
       return error;
     }
-    if (error.upstreamStatus === 409) {
+    if (isDocumentedCouponAlreadyAppliedRejection(error)) {
       return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
     }
-    if (error.upstreamStatus !== 400) {
+    if (!shouldClassifyCouponRejection(error)) {
       return error;
     }
     if (

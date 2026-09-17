@@ -132,9 +132,30 @@ export function removableCartPromoAtIndex(
   );
 }
 
-/** Codes that still live on the cart (including zero-effect) — used in toasts, not TOTAL. */
+/** Codes that still live on the cart (including invalid) — empty-cart cleanup toasts, not TOTAL. */
 export function cartCouponCodesForMessage(discounts: CartAppliedDiscount[] | undefined): string[] {
-  return [...new Set((discounts ?? []).filter(isRemovableCartPromo).map((discount) => discount.code.trim()))];
+  return uniqueRemovableCodes(discounts, () => true);
+}
+
+/**
+ * Codes that can actually block a currency change. Invalid rows are excluded from calculation
+ * (COP-4815 review 5236497760) — do not tell the shopper to remove a stale coupon.
+ */
+export function cartCouponCodesForCurrencyConflict(discounts: CartAppliedDiscount[] | undefined): string[] {
+  return uniqueRemovableCodes(discounts, (discount) => discount.valid !== false);
+}
+
+function uniqueRemovableCodes(
+  discounts: CartAppliedDiscount[] | undefined,
+  extra: (discount: CartAppliedDiscount) => boolean,
+): string[] {
+  return [
+    ...new Set(
+      (discounts ?? [])
+        .filter((discount) => isRemovableCartPromo(discount) && extra(discount))
+        .map((discount) => discount.code.trim()),
+    ),
+  ];
 }
 
 /** DELETE indexes for real coupons, highest first so later removals do not shift earlier ones. */

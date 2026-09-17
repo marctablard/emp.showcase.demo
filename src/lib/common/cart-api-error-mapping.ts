@@ -3,6 +3,7 @@ import {
   CART_DISCOUNT_REASON,
   CART_SITE_MISMATCH_MESSAGE,
   CartCurrencyUpdateError,
+  type CartDiscountError,
   type CartDiscountReason,
   isCartDiscountError,
 } from '@/platform/services/cart/errors';
@@ -183,6 +184,22 @@ const DEFAULT_DISCOUNT_REJECTION: DiscountRejectionResponse = {
   reason: CART_API_REASON.DISCOUNT_NOT_APPLICABLE,
 };
 
+function mapClassifiedDiscountRejection(error: CartDiscountError): CartApiErrorMapping | undefined {
+  if (!error.reason) {
+    return undefined;
+  }
+  const rejection = DISCOUNT_REJECTION_RESPONSES[error.reason];
+  return {
+    status: 400,
+    response: rejection,
+    logContext: {
+      reason: rejection.reason,
+      upstreamStatus: error.upstreamStatus,
+      upstreamBody: error.upstreamBody,
+    },
+  };
+}
+
 function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: string): CartApiErrorMapping {
   if (isCartDiscountError(error)) {
     if (error.upstreamStatus === 401) {
@@ -221,6 +238,11 @@ function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: st
       };
     }
 
+    const classified = mapClassifiedDiscountRejection(error);
+    if (classified) {
+      return classified;
+    }
+
     if (error.upstreamStatus != null && error.upstreamStatus >= 500) {
       return {
         status: 500,
@@ -233,12 +255,11 @@ function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: st
       };
     }
 
-    const rejection = error.reason ? DISCOUNT_REJECTION_RESPONSES[error.reason] : DEFAULT_DISCOUNT_REJECTION;
     return {
       status: 400,
-      response: rejection,
+      response: DEFAULT_DISCOUNT_REJECTION,
       logContext: {
-        reason: rejection.reason,
+        reason: DEFAULT_DISCOUNT_REJECTION.reason,
         upstreamStatus: error.upstreamStatus,
         upstreamBody: error.upstreamBody,
       },

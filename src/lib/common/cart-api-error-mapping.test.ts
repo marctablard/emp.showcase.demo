@@ -161,6 +161,19 @@ describe('cart-api-error-mapping', () => {
       expect(mapping.response.reason).toBe(CART_API_REASON.UPSTREAM_FAILURE);
       expect(mapping.logContext.upstreamStatus).toBe(500);
     });
+
+    it('maps a classified coupon rejection whose upstream status is 500 to 400 coupon_not_applicable', () => {
+      const mapping = mapCartDiscountApplyError(
+        new CartDiscountError('Failed to apply discount', {
+          upstreamStatus: 500,
+          reason: CART_DISCOUNT_REASON.NOT_APPLICABLE,
+        }),
+      );
+
+      expect(mapping.status).toBe(400);
+      expect(mapping.response.reason).toBe(CART_API_REASON.COUPON_NOT_APPLICABLE);
+      expect(mapping.logContext.upstreamStatus).toBe(500);
+    });
   });
 
   describe('mapCartDiscountRemoveError', () => {

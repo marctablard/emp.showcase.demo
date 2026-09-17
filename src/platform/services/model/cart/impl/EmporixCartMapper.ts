@@ -72,13 +72,9 @@ function lineLevelAppliedDiscounts(items: EmporixCart['items']): EmporixCalculat
   );
 }
 
-function matchAppliedDiscount(
-  appliedDiscounts: EmporixCalculatedAppliedDiscount[],
-  discount: EmporixCartDiscount,
+function collapseAppliedMatches(
+  matches: EmporixCalculatedAppliedDiscount[],
 ): EmporixCalculatedAppliedDiscount | undefined {
-  const matches = appliedDiscounts.filter(
-    (applied) => typeof applied.id === 'string' && (applied.id === discount.code || applied.id === discount.id),
-  );
   if (matches.length === 0) {
     return undefined;
   }
@@ -91,6 +87,27 @@ function matchAppliedDiscount(
   };
 }
 
+function matchAppliedDiscount(
+  appliedDiscounts: EmporixCalculatedAppliedDiscount[],
+  discount: EmporixCartDiscount,
+  inferSoleIdLess: boolean,
+): EmporixCalculatedAppliedDiscount | undefined {
+  const matches = appliedDiscounts.filter(
+    (applied) => typeof applied.id === 'string' && (applied.id === discount.code || applied.id === discount.id),
+  );
+  if (matches.length > 0) {
+    return collapseAppliedMatches(matches);
+  }
+  if (!inferSoleIdLess) {
+    return undefined;
+  }
+  return collapseAppliedMatches(
+    appliedDiscounts.filter(
+      (applied) => applied.id === undefined && (applied.origin === 'INTERNAL' || applied.origin === undefined),
+    ),
+  );
+}
+
 /**
  * Prefer the cart aggregate row, then shipping-only lists, then line sums for category coupons.
  * Each list is matched on its own so overlapping aggregate/component rows are not added twice.
@@ -100,11 +117,12 @@ function resolveAppliedDiscount(
   shippingLevel: EmporixCalculatedAppliedDiscount[],
   lineLevel: EmporixCalculatedAppliedDiscount[],
   discount: EmporixCartDiscount,
+  inferSoleIdLess: boolean,
 ): EmporixCalculatedAppliedDiscount | undefined {
   return (
-    matchAppliedDiscount(cartLevel, discount) ??
-    matchAppliedDiscount(shippingLevel, discount) ??
-    matchAppliedDiscount(lineLevel, discount)
+    matchAppliedDiscount(cartLevel, discount, inferSoleIdLess) ??
+    matchAppliedDiscount(shippingLevel, discount, inferSoleIdLess) ??
+    matchAppliedDiscount(lineLevel, discount, inferSoleIdLess)
   );
 }
 
@@ -181,11 +199,12 @@ function shouldInferZeroedFreeShipping(
   shippingLevel: EmporixCalculatedAppliedDiscount[],
   shopperDiscounts: EmporixCartDiscount[],
   inferZeroedShipping: boolean,
+  inferSoleIdLess: boolean,
 ): boolean {
   if (!inferZeroedShipping || discount.code === 'TOTAL') {
     return false;
   }
-  if (matchAppliedDiscount(shippingLevel, discount)) {
+  if (matchAppliedDiscount(shippingLevel, discount, inferSoleIdLess)) {
     return true;
   }
   if (resolvedDiscountAmount(applied, discount) === 0) {
@@ -204,13 +223,21 @@ function resolveMappedDiscountType(
   shopperDiscounts: EmporixCartDiscount[],
   inferZeroedShipping: boolean,
   soleFreeShippingIdentity: string | undefined,
+  inferSoleIdLess: boolean,
 ): CartAppliedDiscountType | undefined {
   const fromApplied = asCartDiscountType(applied?.discountType);
   if (fromApplied) {
     return fromApplied;
   }
   if (
-    shouldInferZeroedFreeShipping(discount, applied, shippingLevel, shopperDiscounts, inferZeroedShipping) ||
+    shouldInferZeroedFreeShipping(
+      discount,
+      applied,
+      shippingLevel,
+      shopperDiscounts,
+      inferZeroedShipping,
+      inferSoleIdLess,
+    ) ||
     discountMatchesFreeShippingIdentity(discount, soleFreeShippingIdentity)
   ) {
     return 'FREE_SHIPPING';
@@ -231,6 +258,7 @@ function mapCartDiscounts(
     return undefined;
   }
   const shopperDiscounts = sourceDiscounts.filter(isShopperSourceDiscount);
+  const inferSoleIdLess = shopperDiscounts.length === 1;
   const mapped = sourceDiscounts.map((discount, arrayIndex) => {
     if (discount.valid === false) {
       return {
@@ -242,7 +270,7 @@ function mapCartDiscounts(
         valid: false,
       };
     }
-    const applied = resolveAppliedDiscount(cartLevel, shippingLevel, lineLevel, discount);
+    const applied = resolveAppliedDiscount(cartLevel, shippingLevel, lineLevel, discount, inferSoleIdLess);
     const type = resolveMappedDiscountType(
       discount,
       applied,
@@ -250,6 +278,7 @@ function mapCartDiscounts(
       shopperDiscounts,
       inferZeroedShipping,
       soleFreeShippingIdentity,
+      inferSoleIdLess,
     );
     return {
       code: discount.code,

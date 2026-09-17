@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { cartCouponCodesForMessage } from '@/lib/common/applied-promo-display';
+import { cartCouponCodesForCurrencyConflict } from '@/lib/common/applied-promo-display';
 import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
@@ -41,7 +41,7 @@ async function reconcileCartCurrency(
 ): Promise<CartCurrencyReconcile> {
   const cartId = cart.id;
   const cartSite = cart.site;
-  const couponCodes = cartCouponCodesForMessage(cart.discounts);
+  const couponCodes = cartCouponCodesForCurrencyConflict(cart.discounts);
   try {
     await cartService.updateCurrency(cartId, currency);
     return { cart: (await cartService.getCartById(cartId)) ?? (await cartService.getCart()) };
