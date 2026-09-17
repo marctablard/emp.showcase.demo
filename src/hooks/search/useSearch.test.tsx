@@ -471,6 +471,39 @@ describe('useSearch', () => {
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
+  it('clears product tiles on scope change so the previous scope cannot stay painted while loading', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [{ id: 'all-scope' }],
+          total: 1,
+          page: 0,
+          pageSize: 12,
+          availableFilters: [],
+        }),
+      })
+      .mockImplementationOnce(() => new Promise(() => {}));
+
+    const { result, rerender } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    expect(result.current.data).toEqual([{ id: 'all-scope' }]);
+
+    mockUseSessionStore.mockReturnValue({ session: { currency: 'EUR', customerId: 'cust-b' } });
+
+    await act(async () => {
+      rerender();
+    });
+
+    expect(result.current.data).toEqual([]);
+    expect(result.current.total).toBe(0);
+    expect(result.current.loading).toBe(true);
+  });
+
   it('still fetches when only session currency changes', async () => {
     const { result, rerender } = renderHook(() => useSearch());
 

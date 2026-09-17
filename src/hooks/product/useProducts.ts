@@ -188,6 +188,9 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
       const scopeChanged = prevClientDedupeScopeRef.current !== clientDedupeScope;
       prevCacheGenRef.current = cacheGeneration;
       prevClientDedupeScopeRef.current = clientDedupeScope;
+      if (scopeChanged) {
+        setProducts([]);
+      }
       fetchProducts(generationChanged || scopeChanged);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

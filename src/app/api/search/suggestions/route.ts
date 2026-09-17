@@ -1,21 +1,11 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { isPersonalised, jsonResponse } from '@/app/api/_util/personalised-json-response';
 import { PRODUCTS_MODE_COOKIE_NAME } from '@/lib/common/products-mode-cookie';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { ProductsModeContext, ProductsModeService } from '@/platform/services/products-mode/ProductsModeService';
 import type { SearchService } from '@/platform/services/search/SearchService';
-
-const PRIVATE_NO_STORE = { 'Cache-Control': 'private, no-store' } as const;
-
-/** Personalised responses (segmented customer, assigned or opted-in `all`) must never be cached. */
-function isPersonalised(ctx: ProductsModeContext | undefined): boolean {
-  return ctx?.mode === 'assigned' || ctx?.mode === 'all';
-}
-
-function jsonResponse(body: unknown, personalised: boolean, status: number = 200): NextResponse {
-  return NextResponse.json(body, personalised ? { status, headers: PRIVATE_NO_STORE } : { status });
-}
 
 /**
  * API endpoint to get product suggestions based on a search query

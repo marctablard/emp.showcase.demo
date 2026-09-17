@@ -50,6 +50,28 @@ describe('fetchProductById', () => {
       expect.objectContaining({ cache: 'no-store' }),
     );
   });
+
+  it('does not reuse an in-flight request when options.siteCode differs', async () => {
+    const pendingMain = new Promise<Response>(() => {});
+    const fetchMock = jest
+      .fn()
+      .mockReturnValueOnce(pendingMain)
+      .mockReturnValueOnce(Promise.resolve({ ok: false, status: 404 } as Response));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { fetchProductById } = await import('@/lib/client/products');
+
+    void fetchProductById('p-1', { siteCode: 'main' }, 'assigned:main:c-1');
+    const otherSite = await fetchProductById('p-1', { siteCode: 'us' }, 'assigned:main:c-1');
+
+    expect(otherSite).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/products/p-1?site=us',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+  });
 });
 
 describe('fetchProductVariants', () => {

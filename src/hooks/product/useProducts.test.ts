@@ -111,4 +111,27 @@ describe('useProducts scope race (COP-4822)', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.products).toEqual([]);
   });
+
+  it('clears the list on scope change so CompareView cannot keep the previous scope while refetching', async () => {
+    const store = createProductStore();
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(ProductStoreContext.Provider, { value: store }, children);
+
+    (fetchProductById as jest.Mock)
+      .mockResolvedValueOnce(product('p-1'))
+      .mockImplementationOnce(() => new Promise<Product | null>(() => {}));
+
+    const { result, rerender } = renderHook(() => useProducts(['p-1']), { wrapper });
+
+    await waitFor(() => expect(result.current.products).toEqual([product('p-1')]));
+
+    mockClientFetchScope = 'assigned:main:cust-a';
+    await act(async () => {
+      rerender();
+    });
+
+    expect(result.current.products).toEqual([]);
+    expect(result.current.loading).toBe(true);
+    expect(fetchProductById).toHaveBeenLastCalledWith('p-1', undefined, 'assigned:main:cust-a');
+  });
 });

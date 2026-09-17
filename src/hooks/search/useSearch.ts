@@ -393,9 +393,12 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     }
     lastClientFetchScope.current = clientFetchScope;
     lastCompletedSearchKey.current = undefined;
-    // Suggestions were produced under the previous scope: drop them and invalidate any in-flight request.
+    // Suggestions and tiles were produced under the previous scope: drop them so
+    // SearchProductTileGrid cannot keep painting ALL/other-customer products while loading.
     suggestionsGeneration.current += 1;
     setSuggestions(EMPTY_SUGGESTIONS);
+    setData([]);
+    setTotal(0);
     search(lastSearchParams.current).catch((err: unknown) => {
       getLogger().error({ err, event: 'search_scope_refresh_failed' }, 'Product search scope refresh failed');
     });

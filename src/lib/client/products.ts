@@ -78,7 +78,7 @@ export async function fetchProductById(
           country: options.prices.country,
         })
       : String(options?.prices ?? false);
-  const cacheKey = `${id}:${clientDedupeScope}:${options?.variants ?? false}:${pricesCacheKey}`;
+  const cacheKey = `${id}:${clientDedupeScope}:${options?.variants ?? false}:${pricesCacheKey}:${options?.siteCode ?? ''}`;
   const existing = _productInflight.get(cacheKey);
   if (existing) return existing;
 
