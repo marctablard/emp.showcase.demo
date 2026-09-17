@@ -584,6 +584,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       lastSearchParams.current = { ...lastSearchParams.current, page: nextPage };
     } catch (err) {
+      if (clientFetchScopeRef.current !== scopeAtRequest || searchGeneration.current !== searchGenerationAtRequest) {
+        return;
+      }
       getLogger().error({ err, event: 'search_load_more_failed' }, 'Product search load-more failed');
       setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
     } finally {

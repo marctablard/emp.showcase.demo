@@ -12,7 +12,7 @@ import type { CustomerSegmentService } from '../../customer-segment/CustomerSegm
 import type { Category } from '../../model/category';
 import type { CategoryTreeNode } from '../../model/customer-segment';
 
-/** Upper bound of directly assigned products whose categories are grafted into the forest per call. */
+/** Warn when more than this many directly assigned products need category grafts (all are still looked up). */
 export const PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS = 200;
 /** Parallel `assignments/references/{productId}` lookups per batch. */
 const PRODUCT_CATEGORY_GRAFT_CONCURRENCY = 8;
@@ -366,16 +366,14 @@ class SegmentFilterService {
     if (productIds.length === 0) {
       return roots;
     }
-    let lookupIds = productIds;
-    if (lookupIds.length > PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS) {
+    if (productIds.length > PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS) {
       this.logger.warn(
-        { siteCode, productCount: productIds.length, max: PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS },
-        'Too many directly assigned products; grafting categories for the first ones only',
+        { siteCode, productCount: productIds.length, batchSize: PRODUCT_CATEGORY_GRAFT_CONCURRENCY },
+        'Many directly assigned products; grafting categories for all of them in batches',
       );
-      lookupIds = lookupIds.slice(0, PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS);
     }
 
-    const categoryIds = await this.fetchPublishedCategoryIdsForProducts(siteCode, lookupIds);
+    const categoryIds = await this.fetchPublishedCategoryIdsForProducts(siteCode, productIds);
     if (categoryIds.size === 0) {
       return roots;
     }
@@ -397,7 +395,7 @@ class SegmentFilterService {
     }
 
     this.logger.debug(
-      { siteCode, productCount: lookupIds.length, categoryCount: categoryIds.size, graftedIds },
+      { siteCode, productCount: productIds.length, categoryCount: categoryIds.size, graftedIds },
       'Grafted product-assigned categories into the segment forest',
     );
     return roots;

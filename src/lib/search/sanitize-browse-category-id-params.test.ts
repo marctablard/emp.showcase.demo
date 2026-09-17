@@ -90,6 +90,24 @@ describe('sanitizeBrowseCategoryIdParams', () => {
     });
   });
 
+  it('drops nested categoryIds keys such as filters[categoryIds][from] (AC5 URL redirect)', () => {
+    const result = sanitizeBrowseCategoryIdParams(
+      { q: 'drill', 'filters[categoryIds][from]': 'outside', 'filters[price][min]': '10' },
+      allowed,
+    );
+
+    expect(result).toEqual({
+      params: { q: 'drill', 'filters[price][min]': '10' },
+      droppedCategoryIds: ['outside'],
+    });
+  });
+
+  it('keeps a nested categoryIds key when its value is inside the scope', () => {
+    expect(
+      sanitizeBrowseCategoryIdParams({ 'filters[categoryIds][from]': 'inside-1', q: 'drill' }, allowed),
+    ).toBeUndefined();
+  });
+
   it('drops everything when the scope is empty (fail closed)', () => {
     const result = sanitizeBrowseCategoryIdParams({ 'filters[categoryIds][]': ['a', 'b'], q: 'x' }, []);
 

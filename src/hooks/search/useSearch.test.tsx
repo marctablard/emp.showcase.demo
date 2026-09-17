@@ -638,6 +638,48 @@ describe('useSearch', () => {
     expect(result.current.data).toEqual([{ id: 'scoped' }]);
   });
 
+  it('does not apply a load-more error that rejects after the customer scope changed', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ items: [{ id: 'a' }], total: 3, page: 0, pageSize: 1, availableSorts: [] }),
+    });
+    const { result, rerender } = renderHook(() => useSearch<{ id: string }>());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 1 });
+    });
+    expect(result.current.data).toEqual([{ id: 'a' }]);
+
+    let rejectPage: (reason: unknown) => void = () => {};
+    (global.fetch as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectPage = reject;
+        }),
+    );
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.loadMore();
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ items: [{ id: 'scoped' }], total: 1, page: 0, pageSize: 1, availableSorts: [] }),
+    });
+    mockUseSessionStore.mockReturnValue({ session: { currency: 'EUR', customerId: 'cust-b' } });
+    await act(async () => {
+      rerender();
+    });
+
+    await act(async () => {
+      rejectPage(new Error('previous-scope load-more failed'));
+      await pending;
+    });
+
+    expect(result.current.data).toEqual([{ id: 'scoped' }]);
+    expect(result.current.error).toBeNull();
+  });
+
   it('retries a failed search with the same key', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,

@@ -117,6 +117,10 @@ class EmporixProductService implements ProductService {
   }
 
   async getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {
+    if (isEmptySegmentScope(options?.segmentIds)) {
+      return { items: [], page: page ?? 0, pageSize: pageSize ?? 0, total: 0 };
+    }
+
     const paginated = await this.productApi.getProducts(page, pageSize);
 
     const items = await this.applySegmentScope(paginated.items, options);
@@ -129,7 +133,10 @@ class EmporixProductService implements ProductService {
       items: enhancedProducts,
       page: paginated.page,
       pageSize: paginated.size,
-      total: paginated.total,
+      // Assigned scope is applied after the unscoped Product API page: the upstream `total` would
+      // count out-of-segment products. Report the filtered page size so callers cannot paginate
+      // past items that are actually visible (COP-4822). Assigned PLP uses SearchService, not this.
+      total: options?.segmentIds !== undefined ? enhancedProducts.length : paginated.total,
     };
   }
 

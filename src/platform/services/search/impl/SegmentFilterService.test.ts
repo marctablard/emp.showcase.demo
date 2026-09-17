@@ -244,7 +244,7 @@ describe('SegmentFilterService', () => {
         expect(logger.warn).toHaveBeenCalledTimes(1);
       });
 
-      it('caps the lookups at the product limit and warns when truncated', async () => {
+      it('looks up every assigned product and only warns when the set is large', async () => {
         customerSegmentService.getCategoryTrees.mockResolvedValue([]);
         const many = Array.from({ length: PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS + 5 }, (_, i) =>
           productAssignment(`p${i}`),
@@ -254,11 +254,10 @@ describe('SegmentFilterService', () => {
 
         const scope = await createService().getCategoryScope('main', SEGMENTS);
 
-        expect(categoryApi.getCategoriesByReferenceId).toHaveBeenCalledTimes(PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS);
+        expect(categoryApi.getCategoriesByReferenceId).toHaveBeenCalledTimes(PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS + 5);
         expect(logger.warn).toHaveBeenCalledWith(
           expect.objectContaining({
             productCount: PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS + 5,
-            max: PRODUCT_CATEGORY_GRAFT_MAX_PRODUCTS,
           }),
           expect.any(String),
         );

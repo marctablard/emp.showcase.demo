@@ -4,6 +4,7 @@ import EmporixProductService from './EmporixProductService';
 describe('EmporixProductService template meta enrichment', () => {
   function createService(overrides?: {
     searchProducts?: jest.Mock;
+    getProducts?: jest.Mock;
     getProductTemplate?: jest.Mock;
     getProduct?: jest.Mock;
     getProductPrices?: jest.Mock;
@@ -46,7 +47,11 @@ describe('EmporixProductService template meta enrichment', () => {
     return new EmporixProductService(
       { getProductPrices: overrides?.getProductPrices ?? jest.fn().mockResolvedValue(new Map()) } as never,
       { mapToService: overrides?.mapToService ?? jest.fn() } as never,
-      { searchProducts, getProduct: overrides?.getProduct ?? jest.fn() } as never,
+      {
+        searchProducts,
+        getProduct: overrides?.getProduct ?? jest.fn(),
+        getProducts: overrides?.getProducts ?? jest.fn(),
+      } as never,
       { getBrand: jest.fn() } as never,
       { getLabels: jest.fn(), getLabel: jest.fn() } as never,
       { getProductTemplate } as never,
@@ -197,6 +202,36 @@ describe('EmporixProductService template meta enrichment', () => {
 
       expect(searchProducts).not.toHaveBeenCalled();
       expect(filterProductIdsInScope).not.toHaveBeenCalled();
+    });
+
+    it('getProducts reports the filtered page total instead of the unscoped catalog total', async () => {
+      const getProducts = jest.fn().mockResolvedValue({
+        items: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }],
+        page: 0,
+        size: 20,
+        total: 99,
+      });
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['p2']));
+      const service = createService({ getProducts, mapToService, filterProductIdsInScope, getCurrent });
+
+      const result = await service.getProducts(0, 20, { segmentIds: ['s1'], siteCode: 'main' });
+
+      expect(result.items.map((product) => product.id)).toEqual(['p2']);
+      expect(result.total).toBe(1);
+      expect(getProducts).toHaveBeenCalledWith(0, 20);
+    });
+
+    it('getProducts returns an empty page without an upstream call when segmentIds is []', async () => {
+      const getProducts = jest.fn();
+      const service = createService({ getProducts, mapToService, filterProductIdsInScope: jest.fn(), getCurrent });
+
+      await expect(service.getProducts(0, 20, { segmentIds: [] })).resolves.toEqual({
+        items: [],
+        page: 0,
+        pageSize: 20,
+        total: 0,
+      });
+      expect(getProducts).not.toHaveBeenCalled();
     });
 
     it('getVariantProducts keeps only in-scope variants', async () => {

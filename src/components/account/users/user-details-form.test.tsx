@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import type { ReactElement } from 'react';
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
@@ -70,8 +71,10 @@ jest.mock('@/components/ui/select', () => {
     }) => {
       React.useEffect(() => {
         if (value === undefined) return;
-        onValueChange?.('__none__');
-        onValueChange?.(value);
+        act(() => {
+          onValueChange?.('__none__');
+          onValueChange?.(value);
+        });
       }, []);
 
       return <SelectContext.Provider value={{ onValueChange, value }}>{children}</SelectContext.Provider>;
@@ -171,6 +174,12 @@ async function flushGroupSelectHydrate() {
   });
 }
 
+async function renderForm(ui: ReactElement) {
+  const view = render(ui);
+  await flushGroupSelectHydrate();
+  return view;
+}
+
 async function showActivateHelper(target: HTMLElement) {
   fireEvent.pointerMove(target, { pointerType: 'mouse' });
   const tooltip = await screen.findByRole('tooltip');
@@ -199,7 +208,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('renders no password input and exactly one selected-company group selector', async () => {
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
 
     expect(mockReleaseNavigationWaitCursorLease).toHaveBeenCalledWith({ force: true });
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
@@ -216,7 +225,7 @@ describe('UserDetailsForm', () => {
     mockSession = {};
     mockFetchGroups.mockResolvedValueOnce([assignableGroups[0]]);
 
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
 
     await waitFor(() =>
       expect(screen.getByLabelText(/form\.userGroupForCompany.*Selected Company/)).toBeInTheDocument(),
@@ -229,7 +238,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('keeps mobile, tablet, and desktop form styles separate', async () => {
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
 
     expect(screen.getByText('form.userDetails').closest('[data-slot="card"]')).toHaveClass('p-4', 'lg:p-6');
@@ -238,7 +247,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('marks title and phone as optional and keeps name and email required', async () => {
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
 
     expect(formLabel('form.title')).toHaveTextContent('optional');
@@ -249,7 +258,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('requires one group for the selected legal entity', async () => {
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await waitFor(() =>
       expect(screen.getByLabelText(/form\.userGroupForCompany.*Selected Company/)).toBeInTheDocument(),
     );
@@ -269,7 +278,7 @@ describe('UserDetailsForm', () => {
 
   it('allows an ungrouped edit user to save profile changes without submitting hidden assignments', async () => {
     mockUpdateCompanyUser.mockResolvedValue(undefined);
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={headerCompanies}
         initialUser={buildInitialUser({
@@ -294,7 +303,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('disables create Save until the form is dirty', async () => {
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
 
@@ -304,7 +313,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('disables edit Save until a field or group dropdown changes', async () => {
-    const { unmount } = render(<UserDetailsForm initialUser={buildInitialUser()} />);
+    const { unmount } = await renderForm(<UserDetailsForm initialUser={buildInitialUser()} />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
 
@@ -313,7 +322,7 @@ describe('UserDetailsForm', () => {
     expect(screen.getByRole('button', { name: 'save' })).toBeEnabled();
     unmount();
 
-    render(<UserDetailsForm initialUser={buildInitialUser()} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser()} />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
     expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
@@ -323,7 +332,7 @@ describe('UserDetailsForm', () => {
 
   it('submits the Contact-only sentinel when an existing edit group is cleared', async () => {
     mockUpdateCompanyUser.mockResolvedValue(undefined);
-    render(<UserDetailsForm initialUser={buildInitialUser()} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser()} />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
 
@@ -343,7 +352,7 @@ describe('UserDetailsForm', () => {
 
   it('submits one selected-company assignment when assigning an ungrouped edit user', async () => {
     mockUpdateCompanyUser.mockResolvedValue(undefined);
-    render(<UserDetailsForm initialUser={buildInitialUser({ groups: [] })} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser({ groups: [] })} />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
 
@@ -365,7 +374,7 @@ describe('UserDetailsForm', () => {
 
   it('keeps edit Save disabled after async group Selects mount without user edits', async () => {
     mockFetchGroups.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(assignableGroups), 20)));
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={headerCompanies}
         initialUser={buildInitialUser({
@@ -393,7 +402,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('does not enable edit Save when Title onValueChange repeats the current title after hydrate', async () => {
-    render(<UserDetailsForm initialUser={buildInitialUser({ title: 'MR' })} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser({ title: 'MR' })} />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
 
@@ -403,7 +412,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('hides the activate helper until hover of the checkbox or label', async () => {
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
 
     expect(screen.queryByText('form.activateUserHelper')).not.toBeInTheDocument();
@@ -413,7 +422,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('shows the activate helper on hover of the Activate user label', async () => {
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
 
     expect(screen.queryByText('form.activateUserHelper')).not.toBeInTheDocument();
@@ -422,7 +431,7 @@ describe('UserDetailsForm', () => {
 
   it('surfaces the required-group error when no picker value is chosen', async () => {
     mockFetchGroups.mockResolvedValueOnce([{ legalEntityId: 'le-1', legalEntityName: 'Selected Company', groups: [] }]);
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
 
     await waitFor(() => expect(screen.getByText('form.contactOnly')).toBeInTheDocument());
     expect(screen.queryByText('form.noGroupsAvailable')).not.toBeInTheDocument();
@@ -439,7 +448,7 @@ describe('UserDetailsForm', () => {
       user: { id: 'user-1' },
       failedGroupNames: ['Other Company - Buyer'],
     });
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await waitFor(() => expect(screen.getByText('Selected Company - Admin')).toBeInTheDocument());
     fillRequiredFields();
     fireEvent.click(screen.getByText('Selected Company - Admin'));
@@ -461,7 +470,7 @@ describe('UserDetailsForm', () => {
 
   it('includes the create activation value only when the form is submitted', async () => {
     mockCreateCompanyUser.mockResolvedValue({ user: { id: 'user-1' } });
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
     fillRequiredFields();
     fireEvent.click(screen.getByText('Selected Company - Admin'));
@@ -477,7 +486,7 @@ describe('UserDetailsForm', () => {
 
   it('keeps activation local until Save and uses the status success notification', async () => {
     mockUpdateCompanyUser.mockResolvedValue(undefined);
-    render(<UserDetailsForm initialUser={buildInitialUser()} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser()} />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
 
@@ -508,7 +517,7 @@ describe('UserDetailsForm', () => {
 
   it('omits group assignments when an edit saves other fields without changing the dropdown', async () => {
     mockUpdateCompanyUser.mockResolvedValue(undefined);
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={headerCompanies}
         initialUser={buildInitialUser({
@@ -539,7 +548,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('preselects the selected-company group by id and hides other-company groups', async () => {
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={[
           { id: 'le-1', name: 'NovaTech' },
@@ -581,7 +590,9 @@ describe('UserDetailsForm', () => {
         { id: 'group-2', legalEntityId: 'le-2', displayName: 'Other Company - Buyer' },
       ],
     });
-    const { rerender } = render(<UserDetailsForm headerCompanies={headerCompanies} initialUser={initialUser} />);
+    const { rerender } = await renderForm(
+      <UserDetailsForm headerCompanies={headerCompanies} initialUser={initialUser} />,
+    );
 
     const selectedCompanyTrigger = await screen.findByLabelText(/form\.userGroupForCompany.*Selected Company/);
     await waitFor(() =>
@@ -658,7 +669,7 @@ describe('UserDetailsForm', () => {
           ),
       );
 
-    const { rerender } = render(<UserDetailsForm headerCompanies={headerCompanies} />);
+    const { rerender } = await renderForm(<UserDetailsForm headerCompanies={headerCompanies} />);
     await screen.findByLabelText(/form\.userGroupForCompany.*Selected Company/);
 
     act(() => {
@@ -680,7 +691,7 @@ describe('UserDetailsForm', () => {
 
   it('prefers the selected-company predefined group over contact when both are assigned', async () => {
     mockFetchGroups.mockResolvedValueOnce(orderedAssignableGroups);
-    render(
+    await renderForm(
       <UserDetailsForm
         initialUser={buildInitialUser({
           groups: [
@@ -699,7 +710,7 @@ describe('UserDetailsForm', () => {
 
   it('preselects contact when it is the only selected-company assignment', async () => {
     mockFetchGroups.mockResolvedValueOnce(orderedAssignableGroups);
-    render(
+    await renderForm(
       <UserDetailsForm
         initialUser={buildInitialUser({
           groups: [{ id: 'contact-group', legalEntityId: 'le-1', displayName: 'Contact' }],
@@ -714,7 +725,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('shows placeholder and keeps Save disabled for ungrouped selected-company edit until dirty', async () => {
-    render(
+    await renderForm(
       <UserDetailsForm
         initialUser={buildInitialUser({
           groups: [{ id: 'group-2', legalEntityId: 'le-2', displayName: 'Other Company - Buyer' }],
@@ -761,7 +772,7 @@ describe('UserDetailsForm', () => {
           ),
         ),
     );
-    render(
+    await renderForm(
       <UserDetailsForm
         initialUser={buildInitialUser({
           groups: [
@@ -784,7 +795,7 @@ describe('UserDetailsForm', () => {
       { legalEntityId: 'le-2', legalEntityName: 'Other Company', groups: [] },
     ]);
 
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={headerCompanies}
         initialUser={buildInitialUser({
@@ -818,7 +829,7 @@ describe('UserDetailsForm', () => {
   it('shows the safe same-company create error through the existing notification path', async () => {
     const sameCompanyError = 'Customer can only assign new customer to the same company';
     mockCreateCompanyUser.mockRejectedValue(new Error(sameCompanyError));
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
     fillRequiredFields();
     fireEvent.click(screen.getByText('Selected Company - Admin'));
@@ -838,7 +849,7 @@ describe('UserDetailsForm', () => {
       { code: 'DUPLICATE_ACCOUNT' },
     );
     mockCreateCompanyUser.mockRejectedValue(duplicateAccountError);
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
     fillRequiredFields();
     fireEvent.click(screen.getByText('Selected Company - Admin'));
@@ -859,7 +870,7 @@ describe('UserDetailsForm', () => {
   it('shows predefined-group conflict toast copy for create failures', async () => {
     const predefinedConflictError = Object.assign(new Error('conflict'), { code: 'PREDEFINED_GROUP_CONFLICT' });
     mockCreateCompanyUser.mockRejectedValue(predefinedConflictError);
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await screen.findByText('Selected Company - Admin');
     fillRequiredFields();
     fireEvent.click(screen.getByText('Selected Company - Admin'));
@@ -876,7 +887,7 @@ describe('UserDetailsForm', () => {
   it('shows predefined-group conflict toast copy for edit failures', async () => {
     const predefinedConflictError = Object.assign(new Error('conflict'), { code: 'PREDEFINED_GROUP_CONFLICT' });
     mockUpdateCompanyUser.mockRejectedValue(predefinedConflictError);
-    render(<UserDetailsForm initialUser={buildInitialUser()} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser()} />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
     dirtyEditForm();
@@ -891,7 +902,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('shows the persisted INACTIVE detail badge', async () => {
-    render(<UserDetailsForm initialUser={buildInitialUser({ active: false })} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser({ active: false })} />);
     await screen.findByText('Selected Company - Admin');
 
     expect(screen.getByText('status.inactive')).toHaveClass(
@@ -904,7 +915,7 @@ describe('UserDetailsForm', () => {
 
   it('keeps the edit form mounted and does not navigate when update fails', async () => {
     mockUpdateCompanyUser.mockRejectedValue(new Error('update failed'));
-    render(<UserDetailsForm initialUser={buildInitialUser()} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser()} />);
     await waitFor(() =>
       expect(screen.getByLabelText(/form\.userGroupForCompany.*Selected Company/)).toBeInTheDocument(),
     );
@@ -923,14 +934,14 @@ describe('UserDetailsForm', () => {
   });
 
   it('cancel returns to the user list', async () => {
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
     await waitFor(() => expect(screen.getByText('Selected Company - Admin')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
     expect(mockPush).toHaveBeenCalledWith('/account/users');
   });
 
   it('shows a read-only heading and displayName bullets for other header companies on edit', async () => {
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={emporixHeaderCompanies}
         initialUser={buildInitialUser({
@@ -955,7 +966,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('does not render the read-only other-LE block on create even with header companies and mock groups', async () => {
-    render(<UserDetailsForm headerCompanies={emporixHeaderCompanies} />);
+    await renderForm(<UserDetailsForm headerCompanies={emporixHeaderCompanies} />);
 
     await screen.findByLabelText(/form\.userGroupForCompany.*Selected Company/);
     expect(userGroupSelectTriggers()).toHaveLength(1);
@@ -968,7 +979,7 @@ describe('UserDetailsForm', () => {
   it('omits the derived selected legal entity from read-only sections when session id is empty', async () => {
     mockSession = {};
     mockFetchGroups.mockResolvedValueOnce([assignableGroups[0]]);
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={headerCompanies}
         initialUser={buildInitialUser({
@@ -989,7 +1000,7 @@ describe('UserDetailsForm', () => {
 
   it('renders no other-LE sections while the derived selected legal entity id is empty', async () => {
     mockSession = {};
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={headerCompanies}
         initialUser={buildInitialUser({
@@ -1008,7 +1019,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('uses the header company name for the read-only heading instead of a parsed displayName prefix', async () => {
-    render(
+    await renderForm(
       <UserDetailsForm
         headerCompanies={[
           { id: 'le-1', name: 'NovaTech' },
@@ -1031,7 +1042,7 @@ describe('UserDetailsForm', () => {
 
   it('lists Contact-only first, then functional groups, and omits the Contact catalog row on create', async () => {
     mockFetchGroups.mockResolvedValueOnce(orderedAssignableGroups);
-    render(<UserDetailsForm />);
+    await renderForm(<UserDetailsForm />);
 
     const contactOnly = await screen.findByRole('button', { name: 'form.contactOnly' });
     expect(contactOnly).toHaveAttribute('data-select-item', CONTACT_ONLY_GROUP_ID);
@@ -1046,7 +1057,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('offers Contact only and catalog groups without an Unassign empty option', async () => {
-    render(<UserDetailsForm initialUser={buildInitialUser({ isSelectedLegalEntityMember: true })} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser({ isSelectedLegalEntityMember: true })} />);
     await screen.findByText('Selected Company - Admin');
 
     expect(screen.getByRole('button', { name: 'form.contactOnly' })).toHaveAttribute(
@@ -1062,7 +1073,7 @@ describe('UserDetailsForm', () => {
   });
 
   it('shows Active user and keep-access hint when editing an active user', async () => {
-    render(<UserDetailsForm initialUser={buildInitialUser({ active: true })} />);
+    await renderForm(<UserDetailsForm initialUser={buildInitialUser({ active: true })} />);
     await screen.findByText('Selected Company - Admin');
 
     expect(screen.getByRole('checkbox', { name: 'form.activeUser' })).toBeChecked();

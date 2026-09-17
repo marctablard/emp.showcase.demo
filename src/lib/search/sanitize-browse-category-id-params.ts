@@ -1,5 +1,5 @@
-/** Matches `filters[categoryIds]`, `filters[categoryIds][]` and the legacy `f[…]` variants. */
-const CATEGORY_IDS_PARAM_KEY = /^(?:filters|f)\[categoryIds\](?:\[\])?$/;
+/** Matches `filters[categoryIds]`, `filters[categoryIds][]`, nested `filters[categoryIds][from]`, and the legacy `f[…]` variants. */
+const CATEGORY_IDS_PARAM_KEY = /^(?:filters|f)\[categoryIds\](?:\[[^\]]*\])?$/;
 
 export interface SanitizedBrowseCategoryIdParams {
   /** Raw URL params with out-of-scope category ids removed; keys left empty are dropped. */

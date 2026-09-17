@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import enAccountTranslations from '@/i18n/translations/en/account/index.json';
 import type { Approval } from '@/platform/services/model/approval';
 import type { Quote } from '@/platform/services/model/quote';
@@ -192,6 +192,14 @@ const baseQuote: Quote = {
   shippingMethod: 'standard',
 };
 
+async function renderQuoteUi(ui: React.ReactElement) {
+  const view = render(ui);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return view;
+}
+
 function buildRelatedApproval(overrides: Partial<Approval> = {}): Approval {
   return {
     id: 'approval-123',
@@ -232,8 +240,8 @@ describe('Quote cross-links', () => {
     expect(enAccountTranslations.quoteDetails.netValue).toBe('Net value of goods');
   });
 
-  it('keeps title+status together and wraps actions as one horizontal row from sm (Figma header/actions stack)', () => {
-    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+  it('keeps title+status together and wraps actions as one horizontal row from sm (Figma header/actions stack)', async () => {
+    await renderQuoteUi(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
 
     const header = screen.getByTestId('quote-detail-header');
     expect(header).toHaveClass(
@@ -261,8 +269,8 @@ describe('Quote cross-links', () => {
     expect(screen.getByRole('button', { name: 'account.quoteDetails.requestChange' }).parentElement).toBe(actions);
   });
 
-  it('forwards quote items to ProductListResolver with locale-aware canonical presentation config and net-first resolver inputs', () => {
-    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+  it('forwards quote items to ProductListResolver with locale-aware canonical presentation config and net-first resolver inputs', async () => {
+    await renderQuoteUi(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
 
     expect(mockProductListResolver).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -293,10 +301,10 @@ describe('Quote cross-links', () => {
     );
   });
 
-  it('renders the related order link in the standalone list column and on the detail view when orderId is present', () => {
+  it('renders the related order link in the standalone list column and on the detail view when orderId is present', async () => {
     const quoteWithOrder = { ...baseQuote, orderId: 'order-123' };
 
-    render(
+    await renderQuoteUi(
       <>
         <QuotesTable quotes={[quoteWithOrder]} />
         <QuoteDetails quoteId={quoteWithOrder.id} initialQuote={quoteWithOrder} />
@@ -308,8 +316,8 @@ describe('Quote cross-links', () => {
     expect(screen.getByText('account.quoteDetails.relatedOrder')).toBeInTheDocument();
   });
 
-  it('omits the related order link (but keeps the standalone column) when orderId is absent', () => {
-    render(
+  it('omits the related order link (but keeps the standalone column) when orderId is absent', async () => {
+    await renderQuoteUi(
       <>
         <QuotesTable quotes={[baseQuote]} />
         <QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />
@@ -321,7 +329,7 @@ describe('Quote cross-links', () => {
     expect(screen.queryByText('account.quoteDetails.relatedOrder')).not.toBeInTheDocument();
   });
 
-  it('renders quote history with the changed-to status, visible reason/comment, and timestamp including time', () => {
+  it('renders quote history with the changed-to status, visible reason/comment, and timestamp including time', async () => {
     mockHistory = [
       {
         id: 'history-1',
@@ -335,7 +343,7 @@ describe('Quote cross-links', () => {
       },
     ];
 
-    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+    await renderQuoteUi(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
 
     expect(screen.getByText('Ada Lovelace (CUSTOMER)')).toBeInTheDocument();
     expect(screen.getByText('Status Changed to In Progress')).toBeInTheDocument();
@@ -356,7 +364,7 @@ describe('Quote cross-links', () => {
   });
 
   it('ellipsizes the related approval id while linking to the approval details page (finding 21)', async () => {
-    render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+    await renderQuoteUi(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
 
@@ -371,7 +379,7 @@ describe('Quote cross-links', () => {
     mockCustomer = { id: 'approver-1' };
     mockRelatedApproval = buildRelatedApproval();
 
-    render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+    await renderQuoteUi(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'approval-123' })).toHaveAttribute(
@@ -384,7 +392,7 @@ describe('Quote cross-links', () => {
     mockRelatedApproval = null;
     mockRelatedApprovalLoading = true;
 
-    render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+    await renderQuoteUi(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
     expect(screen.getByText('approval-123')).toBeInTheDocument();
@@ -396,7 +404,7 @@ describe('Quote cross-links', () => {
     mockRelatedApprovalLoading = false;
     mockRelatedApprovalError = new Error('Failed to get approval');
 
-    render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+    await renderQuoteUi(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
     expect(screen.getByText('approval-123')).toBeInTheDocument();
@@ -407,13 +415,13 @@ describe('Quote cross-links', () => {
     mockCheckApprovalPermitted.mockResolvedValueOnce({ permitted: true, approvalId: undefined });
     mockRelatedApproval = null;
 
-    render(<QuoteDetails quoteId="quote-open-2" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+    await renderQuoteUi(<QuoteDetails quoteId="quote-open-2" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.totalAmount')).toBeInTheDocument();
     expect(screen.queryByText('account.quoteDetails.relatedApproval')).not.toBeInTheDocument();
   });
 
-  it('makes Change Date the only sortable Quote History column and defaults to DESC', () => {
+  it('makes Change Date the only sortable Quote History column and defaults to DESC', async () => {
     mockHistory = [
       {
         id: 'history-older',
@@ -435,7 +443,7 @@ describe('Quote cross-links', () => {
       },
     ];
 
-    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+    await renderQuoteUi(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
 
     const sortButton = screen.getByTestId('quote-history-sort-change-date');
     expect(sortButton).toBeInTheDocument();

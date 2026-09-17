@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { Return } from '@/platform/services/model/return';
 // eslint-disable-next-line import/first, import/order
 import { useReturns } from './useReturns';
@@ -17,6 +17,14 @@ const mockFetchReturnsPage = jest.fn();
 jest.mock('@/lib/client/returns', () => ({
   fetchReturnsPage: (...args: unknown[]) => mockFetchReturnsPage(...args),
 }));
+
+async function renderReturnsHook<Result, Props>(hook: (props: Props) => Result, options?: { initialProps: Props }) {
+  const view = renderHook(hook, options);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return view;
+}
 
 function buildReturn(id: string): Return {
   return {
@@ -38,7 +46,7 @@ describe('useReturns', () => {
   it('reuses SSR-provided initialReturns for the default page-one, no-query/no-sort load without refetching', async () => {
     const initialReturns = [buildReturn('ssr-1')];
 
-    const { result } = renderHook(() => useReturns(initialReturns, { pageNumber: 1 }));
+    const { result } = await renderReturnsHook(() => useReturns(initialReturns, { pageNumber: 1 }));
 
     expect(result.current.returns).toEqual(initialReturns);
     expect(result.current.totalCount).toBeUndefined();
@@ -49,7 +57,7 @@ describe('useReturns', () => {
     const initialReturns = [buildReturn('ssr-1')];
     mockFetchReturnsPage.mockResolvedValue({ items: [buildReturn('page-2')], totalCount: 10 });
 
-    const { result } = renderHook(() => useReturns(initialReturns, { pageNumber: 2, pageSize: 5 }));
+    const { result } = await renderReturnsHook(() => useReturns(initialReturns, { pageNumber: 2, pageSize: 5 }));
 
     await waitFor(() => {
       expect(mockFetchReturnsPage).toHaveBeenCalledWith(5, 2, undefined, undefined, false);
@@ -62,7 +70,7 @@ describe('useReturns', () => {
     const initialReturns = [buildReturn('ssr-1')];
     mockFetchReturnsPage.mockResolvedValue({ items: [buildReturn('search-hit')], totalCount: 1 });
 
-    renderHook(() => useReturns(initialReturns, { pageNumber: 1, query: 'id:~(abc)' }));
+    await renderReturnsHook(() => useReturns(initialReturns, { pageNumber: 1, query: 'id:~(abc)' }));
 
     await waitFor(() => {
       expect(mockFetchReturnsPage).toHaveBeenCalledWith(undefined, 1, 'id:~(abc)', undefined, false);
@@ -72,7 +80,7 @@ describe('useReturns', () => {
   it('reuses SSR-provided initialReturns for the canonical default sort request without refetching', async () => {
     const initialReturns = [buildReturn('ssr-1')];
 
-    const { result } = renderHook(() =>
+    const { result } = await renderReturnsHook(() =>
       useReturns(initialReturns, {
         pageNumber: 1,
         pageSize: 5,
@@ -95,7 +103,7 @@ describe('useReturns', () => {
   it('fetches from the client when a non-canonical sort is present on page 1', async () => {
     const initialReturns = [buildReturn('ssr-1')];
 
-    renderHook(() => useReturns(initialReturns, { pageNumber: 1, sort: 'metadata.createdAt:ASC' }));
+    await renderReturnsHook(() => useReturns(initialReturns, { pageNumber: 1, sort: 'metadata.createdAt:ASC' }));
 
     await waitFor(() => {
       expect(mockFetchReturnsPage).toHaveBeenCalledWith(undefined, 1, undefined, 'metadata.createdAt:ASC', false);
@@ -106,7 +114,7 @@ describe('useReturns', () => {
     const initialReturns = [buildReturn('ssr-1')];
     mockFetchReturnsPage.mockResolvedValue({ items: [buildReturn('fresh')], totalCount: 1 });
 
-    renderHook(() => useReturns(initialReturns, { pageNumber: 1, forceRefreshOnMount: true }));
+    await renderReturnsHook(() => useReturns(initialReturns, { pageNumber: 1, forceRefreshOnMount: true }));
 
     await waitFor(() => {
       expect(mockFetchReturnsPage).toHaveBeenCalledWith(undefined, 1, undefined, undefined, true);
@@ -116,7 +124,7 @@ describe('useReturns', () => {
   it('fetches from the client when there is no initialReturns at all', async () => {
     mockFetchReturnsPage.mockResolvedValue({ items: [buildReturn('client-only')], totalCount: 1 });
 
-    const { result } = renderHook(() => useReturns(undefined, { pageNumber: 1 }));
+    const { result } = await renderReturnsHook(() => useReturns(undefined, { pageNumber: 1 }));
 
     await waitFor(() => expect(result.current.returns).toEqual([buildReturn('client-only')]));
     expect(mockFetchReturnsPage).toHaveBeenCalledTimes(1);
@@ -125,7 +133,7 @@ describe('useReturns', () => {
   it('surfaces a fetch error via the error state and clears loading', async () => {
     mockFetchReturnsPage.mockRejectedValue(new Error('network down'));
 
-    const { result } = renderHook(() => useReturns(undefined, { pageNumber: 1 }));
+    const { result } = await renderReturnsHook(() => useReturns(undefined, { pageNumber: 1 }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBeInstanceOf(Error);
@@ -136,17 +144,21 @@ describe('useReturns', () => {
     const initialReturns = [buildReturn('ssr-1')];
     mockFetchReturnsPage.mockResolvedValue({ items: [buildReturn('refreshed')], totalCount: 1 });
 
-    const { result } = renderHook(() => useReturns(initialReturns, { pageNumber: 1 }));
+    const { result } = await renderReturnsHook(() => useReturns(initialReturns, { pageNumber: 1 }));
     expect(mockFetchReturnsPage).not.toHaveBeenCalled();
 
-    await result.current.refreshReturns();
+    await act(async () => {
+      await result.current.refreshReturns();
+    });
 
     expect(mockFetchReturnsPage).toHaveBeenCalledWith(undefined, 1, undefined, undefined, true);
     await waitFor(() => expect(result.current.returns).toEqual([buildReturn('refreshed')]));
   });
 
   it('only forwards the safe upstream sort fields configured by the caller (no unapproved query/sort params)', async () => {
-    renderHook(() => useReturns(undefined, { pageNumber: 1, sort: 'approvalStatus:DESC', query: 'id:~(123)' }));
+    await renderReturnsHook(() =>
+      useReturns(undefined, { pageNumber: 1, sort: 'approvalStatus:DESC', query: 'id:~(123)' }),
+    );
 
     await waitFor(() => {
       expect(mockFetchReturnsPage).toHaveBeenCalledWith(undefined, 1, 'id:~(123)', 'approvalStatus:DESC', false);
@@ -165,7 +177,7 @@ describe('useReturns', () => {
       .mockResolvedValueOnce({ items: fetchedPageTwo, totalCount: 22 })
       .mockResolvedValueOnce({ items: fetchedPageOne, totalCount: 11 });
 
-    const { result, rerender } = renderHook(
+    const { result, rerender } = await renderReturnsHook(
       ({ pageNumber }) =>
         useReturns(ssrPageOne, {
           pageNumber,
@@ -184,14 +196,20 @@ describe('useReturns', () => {
     expect(mockFetchReturnsPage).not.toHaveBeenCalled();
     expect(result.current.returns).toEqual(ssrPageOne);
 
-    rerender({ pageNumber: 2 });
+    await act(async () => {
+      rerender({ pageNumber: 2 });
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(mockFetchReturnsPage).toHaveBeenCalledWith(5, 2, undefined, undefined, false);
     });
     await waitFor(() => expect(result.current.returns).toEqual(fetchedPageTwo));
 
-    rerender({ pageNumber: 1 });
+    await act(async () => {
+      rerender({ pageNumber: 1 });
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(mockFetchReturnsPage).toHaveBeenCalledWith(5, 1, undefined, undefined, false);
@@ -205,7 +223,7 @@ describe('useReturns', () => {
     mockFetchReturnsPage.mockResolvedValueOnce({ items: [buildReturn('entity-b')], totalCount: 1 });
 
     mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
-    const { result, rerender } = renderHook(() =>
+    const { result, rerender } = await renderReturnsHook(() =>
       useReturns(initialReturns, {
         pageNumber: 1,
         pageSize: 5,
@@ -217,7 +235,10 @@ describe('useReturns', () => {
     expect(result.current.returns).toEqual(initialReturns);
 
     mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-B' } });
-    rerender();
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(mockFetchReturnsPage).toHaveBeenCalledWith(5, 1, undefined, undefined, true);
