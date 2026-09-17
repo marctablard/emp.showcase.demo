@@ -141,7 +141,11 @@ export function mapCartCurrencyPutError(error: unknown): CartApiErrorMapping {
     if (error.code === CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT) {
       return {
         status: 409,
-        response: { error: 'Coupon blocks currency update', reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT },
+        response: {
+          error: 'Coupon blocks currency update',
+          reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+          code: CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT,
+        },
         logContext: {
           reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
           upstreamStatus: error.upstreamStatus,

@@ -113,9 +113,8 @@ function publishedGoodsSavings(order: OrderGoodsSavingsInput, shippingFree: bool
 
 /**
  * Goods savings for confirmation / dashboard totals.
- * Prefer published `savingsTotal` so a `TOTAL` rollup plus coupon rows is not added twice.
- * When the deprecated `discounts` array is omitted, use published goods figures
- * (COP-4815 review 5238303353) — never `savingsTotal` alone (fee-only rollup).
+ * Prefer the published goods-figure delta; `savingsTotal` is an all-discount rollup
+ * (COP-4815 review 5238762411). Fall back to shopper-facing goods coupon rows.
  */
 export function orderGoodsSavings(order: OrderGoodsSavingsInput | null | undefined):
   | {
@@ -129,16 +128,9 @@ export function orderGoodsSavings(order: OrderGoodsSavingsInput | null | undefin
   const currency = order.discounts?.find((discount) => discount.currency)?.currency ?? order.currency ?? '';
   const facing = shopperFacingOrderPromos(order.discounts);
   const goodsPromos = facing.filter((discount) => !isFreeShippingPromo(discount));
-  if (goodsPromos.length === 0) {
-    const fromFigures = publishedGoodsSavings(order, facing.some(isFreeShippingPromo));
-    return typeof fromFigures === 'number' ? { amount: fromFigures, currency } : undefined;
-  }
-  if (facing.some(isFreeShippingPromo) && goodsPromos.length > 0) {
-    const mixedGoods = goodsPromos.reduce((sum, discount) => sum + (discount.value || 0), 0);
-    return mixedGoods > 0 ? { amount: mixedGoods, currency } : undefined;
-  }
-  if (typeof order.savingsTotal === 'number' && order.savingsTotal > 0) {
-    return { amount: order.savingsTotal, currency };
+  const fromFigures = publishedGoodsSavings(order, facing.some(isFreeShippingPromo));
+  if (typeof fromFigures === 'number') {
+    return { amount: fromFigures, currency };
   }
   const amount = goodsPromos.reduce((sum, discount) => sum + (discount.value || 0), 0);
   if (amount <= 0) {

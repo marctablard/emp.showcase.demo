@@ -85,7 +85,7 @@ describe('applied-promo-display', () => {
     ).toEqual(['ACCESSORIES15']);
   });
 
-  it('uses savingsTotal instead of summing TOTAL plus coupon rows', () => {
+  it('uses shopper-facing goods rows instead of summing TOTAL plus coupon rows', () => {
     expect(
       orderGoodsSavings({
         currency: 'EUR',
@@ -96,6 +96,16 @@ describe('applied-promo-display', () => {
         ],
       }),
     ).toEqual({ amount: 101.1, currency: 'EUR' });
+  });
+
+  it('does not treat a mixed savingsTotal rollup as goods savings', () => {
+    expect(
+      orderGoodsSavings({
+        currency: 'EUR',
+        savingsTotal: 16.17,
+        discounts: [{ code: 'LS10PTOTAL', value: 11.22, currency: 'EUR' }],
+      }),
+    ).toEqual({ amount: 11.22, currency: 'EUR' });
   });
 
   it('falls back to shopper-facing coupon values when savingsTotal is missing', () => {

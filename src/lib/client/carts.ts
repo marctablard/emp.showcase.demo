@@ -211,6 +211,7 @@ export async function updateShippingMethod(cartId: string, method: CartShippingM
 
 type CartDiscountClientError = Error & {
   reason?: string;
+  code?: string;
   apiMessage?: string;
   status?: number;
 };
@@ -218,12 +219,15 @@ type CartDiscountClientError = Error & {
 function throwCartDiscountClientError(errorData: unknown, fallback: string, status: number): never {
   const body =
     errorData && typeof errorData === 'object'
-      ? (errorData as { error?: unknown; reason?: unknown; message?: unknown })
+      ? (errorData as { error?: unknown; reason?: unknown; message?: unknown; code?: unknown })
       : undefined;
   const errorText = typeof body?.error === 'string' && body.error.length > 0 ? body.error : fallback;
   const err: CartDiscountClientError = new Error(errorText);
   if (typeof body?.reason === 'string') {
     err.reason = body.reason;
+  }
+  if (typeof body?.code === 'string') {
+    err.code = body.code;
   }
   if (typeof body?.message === 'string') {
     err.apiMessage = body.message;

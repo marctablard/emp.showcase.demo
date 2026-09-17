@@ -55,6 +55,7 @@ describe('cart-api-error-mapping', () => {
 
       expect(mapping.status).toBe(409);
       expect(mapping.response.reason).toBe(CART_API_REASON.COUPON_CURRENCY_CONFLICT);
+      expect(mapping.response.code).toBe(CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT);
       expect(mapping.response.error).toBe('Coupon blocks currency update');
     });
 
