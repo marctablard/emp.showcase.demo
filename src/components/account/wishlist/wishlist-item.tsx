@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSyncedState } from '@/hooks/common/use-synced-state';
-import { useComparison } from '@/hooks/comparison/useComparison';
+import { useComparisonToggle } from '@/hooks/comparison/useComparisonToggle';
 import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useProduct } from '@/hooks/product/useProduct';
@@ -25,7 +25,6 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 import type { WishlistItem as WishlistItemModel } from '@/platform/services/model/wishlist/wishlist';
-import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 
 interface WishlistItemProps {
   item: WishlistItemModel;
@@ -150,7 +149,7 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
     purchasable: item.isPurchasable,
     ...(item.sku ? { sku: item.sku } : {}),
   };
-  const { isInComparison, toggleProduct, isFull } = useComparison();
+  const { isInComparison, toggle: toggleComparison } = useComparisonToggle();
   const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(productForComparison);
   const isCompared = isInComparison(item.productId);
 
@@ -227,21 +226,7 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   };
 
   const handleCompareClick = () => {
-    const productName = l10n(item.name) || item.productId;
-    if (isCompared) {
-      toggleProduct(item.productId);
-      notify({ title: tProduct('removedFromComparison', { name: productName }), type: ToastType.Info });
-      return;
-    }
-    if (isFull) {
-      notify({
-        title: tProduct('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }),
-        type: ToastType.Warning,
-      });
-      return;
-    }
-    toggleProduct(item.productId);
-    notify({ title: tProduct('addedToComparison', { name: productName }), type: ToastType.Success });
+    toggleComparison(item.productId, l10n(item.name) || item.productId);
   };
 
   const handleAddToCart = async () => {

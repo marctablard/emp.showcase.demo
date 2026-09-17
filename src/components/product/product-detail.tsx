@@ -17,7 +17,7 @@ import { WishlistPinButton } from '@/components/wishlist/wishlist-pin-button';
 import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
 import { useLogger } from '@/hooks/common/useLogger';
 import { useShopContextReady } from '@/hooks/common/useShopContextReady';
-import { useComparison } from '@/hooks/comparison/useComparison';
+import { useComparisonToggle } from '@/hooks/comparison/useComparisonToggle';
 import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { usePdpCurrentProduct } from '@/hooks/product/usePdpCurrentProduct';
 import { usePdpPurchaseData } from '@/hooks/product/usePdpPurchaseData';
@@ -57,7 +57,6 @@ import type { GroupedSpecification, Product, ProductSpecification } from '@/plat
 import type { Session } from '@/platform/services/model/session/session';
 import type { ProductFetchOptions } from '@/platform/services/product';
 import type { ProductsMode } from '@/platform/services/products-mode/ProductsModeService';
-import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import Recommendations from '../cms/recommendations';
 import { Button } from '../ui/button';
 import { H1, H3, H4, H5 } from '../ui/h';
@@ -159,34 +158,6 @@ function resolveKeySpecGroupLabel(
     return l10n(group.groupName).trim();
   }
   return '';
-}
-
-function applyProductComparisonToggle({
-  productId,
-  productName,
-  isInComparison,
-  isFull,
-  toggleProduct,
-  t,
-}: Readonly<{
-  productId: string;
-  productName: string;
-  isInComparison: boolean;
-  isFull: boolean;
-  toggleProduct: (id: string) => void;
-  t: ReturnType<typeof useTranslations<'product'>>;
-}>): void {
-  if (isInComparison) {
-    toggleProduct(productId);
-    notify({ title: t('removedFromComparison', { name: productName }), type: ToastType.Info });
-    return;
-  }
-  if (isFull) {
-    notify({ title: t('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }), type: ToastType.Warning });
-    return;
-  }
-  toggleProduct(productId);
-  notify({ title: t('addedToComparison', { name: productName }), type: ToastType.Success });
 }
 
 async function copyProductItemNumber(
@@ -555,7 +526,7 @@ function PdpDetailView({
   const t = useTranslations('product');
   const logger = useLogger();
   const isAboveMediumScreen = useBreakpoint('md');
-  const { isInComparison, toggleProduct, isFull } = useComparison();
+  const { isInComparison, toggle: toggleComparison } = useComparisonToggle();
   const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(product);
   const addToCartButton = useRef<HTMLDivElement>(null);
   const addToCartBar = useRef<HTMLDivElement>(null);
@@ -593,14 +564,7 @@ function PdpDetailView({
   };
 
   const handleCompareClick = (): void => {
-    applyProductComparisonToggle({
-      productId: product.id,
-      productName: l10n(product.name),
-      isInComparison: compareActive,
-      isFull,
-      toggleProduct,
-      t,
-    });
+    toggleComparison(product.id, l10n(product.name));
   };
 
   const handleCopyItemNumber = (): void => {
