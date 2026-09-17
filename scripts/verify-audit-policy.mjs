@@ -21,6 +21,10 @@
  * docs/run-build-deploy.md ("npm audit Policy Exceptions") before changing
  * ALLOWED_EXCEPTIONS.
  *
+ * Used by PR preview and smoke_prod. ALLOWED_EXCEPTIONS is global to this
+ * module — an entry here applies to every caller. Do not add one unless it
+ * is acceptable on both jobs. See docs/run-build-deploy.md.
+ *
  * Usage:
  *   npm audit --audit-level=high --json > audit-report.json || true
  *   node scripts/verify-audit-policy.mjs audit-report.json
