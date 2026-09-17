@@ -29,8 +29,9 @@ export interface EmporixCouponValidationRequest {
   orderTotal: { amount: number; currency: string };
   legalEntityId?: string;
   /**
-   * Shopper identity for service-token / on-behalf validation. Omit for anonymous
-   * so Coupon Service treats the lookup as an anonymous redemption check.
+   * Shopper identity for service-token / on-behalf validation. This is the Customer
+   * Service `customerNumber` (GET `/customer/{tenant}/me`), not session `customerId`.
+   * Omit for anonymous so Coupon Service treats the lookup as an anonymous redemption check.
    */
   customerNumber?: string;
 }

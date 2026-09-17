@@ -1,6 +1,6 @@
 import { inject } from 'inversify';
 import { removableCartPromoAtIndex, shopperFacingCartPromos } from '@/lib/common/applied-promo-display';
-import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { isAnonymousProfileCustomerId, isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
@@ -10,6 +10,7 @@ import type {
   EmporixCouponApi,
   EmporixCouponValidationOutcome,
 } from '@/platform/integrations/emporix/coupon/EmporixCouponApi';
+import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixAddCartItemRequest, EmporixUpdateCartItemRequest } from '@/platform/integrations/emporix/model';
 import type { EmporixCart, EmporixCartAddress, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
 import type {
@@ -75,15 +76,17 @@ function couponRejectionText(error: CartDiscountError): string {
   return `${error.message} ${error.upstreamBody ?? ''}`;
 }
 
+const REGEXP_SPECIAL_CHARS = new Set('.*+?^${}()|[]\\');
+
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return [...value].map((char) => (REGEXP_SPECIAL_CHARS.has(char) ? `\\${char}` : char)).join('');
 }
 
 function rejectionNamesSubmittedCode(text: string, submittedCode: string): boolean {
   if (!submittedCode) {
     return false;
   }
-  return new RegExp(`\\b${escapeRegExp(submittedCode)}\\b`, 'i').test(text);
+  return new RegExp(String.raw`\b${escapeRegExp(submittedCode)}\b`, 'i').test(text);
 }
 
 function cartAlreadyHasSubmittedCode(cart: Cart, submittedCode: string): boolean {
@@ -157,6 +160,7 @@ class EmporixCartService implements CartService {
     @inject('SiteService') private siteService: SiteService,
     @inject('ShippingService') private readonly shippingService: ShippingService,
     @inject('EmporixCouponApi') private readonly couponApi: EmporixCouponApi,
+    @inject('EmporixCustomerApi') private readonly customerApi: EmporixCustomerApi,
   ) {}
 
   private normalizeLegalEntityId(value: string | undefined): string {
@@ -933,6 +937,29 @@ class EmporixCartService implements CartService {
   }
 
   /**
+   * Coupon Service `customerNumber` is the Customer Service path identifier, not session
+   * `customerId`. Those differ on some tenants; sending the session id classifies segment
+   * / allow-list refusals against the wrong shopper. Resolved from GET `/customer/{tenant}/me`.
+   * Omitted when the profile has no number — never fall back to session.customerId.
+   */
+  private async couponValidationCustomerNumber(session: Session): Promise<string | undefined> {
+    if (!isAuthenticatedSessionCustomerId(session.customerId)) {
+      return undefined;
+    }
+    try {
+      const profile = await this.customerApi.getCustomerProfile();
+      if (isAnonymousProfileCustomerId(profile.id)) {
+        return undefined;
+      }
+      const customerNumber = profile.customerNumber?.trim();
+      return customerNumber || undefined;
+    } catch (error) {
+      this.logger.warn({ err: error }, 'Coupon validation omitted customerNumber; profile lookup failed');
+      return undefined;
+    }
+  }
+
+  /**
    * The Cart Service answers every coupon rejection with the same generic 400, so on that 400
    * the Coupon Service validation is asked once for the typed reason (COP-5589 QA: "not an
    * active promo code" was shown for segment, threshold and currency rejections alike).
@@ -964,10 +991,11 @@ class EmporixCartService implements CartService {
     }
     try {
       const session = await this.sessionService.getCurrentOrThrow();
+      const customerNumber = session ? await this.couponValidationCustomerNumber(session) : undefined;
       const outcome = await this.couponApi.validateCoupon(code, {
         orderTotal: { amount: cart.subTotalPrice.amount, currency: cart.currency },
         ...(cart.legalEntity ? { legalEntityId: cart.legalEntity } : {}),
-        ...(isAuthenticatedSessionCustomerId(session?.customerId) ? { customerNumber: session.customerId } : {}),
+        ...(customerNumber ? { customerNumber } : {}),
       });
       const reason = classifyCouponRejection(outcome);
       this.logger.info(

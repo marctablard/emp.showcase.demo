@@ -254,12 +254,16 @@ function resolveMappedDiscountType(
   return undefined;
 }
 
+type CartAppliedDiscountLayers = {
+  aggregate: EmporixCalculatedAppliedDiscount[];
+  goodsFee: EmporixCalculatedAppliedDiscount[];
+  shipping: EmporixCalculatedAppliedDiscount[];
+  line: EmporixCalculatedAppliedDiscount[];
+};
+
 function mapCartDiscounts(
   sourceDiscounts: EmporixCartDiscount[] | undefined,
-  cartLevel: EmporixCalculatedAppliedDiscount[],
-  goodsFeeLevel: EmporixCalculatedAppliedDiscount[],
-  shippingLevel: EmporixCalculatedAppliedDiscount[],
-  lineLevel: EmporixCalculatedAppliedDiscount[],
+  layers: CartAppliedDiscountLayers,
   currency: string,
   inferZeroedShipping: boolean,
   soleFreeShippingIdentity: string | undefined,
@@ -281,17 +285,17 @@ function mapCartDiscounts(
       };
     }
     const applied = resolveAppliedDiscount(
-      cartLevel,
-      goodsFeeLevel,
-      shippingLevel,
-      lineLevel,
+      layers.aggregate,
+      layers.goodsFee,
+      layers.shipping,
+      layers.line,
       discount,
       inferSoleIdLess,
     );
     const type = resolveMappedDiscountType(
       discount,
       applied,
-      shippingLevel,
+      layers.shipping,
       shopperDiscounts,
       inferZeroedShipping,
       soleFreeShippingIdentity,
@@ -397,10 +401,12 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     const discountedPrice = emporixCart.calculatedPrice?.discountedPrice;
     const discounts = mapCartDiscounts(
       emporixCart.discounts,
-      cartAggregateAppliedDiscounts(emporixCart.calculatedPrice),
-      cartGoodsAndFeeAppliedDiscounts(emporixCart.calculatedPrice),
-      shippingAppliedDiscounts(emporixCart.calculatedPrice),
-      lineLevelAppliedDiscounts(emporixCart.items),
+      {
+        aggregate: cartAggregateAppliedDiscounts(emporixCart.calculatedPrice),
+        goodsFee: cartGoodsAndFeeAppliedDiscounts(emporixCart.calculatedPrice),
+        shipping: shippingAppliedDiscounts(emporixCart.calculatedPrice),
+        line: lineLevelAppliedDiscounts(emporixCart.items),
+      },
       currency,
       isZeroedShippingWaiver(emporixCart.calculatedPrice),
       soleInternalFreeShippingIdentity(emporixCart.discounts ?? [], emporixCart.calculatedPrice),

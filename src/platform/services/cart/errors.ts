@@ -92,8 +92,16 @@ export function extractUpstreamStatus(message: string): number | undefined {
   return Number.isNaN(status) ? undefined : status;
 }
 
-const COUPON_CURRENCY_HINT =
-  /\b(coupon|promo(?:\s*code)?s?|discount\s+(?:currency|code|does|is|cannot|can'?t)|applied\s+discount)\b/i;
+const COUPON_CURRENCY_HINTS: ReadonlyArray<RegExp> = [
+  /\bcoupon\b/i,
+  /\bpromo(?:\s*code)?s?\b/i,
+  /\bdiscount\s+(?:currency|code|does|is|cannot|can'?t)\b/i,
+  /\bapplied\s+discount\b/i,
+];
+
+function textHasCouponCurrencyHint(text: string): boolean {
+  return COUPON_CURRENCY_HINTS.some((hint) => hint.test(text));
+}
 
 function structuredCurrencyFailureText(body: string): string | undefined {
   try {
@@ -113,13 +121,13 @@ function structuredCurrencyFailureText(body: string): string | undefined {
 
 /** True when an upstream currency-change payload names a coupon, not a generic item/price miss. */
 export function isCouponRelatedCurrencyFailure(message: string, upstreamBody?: string): boolean {
-  if (COUPON_CURRENCY_HINT.test(message)) {
+  if (textHasCouponCurrencyHint(message)) {
     return true;
   }
   if (typeof upstreamBody !== 'string') {
     return false;
   }
-  return COUPON_CURRENCY_HINT.test(structuredCurrencyFailureText(upstreamBody) ?? upstreamBody);
+  return textHasCouponCurrencyHint(structuredCurrencyFailureText(upstreamBody) ?? upstreamBody);
 }
 
 export function extractUpstreamBody(message: string): string | undefined {

@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
 import type { EmporixCouponApi } from '@/platform/integrations/emporix/coupon/EmporixCouponApi';
+import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixCart } from '@/platform/integrations/emporix/model/cart';
 import {
   CART_DISCOUNT_REASON,
@@ -54,6 +55,7 @@ describe('EmporixCartService', () => {
   let mockMapper: jest.Mocked<Pick<CartMapper<EmporixCart, unknown>, 'mapToService'>>;
   let mockShippingService: jest.Mocked<Pick<ShippingService, 'getDeliveryWindowsForCart'>>;
   let mockCouponApi: jest.Mocked<EmporixCouponApi>;
+  let mockCustomerApi: jest.Mocked<Pick<EmporixCustomerApi, 'getCustomerProfile'>>;
 
   // Minimal stubs for unused dependencies
   const noop = {} as Record<string, jest.Mock>;
@@ -133,7 +135,12 @@ describe('EmporixCartService', () => {
       validateCoupon: jest.fn().mockResolvedValue({ ok: true }),
     };
 
+    mockCustomerApi = {
+      getCustomerProfile: jest.fn().mockRejectedValue(new Error('profile not requested')),
+    };
+
     container.bind('EmporixCouponApi').toConstantValue(mockCouponApi);
+    container.bind('EmporixCustomerApi').toConstantValue(mockCustomerApi);
     container.bind('EmporixCommonUtil').toConstantValue(mockCommonUtil);
     container.bind('EmporixCartApi').toConstantValue(mockCartApi);
     container.bind('EmporixCartMapper').toConstantValue(mockMapper);
@@ -892,7 +899,7 @@ describe('EmporixCartService', () => {
       it('asks the coupon service with the cart goods total and the cart legal entity', async () => {
         mockSessionService.getCurrent.mockResolvedValue({
           id: 'session-1',
-          customerId: 'cust-1',
+          customerId: 'cust-uuid',
           currency: 'EUR',
           siteCode: 'main',
           legalEntityId: 'le-1',
@@ -900,6 +907,32 @@ describe('EmporixCartService', () => {
         });
         mockCartApi.getCart.mockResolvedValue({ ...rawCart, legalEntityId: 'le-1' });
         mockMapper.mapToService.mockReturnValue({ ...mappedCartWithDiscount, legalEntity: 'le-1' });
+        mockCustomerApi.getCustomerProfile.mockResolvedValue({
+          id: 'cust-uuid',
+          customerNumber: 'C-100',
+        });
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ name: 'CartDiscountError', reason: CART_DISCOUNT_REASON.NOT_APPLICABLE }),
+        );
+        expect(mockCustomerApi.getCustomerProfile).toHaveBeenCalledTimes(1);
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+          legalEntityId: 'le-1',
+          customerNumber: 'C-100',
+        });
+      });
+
+      it('omits customerNumber when the profile lookup fails instead of sending session.customerId', async () => {
+        mockSessionService.getCurrent.mockResolvedValue({
+          id: 'session-1',
+          customerId: 'cust-uuid',
+          currency: 'EUR',
+          siteCode: 'main',
+          cartId: 'cart-1',
+        });
+        mockCustomerApi.getCustomerProfile.mockRejectedValue(new Error('Failed to get customer profile'));
         mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
 
         await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
@@ -907,8 +940,16 @@ describe('EmporixCartService', () => {
         );
         expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
           orderTotal: { amount: 90, currency: 'EUR' },
-          legalEntityId: 'le-1',
-          customerNumber: 'cust-1',
+        });
+      });
+
+      it('does not look up a customerNumber for anonymous sessions', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toBeDefined();
+        expect(mockCustomerApi.getCustomerProfile).not.toHaveBeenCalled();
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
         });
       });
 

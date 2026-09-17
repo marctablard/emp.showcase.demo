@@ -95,36 +95,44 @@ function matchingAppliedDiscountRows(
   return components.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
 }
 
+function firstTypedAppliedDiscountRow(
+  rows: CalculatedAppliedDiscountRow[],
+  match: (row: CalculatedAppliedDiscountRow) => boolean,
+): OrderDiscount['type'] | undefined {
+  for (const row of rows) {
+    if (!match(row)) {
+      continue;
+    }
+    const type = asOrderDiscountType(row.discountType);
+    if (type) {
+      return type;
+    }
+  }
+  return undefined;
+}
+
+function appliedDiscountMatchesCode(row: CalculatedAppliedDiscountRow, code: string): boolean {
+  return typeof row.id === 'string' && row.id === code;
+}
+
+function appliedDiscountIsSoleIdLess(row: CalculatedAppliedDiscountRow): boolean {
+  return row.id === undefined && isInternalOrUnoriginated(row);
+}
+
 function firstTypedAppliedDiscount(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
   inferSoleIdLess: boolean,
 ): OrderDiscount['type'] | undefined {
-  const sources = appliedDiscountSources(calculatedPrice);
-  for (const source of sources) {
-    for (const row of source) {
-      if (typeof row.id === 'string' && row.id === discount.code) {
-        const type = asOrderDiscountType(row.discountType);
-        if (type) {
-          return type;
-        }
-      }
-    }
+  const rows = appliedDiscountSources(calculatedPrice).flat();
+  const byId = firstTypedAppliedDiscountRow(rows, (row) => appliedDiscountMatchesCode(row, discount.code));
+  if (byId) {
+    return byId;
   }
   if (!inferSoleIdLess) {
     return undefined;
   }
-  for (const source of sources) {
-    for (const row of source) {
-      if (row.id === undefined && isInternalOrUnoriginated(row)) {
-        const type = asOrderDiscountType(row.discountType);
-        if (type) {
-          return type;
-        }
-      }
-    }
-  }
-  return undefined;
+  return firstTypedAppliedDiscountRow(rows, appliedDiscountIsSoleIdLess);
 }
 
 function resolveOrderDiscountType(
