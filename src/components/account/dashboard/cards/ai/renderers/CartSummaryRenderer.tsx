@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import type { CartItemData, CartSummaryData, ShopData } from '../types';
 import { extractPrice, formatPrice } from '../utils';
@@ -190,12 +191,13 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data }
       )}
 
       <div className="mt-4 flex justify-center">
-        <button
-          onClick={() => (window.location.href = '/cart')}
+        <Link
+          href="/cart"
+          data-testid="aiHelper-goToCart"
           className="px-6 py-3 bg-surface-action text-text-on-action font-semibold rounded-lg hover:bg-surface-action-hover transition-colors shadow-sm hover:shadow-md"
         >
           {t('goToCheckout')}
-        </button>
+        </Link>
       </div>
     </div>
   );

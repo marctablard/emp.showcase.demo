@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
+import { buildClientFetchScope } from '@/lib/client/client-fetch-scope';
 import { fetchSearchResult } from '@/lib/client/search';
 import { copyStorefrontCurrencyParam } from '@/lib/common/currency-url';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -24,6 +26,7 @@ import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
 const DEFAULT_PAGE_INDEX = 0;
 const DEFAULT_PAGE_SIZE = 12;
+const EMPTY_SUGGESTIONS: SearchSuggestions = { queryCompletions: [], products: [], categories: [] };
 
 /** Returned on {@link useSearch}; map to `search.errors.*` in next-intl. */
 export const USE_SEARCH_CLIENT_ERROR = {
@@ -52,8 +55,9 @@ function buildSearchRequestKey(
   site: string,
   locale: string,
   currency: string | undefined,
+  clientScope: string,
 ): string {
-  return `${browseSearchStateSignature(state)}|${site}|${locale}|${currency ?? ''}`;
+  return `${browseSearchStateSignature(state)}|${site}|${locale}|${currency ?? ''}|${clientScope}`;
 }
 
 function buildSearchRequestUrl<T>(
@@ -168,14 +172,18 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const [currentQuery, setCurrentQuery] = useState<string | undefined>(initialSearch?.query);
   const [currentSort, setCurrentSort] = useState<string | undefined>(initialSearch?.sort);
   // Suggestions state
-  const [suggestions, setSuggestions] = useState<SearchSuggestions>({
-    queryCompletions: [],
-    products: [],
-    categories: [],
-  });
+  const [suggestions, setSuggestions] = useState<SearchSuggestions>(EMPTY_SUGGESTIONS);
   const siteCode = useSiteCode();
   const locale = useLocale();
-  const sessionCurrency = useSessionStore().session?.currency;
+  const session = useSessionStore().session;
+  const sessionCurrency = session?.currency;
+  const { mode } = useProductsMode();
+  const clientFetchScope = buildClientFetchScope({
+    mode,
+    siteCode,
+    customerId: session?.customerId,
+    extra: sessionCurrency,
+  });
 
   // Keep track of the last search params for pagination
   const lastSearchParams = useRef<SearchParams<T>>({
@@ -186,7 +194,11 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     filters: initialSearch?.filters,
   });
   const searchGeneration = useRef(0);
-  const lastSearchCurrency = useRef<string | undefined>(sessionCurrency);
+  // Latest scope for the direct fetches below (suggestions, load-more): a response captured under
+  // an older products-mode / customer scope must never populate the new scope's UI (COP-4822).
+  const clientFetchScopeRef = useRef(clientFetchScope);
+  const suggestionsGeneration = useRef(0);
+  const lastClientFetchScope = useRef<string | undefined>(undefined);
   const lastCompletedSearchKey = useRef<string | undefined>(undefined);
   const inFlightSearch = useRef<{ key: string; promise: Promise<void> } | undefined>(undefined);
   // The pathname where this search hook is hosted (e.g. /browse), captured on mount.
@@ -286,6 +298,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         resolvedSite,
         locale,
         sessionCurrency,
+        clientFetchScope,
       );
 
       const inFlight = inFlightSearch.current;
@@ -312,7 +325,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         query: normalizedQuery,
         filters: filtersToApply,
       };
-      lastSearchCurrency.current = sessionCurrency;
+      lastClientFetchScope.current = clientFetchScope;
 
       const requestUrl = url.toString();
       const gen = ++searchGeneration.current;
@@ -341,7 +354,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
 
-        const data = await fetchSearchResult<T>(requestUrl);
+        const data = await fetchSearchResult<T>(requestUrl, clientFetchScope);
 
         if (gen !== searchGeneration.current) {
           return;
@@ -363,25 +376,33 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         finishSearchInFlight(gen, searchGeneration.current, requestKey, inFlightSearch, setLoading, settleInFlight);
       }
     },
-    [updateBrowserUrl, locale, siteCode, sessionCurrency],
+    [updateBrowserUrl, locale, siteCode, sessionCurrency, clientFetchScope],
   );
 
   useEffect(() => {
-    if (!sessionCurrency) {
+    clientFetchScopeRef.current = clientFetchScope;
+  }, [clientFetchScope]);
+
+  useEffect(() => {
+    if (lastClientFetchScope.current === undefined) {
+      lastClientFetchScope.current = clientFetchScope;
       return;
     }
-    if (lastSearchCurrency.current === undefined) {
-      lastSearchCurrency.current = sessionCurrency;
+    if (lastClientFetchScope.current === clientFetchScope) {
       return;
     }
-    if (lastSearchCurrency.current === sessionCurrency) {
-      return;
-    }
-    lastSearchCurrency.current = sessionCurrency;
+    lastClientFetchScope.current = clientFetchScope;
+    lastCompletedSearchKey.current = undefined;
+    // Suggestions and tiles were produced under the previous scope: drop them so
+    // SearchProductTileGrid cannot keep painting ALL/other-customer products while loading.
+    suggestionsGeneration.current += 1;
+    setSuggestions(EMPTY_SUGGESTIONS);
+    setData([]);
+    setTotal(0);
     search(lastSearchParams.current).catch((err: unknown) => {
-      getLogger().error({ err, event: 'search_currency_refresh_failed' }, 'Product search currency refresh failed');
+      getLogger().error({ err, event: 'search_scope_refresh_failed' }, 'Product search scope refresh failed');
     });
-  }, [sessionCurrency, search]);
+  }, [clientFetchScope, search]);
 
   /**
    * Apply a facet filter to the search
@@ -523,6 +544,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     if (!resolvedSite) return;
 
     const nextPage = currentPage + 1;
+    const scopeAtRequest = clientFetchScope;
+    const searchGenerationAtRequest = searchGeneration.current;
     try {
       setLoadingMore(true);
       setError(null);
@@ -545,6 +568,12 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       const result: SearchResult<T> = await response.json();
 
+      // Scope changed or a new search started while this page was in flight: the page belongs
+      // to the previous result set and must not be appended.
+      if (clientFetchScopeRef.current !== scopeAtRequest || searchGeneration.current !== searchGenerationAtRequest) {
+        return;
+      }
+
       setData((prev) => [...prev, ...result.items]);
       setCurrentPage(nextPage);
       setTotal(result.total);
@@ -555,22 +584,28 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       lastSearchParams.current = { ...lastSearchParams.current, page: nextPage };
     } catch (err) {
+      if (clientFetchScopeRef.current !== scopeAtRequest || searchGeneration.current !== searchGenerationAtRequest) {
+        return;
+      }
       getLogger().error({ err, event: 'search_load_more_failed' }, 'Product search load-more failed');
       setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale, sessionCurrency]);
+  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale, sessionCurrency, clientFetchScope]);
 
   const getSuggestions = useCallback(
     async (query: string, locale?: string): Promise<void> => {
+      const generation = ++suggestionsGeneration.current;
+      const scopeAtRequest = clientFetchScope;
+      // Superseded by a newer suggestions request, or the products-mode / customer scope changed
+      // while in flight: the payload belongs to the previous scope and must not be shown.
+      const isStale = () =>
+        generation !== suggestionsGeneration.current || clientFetchScopeRef.current !== scopeAtRequest;
+
       setLoading(true);
       if (!query?.trim()) {
-        setSuggestions({
-          queryCompletions: [],
-          products: [],
-          categories: [],
-        });
+        setSuggestions(EMPTY_SUGGESTIONS);
         setLoading(false);
         return;
       }
@@ -595,15 +630,21 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
         const data = await response.json();
 
+        if (isStale()) {
+          return;
+        }
         // Set suggestions directly from API response
         setSuggestions(data);
       } catch (err) {
         getLogger().error({ err, query }, 'Error fetching suggestions');
       } finally {
-        setLoading(false);
+        // The newest suggestions request owns `loading`; a superseded one must not clear it early.
+        if (generation === suggestionsGeneration.current) {
+          setLoading(false);
+        }
       }
     },
-    [siteCode, sessionCurrency],
+    [siteCode, sessionCurrency, clientFetchScope],
   );
 
   const changeSort = useCallback(

@@ -69,8 +69,6 @@ describe('getCachedNavigationCategoryTrees', () => {
         {} as never,
         {} as never,
         {} as never,
-        {} as never,
-        {} as never,
       ),
     );
 
@@ -103,8 +101,6 @@ describe('getCachedNavigationCategoryTrees', () => {
     services.set(
       'SearchService',
       new BatteryIncludedSearchService(
-        {} as never,
-        {} as never,
         {} as never,
         {} as never,
         {} as never,

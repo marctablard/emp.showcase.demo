@@ -40,8 +40,6 @@ describe('getActiveSearchEngine', () => {
         {} as never,
         {} as never,
         {} as never,
-        {} as never,
-        {} as never,
       ),
     );
 

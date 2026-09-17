@@ -13,8 +13,19 @@ export interface ProductFetchOptions {
   availability?: boolean;
   /** Include product categories */
   categories?: boolean;
-  /** Include customer segments filtering */
-  customerSegments?: boolean;
+  /**
+   * Active customer-segment ids resolved server-side. `undefined` = unscoped (anonymous /
+   * unsegmented); an array = products outside the segment scope are dropped; `[]` = empty scope,
+   * nothing is returned and no upstream membership call is made (fail closed). Never taken from
+   * the client request.
+   */
+  segmentIds?: string[];
+  /**
+   * Effective site the products mode / `segmentIds` were resolved for. Segment membership checks
+   * use it so the scope and the mode agree on one site; when absent the session site is used
+   * (COP-4822). Only meaningful together with `segmentIds`; never taken from the client request.
+   */
+  siteCode?: string;
 }
 
 /**
@@ -54,4 +65,11 @@ export interface ProductService {
    * @returns Enhanced products with additional data.
    */
   addAdditionalData(mappedProducts: Product[], options?: ProductFetchOptions): Promise<Product[]>;
+
+  /**
+   * COP-4822 AC4: whether `productId` is inside the resolved segment scope.
+   * `segmentIds === undefined` is unscoped (anonymous / unsegmented / All Products) and returns
+   * `true`. `[]` or a missing site is an empty scope and returns `false` without an upstream call.
+   */
+  isInSegmentScope(productId: string, options?: Pick<ProductFetchOptions, 'segmentIds' | 'siteCode'>): Promise<boolean>;
 }

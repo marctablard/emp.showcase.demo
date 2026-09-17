@@ -6,12 +6,20 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MobileMenuNavigation } from '@/components/header/mobile/menu-navigation';
 import { NavigationProductSubmenuProvider } from '@/components/header/navigation-product-submenu-context';
+import {
+  ANONYMOUS_PRODUCTS_MODE,
+  type ProductsModeContextValue,
+  ProductsModeProvider,
+} from '@/components/navigation/products-mode-context';
 import type { SubMenuItem } from '@/data/navigation-menu';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) => {
     if (key === 'allProducts') {
       return 'All Products';
+    }
+    if (key === 'assignedProducts') {
+      return 'Assigned Products';
     }
     if (key === 'services') {
       return 'Services';
@@ -63,17 +71,57 @@ jest.mock('@/i18n/navigation', () => ({
   ),
 }));
 
-function renderMobileMenu(submenuItems: SubMenuItem[], totalRootCategoryCount: number, onClose = jest.fn()) {
+const SEGMENTED_PRODUCTS_MODE: ProductsModeContextValue = {
+  mode: 'assigned',
+  isSegmented: true,
+  canToggleAllProducts: false,
+};
+
+function renderMobileMenu(
+  submenuItems: SubMenuItem[],
+  totalRootCategoryCount: number,
+  onClose = jest.fn(),
+  productsMode: ProductsModeContextValue = ANONYMOUS_PRODUCTS_MODE,
+) {
   render(
-    <NavigationProductSubmenuProvider submenuItems={submenuItems} totalRootCategoryCount={totalRootCategoryCount}>
-      <MobileMenuNavigation onClose={onClose} />
-    </NavigationProductSubmenuProvider>,
+    <ProductsModeProvider value={productsMode}>
+      <NavigationProductSubmenuProvider submenuItems={submenuItems} totalRootCategoryCount={totalRootCategoryCount}>
+        <MobileMenuNavigation onClose={onClose} />
+      </NavigationProductSubmenuProvider>
+    </ProductsModeProvider>,
   );
 
   return { onClose };
 }
 
 describe('MobileMenuNavigation', () => {
+  const singleCategory: SubMenuItem[] = [{ id: 'storage', label: 'Storage', href: '/browse/storage' }];
+
+  it('labels the products item "All Products" when the customer is not segmented', () => {
+    renderMobileMenu(singleCategory, 1);
+
+    const trigger = screen.getByTestId('headerMobile-allProductsMenu');
+
+    expect(trigger).toHaveTextContent('All Products');
+    expect(trigger).toHaveAccessibleName('Open subcategories for All Products');
+    expect(screen.queryByText('Assigned Products')).not.toBeInTheDocument();
+  });
+
+  it('labels the products item "Assigned Products" for a segmented customer', () => {
+    renderMobileMenu(singleCategory, 1, jest.fn(), SEGMENTED_PRODUCTS_MODE);
+
+    const trigger = screen.getByTestId('headerMobile-allProductsMenu');
+
+    expect(trigger).toHaveTextContent('Assigned Products');
+    expect(trigger).toHaveAccessibleName('Open subcategories for Assigned Products');
+    expect(screen.queryByText('All Products')).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole('link', { name: 'Assigned Products' })).toHaveAttribute('href', '/browse');
+    expect(screen.getByRole('link', { name: 'Storage' })).toBeInTheDocument();
+  });
+
   it('uses the right arrow button for expansion and keeps the category label as a link', () => {
     const submenuItems: SubMenuItem[] = [
       {

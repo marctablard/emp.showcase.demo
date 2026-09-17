@@ -35,6 +35,8 @@ export interface EmporixSessionContextApi {
 
   /**
    * Retrieves a session context associated with the current session.
+   * Resolves `undefined` when there is no session token (first visit / logged out).
+   * Rejects only when a token exists and the upstream lookup fails.
    */
   getOwnSessionContext(): Promise<EmporixSessionContext | undefined>;
 

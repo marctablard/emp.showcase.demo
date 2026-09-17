@@ -1,4 +1,5 @@
 import {
+  compareByPosition,
   findCategoryPath,
   findDeepestCategoryPath,
   getCategoryChildren,
@@ -25,6 +26,26 @@ function deepChain(depth: number, prefix = 'n'): Category {
 }
 
 describe('category-tree-utils', () => {
+  describe('compareByPosition', () => {
+    it('sorts defined non-zero positions ascending, then zeros, then missing position', () => {
+      const items = [
+        { id: 'missing', position: undefined },
+        { id: 'zero-a', position: 0 },
+        { id: 'twelve', position: 12 },
+        { id: 'one', position: 1 },
+        { id: 'three', position: 3 },
+        { id: 'zero-b', position: 0 },
+      ];
+
+      expect(
+        items
+          .slice()
+          .sort(compareByPosition)
+          .map((item) => item.id),
+      ).toEqual(['one', 'three', 'twelve', 'zero-a', 'zero-b', 'missing']);
+    });
+  });
+
   const sampleRoots: Category[] = [
     cat('root-a', [cat('a-1', [cat('a-1-1'), cat('a-1-2', [cat('a-1-2-x')])]), cat('a-2')]),
     cat('root-b', [cat('b-1')]),

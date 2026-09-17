@@ -6,8 +6,9 @@ const inFlightSearchRequests = new Map<string, Promise<SearchResult<unknown>>>()
  * GET `/api/search` and coalesce overlapping requests for the same URL.
  * React Strict Mode remounts would otherwise issue the same browse fetch twice.
  */
-export function fetchSearchResult<T>(url: string): Promise<SearchResult<T>> {
-  const existing = inFlightSearchRequests.get(url);
+export function fetchSearchResult<T>(url: string, clientDedupeScope = ''): Promise<SearchResult<T>> {
+  const cacheKey = `${clientDedupeScope}|${url}`;
+  const existing = inFlightSearchRequests.get(cacheKey);
   if (existing) {
     return existing as Promise<SearchResult<T>>;
   }
@@ -19,10 +20,10 @@ export function fetchSearchResult<T>(url: string): Promise<SearchResult<T>> {
     }
     return (await response.json()) as SearchResult<T>;
   })().finally(() => {
-    inFlightSearchRequests.delete(url);
+    inFlightSearchRequests.delete(cacheKey);
   });
 
-  inFlightSearchRequests.set(url, request as Promise<SearchResult<unknown>>);
+  inFlightSearchRequests.set(cacheKey, request as Promise<SearchResult<unknown>>);
   return request;
 }
 

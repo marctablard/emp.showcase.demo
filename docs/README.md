@@ -61,7 +61,7 @@ reading paths for common tasks.
 | Doc | What it covers |
 | --- | --- |
 | [AI Helper](./ai-helper.md) | Account-dashboard AI Helper: streaming vs batch via `NEXT_AI_CHAT_STREAMING`, thinking spinner until complete JSON, and the batch fallback. |
-| [Search Service](./search-service.md) | Swap the `SearchService` DI alias (Emporix ↔ Battery Included) via `depency.yml` / `DI_SEARCH_SERVICE`. |
+| [Search Service](./search-service.md) | Swap the `SearchService` DI alias (Emporix ↔ Battery Included) via `src/platform/depency.yml` (sic — the DI config file is spelled `depency`) / `DI_SEARCH_SERVICE`; customer-segment products mode (`NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE`, engine scoping, caching). |
 | [SSO Authentication](./sso-authentication.md) | Auth.js SSO providers with `NEXT_SSO_PASSWORD_SECRET` SHA-256 generation and Emporix customer sync. |
 | [API Security](./api-security.md) | NextAuth Edge middleware, CSRF token validation (global fetch override), rate limiting. |
 | [Schema Update Process](./schema-update-process.md) | Sync custom entities/schemas from `scripts/` JSON to the Emporix API with version-conflict retry. |

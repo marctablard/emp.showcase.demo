@@ -50,12 +50,7 @@ class EmporixPriceApi implements IEmporixPriceApi {
       createPriceMetrics('/price/{tenant}/match-prices'),
     );
 
-    if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Failed to match prices: ${response.statusText} ${errorDetails}`);
-    }
-
-    return await response.json();
+    return readMatchedPricesResponse(response);
   }
 
   /**
@@ -79,13 +74,23 @@ class EmporixPriceApi implements IEmporixPriceApi {
       createPriceMetrics('/price/{tenant}/match-prices-by-context'),
     );
 
-    if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Failed to match prices by context: ${response.statusText} ${errorDetails}`);
-    }
-
-    return await response.json();
+    return readMatchedPricesResponse(response);
   }
+}
+
+/**
+ * 404 from match-prices means "no price for these items" — not a failed catalog lookup.
+ * Callers must still be able to render the product without a price (COP-4822 QA).
+ */
+export async function readMatchedPricesResponse(response: Response): Promise<EmporixMatchedPrice[]> {
+  if (response.status === 404) {
+    return [];
+  }
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to match prices: ${response.statusText} ${errorDetails}`);
+  }
+  return (await response.json()) as EmporixMatchedPrice[];
 }
 
 export default EmporixPriceApi;

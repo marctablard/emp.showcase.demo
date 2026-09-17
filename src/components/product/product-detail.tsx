@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { ArrowDown, Copy, FlipHorizontal2, Share2, Sun } from 'lucide-react';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import { ProductCarousel } from '@/components/product/product-carousel';
 import { TemplateAttributeValue } from '@/components/product/template-attribute-value';
 import { BulletPoint } from '@/components/ui/bullet-point';
@@ -28,6 +29,7 @@ import { useSite } from '@/hooks/site/useSite';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import { isEnergyEfficiencyClass } from '@/lib/common/energy-efficiency';
 import {
   PDP_TECHNICAL_INFORMATION_SECTION_ID,
@@ -54,6 +56,7 @@ import type { ProductPrice } from '@/platform/services/model/price';
 import type { GroupedSpecification, Product, ProductSpecification } from '@/platform/services/model/product';
 import type { Session } from '@/platform/services/model/session/session';
 import type { ProductFetchOptions } from '@/platform/services/product';
+import type { ProductsMode } from '@/platform/services/products-mode/ProductsModeService';
 import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import Recommendations from '../cms/recommendations';
 import { Button } from '../ui/button';
@@ -765,6 +768,54 @@ function PdpDetailView({
   );
 }
 
+function ssrSeedFromInitialProduct(initialProduct: string | Product | undefined): Product | undefined {
+  return initialProduct && typeof initialProduct !== 'string' ? initialProduct : undefined;
+}
+
+/** Login / ALL→ASSIGNED after mount: hide the previous unscoped seed while scoped refetch runs. */
+function useEnteredAssignedAfterMount(productsMode: ProductsMode): boolean {
+  const [prevProductsMode, setPrevProductsMode] = useState(productsMode);
+  const [enteredAssignedAfterMount, setEnteredAssignedAfterMount] = useState(false);
+  if (prevProductsMode !== productsMode) {
+    setPrevProductsMode(productsMode);
+    setEnteredAssignedAfterMount(productsMode === 'assigned' && prevProductsMode !== 'assigned');
+  }
+  return enteredAssignedAfterMount;
+}
+
+/** Assigned A→B customer switch: hide customer A's same-id seed while B's scoped refetch runs. */
+function useCustomerChangedWhileAssigned(productsMode: ProductsMode, sessionCustomerId: string | undefined): boolean {
+  const [prevSessionCustomerId, setPrevSessionCustomerId] = useState(sessionCustomerId);
+  const [customerChangedWhileAssigned, setCustomerChangedWhileAssigned] = useState(false);
+  if (prevSessionCustomerId !== sessionCustomerId) {
+    setPrevSessionCustomerId(sessionCustomerId);
+    setCustomerChangedWhileAssigned(
+      productsMode === 'assigned' &&
+        isAuthenticatedSessionCustomerId(prevSessionCustomerId) &&
+        isAuthenticatedSessionCustomerId(sessionCustomerId),
+    );
+  }
+  if (productsMode !== 'assigned' && customerChangedWhileAssigned) {
+    setCustomerChangedWhileAssigned(false);
+  }
+  return customerChangedWhileAssigned;
+}
+
+function resolvePaintedPdpProduct(
+  productsMode: ProductsMode,
+  product: Product | null,
+  loading: boolean,
+  shopContextReady: boolean,
+  hideUnscopedSeed: boolean,
+  ssrSeedProduct: Product | undefined,
+): Product | null {
+  const assignedCatalogMiss = productsMode === 'assigned' && product === null && !loading && shopContextReady;
+  if (assignedCatalogMiss || hideUnscopedSeed) {
+    return null;
+  }
+  return product ?? ssrSeedProduct ?? null;
+}
+
 export default function ProductDetail({
   product: initialProduct,
   options,
@@ -773,12 +824,23 @@ export default function ProductDetail({
 }: Readonly<ProductDetailProps>) {
   const { ready: shopContextReady } = useShopContextReady();
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
+  const { mode: productsMode } = useProductsMode();
   const { session } = useSession();
   const { site } = useSite();
   // Usable SSR seed = full Product object (not an id string). Keep it as fallback during
   // session/pricing bootstrap so a transient null/error does not become false Not Found.
-  const ssrSeedProduct = initialProduct && typeof initialProduct !== 'string' ? initialProduct : undefined;
-  const resolvedProduct = product ?? ssrSeedProduct ?? null;
+  const ssrSeedProduct = ssrSeedFromInitialProduct(initialProduct);
+  const enteredAssignedAfterMount = useEnteredAssignedAfterMount(productsMode);
+  const customerChangedWhileAssigned = useCustomerChangedWhileAssigned(productsMode, session?.customerId);
+  const hideUnscopedSeed = (enteredAssignedAfterMount || customerChangedWhileAssigned) && (loading || product === null);
+  const resolvedProduct = resolvePaintedPdpProduct(
+    productsMode,
+    product,
+    loading,
+    shopContextReady,
+    hideUnscopedSeed,
+    ssrSeedProduct,
+  );
   const { price, availability } = usePdpPurchaseData(resolvedProduct, session, site);
   usePdpCurrentProduct(resolvedProduct, setAsCurrent);
 

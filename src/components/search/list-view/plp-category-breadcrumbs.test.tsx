@@ -4,8 +4,27 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import { type ProductsModeContextValue, ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { PlpCategoryBreadcrumbs } from './plp-category-breadcrumbs';
+
+const rootContext: PlpCategoryContext = {
+  ancestorTrail: [],
+  currentCategory: undefined,
+  currentChildren: [],
+  ribbonCategories: [],
+  sidebarCountCategoryIds: [],
+};
+
+const assignedMode: ProductsModeContextValue = { mode: 'assigned', isSegmented: true, canToggleAllProducts: true };
+const allMode: ProductsModeContextValue = { mode: 'all', isSegmented: true, canToggleAllProducts: true };
+
+const renderWithMode = (mode: ProductsModeContextValue, plpCategoryContext: PlpCategoryContext = rootContext) =>
+  render(
+    <ProductsModeProvider value={mode}>
+      <PlpCategoryBreadcrumbs plpCategoryContext={plpCategoryContext} locale="en" />
+    </ProductsModeProvider>,
+  );
 
 let mockSearchParams = new URLSearchParams('currency=EUR&q=solar&filters[brand]=X');
 
@@ -130,5 +149,63 @@ describe('PlpCategoryBreadcrumbs', () => {
     render(<PlpCategoryBreadcrumbs plpCategoryContext={plpCategoryContext} locale="en" />);
 
     expect(screen.queryByText('-')).not.toBeInTheDocument();
+  });
+
+  describe('products mode (COP-4822)', () => {
+    it('renders Home -> Assigned Products at the root level in assigned mode without a query', () => {
+      mockSearchParams = new URLSearchParams('currency=EUR');
+
+      renderWithMode(assignedMode);
+
+      expect(screen.getByRole('link', { name: 'homeLink' })).toHaveAttribute('href', '/');
+      expect(screen.getByText('assignedProducts').closest('li')).toHaveAttribute('aria-current', 'page');
+      expect(screen.queryByText('allProducts')).not.toBeInTheDocument();
+      // Landmark name must match the visible root copy so assistive tech does not announce "All Products".
+      expect(screen.getByRole('navigation', { name: 'assignedProducts' })).toBeInTheDocument();
+    });
+
+    it('renders Home -> Assigned Products (link) -> Search Results in assigned mode with a query', () => {
+      mockSearchParams = new URLSearchParams('currency=EUR&q=abc');
+
+      renderWithMode(assignedMode);
+
+      expect(screen.getByRole('link', { name: 'homeLink' })).toHaveAttribute('href', '/');
+      expect(screen.getByRole('link', { name: 'assignedProducts' })).toHaveAttribute('href', '/browse?currency=EUR');
+      expect(screen.getByText('searchResults').closest('span')).toBeInTheDocument();
+      expect(screen.queryByText('allProducts')).not.toBeInTheDocument();
+    });
+
+    it('uses Assigned Products for the virtual root crumb inside a category trail in assigned mode', () => {
+      const child = { id: 'child-1', name: { en: 'Child 1' }, children: [] };
+
+      renderWithMode(assignedMode, {
+        ...rootContext,
+        ancestorTrail: [{ kind: 'virtual-all-products' }],
+        currentCategory: child,
+      });
+
+      expect(screen.getByRole('link', { name: 'assignedProducts' })).toHaveAttribute('href', '/browse?currency=EUR');
+      expect(screen.getByText('Child 1')).toHaveAttribute('aria-current', 'page');
+      expect(screen.queryByText('allProducts')).not.toBeInTheDocument();
+    });
+
+    it('keeps All Products in ALL mode', () => {
+      mockSearchParams = new URLSearchParams('currency=EUR');
+
+      renderWithMode(allMode);
+
+      expect(screen.getByText('allProducts').closest('li')).toHaveAttribute('aria-current', 'page');
+      expect(screen.queryByText('assignedProducts')).not.toBeInTheDocument();
+    });
+
+    it('keeps All Products for anonymous visitors (no provider)', () => {
+      mockSearchParams = new URLSearchParams('currency=EUR');
+
+      render(<PlpCategoryBreadcrumbs plpCategoryContext={rootContext} locale="en" />);
+
+      expect(screen.getByText('allProducts').closest('li')).toHaveAttribute('aria-current', 'page');
+      expect(screen.queryByText('assignedProducts')).not.toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: 'allProducts' })).toBeInTheDocument();
+    });
   });
 });

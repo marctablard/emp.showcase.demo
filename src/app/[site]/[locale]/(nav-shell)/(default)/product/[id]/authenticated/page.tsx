@@ -12,7 +12,6 @@ const AUTHENTICATED_PRODUCT_OPTIONS = {
   variants: true,
   categories: true,
   availability: true,
-  customerSegments: true,
 };
 
 // Authenticated product pages are request-bound and must stay dynamic.
@@ -24,12 +23,12 @@ export async function generateMetadata(
   _parent: ResolvingMetadata,
 ): Promise<Metadata> {
   const { id, locale, site } = await params;
-  const { ssr, options } = createProductOptions(AUTHENTICATED_PRODUCT_OPTIONS, true, site);
+  const { ssr, options } = await createProductOptions(AUTHENTICATED_PRODUCT_OPTIONS, true, site);
   return generateProductPageMetadata(id, locale, options, ssr, site);
 }
 
 export default async function AuthenticatedProductPage({ params }: { params: Promise<AuthenticatedProductPageProps> }) {
   const { id, locale, site } = await params;
-  const { ssr, options } = createProductOptions(AUTHENTICATED_PRODUCT_OPTIONS, true, site);
+  const { ssr, options } = await createProductOptions(AUTHENTICATED_PRODUCT_OPTIONS, true, site);
   return renderProductPage(id, locale, options, ssr, site);
 }
