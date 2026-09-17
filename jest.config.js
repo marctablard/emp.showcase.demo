@@ -118,6 +118,10 @@ const customJestConfig = {
         '**/components/checkout/checkout-validation-registry*.test.ts?(x)',
         '**/components/cms/**/?(*.)+(spec|test).ts?(x)',
         '**/components/theme/**/?(*.)+(spec|test).ts?(x)',
+        // The comparison's table, sticky bar and name strip are rendered and asserted
+        // on through the DOM (classes, ARIA roles, forwarded refs), so they need
+        // RTL + jsdom rather than the node env the rest of `components/**` runs in.
+        '**/components/comparison/?(*.)+(spec|test).ts?(x)',
         // App-router layout/page tests that render `<html>`/`<body>` + the
         // client provider stack need RTL + jsdom. The preview-route layout
         // (EMP-22) is the first such test; without this entry it matches no
@@ -237,6 +241,8 @@ const customJestConfig = {
         String.raw`src/components/cms/.*\.test\.(ts|tsx)$`,
         // Theme component tests need RTL/jsdom; routed to the React Tests project.
         String.raw`src/components/theme/.*\.test\.(ts|tsx)$`,
+        // Comparison component tests render through the DOM; routed to the React Tests project.
+        String.raw`src/components/comparison/.*\.test\.(ts|tsx)$`,
       ],
     },
     {
