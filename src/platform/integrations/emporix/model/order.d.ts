@@ -147,6 +147,7 @@ export interface EmporixOrderCalculatedPrice {
       id?: string;
       value: number;
       discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+      origin?: string;
     }>;
   };
   /** YAML `orderCalculatedPrice.discountedPrice` — goods after discounts. */
@@ -166,6 +167,7 @@ export interface EmporixOrderCalculatedPrice {
       id?: string;
       value: number;
       discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+      origin?: string;
     }>;
   };
 }

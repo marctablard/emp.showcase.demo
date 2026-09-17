@@ -469,6 +469,27 @@ describe('EmporixOrderMapper', () => {
     });
   });
 
+  it('does not infer an id-less EXTERNAL applied row onto the sole shopper coupon', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'FREESHIP', currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 100, grossValue: 119, taxValue: 19 },
+          totalShipping: {
+            netValue: 0,
+            grossValue: 0,
+            appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING', origin: 'EXTERNAL' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({ code: 'FREESHIP', value: 0 });
+    expect(result.discounts?.[0]).not.toHaveProperty('type');
+  });
+
   it('does not guess an id-less applied row when multiple shopper coupons are present', () => {
     const result = mapper.mapToService(
       buildOrder({

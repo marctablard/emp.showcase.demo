@@ -48,11 +48,15 @@ function asOrderDiscountType(value: string | undefined): OrderDiscount['type'] |
   return undefined;
 }
 
+function isInternalOrUnoriginated(row: { origin?: string }): boolean {
+  return row.origin === 'INTERNAL' || row.origin === undefined;
+}
+
 function matchingAppliedDiscountRows(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
   inferSoleIdLess: boolean,
-): Array<{ id?: string; value: number; discountType?: string }> {
+): Array<{ id?: string; value: number; discountType?: string; origin?: string }> {
   const aggregate = calculatedPrice?.totalDiscount?.appliedDiscounts ?? [];
   const shipping = calculatedPrice?.totalShipping?.appliedDiscounts ?? [];
   const byId = [...aggregate, ...shipping].filter((row) => typeof row.id === 'string' && row.id === discount.code);
@@ -60,11 +64,11 @@ function matchingAppliedDiscountRows(
     return byId;
   }
   if (inferSoleIdLess) {
-    const idLessAggregate = aggregate.filter((row) => row.id === undefined);
+    const idLessAggregate = aggregate.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
     if (idLessAggregate.length > 0) {
       return idLessAggregate;
     }
-    return shipping.filter((row) => row.id === undefined);
+    return shipping.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
   }
   return [];
 }

@@ -8,7 +8,12 @@ const SCRIPT = path.resolve(__dirname, '../verify-audit-policy.mjs');
 const FIXTURE_ID = 'GHSA-aaaa-bbbb-cccc';
 const FIXTURE_EXPIRES = '2030-01-15';
 const FIXTURE_EXCEPTIONS_JSON = JSON.stringify([
-  { id: FIXTURE_ID, expires: FIXTURE_EXPIRES, reason: 'jest fixture; not a production exception' },
+  {
+    id: FIXTURE_ID,
+    expires: FIXTURE_EXPIRES,
+    reason: 'jest fixture; not a production exception',
+    securitySignOff: { ticket: 'TEST', recordedIn: 'jest-fixture' },
+  },
 ]);
 const EMPTY_REPORT = JSON.stringify({
   vulnerabilities: {},
@@ -131,5 +136,12 @@ describe('verify-audit-policy', () => {
         inheritJest: false,
       }),
     ).toThrow(/exceptions override --exceptions-json is test-only/);
+  });
+
+  it('rejects an injected exception that has no securitySignOff', () => {
+    const unsigned = JSON.stringify([{ id: FIXTURE_ID, expires: FIXTURE_EXPIRES, reason: 'unsigned fixture' }]);
+    expect(() => runPolicy(advisoryReport(FIXTURE_ID), { args: [`--exceptions-json=${unsigned}`] })).toThrow(
+      /missing securitySignOff/,
+    );
   });
 });

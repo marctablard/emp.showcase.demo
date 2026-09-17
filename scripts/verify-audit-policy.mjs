@@ -36,37 +36,64 @@ import fs from 'node:fs';
 
 // --- Policy: narrowly-scoped, time-boxed exceptions only. -----------------
 // Every entry MUST have an explicit, short-lived `expires` date (YYYY-MM-DD,
-// exception is valid through the end of that UTC day) and a `reason`
-// explaining why upgrading is not currently safe. Remove the entry once a
-// real fix lands or the date passes — do not silently extend `expires`.
+// exception is valid through the end of that UTC day), a `reason` explaining
+// why upgrading is not currently safe, and `securitySignOff` ({ ticket,
+// recordedIn }) so a gate relaxation cannot land without a recorded approval.
+// Remove the entry once a real fix lands or the date passes — do not silently
+// extend `expires`.
 const ALLOWED_EXCEPTIONS = [
   {
     id: 'GHSA-p293-qw3h-jr36',
     expires: '2026-10-12',
     reason:
       'Next 16.3.x lockfile rewrite OOMs npm ci on GitHub runners; stay on the last installable 16.2.12 lockfile until a generated lockfile installs.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
   },
   {
     id: 'GHSA-2xp9-vwfh-vxw4',
     expires: '2026-10-12',
     reason:
       'Same Next 16.3.x lockfile OOM; stay on the last installable 16.2.12 lockfile until a generated lockfile installs.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
   },
   {
     id: 'GHSA-rgj7-g3m4-5g8c',
     expires: '2026-10-12',
     reason: 'sharp 0.35.4 lockfile rewrite OOMs npm ci; keep 0.35.3 until a generated lockfile installs.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
   },
   {
     id: 'GHSA-2883-xcg3-v3hh',
     expires: '2026-10-12',
     reason: 'js-yaml 3.15.2/4.3.2 lockfile rewrite OOMs npm ci; keep current pins until a generated lockfile installs.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
   },
   {
     id: 'GHSA-j95f-988m-3j2f',
     expires: '2026-10-12',
     reason:
       'A single @tiptap/core override mismatches @tiptap/pm 3.30.0 peers. Leave the Storyblok-owned 3.30.0 set until a full 3.30.5 lockfile can be generated.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://github.com/emporix/emporix-showcase/pull/424',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
   },
 ];
 
@@ -278,6 +305,26 @@ function resolveExceptions(argv = process.argv) {
   return parsed;
 }
 
+function hasSecuritySignOff(exception) {
+  const signOff = exception?.securitySignOff;
+  return Boolean(
+    signOff &&
+      typeof signOff.ticket === 'string' &&
+      signOff.ticket.length > 0 &&
+      typeof signOff.recordedIn === 'string' &&
+      signOff.recordedIn.length > 0,
+  );
+}
+
+function assertExceptionsHaveSecuritySignOff(exceptions) {
+  const unsigned = exceptions.filter((exception) => !hasSecuritySignOff(exception));
+  if (unsigned.length > 0) {
+    fail(
+      `ALLOWED_EXCEPTIONS entries missing securitySignOff.ticket/recordedIn: ${unsigned.map((exception) => exception.id).join(', ')}`,
+    );
+  }
+}
+
 function evaluateAdvisories(advisories, today, exceptions = ALLOWED_EXCEPTIONS) {
   const disallowed = [];
   const tolerated = [];
@@ -286,6 +333,10 @@ function evaluateAdvisories(advisories, today, exceptions = ALLOWED_EXCEPTIONS) 
     const exception = exceptions.find((e) => e.id.toLowerCase() === advisory.id.toLowerCase());
     if (!exception) {
       disallowed.push({ ...advisory, reason: 'not in ALLOWED_EXCEPTIONS' });
+      continue;
+    }
+    if (!hasSecuritySignOff(exception)) {
+      disallowed.push({ ...advisory, reason: 'exception is missing securitySignOff.ticket/recordedIn' });
       continue;
     }
     const expires = new Date(`${exception.expires}T23:59:59.999Z`);
@@ -318,6 +369,9 @@ function main() {
     fail('missing required argument: path to an `npm audit --json` report (e.g. audit-report.json)');
   }
 
+  const exceptions = resolveExceptions();
+  assertExceptionsHaveSecuritySignOff(exceptions);
+
   const report = readReport(reportPathArg);
   const advisories = collectAdvisories(report.vulnerabilities);
 
@@ -326,7 +380,7 @@ function main() {
     return;
   }
 
-  const { disallowed, tolerated } = evaluateAdvisories(advisories, resolvePolicyToday(), resolveExceptions());
+  const { disallowed, tolerated } = evaluateAdvisories(advisories, resolvePolicyToday(), exceptions);
 
   if (disallowed.length > 0) {
     console.error(
