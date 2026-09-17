@@ -1034,6 +1034,8 @@ describe('EmporixCartService', () => {
 
       it.each([
         ['401 without a body', { ok: false as const, status: 401, detailTypes: [] }],
+        ['401 business_error', { ok: false as const, status: 401, type: 'business_error', detailTypes: [] }],
+        ['500 business_error', { ok: false as const, status: 500, type: 'business_error', detailTypes: [] }],
         ['non-business 403', { ok: false as const, status: 403, type: 'Forbidden', detailTypes: [] }],
       ])('keeps the original error when the validation answer is inconclusive (%s)', async (_label, outcome) => {
         mockCouponApi.validateCoupon.mockResolvedValue(outcome);

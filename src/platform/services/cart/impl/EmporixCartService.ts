@@ -133,7 +133,7 @@ export function classifyCouponRejection(outcome: EmporixCouponValidationOutcome)
   if (outcome.status === 403 && outcome.type === 'business_error') {
     return CART_DISCOUNT_REASON.NOT_ELIGIBLE;
   }
-  if (outcome.type === 'business_error') {
+  if (outcome.type === 'business_error' && outcome.status === 400) {
     return CART_DISCOUNT_REASON.NOT_APPLICABLE;
   }
   return undefined;

@@ -20,12 +20,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const resolvedParams = await params;
   const cartId = resolvedParams.id;
 
-  const sessionService = server.get<SessionService>('SessionService');
-  const session = await sessionService.getCurrent();
-  if (!session) {
-    return NextResponse.json({ error: 'Session not found' }, { status: 401 });
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -34,6 +28,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   try {
+    const sessionService = server.get<SessionService>('SessionService');
+    const session = await sessionService.getCurrent();
+    if (!session) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
+    }
+
     const cartService = server.get<CartService>('CartService');
     const rawCode = typeof body === 'object' && body !== null && 'code' in body ? body.code : undefined;
     const code = typeof rawCode === 'string' ? rawCode.trim() : '';

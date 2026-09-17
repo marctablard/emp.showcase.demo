@@ -49,6 +49,22 @@ describe('POST /api/cart/[id]/discounts', () => {
     mockedServer.default.get.mockImplementation((id: string) => mockedServer.default.__services.get(id));
   });
 
+  it('maps a session lookup failure through the discount error boundary', async () => {
+    sessionService.getCurrent.mockRejectedValue(new Error('session-context down'));
+
+    const response = await POST(createRequest({ code: 'LS10PTOTAL' }) as never, {
+      params: Promise.resolve({ id: 'cart-1' }),
+    });
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Failed to apply discount',
+      reason: CART_API_REASON.UPSTREAM_FAILURE,
+    });
+    expect(logger.error).toHaveBeenCalled();
+    expect(cartService.applyDiscount).not.toHaveBeenCalled();
+  });
+
   it('returns 401 when the session is missing', async () => {
     sessionService.getCurrent.mockResolvedValue(undefined);
 
