@@ -15,6 +15,7 @@ import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/produ
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import type { CartItem, CartItemPriceChange } from '@/platform/services/model/cart/cart.d';
+import { isCartMutationCancelledError } from '@/stores/cart-store';
 
 interface ItemPriceChangeModalProps {
   isOpen: boolean;
@@ -56,6 +57,9 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
       }
       onDone();
     } catch (error) {
+      if (isCartMutationCancelledError(error)) {
+        return;
+      }
       getLogger().error({ err: error }, 'Error removing item from cart');
     } finally {
       setIsProcessing(false);

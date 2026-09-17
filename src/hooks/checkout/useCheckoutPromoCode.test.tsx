@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { CART_API_REASON } from '@/lib/common/cart-api-error-mapping';
 import type { Cart, CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import { CartMutationCancelledError } from '@/stores/cart-store';
 import { useCheckoutPromoCode } from './useCheckoutPromoCode';
@@ -115,12 +116,12 @@ describe('useCheckoutPromoCode', () => {
   });
 
   it.each([
-    ['coupon_not_found', FIGMA_PROMO_ERROR],
-    ['coupon_not_active', FIGMA_PROMO_ERROR],
-    ['coupon_not_eligible', 'promoCodeNotEligible'],
-    ['coupon_not_applicable', 'promoCodeNotApplicable'],
-    ['coupon_already_applied', 'promoCodeAlreadyApplied'],
-    ['discount_not_applicable', FIGMA_PROMO_ERROR],
+    [CART_API_REASON.COUPON_NOT_FOUND, FIGMA_PROMO_ERROR],
+    [CART_API_REASON.COUPON_NOT_ACTIVE, FIGMA_PROMO_ERROR],
+    [CART_API_REASON.COUPON_NOT_ELIGIBLE, 'promoCodeNotEligible'],
+    [CART_API_REASON.COUPON_NOT_APPLICABLE, 'promoCodeNotApplicable'],
+    [CART_API_REASON.COUPON_ALREADY_APPLIED, 'promoCodeAlreadyApplied'],
+    [CART_API_REASON.DISCOUNT_NOT_APPLICABLE, FIGMA_PROMO_ERROR],
     ['some_future_reason', FIGMA_PROMO_ERROR],
   ])('picks the copy for API reason %s', async (reason, expectedMessage) => {
     const err: Error & { reason?: string; status?: number } = new Error('Discount is not applicable');
@@ -304,6 +305,18 @@ describe('useCheckoutPromoCode', () => {
     });
 
     expect(mockRemoveDiscount).toHaveBeenCalledWith(1);
+  });
+
+  it('does not set a remove error when chip removal is cancelled by a cart reset', async () => {
+    mockRemoveDiscount.mockRejectedValue(new CartMutationCancelledError('discount'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      await result.current.remove(existingDiscount.code);
+    });
+
+    expect(result.current.fieldError).toBeNull();
   });
 
   it('keeps the typed code when apply is cancelled by a cart reset', async () => {

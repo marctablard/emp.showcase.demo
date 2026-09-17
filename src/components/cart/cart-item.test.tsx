@@ -4,8 +4,10 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { notify } from '@/components/ui/toast-notification';
 import { PRODUCT_NO_IMAGE_SRC } from '@/lib/common/product-image';
 import type { Cart, CartItem } from '@/platform/services/model/cart/cart.d';
+import { CartMutationCancelledError } from '@/stores/cart-store';
 import { CartItemRow } from './cart-item';
 
 jest.mock('next-intl', () => ({
@@ -169,6 +171,7 @@ describe('CartItemRow quantity restore', () => {
     mockRemoveItem.mockReset();
     mockUpdateItemQuantity.mockResolvedValue(undefined);
     mockRemoveItem.mockResolvedValue(undefined);
+    (notify as jest.Mock).mockClear();
   });
 
   it('restores the server quantity when an increase fails', async () => {
@@ -195,5 +198,43 @@ describe('CartItemRow quantity restore', () => {
       expect(mockRemoveItem).toHaveBeenCalledWith('item-1');
     });
     expect(screen.getByTestId('cart-item-quantity-prod-1')).toHaveDisplayValue('1');
+  });
+
+  it('toasts leftover coupons only after a confirmed last-item remove', async () => {
+    const lastItem = buildItem();
+    const lastItemCart: Cart = {
+      ...cart,
+      items: [lastItem],
+      discounts: [{ code: 'SAVE10', discountIndex: 0, amount: 1, currency: 'EUR' }],
+    };
+
+    render(<CartItemRow cart={lastItemCart} item={lastItem} showQty />);
+    fireEvent.click(screen.getByTestId('cart-item-remove-prod-1'));
+
+    await waitFor(() => {
+      expect(notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'cart.couponsRemovedFromEmptyCart',
+        }),
+      );
+    });
+  });
+
+  it('does not toast leftover coupons when last-item remove is cancelled by a cart reset', async () => {
+    mockRemoveItem.mockRejectedValueOnce(new CartMutationCancelledError('removeItem'));
+    const lastItem = buildItem();
+    const lastItemCart: Cart = {
+      ...cart,
+      items: [lastItem],
+      discounts: [{ code: 'SAVE10', discountIndex: 0, amount: 1, currency: 'EUR' }],
+    };
+
+    render(<CartItemRow cart={lastItemCart} item={lastItem} showQty />);
+    fireEvent.click(screen.getByTestId('cart-item-remove-prod-1'));
+
+    await waitFor(() => {
+      expect(mockRemoveItem).toHaveBeenCalledWith('item-1');
+    });
+    expect(notify).not.toHaveBeenCalled();
   });
 });

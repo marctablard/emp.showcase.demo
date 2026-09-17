@@ -524,6 +524,9 @@ function runUpdateItemQuantity(ctx: CartMutationContext, itemId: string, quantit
 }
 
 function runRemoveItem(ctx: CartMutationContext, itemId: string): Promise<void> {
+  if (ctx.resetWhileQueued) {
+    throw new CartMutationCancelledError('removeItem');
+  }
   return runLineItemMutation(ctx, {
     call: (cartId) => apiRemoveCartItem(cartId, itemId),
     failureMessage: 'Failed to remove cart item',

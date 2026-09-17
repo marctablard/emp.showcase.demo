@@ -1085,7 +1085,8 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
 
     pendingApply.resolve(buildCart('cart-1'));
     await act(async () => {
-      await Promise.all([applyPromise, removePromise]);
+      await expect(removePromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+      await applyPromise;
     });
 
     expect(mockRemoveCartItem).not.toHaveBeenCalled();

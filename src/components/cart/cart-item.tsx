@@ -20,6 +20,7 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Cart, CartItem, CartItemPriceChange, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
 import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
+import { isCartMutationCancelledError } from '@/stores/cart-store';
 import { Input } from '../ui/input';
 import { Spinner } from '../ui/spinner';
 import { ItemPriceChangeModal } from './item-price-change-modal';
@@ -133,6 +134,9 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
         });
       }
     } catch (error) {
+      if (isCartMutationCancelledError(error)) {
+        return;
+      }
       setQuantity(item.quantity);
       getLogger().error({ err: error }, 'Error removing item from cart');
     } finally {
