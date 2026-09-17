@@ -95,22 +95,46 @@ function matchingAppliedDiscountRows(
   return components.filter((row) => row.id === undefined && isInternalOrUnoriginated(row));
 }
 
+function firstTypedAppliedDiscount(
+  discount: EmporixDiscount,
+  calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+  inferSoleIdLess: boolean,
+): OrderDiscount['type'] | undefined {
+  const sources = appliedDiscountSources(calculatedPrice);
+  for (const source of sources) {
+    for (const row of source) {
+      if (typeof row.id === 'string' && row.id === discount.code) {
+        const type = asOrderDiscountType(row.discountType);
+        if (type) {
+          return type;
+        }
+      }
+    }
+  }
+  if (!inferSoleIdLess) {
+    return undefined;
+  }
+  for (const source of sources) {
+    for (const row of source) {
+      if (row.id === undefined && isInternalOrUnoriginated(row)) {
+        const type = asOrderDiscountType(row.discountType);
+        if (type) {
+          return type;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
 function resolveOrderDiscountType(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
   inferSoleIdLess: boolean,
 ): OrderDiscount['type'] | undefined {
-  const fromDiscount = asOrderDiscountType(discount.discountType);
-  if (fromDiscount) {
-    return fromDiscount;
-  }
-  for (const row of matchingAppliedDiscountRows(discount, calculatedPrice, inferSoleIdLess)) {
-    const type = asOrderDiscountType(row.discountType);
-    if (type) {
-      return type;
-    }
-  }
-  return undefined;
+  return (
+    asOrderDiscountType(discount.discountType) ?? firstTypedAppliedDiscount(discount, calculatedPrice, inferSoleIdLess)
+  );
 }
 
 function resolveOrderDiscountValue(

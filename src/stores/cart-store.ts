@@ -476,7 +476,10 @@ async function runAddToCart(
  * Best-effort: a cleanup failure must not fail the already-successful line-item write.
  */
 function leftoverCouponsCleared(cart: Cart | null | undefined): boolean {
-  return cartCouponCodesForMessage(cart?.discounts).length === 0;
+  if (!cart || cart.items.length > 0) {
+    return false;
+  }
+  return cartCouponCodesForMessage(cart.discounts).length === 0;
 }
 
 async function stripOrphanCouponsAfterEmptyCart(ctx: CartMutationContext): Promise<boolean> {

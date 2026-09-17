@@ -469,6 +469,34 @@ describe('EmporixOrderMapper', () => {
     });
   });
 
+  it('reads FREE_SHIPPING type from a shipping row when the aggregate row has no discountType', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'FREESHIP', amount: 0, currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 100, grossValue: 119, taxValue: 19 },
+          totalDiscount: {
+            value: 4.95,
+            appliedDiscounts: [{ id: 'FREESHIP', value: 4.95 }],
+          },
+          totalShipping: {
+            netValue: 0,
+            grossValue: 0,
+            taxValue: 0,
+            appliedDiscounts: [{ id: 'FREESHIP', value: 4.95, discountType: 'FREE_SHIPPING' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({
+      code: 'FREESHIP',
+      type: 'FREE_SHIPPING',
+    });
+  });
+
   it('sums goods and shipping component rows when totalDiscount is omitted', () => {
     const result = mapper.mapToService(
       buildOrder({

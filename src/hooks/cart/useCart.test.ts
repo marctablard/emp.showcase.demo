@@ -1251,6 +1251,25 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 1);
   });
 
+  it('does not report leftoverCouponsCleared when the emptied cart snapshot is missing', async () => {
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+      }),
+    );
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(null));
+
+    let result: { leftoverCouponsCleared: boolean } | undefined;
+    await act(async () => {
+      result = await store.getState().removeItem('item-1');
+    });
+
+    expect(mockRemoveCartDiscount).not.toHaveBeenCalled();
+    expect(result).toEqual({ leftoverCouponsCleared: false });
+  });
+
   it('still completes removeItem when leftover coupon cleanup fails', async () => {
     const emptiedWithCoupon = buildCart('cart-1', {
       items: [],
