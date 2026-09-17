@@ -4,6 +4,7 @@ import {
   cartCouponCodesForMessage,
   isShopperFacingCartPromo,
   isShopperFacingOrderPromo,
+  optionalSavingsTotal,
   orderGoodsSavings,
   removableCartDiscountIndexes,
   resolveGoodsSavingsAmount,
@@ -104,6 +105,11 @@ describe('applied-promo-display', () => {
         originalNet: 69.15,
       }),
     ).toBe(11.22);
+  });
+
+  it('spreads savingsTotal only when the amount is a number', () => {
+    expect(optionalSavingsTotal(11.22)).toEqual({ savingsTotal: 11.22 });
+    expect(optionalSavingsTotal(undefined)).toEqual({});
   });
 
   it('does not treat a shipping-only waiver as goods savings', () => {

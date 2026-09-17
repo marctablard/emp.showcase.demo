@@ -603,6 +603,50 @@ describe('EmporixCartService', () => {
       );
     });
 
+    it('classifies a 400 with coupon language as COUPON_CURRENCY_CONFLICT', async () => {
+      const cart: EmporixCart = {
+        id: 'cart-1',
+        currency: 'USD',
+        siteCode: 'main',
+        metadata: { version: 1 },
+      };
+
+      mockCartApi.getCart.mockResolvedValue(cart);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error(
+          'Failed to change cart currency: Bad Request {"code":400,"message":"Discount currency does not match"}',
+        ),
+      );
+
+      await expect(cartService.updateCurrency('cart-1', 'EUR')).rejects.toEqual(
+        expect.objectContaining({
+          code: 'COUPON_CURRENCY_CONFLICT',
+          upstreamStatus: 400,
+        }),
+      );
+    });
+
+    it('keeps a 400 item/price miss as CONTEXT_MISMATCH', async () => {
+      const cart: EmporixCart = {
+        id: 'cart-1',
+        currency: 'USD',
+        siteCode: 'main',
+        metadata: { version: 1 },
+      };
+
+      mockCartApi.getCart.mockResolvedValue(cart);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error('Failed to change cart currency: Bad Request {"code":400,"message":"Price not found for item"}'),
+      );
+
+      await expect(cartService.updateCurrency('cart-1', 'EUR')).rejects.toEqual(
+        expect.objectContaining({
+          code: 'CONTEXT_MISMATCH',
+          upstreamStatus: 400,
+        }),
+      );
+    });
+
     it('should throw typed forbidden error when upstream returns 403 during currency change', async () => {
       const cart: EmporixCart = {
         id: 'cart-1',

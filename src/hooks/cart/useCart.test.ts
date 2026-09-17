@@ -1096,6 +1096,7 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
   type SeededStore = ReturnType<typeof seedStore>;
   const queuedWrites: Array<[string, (store: SeededStore) => Promise<void>, () => jest.Mock]> = [
     ['applyDiscount', (store) => store.getState().applyDiscount('QUEUED'), () => mockApplyCartDiscount],
+    ['removeDiscount', (store) => store.getState().removeDiscount(0), () => mockRemoveCartDiscount],
     [
       'updateShippingInfo',
       (store) => store.getState().updateShippingInfo({ country: 'DE', zipCode: '10115' }),
@@ -1121,6 +1122,11 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
 
       pendingApply.resolve(buildCart('cart-1'));
       await act(async () => {
+        if (_name === 'applyDiscount' || _name === 'removeDiscount') {
+          await expect(queuedPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+          await holdPromise;
+          return;
+        }
         await Promise.all([holdPromise, queuedPromise]);
       });
 

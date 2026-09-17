@@ -1,5 +1,9 @@
 import { shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
-import { isFreeShippingPromo, resolveGoodsSavingsAmount } from '@/lib/common/applied-promo-display';
+import {
+  isFreeShippingPromo,
+  optionalSavingsTotal,
+  resolveGoodsSavingsAmount,
+} from '@/lib/common/applied-promo-display';
 import type { Order, OrderDiscount } from '@/platform/services/model/order/order';
 
 export type CouponApplyBasis = 'net' | 'gross';
@@ -85,7 +89,7 @@ function appliedCouponBreakdownFields(
       originalGoodsVat: order.price?.subtotal.tax ?? 0,
       originalGoodsGross,
       goodsDiscounted: isLowerThan(order.goodsDiscountedGross, originalGoodsGross),
-      ...(goodsSavings !== undefined ? { savingsTotal: goodsSavings } : {}),
+      ...optionalSavingsTotal(goodsSavings),
       ...shippingFields,
       ...discountFields,
       ...(typeof order.goodsDiscountedGross === 'number' ? { goodsDiscountedGross: order.goodsDiscountedGross } : {}),
@@ -103,7 +107,7 @@ function appliedCouponBreakdownFields(
     couponApplyBasis: 'net',
     originalGoodsNet,
     goodsDiscounted: isLowerThan(order?.goodsDiscountedNet, originalGoodsNet),
-    ...(goodsSavings !== undefined ? { savingsTotal: goodsSavings } : {}),
+    ...optionalSavingsTotal(goodsSavings),
     ...shippingFields,
     ...discountFields,
   };

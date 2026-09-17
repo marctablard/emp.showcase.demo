@@ -407,6 +407,51 @@ describe('EmporixCartMapper', () => {
     expect(mapped.discounts?.[1]).not.toHaveProperty('type');
   });
 
+  it('still types the sole coupon when the same id-less FREE_SHIPPING row is repeated on aggregate and shipping', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 4.95,
+          appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+        totalShipping: {
+          netValue: 0,
+          grossValue: 0,
+          taxValue: 0,
+          taxCode: 'ZERO',
+          taxRate: 0,
+          appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+      }),
+      discounts: [{ code: 'FREESHIP', discountIndex: 0, amount: 0, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toMatchObject({ code: 'FREESHIP', type: 'FREE_SHIPPING' });
+  });
+
+  it('does not infer FREE_SHIPPING from an EXTERNAL applied row', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 4.95,
+          appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING', origin: 'EXTERNAL' }],
+        },
+      }),
+      discounts: [{ code: 'GOODS10', discountIndex: 0, amount: 3, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toEqual({
+      code: 'GOODS10',
+      name: undefined,
+      discountIndex: 0,
+      amount: 3,
+      currency: 'EUR',
+    });
+    expect(mapped.discounts?.[0]).not.toHaveProperty('type');
+  });
+
   it('types the sole coupon FREE_SHIPPING when the only applied row is typed but id-less', () => {
     const mapped = mapper.mapToService({
       ...showcaseDevCart({

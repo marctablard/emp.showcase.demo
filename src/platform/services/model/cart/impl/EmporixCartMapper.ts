@@ -102,22 +102,37 @@ function resolveAppliedDiscount(
   );
 }
 
-function typedFreeShippingRowCount(calculatedPrice: EmporixCart['calculatedPrice']): number {
-  return [
+function uniqueInternalFreeShippingIdentities(calculatedPrice: EmporixCart['calculatedPrice']): string[] {
+  const ids = new Set<string>();
+  let sawIdLess = false;
+  for (const row of [
     ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
     ...(calculatedPrice?.shipping?.appliedDiscounts ?? []),
     ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
-  ].filter((row) => row.discountType === 'FREE_SHIPPING').length;
+  ]) {
+    const isInternalOrigin = row.origin === 'INTERNAL' || row.origin === undefined;
+    if (row.discountType === 'FREE_SHIPPING' && isInternalOrigin) {
+      if (row.id === undefined) {
+        sawIdLess = true;
+      } else {
+        ids.add(row.id);
+      }
+    }
+  }
+  if (ids.size > 0) {
+    return [...ids];
+  }
+  return sawIdLess ? ['idless'] : [];
 }
 
-/** Sole shopper coupon + exactly one typed FREE_SHIPPING row (even if that row has no id). */
+/** Sole shopper coupon + one internal typed FREE_SHIPPING identity (id-less rows counted once). */
 function inferSoleTypedFreeShipping(
   sourceDiscounts: EmporixCartDiscount[],
   calculatedPrice: EmporixCart['calculatedPrice'],
 ): boolean {
   const soleNonTotal =
     sourceDiscounts.filter((discount) => discount.valid !== false && discount.code !== 'TOTAL').length === 1;
-  return soleNonTotal && typedFreeShippingRowCount(calculatedPrice) === 1;
+  return soleNonTotal && uniqueInternalFreeShippingIdentities(calculatedPrice).length === 1;
 }
 
 function mapCartDiscounts(

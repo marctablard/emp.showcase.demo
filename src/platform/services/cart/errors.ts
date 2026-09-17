@@ -4,6 +4,8 @@ export const CART_CURRENCY_UPDATE_ERROR_CODE = {
   UNSUPPORTED_CURRENCY: 'UNSUPPORTED_CURRENCY',
   FORBIDDEN: 'FORBIDDEN',
   CONTEXT_MISMATCH: 'CONTEXT_MISMATCH',
+  /** `/changeCurrency` rejected because an applied coupon cannot be repriced. */
+  COUPON_CURRENCY_CONFLICT: 'COUPON_CURRENCY_CONFLICT',
   STALE_CART_ID: 'STALE_CART_ID',
   UPSTREAM_FAILURE: 'UPSTREAM_FAILURE',
 } as const;
@@ -88,6 +90,16 @@ export function extractUpstreamStatus(message: string): number | undefined {
 
   const status = Number(match[1]);
   return Number.isNaN(status) ? undefined : status;
+}
+
+const COUPON_CURRENCY_HINT = /\b(coupon|discount|promo)\b/i;
+
+/** True when an upstream currency-change payload names a coupon/discount, not a generic item/price miss. */
+export function isCouponRelatedCurrencyFailure(message: string, upstreamBody?: string): boolean {
+  if (COUPON_CURRENCY_HINT.test(message)) {
+    return true;
+  }
+  return typeof upstreamBody === 'string' && COUPON_CURRENCY_HINT.test(upstreamBody);
 }
 
 export function extractUpstreamBody(message: string): string | undefined {

@@ -31,7 +31,7 @@ export function resolveGoodsSavingsAmount(input: {
   const fromFigures = input.afterTax
     ? roundedPositiveDelta(input.originalGross ?? 0, input.discountedGross)
     : roundedPositiveDelta(input.originalNet, input.discountedNet);
-  if (fromFigures !== undefined) {
+  if (typeof fromFigures === 'number') {
     return fromFigures;
   }
   if (input.shippingFree) {
@@ -41,6 +41,13 @@ export function resolveGoodsSavingsAmount(input: {
     return input.savingsTotal;
   }
   return undefined;
+}
+
+export function optionalSavingsTotal(amount: number | undefined): { savingsTotal?: number } {
+  if (typeof amount === 'number') {
+    return { savingsTotal: amount };
+  }
+  return {};
 }
 
 export function isFreeShippingPromo(discount: { type?: string }): boolean {

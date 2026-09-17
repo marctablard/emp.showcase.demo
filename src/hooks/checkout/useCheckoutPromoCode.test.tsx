@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import type { Cart, CartAppliedDiscount } from '@/platform/services/model/cart/cart';
+import { CartMutationCancelledError } from '@/stores/cart-store';
 import { useCheckoutPromoCode } from './useCheckoutPromoCode';
 
 const FIGMA_PROMO_ERROR = 'This is not an active promo code. Please check your entry.';
@@ -257,6 +258,35 @@ describe('useCheckoutPromoCode', () => {
 
     expect(result.current.fieldError).toBeNull();
     expect(result.current.discounts).toEqual([firstDiscount, secondDiscount]);
+  });
+
+  it('keeps the typed code when apply is cancelled by a cart reset', async () => {
+    mockApplyDiscount.mockRejectedValue(new CartMutationCancelledError('discount'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('KEEPME');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.code).toBe('KEEPME');
+    expect(result.current.fieldError).toBeNull();
+  });
+
+  it('uses remove-specific copy when chip removal fails', async () => {
+    mockRemoveDiscount.mockRejectedValue(new Error('upstream'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      await result.current.remove(0);
+    });
+
+    expect(result.current.fieldError).toBe('promoCodeRemoveError');
+    expect(result.current.fieldError).not.toBe(FIGMA_PROMO_ERROR);
   });
 
   it('tracks removingIndex while a chip is being removed', async () => {

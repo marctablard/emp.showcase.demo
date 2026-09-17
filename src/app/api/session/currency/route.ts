@@ -20,14 +20,9 @@ const RECOVERABLE_CART_ERROR_CODES = new Set<CartCurrencyUpdateErrorCode>([
 
 type CartCurrencyReconcile = { cart: Cart | null } | { conflict: NextResponse };
 
-/** Coupon codes only when the Cart API rejected the switch — not site-config failures. */
-const COUPON_CURRENCY_CONFLICT_CODES = new Set<CartCurrencyUpdateErrorCode>([
-  CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH,
-  CART_CURRENCY_UPDATE_ERROR_CODE.UPSTREAM_FAILURE,
-]);
-
 function cartCurrencyConflictResponse(code: CartCurrencyUpdateErrorCode, couponCodes: string[]): NextResponse {
-  const includeCouponCodes = COUPON_CURRENCY_CONFLICT_CODES.has(code) && couponCodes.length > 0;
+  const includeCouponCodes =
+    code === CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT && couponCodes.length > 0;
   return NextResponse.json(
     {
       error: 'Cart currency update failed',

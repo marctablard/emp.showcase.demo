@@ -177,6 +177,13 @@ export class CartMutationCancelledError extends Error {
   }
 }
 
+export function isCartMutationCancelledError(error: unknown): error is CartMutationCancelledError {
+  return (
+    error instanceof CartMutationCancelledError ||
+    (error instanceof Error && error.name === 'CartMutationCancelledError')
+  );
+}
+
 /** Epoch-bound helpers handed to each mutation body. */
 interface CartMutationContext {
   get: () => CartStore;
@@ -544,10 +551,16 @@ async function runCartSnapshotMutation(
   },
 ): Promise<void> {
   if (args.cancelIfResetWhileQueued && ctx.resetWhileQueued) {
+    if (args.rethrow) {
+      throw new CartMutationCancelledError('discount');
+    }
     return;
   }
   const { currentCart } = ctx.get();
   if (!currentCart) {
+    if (args.rethrow) {
+      throw new CartMutationCancelledError('discount');
+    }
     return;
   }
   try {

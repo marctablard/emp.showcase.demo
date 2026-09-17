@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PRODUCT_NO_IMAGE_SRC } from '@/lib/common/product-image';
 import type { Cart, CartItem } from '@/platform/services/model/cart/cart.d';
 import { CartItemRow } from './cart-item';
@@ -32,12 +32,29 @@ jest.mock('@/hooks/useL10n', () => ({
   }),
 }));
 
+const mockUpdateItemQuantity = jest.fn();
+const mockRemoveItem = jest.fn();
+
 jest.mock('@/hooks/cart/useCart', () => ({
   useCart: () => ({
-    updateItemQuantity: jest.fn(),
-    removeItem: jest.fn(),
+    updateItemQuantity: mockUpdateItemQuantity,
+    removeItem: mockRemoveItem,
     loading: false,
   }),
+}));
+
+jest.mock('@/lib/logger/use-logger-client', () => ({
+  getLogger: () => ({
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  }),
+}));
+
+jest.mock('@/components/ui/toast-notification', () => ({
+  ToastType: { Info: 'info' },
+  notify: jest.fn(),
 }));
 
 jest.mock('@/hooks/notifications/useNotifications', () => ({
@@ -143,5 +160,40 @@ describe('CartItemRow empty thumbnail', () => {
 
     expect(screen.getByRole('img', { name: 'Widget' })).toHaveAttribute('src', 'https://cdn.example.com/widget.jpg');
     expect(screen.queryByRole('img', { name: 'product.noImage' })).not.toBeInTheDocument();
+  });
+});
+
+describe('CartItemRow quantity restore', () => {
+  beforeEach(() => {
+    mockUpdateItemQuantity.mockReset();
+    mockRemoveItem.mockReset();
+    mockUpdateItemQuantity.mockResolvedValue(undefined);
+    mockRemoveItem.mockResolvedValue(undefined);
+  });
+
+  it('restores the server quantity when an increase fails', async () => {
+    mockUpdateItemQuantity.mockRejectedValueOnce(new Error('upstream'));
+
+    render(<CartItemRow cart={cart} item={buildItem({ quantity: 2 })} showQty />);
+
+    fireEvent.click(screen.getByTestId('cart-item-increase-prod-1'));
+
+    await waitFor(() => {
+      expect(mockUpdateItemQuantity).toHaveBeenCalledWith('item-1', 3);
+    });
+    expect(screen.getByTestId('cart-item-quantity-prod-1')).toHaveDisplayValue('2');
+  });
+
+  it('restores the server quantity when remove fails', async () => {
+    mockRemoveItem.mockRejectedValueOnce(new Error('upstream'));
+
+    render(<CartItemRow cart={cart} item={buildItem({ quantity: 1 })} showQty />);
+
+    fireEvent.click(screen.getByTestId('cart-item-remove-prod-1'));
+
+    await waitFor(() => {
+      expect(mockRemoveItem).toHaveBeenCalledWith('item-1');
+    });
+    expect(screen.getByTestId('cart-item-quantity-prod-1')).toHaveDisplayValue('1');
   });
 });

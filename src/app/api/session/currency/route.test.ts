@@ -138,7 +138,7 @@ describe('PUT /api/session/currency', () => {
     expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
   });
 
-  it('includes couponCodes only when the Cart API reports a coupon-currency conflict', async () => {
+  it('does not attach couponCodes to a generic context-mismatch currency failure', async () => {
     sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
     cartService.getCart.mockResolvedValue({
       id: 'c1',
@@ -150,13 +150,38 @@ describe('PUT /api/session/currency', () => {
       ],
     });
     cartService.updateCurrency.mockRejectedValue(
-      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH, 'coupon blocks currency'),
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH, 'price missing for item'),
     );
 
     const response = await PUT(createRequest({ currency: 'USD' }) as never);
-    const body = (await response.json()) as { couponCodes?: string[] };
+    const body = (await response.json()) as { couponCodes?: string[]; code?: string };
 
     expect(response.status).toBe(409);
+    expect(body.code).toBe(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH);
+    expect(body.couponCodes).toBeUndefined();
+    expect(sessionService.setCurrency).not.toHaveBeenCalled();
+  });
+
+  it('includes couponCodes only for a classified coupon-currency conflict', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({
+      id: 'c1',
+      site: 'us',
+      currency: 'EUR',
+      discounts: [
+        { code: 'TOTAL', discountIndex: 0 },
+        { code: 'ACCESSORIES15', discountIndex: 1 },
+      ],
+    });
+    cartService.updateCurrency.mockRejectedValue(
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT, 'coupon blocks currency'),
+    );
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { couponCodes?: string[]; code?: string };
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe(CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT);
     expect(body.couponCodes).toEqual(['ACCESSORIES15']);
     expect(sessionService.setCurrency).not.toHaveBeenCalled();
   });

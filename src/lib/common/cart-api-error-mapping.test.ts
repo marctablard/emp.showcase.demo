@@ -47,6 +47,16 @@ describe('cart-api-error-mapping', () => {
       expect(mapping.response.reason).toBe(CART_API_REASON.UNSUPPORTED_CURRENCY);
     });
 
+    it('maps coupon-currency conflict to 409 coupon_currency_conflict', () => {
+      const mapping = mapCartCurrencyPutError(
+        new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT, 'Coupon blocks currency'),
+      );
+
+      expect(mapping.status).toBe(409);
+      expect(mapping.response.reason).toBe(CART_API_REASON.COUPON_CURRENCY_CONFLICT);
+      expect(mapping.response.error).toBe('Coupon blocks currency update');
+    });
+
     it('maps unknown errors to 500 upstream_failure', () => {
       const mapping = mapCartCurrencyPutError(new Error('boom'));
 

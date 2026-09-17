@@ -4,6 +4,7 @@ import {
   CartDiscountError,
   isCartCurrencyUpdateError,
   isCartDiscountError,
+  isCouponRelatedCurrencyFailure,
 } from './errors';
 
 describe('cart errors', () => {
@@ -42,5 +43,22 @@ describe('cart errors', () => {
       false,
     );
     expect(isCartDiscountError(null)).toBe(false);
+  });
+
+  it('detects coupon-related currency failures from the upstream body only', () => {
+    expect(isCouponRelatedCurrencyFailure('Failed to update cart currency')).toBe(false);
+    expect(
+      isCouponRelatedCurrencyFailure(
+        'Failed to change cart currency: Bad Request',
+        '{"code":400,"message":"Price not found for item"}',
+      ),
+    ).toBe(false);
+    expect(
+      isCouponRelatedCurrencyFailure(
+        'Failed to change cart currency: Bad Request',
+        '{"code":400,"message":"Discount currency does not match"}',
+      ),
+    ).toBe(true);
+    expect(isCouponRelatedCurrencyFailure('Coupon blocks currency update')).toBe(true);
   });
 });

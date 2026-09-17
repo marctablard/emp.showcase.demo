@@ -1,5 +1,5 @@
 import { shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
-import { resolveGoodsSavingsAmount } from '@/lib/common/applied-promo-display';
+import { optionalSavingsTotal, resolveGoodsSavingsAmount } from '@/lib/common/applied-promo-display';
 import type { Cart } from '@/platform/services/model/cart';
 
 export type CheckoutOrderSummaryBreakdown = {
@@ -131,7 +131,7 @@ function appliedCouponBreakdownFields(
       originalGoodsVat: cart.tax?.amount ?? 0,
       originalGoodsGross,
       goodsDiscounted: isLowerThan(cart.goodsDiscountedGross, originalGoodsGross),
-      ...(goodsSavings !== undefined ? { savingsTotal: goodsSavings } : {}),
+      ...optionalSavingsTotal(goodsSavings),
       ...shippingFields,
       ...(typeof cart.goodsDiscountedGross === 'number' ? { goodsDiscountedGross: cart.goodsDiscountedGross } : {}),
     };
@@ -148,7 +148,7 @@ function appliedCouponBreakdownFields(
     couponApplyBasis: 'net',
     originalGoodsNet,
     goodsDiscounted: isLowerThan(cart?.goodsDiscountedNet, originalGoodsNet),
-    ...(goodsSavings !== undefined ? { savingsTotal: goodsSavings } : {}),
+    ...optionalSavingsTotal(goodsSavings),
     ...shippingFields,
   };
 }

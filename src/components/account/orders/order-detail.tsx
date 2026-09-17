@@ -365,7 +365,7 @@ function OrderOverviewShippingRows(props: {
           )}
         </span>
       </div>
-      {breakdown.showShippingVat && shippingTax !== undefined ? (
+      {breakdown.showShippingVat && typeof shippingTax === 'number' ? (
         <div className="flex justify-between gap-4 pt-2">
           <span>
             {tOrder('shippingVat')}

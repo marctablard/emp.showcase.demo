@@ -29,6 +29,7 @@ import {
   extractUpstreamBody,
   extractUpstreamStatus,
   isCartDiscountError,
+  isCouponRelatedCurrencyFailure,
 } from '@/platform/services/cart/errors';
 import { matchDeliveryWindowForShippingMethod } from '@/platform/services/cart/match-delivery-window';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -1054,6 +1055,13 @@ class EmporixCartService implements CartService {
     }
 
     if (upstreamStatus === 400 || upstreamStatus === 409 || upstreamStatus === 422) {
+      if (isCouponRelatedCurrencyFailure(errorMessage, upstreamBody)) {
+        return new CartCurrencyUpdateError(
+          CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT,
+          'Coupon blocks currency update',
+          { upstreamStatus, upstreamBody },
+        );
+      }
       return new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH, 'Cart context mismatch', {
         upstreamStatus,
         upstreamBody,

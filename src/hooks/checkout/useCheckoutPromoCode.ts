@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useLogger } from '@/hooks/common/useLogger';
 import { CART_API_REASON } from '@/lib/common/cart-api-error-mapping';
 import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
+import { isCartMutationCancelledError } from '@/stores/cart-store';
 import { useCart } from '../cart/useCart';
 
 export interface UseCheckoutPromoCode {
@@ -64,7 +65,6 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
   const [removingIndex, setRemovingIndex] = useState<number | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
-  const genericError = t('promoCodeError');
   const discounts = cart?.discounts ?? [];
   const cartId = cart?.id;
   const mutationLockRef = useRef(false);
@@ -82,6 +82,9 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
       await applyDiscount(trimmed);
       setCode('');
     } catch (err) {
+      if (isCartMutationCancelledError(err)) {
+        return;
+      }
       const reason = getApiReason(err);
       setFieldError(t(promoErrorKeyFor(reason)));
       logger.error(
@@ -106,14 +109,17 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
       try {
         await removeDiscount(discountIndex);
       } catch (err) {
-        setFieldError(genericError);
+        if (isCartMutationCancelledError(err)) {
+          return;
+        }
+        setFieldError(t('promoCodeRemoveError'));
         logger.error({ err, cartId, upstreamStatus: getUpstreamStatus(err) }, 'Failed to remove checkout promo code');
       } finally {
         mutationLockRef.current = false;
         setRemovingIndex(null);
       }
     },
-    [cartId, genericError, logger, removeDiscount],
+    [cartId, logger, removeDiscount, t],
   );
 
   return {

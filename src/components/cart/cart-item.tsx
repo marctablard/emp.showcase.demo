@@ -109,6 +109,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
       setQuantity(newQuantity);
       await updateItemQuantity(item.id, newQuantity);
     } catch (error) {
+      setQuantity(item.quantity);
       getLogger().error({ err: error }, 'Error updating cart item quantity');
     } finally {
       setIsProcessing(false);
@@ -132,6 +133,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
         });
       }
     } catch (error) {
+      setQuantity(item.quantity);
       getLogger().error({ err: error }, 'Error removing item from cart');
     } finally {
       setIsProcessing(false);

@@ -110,6 +110,7 @@
     "promoCodeNotEligible": "This promo code is not available for your account.",
     "promoCodeNotApplicable": "This promo code cannot be applied to your current cart. Please check its conditions, such as a minimum order value.",
     "promoCodeAlreadyApplied": "This promo code is already applied to your cart.",
+    "promoCodeRemoveError": "Couldn't remove this promo code. Please try again.",
     "promoCodeOnePerProduct": "Only one promo code can be applied to each product.",
     "promoCodeBestPrice": "Our best-price logic always applies the highest discount available for you.",
     "originalValueOfGoods": "Original value of goods",

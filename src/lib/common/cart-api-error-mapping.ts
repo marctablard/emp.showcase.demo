@@ -11,6 +11,7 @@ export const CART_API_REASON = {
   NOT_FOUND: 'not_found',
   FORBIDDEN: 'forbidden',
   CONTEXT_MISMATCH: 'context_mismatch',
+  COUPON_CURRENCY_CONFLICT: 'coupon_currency_conflict',
   UNSUPPORTED_CURRENCY: 'unsupported_currency',
   /** Generic coupon rejection whose cause could not be classified. */
   DISCOUNT_NOT_APPLICABLE: 'discount_not_applicable',
@@ -118,6 +119,18 @@ export function mapCartCurrencyPutError(error: unknown): CartApiErrorMapping {
         response: { error: 'Cart context mismatch', reason: CART_API_REASON.CONTEXT_MISMATCH },
         logContext: {
           reason: CART_API_REASON.CONTEXT_MISMATCH,
+          upstreamStatus: error.upstreamStatus,
+          upstreamBody: error.upstreamBody,
+        },
+      };
+    }
+
+    if (error.code === CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT) {
+      return {
+        status: 409,
+        response: { error: 'Coupon blocks currency update', reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT },
+        logContext: {
+          reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
           upstreamStatus: error.upstreamStatus,
           upstreamBody: error.upstreamBody,
         },
