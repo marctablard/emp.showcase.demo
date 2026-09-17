@@ -219,4 +219,24 @@ describe('useCartTotal', () => {
 
     expect(result.current.currency).toBe('EUR');
   });
+
+  it('returns coupon-adjusted goods net and VAT from the shared checkout breakdown', () => {
+    mockUseCart.mockReturnValue({
+      cart: {
+        tax: { amount: 13.14, netValue: 69.15, grossValue: 82.29, currency: 'EUR' },
+        subTotalPrice: { amount: 82.29, currency: 'EUR' },
+        totalPrice: { amount: 71.11, currency: 'EUR' },
+        discounts: [{ code: 'LS10PTOTAL', discountIndex: 0, amount: 11.22, currency: 'EUR' }],
+        savingsTotal: 11.22,
+        goodsDiscountedNet: 57.93,
+        goodsDiscountedVat: 11.01,
+      },
+    });
+
+    const { result } = renderHook(() => useCartTotal());
+
+    expect(result.current.goodsNet).toBe(57.93);
+    expect(result.current.goodsVat).toBe(11.01);
+    expect(result.current.cartTotal).toBe(71.11);
+  });
 });

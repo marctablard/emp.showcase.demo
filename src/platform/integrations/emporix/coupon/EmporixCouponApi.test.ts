@@ -58,7 +58,7 @@ describe('EmporixCouponApi.validateCoupon (mocked)', () => {
       discount: { amount: 0, currency: 'EUR' },
     });
     expect(tokenType).toBe('service');
-    expect(authOptions).toEqual({ scopes: ['coupon.coupon_redeem', 'coupon.coupon_redeem_on_behalf'] });
+    expect(authOptions).toEqual({ scopes: ['coupon.coupon_redeem'] });
     expect(metrics).toEqual({ source: 'coupon', routePattern: '/coupon/{tenant}/coupons/{code}/validation' });
   });
 
@@ -86,6 +86,9 @@ describe('EmporixCouponApi.validateCoupon (mocked)', () => {
       orderTotal: { amount: 10, currency: 'EUR' },
       discount: { amount: 0, currency: 'EUR' },
       customerNumber: 'cust-1',
+    });
+    expect(apiClient.authenticatedFetch.mock.calls[0][3]).toEqual({
+      scopes: ['coupon.coupon_redeem', 'coupon.coupon_redeem_on_behalf'],
     });
   });
 

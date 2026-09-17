@@ -10,6 +10,10 @@ import { useCart } from './useCart';
 interface UseCartTotal {
   /** Cart `calculatedPrice` total, with the picked checkout shipping fee overlaid when it differs. */
   cartTotal: number;
+  /** Goods net after coupons when `goodsDiscountedNet` is present; otherwise `cart.tax.netValue`. */
+  goodsNet: number;
+  /** Goods VAT after coupons when `goodsDiscountedVat` is present; otherwise `cart.tax.amount`. */
+  goodsVat: number;
   /** Cart shipping net, or the picked checkout method fee when it differs. */
   shippingCosts?: number;
   shippingVat: number;
@@ -25,6 +29,8 @@ export const useCartTotal = (): UseCartTotal => {
 
   const breakdown = buildCheckoutOrderSummaryFromCart(cart, selectedShipping);
   const cartTotal = breakdown.total;
+  const goodsNet = breakdown.goodsNet;
+  const goodsVat = breakdown.goodsVat;
   const shippingCosts = breakdown.shippingFee;
   const shippingVat = breakdown.shippingVat;
   const showShippingVat = breakdown.showShippingVat;
@@ -45,6 +51,8 @@ export const useCartTotal = (): UseCartTotal => {
 
   return {
     cartTotal,
+    goodsNet,
+    goodsVat,
     shippingCosts,
     shippingVat,
     showShippingVat,
