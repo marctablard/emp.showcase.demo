@@ -722,6 +722,21 @@ describe('EmporixCartService', () => {
       );
     });
 
+    it('maps a 403 from the session cart guard to CartDiscountError before applying', async () => {
+      mockCartApi.getCart.mockRejectedValue(
+        new Error('Failed to get cart: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to resolve cart for discount write',
+          upstreamStatus: 403,
+        }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+    });
+
     it('rejects an empty code without calling the API', async () => {
       await expect(cartService.applyDiscount('cart-1', '')).rejects.toBeInstanceOf(CartDiscountError);
       await expect(cartService.applyDiscount('cart-1', '   ')).rejects.toBeInstanceOf(CartDiscountError);
@@ -1033,6 +1048,21 @@ describe('EmporixCartService', () => {
 
       expect(mockCartApi.removeDiscount).toHaveBeenCalledWith('cart-1', 0);
       expect(result).toEqual(mappedCart);
+    });
+
+    it('maps a 403 from the session cart guard to CartDiscountError before removing', async () => {
+      mockCartApi.getCart.mockRejectedValue(
+        new Error('Failed to get cart: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to resolve cart for discount write',
+          upstreamStatus: 403,
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
     });
 
     it('throws CartDiscountError when remove is not OK', async () => {

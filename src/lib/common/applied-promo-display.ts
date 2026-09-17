@@ -59,6 +59,9 @@ export function isFreeShippingPromo(discount: { type?: string }): boolean {
  * neither goods nor shipping. Always keep `FREE_SHIPPING` (COP-4815 QA 2026-09-16 / 143688).
  */
 export function isShopperFacingCartPromo(discount: CartAppliedDiscount): boolean {
+  if (discount.valid === false) {
+    return false;
+  }
   if (AGGREGATE_PROMO_CODES.has(discount.code)) {
     return false;
   }
@@ -132,4 +135,16 @@ export function removableCartDiscountIndexes(discounts: CartAppliedDiscount[] | 
     .filter(isRemovableCartPromo)
     .map((discount) => discount.discountIndex)
     .sort((left, right) => right - left);
+}
+
+/** Current positional DELETE index for a coupon code, or undefined if that code is gone. */
+export function currentDiscountIndexForCode(
+  discounts: CartAppliedDiscount[] | undefined,
+  code: string | undefined,
+): number | undefined {
+  if (typeof code === 'string' && code.length > 0) {
+    const match = (discounts ?? []).find((discount) => discount.code === code && isRemovableCartPromo(discount));
+    return match?.discountIndex;
+  }
+  return undefined;
 }

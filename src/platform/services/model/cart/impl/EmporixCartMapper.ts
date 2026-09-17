@@ -8,7 +8,13 @@ import type {
 } from '@/platform/integrations/emporix/model/cart';
 import type { Price, Tax } from '../../common';
 import type { CartMapper } from '../CartMapper';
-import type { Cart, CartAppliedDiscount, Cart as ServiceCart, CartItem as ServiceCartItem } from '../cart';
+import type {
+  Cart,
+  CartAppliedDiscount,
+  CartAppliedDiscountType,
+  Cart as ServiceCart,
+  CartItem as ServiceCartItem,
+} from '../cart';
 
 function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: 'net' | 'gross'): Price {
   return {
@@ -71,7 +77,7 @@ function matchAppliedDiscount(
   discount: EmporixCartDiscount,
 ): EmporixCalculatedAppliedDiscount | undefined {
   const matches = appliedDiscounts.filter(
-    (applied) => applied.id !== undefined && (applied.id === discount.code || applied.id === discount.id),
+    (applied) => typeof applied.id === 'string' && (applied.id === discount.code || applied.id === discount.id),
   );
   if (matches.length === 0) {
     return undefined;
@@ -125,14 +131,91 @@ function uniqueInternalFreeShippingIdentities(calculatedPrice: EmporixCart['calc
   return sawIdLess ? ['idless'] : [];
 }
 
+function isShopperSourceDiscount(discount: EmporixCartDiscount): boolean {
+  if (discount.code === 'TOTAL') {
+    return false;
+  }
+  return discount.valid === true || discount.valid === undefined;
+}
+
+function asCartDiscountType(value: string | undefined): CartAppliedDiscountType | undefined {
+  if (value === 'PERCENT' || value === 'ABSOLUTE' || value === 'FREE_SHIPPING') {
+    return value;
+  }
+  return undefined;
+}
+
+function resolvedDiscountAmount(
+  applied: EmporixCalculatedAppliedDiscount | undefined,
+  discount: EmporixCartDiscount,
+): number {
+  return applied?.value ?? discount.amount ?? 0;
+}
+
 /** Sole shopper coupon + one internal typed FREE_SHIPPING identity (id-less rows counted once). */
-function inferSoleTypedFreeShipping(
+function soleInternalFreeShippingIdentity(
   sourceDiscounts: EmporixCartDiscount[],
   calculatedPrice: EmporixCart['calculatedPrice'],
+): string | undefined {
+  const shopper = sourceDiscounts.filter(isShopperSourceDiscount);
+  if (shopper.length !== 1) {
+    return undefined;
+  }
+  const identities = uniqueInternalFreeShippingIdentities(calculatedPrice);
+  return identities.length === 1 ? identities[0] : undefined;
+}
+
+function discountMatchesFreeShippingIdentity(discount: EmporixCartDiscount, identity: string | undefined): boolean {
+  if (identity === undefined || discount.code === 'TOTAL') {
+    return false;
+  }
+  if (identity === 'idless') {
+    return true;
+  }
+  return identity === discount.code || identity === discount.id;
+}
+
+function shouldInferZeroedFreeShipping(
+  discount: EmporixCartDiscount,
+  applied: EmporixCalculatedAppliedDiscount | undefined,
+  shippingLevel: EmporixCalculatedAppliedDiscount[],
+  shopperDiscounts: EmporixCartDiscount[],
+  inferZeroedShipping: boolean,
 ): boolean {
-  const soleNonTotal =
-    sourceDiscounts.filter((discount) => discount.valid !== false && discount.code !== 'TOTAL').length === 1;
-  return soleNonTotal && uniqueInternalFreeShippingIdentities(calculatedPrice).length === 1;
+  if (!inferZeroedShipping || discount.code === 'TOTAL') {
+    return false;
+  }
+  if (matchAppliedDiscount(shippingLevel, discount)) {
+    return true;
+  }
+  if (resolvedDiscountAmount(applied, discount) === 0) {
+    if (shopperDiscounts.length === 1) {
+      return true;
+    }
+    return shopperDiscounts.filter((row) => (row.amount ?? 0) === 0).length === 1;
+  }
+  return false;
+}
+
+function resolveMappedDiscountType(
+  discount: EmporixCartDiscount,
+  applied: EmporixCalculatedAppliedDiscount | undefined,
+  shippingLevel: EmporixCalculatedAppliedDiscount[],
+  shopperDiscounts: EmporixCartDiscount[],
+  inferZeroedShipping: boolean,
+  soleFreeShippingIdentity: string | undefined,
+): CartAppliedDiscountType | undefined {
+  const fromApplied = asCartDiscountType(applied?.discountType);
+  if (fromApplied) {
+    return fromApplied;
+  }
+  if (
+    shouldInferZeroedFreeShipping(discount, applied, shippingLevel, shopperDiscounts, inferZeroedShipping) ||
+    discountMatchesFreeShippingIdentity(discount, soleFreeShippingIdentity)
+  ) {
+    return 'FREE_SHIPPING';
+  }
+  return undefined;
 }
 
 function mapCartDiscounts(
@@ -142,39 +225,40 @@ function mapCartDiscounts(
   lineLevel: EmporixCalculatedAppliedDiscount[],
   currency: string,
   inferZeroedShipping: boolean,
-  inferSoleTypedFreeShippingType: boolean,
+  soleFreeShippingIdentity: string | undefined,
 ): CartAppliedDiscount[] | undefined {
   if (!sourceDiscounts || sourceDiscounts.length === 0) {
     return undefined;
   }
-  const soleNonTotal =
-    sourceDiscounts.filter((discount) => discount.valid !== false && discount.code !== 'TOTAL').length === 1;
-  const mapped = sourceDiscounts.flatMap((discount, arrayIndex) => {
+  const shopperDiscounts = sourceDiscounts.filter(isShopperSourceDiscount);
+  const mapped = sourceDiscounts.map((discount, arrayIndex) => {
     if (discount.valid === false) {
-      return [];
-    }
-    const applied = resolveAppliedDiscount(cartLevel, shippingLevel, lineLevel, discount);
-    let type = applied?.discountType;
-    if (!type && inferZeroedShipping && discount.code !== 'TOTAL') {
-      const shippingMatch = matchAppliedDiscount(shippingLevel, discount);
-      const noGoodsAmount = (applied?.value ?? discount.amount ?? 0) === 0;
-      if (shippingMatch || (soleNonTotal && noGoodsAmount)) {
-        type = 'FREE_SHIPPING';
-      }
-    }
-    if (!type && inferSoleTypedFreeShippingType && discount.code !== 'TOTAL') {
-      type = 'FREE_SHIPPING';
-    }
-    return [
-      {
+      return {
         code: discount.code,
         name: discount.name,
         discountIndex: discount.discountIndex ?? arrayIndex,
-        amount: applied?.value ?? discount.amount ?? 0,
+        amount: discount.amount ?? 0,
         currency: discount.currency ?? currency,
-        ...(type ? { type } : {}),
-      },
-    ];
+        valid: false,
+      };
+    }
+    const applied = resolveAppliedDiscount(cartLevel, shippingLevel, lineLevel, discount);
+    const type = resolveMappedDiscountType(
+      discount,
+      applied,
+      shippingLevel,
+      shopperDiscounts,
+      inferZeroedShipping,
+      soleFreeShippingIdentity,
+    );
+    return {
+      code: discount.code,
+      name: discount.name,
+      discountIndex: discount.discountIndex ?? arrayIndex,
+      amount: resolvedDiscountAmount(applied, discount),
+      currency: discount.currency ?? currency,
+      ...(type ? { type } : {}),
+    };
   });
   return mapped.length > 0 ? mapped : undefined;
 }
@@ -266,7 +350,7 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
       lineLevelAppliedDiscounts(emporixCart.items),
       currency,
       isZeroedShippingWaiver(emporixCart.calculatedPrice),
-      inferSoleTypedFreeShipping(emporixCart.discounts ?? [], emporixCart.calculatedPrice),
+      soleInternalFreeShippingIdentity(emporixCart.discounts ?? [], emporixCart.calculatedPrice),
     );
     return {
       id: emporixCart.id,

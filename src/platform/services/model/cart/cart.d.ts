@@ -13,6 +13,11 @@ export interface CartAppliedDiscount {
   currency: string;
   /** Coupon type from the calculated price; `FREE_SHIPPING` chips carry no goods amount. */
   type?: CartAppliedDiscountType;
+  /**
+   * Persisted but not redeemable (`valid: false` on the Cart API). Hidden from chips;
+   * still kept so empty-cart cleanup can DELETE it (COP-4815 review 5235435332).
+   */
+  valid?: boolean;
 }
 
 export interface Cart {

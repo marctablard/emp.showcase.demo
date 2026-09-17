@@ -184,7 +184,7 @@ describe('EmporixCartMapper', () => {
     ]);
   });
 
-  it('skips valid:false discounts and keeps the original discounts[] index for DELETE', () => {
+  it('keeps valid:false discounts for cleanup and preserves the original discounts[] index', () => {
     const mapped = mapper.mapToService({
       ...ls10pTotalOpenApiCart(),
       discounts: [
@@ -208,6 +208,14 @@ describe('EmporixCartMapper', () => {
 
     expect(mapped.discounts).toEqual([
       {
+        code: 'STALE10',
+        name: 'STALE10',
+        discountIndex: 0,
+        amount: 0,
+        currency: 'EUR',
+        valid: false,
+      },
+      {
         code: 'LS10PTOTAL',
         name: 'LS10PTOTAL',
         discountIndex: 1,
@@ -216,6 +224,53 @@ describe('EmporixCartMapper', () => {
         type: 'PERCENT',
       },
     ]);
+  });
+
+  it('does not label a sole goods coupon FREE_SHIPPING when the typed row id is a different code', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 4.95,
+          appliedDiscounts: [{ id: 'SHIPFREE', value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+        },
+      }),
+      discounts: [{ code: 'GOODS10', discountIndex: 0, amount: 3, valid: true }],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toEqual({
+      code: 'GOODS10',
+      name: undefined,
+      discountIndex: 0,
+      amount: 3,
+      currency: 'EUR',
+    });
+    expect(mapped.discounts?.[0]).not.toHaveProperty('type');
+    expect(mapped.freeShipping).toBe(true);
+  });
+
+  it('types the zero-amount coupon as FREE_SHIPPING in a mixed zeroed-shipping stack', () => {
+    const mapped = mapper.mapToService({
+      ...showcaseDevCart({
+        shipping: {
+          netValue: 4.16,
+          grossValue: 4.95,
+          taxValue: 0.79,
+          taxCode: 'STANDARD',
+          taxRate: 19,
+        },
+        totalShipping: { netValue: 0, grossValue: 0, taxValue: 0, taxCode: 'ZERO', taxRate: 0 },
+      }),
+      discounts: [
+        { code: 'GOODS10', discountIndex: 0, amount: 3, valid: true },
+        { code: 'FREESHIP', discountIndex: 1, amount: 0, valid: true },
+      ],
+    } as EmporixCart);
+
+    expect(mapped.discounts?.[0]).toMatchObject({ code: 'GOODS10', amount: 3 });
+    expect(mapped.discounts?.[0]).not.toHaveProperty('type', 'FREE_SHIPPING');
+    expect(mapped.discounts?.[1]).toMatchObject({ code: 'FREESHIP', type: 'FREE_SHIPPING' });
+    expect(mapped.freeShipping).toBe(true);
   });
 
   it('maps LS10PTOTAL OpenAPI GET chips without discountIndex to domain index 0', () => {

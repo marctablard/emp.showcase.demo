@@ -19,6 +19,7 @@ const mockPromo = {
   apply: jest.fn(),
   remove: jest.fn(),
   discounts: [] as CartAppliedDiscount[],
+  cartMutating: false,
 };
 
 /** Locale-agnostic amount matcher: CI formats with the German default language ("-1,50 €"). */
@@ -52,6 +53,7 @@ function resetPromoMock() {
   mockPromo.apply = jest.fn();
   mockPromo.remove = jest.fn();
   mockPromo.discounts = [];
+  mockPromo.cartMutating = false;
 }
 
 describe('CheckoutPromoCodeBox', () => {
@@ -175,7 +177,7 @@ describe('CheckoutPromoCodeBox', () => {
     expect(removeButton).toHaveAccessibleName('removePromo ACCESSORIES15');
 
     fireEvent.click(removeButton);
-    expect(mockPromo.remove).toHaveBeenCalledWith(0);
+    expect(mockPromo.remove).toHaveBeenCalledWith('ACCESSORIES15');
   });
 
   it('shows the signed amount for a goods coupon chip', () => {
@@ -228,6 +230,20 @@ describe('CheckoutPromoCodeBox', () => {
     expect(screen.getByTestId('checkout-removePromo-SOLAR10')).toBeDisabled();
     expect(screen.getByTestId('checkout-removePromo-ACCESSORIES15')).toHaveAccessibleName('removePromo ACCESSORIES15');
     expect(screen.getByTestId('checkout-removePromo-SOLAR10')).toHaveAccessibleName('removePromo SOLAR10');
+  });
+
+  it('disables apply and remove while any cart write is in flight', () => {
+    mockPromo.code = 'ACCESSORIES15';
+    mockPromo.cartMutating = true;
+    mockPromo.discounts = [
+      { code: 'ACCESSORIES15', name: '15% discount', discountIndex: 0, amount: 1.5, currency: 'EUR' },
+    ];
+
+    render(<CheckoutPromoCodeBox />);
+
+    expect(screen.getByTestId('checkout-promoCode')).toBeDisabled();
+    expect(screen.getByTestId('checkout-applyPromo')).toBeDisabled();
+    expect(screen.getByTestId('checkout-removePromo-ACCESSORIES15')).toBeDisabled();
   });
 
   it('shows Free shipping instead of a money amount on a free-shipping coupon chip', () => {

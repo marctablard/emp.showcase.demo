@@ -2,6 +2,7 @@ import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import type { OrderDiscount } from '@/platform/services/model/order/order';
 import {
   cartCouponCodesForMessage,
+  currentDiscountIndexForCode,
   isShopperFacingCartPromo,
   isShopperFacingOrderPromo,
   optionalSavingsTotal,
@@ -161,7 +162,15 @@ describe('applied-promo-display', () => {
         goods,
         { code: 'TOTAL', discountIndex: 1, amount: 10, currency: 'EUR' },
         { code: 'NOMATCH', discountIndex: 2, amount: 0, currency: 'EUR' },
+        { code: 'STALE10', discountIndex: 3, amount: 0, currency: 'EUR', valid: false },
       ]),
-    ).toEqual([2, 0]);
+    ).toEqual([3, 2, 0]);
+  });
+
+  it('hides invalid coupons from shopper-facing chips but keeps their DELETE index', () => {
+    const stale = { code: 'STALE10', discountIndex: 3, amount: 0, currency: 'EUR', valid: false as const };
+    expect(shopperFacingCartPromos([goods, stale])).toEqual([goods]);
+    expect(currentDiscountIndexForCode([goods, stale], 'STALE10')).toBe(3);
+    expect(currentDiscountIndexForCode([goods, stale], 'GONE')).toBeUndefined();
   });
 });

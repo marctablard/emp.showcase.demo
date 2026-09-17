@@ -1282,6 +1282,37 @@ describe('CartStore - mutation gate, reset epoch and deferred currency flush', (
     expect(store.getState().mutating).toBe(false);
   });
 
+  it('re-resolves a queued remove to the coupon code after an earlier write reindexes discounts', async () => {
+    const store = seedStore(
+      buildCart('cart-1', {
+        discounts: [
+          { code: 'GOODS10', discountIndex: 0, amount: 10, currency: 'EUR' },
+          { code: 'FREESHIP', discountIndex: 1, amount: 0, currency: 'EUR', type: 'FREE_SHIPPING' },
+        ],
+      }),
+    );
+    const pendingApply = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+    mockRemoveCartDiscount.mockResolvedValueOnce(
+      buildCart('cart-1', { discounts: [{ code: 'GOODS10', discountIndex: 0, amount: 10, currency: 'EUR' }] }),
+    );
+
+    const applyPromise = store.getState().applyDiscount('OTHER');
+    const removePromise = store.getState().removeDiscount(1);
+    await flushMicrotasks();
+
+    pendingApply.resolve(
+      buildCart('cart-1', {
+        discounts: [{ code: 'FREESHIP', discountIndex: 0, amount: 0, currency: 'EUR', type: 'FREE_SHIPPING' }],
+      }),
+    );
+    await act(async () => {
+      await Promise.all([applyPromise, removePromise]);
+    });
+
+    expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 0);
+  });
+
   it('drops a GET issued before a discount write that resolves after the write published its snapshot', async () => {
     const store = seedStore(buildCart('cart-1'));
     const staleGet = deferred<ReturnType<typeof fcResult>>();

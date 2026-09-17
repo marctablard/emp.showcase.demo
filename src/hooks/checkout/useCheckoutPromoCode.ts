@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useLogger } from '@/hooks/common/useLogger';
+import { currentDiscountIndexForCode } from '@/lib/common/applied-promo-display';
 import { CART_API_REASON } from '@/lib/common/cart-api-error-mapping';
 import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import { isCartMutationCancelledError } from '@/stores/cart-store';
@@ -16,8 +17,10 @@ export interface UseCheckoutPromoCode {
   removingIndex: number | null;
   fieldError: string | null;
   apply: () => Promise<void>;
-  remove: (discountIndex: number) => Promise<void>;
+  remove: (code: string) => Promise<void>;
   discounts: CartAppliedDiscount[];
+  /** True while any cart write is queued or running — promo DELETE is positional. */
+  cartMutating: boolean;
 }
 
 function getUpstreamStatus(err: unknown): number | undefined {
@@ -59,7 +62,7 @@ function promoErrorKeyFor(reason: string | undefined): PromoErrorKey {
 export function useCheckoutPromoCode(): UseCheckoutPromoCode {
   const t = useTranslations('checkout.summary');
   const logger = useLogger();
-  const { cart, applyDiscount, removeDiscount } = useCart();
+  const { cart, applyDiscount, removeDiscount, mutating } = useCart();
   const [code, setCode] = useState('');
   const [applying, setApplying] = useState(false);
   const [removingIndex, setRemovingIndex] = useState<number | null>(null);
@@ -71,7 +74,7 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
 
   const apply = useCallback(async () => {
     const trimmed = code.trim();
-    if (!trimmed || !cartId || mutationLockRef.current) {
+    if (!trimmed || !cartId || mutationLockRef.current || mutating) {
       return;
     }
 
@@ -95,31 +98,33 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
       mutationLockRef.current = false;
       setApplying(false);
     }
-  }, [applyDiscount, cartId, code, logger, t]);
+  }, [applyDiscount, cartId, code, logger, mutating, t]);
 
   const remove = useCallback(
-    async (discountIndex: number) => {
-      if (!cartId || mutationLockRef.current) {
+    async (code: string) => {
+      if (!cartId || mutationLockRef.current || mutating) {
         return;
       }
-
-      mutationLockRef.current = true;
-      setRemovingIndex(discountIndex);
-      setFieldError(null);
-      try {
-        await removeDiscount(discountIndex);
-      } catch (err) {
-        if (isCartMutationCancelledError(err)) {
-          return;
+      const freshIndex = currentDiscountIndexForCode(cart?.discounts, code);
+      if (typeof freshIndex === 'number') {
+        mutationLockRef.current = true;
+        setRemovingIndex(freshIndex);
+        setFieldError(null);
+        try {
+          await removeDiscount(freshIndex);
+        } catch (err) {
+          if (isCartMutationCancelledError(err)) {
+            return;
+          }
+          setFieldError(t('promoCodeRemoveError'));
+          logger.error({ err, cartId, upstreamStatus: getUpstreamStatus(err) }, 'Failed to remove checkout promo code');
+        } finally {
+          mutationLockRef.current = false;
+          setRemovingIndex(null);
         }
-        setFieldError(t('promoCodeRemoveError'));
-        logger.error({ err, cartId, upstreamStatus: getUpstreamStatus(err) }, 'Failed to remove checkout promo code');
-      } finally {
-        mutationLockRef.current = false;
-        setRemovingIndex(null);
       }
     },
-    [cartId, logger, removeDiscount, t],
+    [cart, cartId, logger, mutating, removeDiscount, t],
   );
 
   return {
@@ -132,5 +137,6 @@ export function useCheckoutPromoCode(): UseCheckoutPromoCode {
     apply,
     remove,
     discounts,
+    cartMutating: mutating,
   };
 }

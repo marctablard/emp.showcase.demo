@@ -56,6 +56,7 @@ describe('useCheckoutPromoCode', () => {
       cart: cartWithDiscount(),
       applyDiscount: mockApplyDiscount,
       removeDiscount: mockRemoveDiscount,
+      mutating: false,
     });
   });
 
@@ -260,6 +261,51 @@ describe('useCheckoutPromoCode', () => {
     expect(result.current.discounts).toEqual([firstDiscount, secondDiscount]);
   });
 
+  it('does not apply or remove while another cart write is in flight', async () => {
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount(),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+      mutating: true,
+    });
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('KEEPME');
+    });
+    await act(async () => {
+      await result.current.apply();
+      await result.current.remove(existingDiscount.code);
+    });
+
+    expect(mockApplyDiscount).not.toHaveBeenCalled();
+    expect(mockRemoveDiscount).not.toHaveBeenCalled();
+    expect(result.current.cartMutating).toBe(true);
+  });
+
+  it('re-resolves remove to the current index for the coupon code', async () => {
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({
+        discounts: [
+          { code: 'GOODS10', discountIndex: 0, amount: 10, currency: 'EUR' },
+          { ...existingDiscount, discountIndex: 1 },
+        ],
+      }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+      mutating: false,
+    });
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      await result.current.remove(existingDiscount.code);
+    });
+
+    expect(mockRemoveDiscount).toHaveBeenCalledWith(1);
+  });
+
   it('keeps the typed code when apply is cancelled by a cart reset', async () => {
     mockApplyDiscount.mockRejectedValue(new CartMutationCancelledError('discount'));
 
@@ -282,7 +328,7 @@ describe('useCheckoutPromoCode', () => {
     const { result } = renderHook(() => useCheckoutPromoCode());
 
     await act(async () => {
-      await result.current.remove(0);
+      await result.current.remove(existingDiscount.code);
     });
 
     expect(result.current.fieldError).toBe('promoCodeRemoveError');
@@ -302,7 +348,7 @@ describe('useCheckoutPromoCode', () => {
 
     let removePromise: Promise<void>;
     act(() => {
-      removePromise = result.current.remove(0);
+      removePromise = result.current.remove(existingDiscount.code);
     });
     expect(result.current.removingIndex).toBe(0);
     expect(result.current.removing).toBe(true);
@@ -328,10 +374,10 @@ describe('useCheckoutPromoCode', () => {
 
     let firstRemove: Promise<void>;
     act(() => {
-      firstRemove = result.current.remove(0);
+      firstRemove = result.current.remove(existingDiscount.code);
     });
     await act(async () => {
-      await result.current.remove(1);
+      await result.current.remove('OTHER');
     });
 
     expect(mockRemoveDiscount).toHaveBeenCalledTimes(1);

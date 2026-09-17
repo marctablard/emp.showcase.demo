@@ -329,6 +329,24 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     expect(unpicked.total).toBe(82.29);
   });
 
+  it('does not subtract pre-discount shippingCosts from a waived final total', () => {
+    const fallbackShippingCart: Cart = {
+      ...cart,
+      discounts: [{ code: 'FREESHIP', discountIndex: 0, amount: 0, currency: 'EUR', type: 'FREE_SHIPPING' }],
+      savingsTotal: 4.95,
+      freeShipping: true,
+      shippingCosts: {
+        amount: 4.95,
+        currency: 'EUR',
+        tax: { amount: 0, currency: 'EUR', netValue: 4.95, grossValue: 4.95, taxCode: 'STANDARD', taxRate: 0 },
+      },
+      totalPrice: { amount: 82.29, currency: 'EUR' },
+    };
+
+    expect(buildCheckoutOrderSummaryFromCart(fallbackShippingCart, { amount: 4.95 }).total).toBe(82.29);
+    expect(buildCheckoutOrderSummaryFromCart(fallbackShippingCart).total).toBe(82.29);
+  });
+
   it('exposes a gross-applied stack when totalDiscountCalculationType is ApplyDiscountAfterTax', () => {
     const tax = { amount: 15.66, netValue: 82.45, grossValue: 98.11, currency: 'EUR' };
     const breakdown = buildCheckoutOrderSummaryFromCart({

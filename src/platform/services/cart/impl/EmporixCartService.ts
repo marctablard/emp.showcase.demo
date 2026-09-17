@@ -850,22 +850,29 @@ class EmporixCartService implements CartService {
    * — a cart from another site is refused instead of being mutated in the wrong site context.
    */
   private async requireSessionCart(cartId: string, options?: { checkSite?: boolean }): Promise<Cart> {
-    const cart = await this.getCartById(cartId);
-    if (!cart) {
-      throw new CartDiscountError('Cart not found');
-    }
-    if (!options?.checkSite) {
+    try {
+      const cart = await this.getCartById(cartId);
+      if (!cart) {
+        throw new CartDiscountError('Cart not found');
+      }
+      if (!options?.checkSite) {
+        return cart;
+      }
+      const session = await this.sessionService.getCurrent();
+      if (session && cart.site && cart.site !== session.siteCode) {
+        this.logger.warn(
+          { cartId, cartSite: cart.site, sessionSite: session.siteCode },
+          'Cart belongs to different site during discount write — aborting',
+        );
+        throw new CartDiscountError(CART_SITE_MISMATCH_MESSAGE);
+      }
       return cart;
+    } catch (error) {
+      if (isCartDiscountError(error)) {
+        throw error;
+      }
+      throw this.mapCartDiscountError(error, 'Failed to resolve cart for discount write');
     }
-    const session = await this.sessionService.getCurrent();
-    if (session && cart.site && cart.site !== session.siteCode) {
-      this.logger.warn(
-        { cartId, cartSite: cart.site, sessionSite: session.siteCode },
-        'Cart belongs to different site during discount write — aborting',
-      );
-      throw new CartDiscountError(CART_SITE_MISMATCH_MESSAGE);
-    }
-    return cart;
   }
 
   /**
@@ -873,7 +880,7 @@ class EmporixCartService implements CartService {
    * the Coupon Service validation is asked once for the typed reason (COP-5589 QA: "not an
    * active promo code" was shown for segment, threshold and currency rejections alike).
    * Re-applying a code already on the cart is a 409 Conflict and needs no lookup (mapped by
-   * status, since the mapper drops `valid: false` chips from `cart.discounts`). Other 4xx
+   * status, since shopper-facing chips hide `valid: false` rows). Other 4xx
    * (401/403/404) are cart-context failures mapped by status, not coupon rejections.
    * Classification is best-effort — any failure or inconclusive answer keeps the original error.
    */

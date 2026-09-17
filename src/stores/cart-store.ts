@@ -17,7 +17,7 @@ import {
   loadSavedCart,
 } from '@/lib/client/carts';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
-import { removableCartDiscountIndexes } from '@/lib/common/applied-promo-display';
+import { currentDiscountIndexForCode, removableCartDiscountIndexes } from '@/lib/common/applied-promo-display';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type {
   CartShippingAddress,
@@ -595,9 +595,19 @@ function runApplyDiscount(ctx: CartMutationContext, code: string): Promise<void>
   });
 }
 
-function runRemoveDiscount(ctx: CartMutationContext, discountIndex: number): Promise<void> {
+function runRemoveDiscount(ctx: CartMutationContext, intendedCode?: string): Promise<void> {
   return runCartSnapshotMutation(ctx, {
-    call: (cartId) => apiRemoveCartDiscount(cartId, discountIndex),
+    call: async (cartId) => {
+      const cart = ctx.get().currentCart;
+      const freshIndex = currentDiscountIndexForCode(cart?.discounts, intendedCode);
+      if (typeof freshIndex === 'number') {
+        return apiRemoveCartDiscount(cartId, freshIndex);
+      }
+      if (!cart) {
+        throw new CartMutationCancelledError('discount');
+      }
+      return cart;
+    },
     failureMessage: 'Failed to remove cart discount',
     logMessage: 'Error removing cart discount',
     rethrow: true,
@@ -922,7 +932,11 @@ export const createCartStore = (initState: CartState = defaultState) => {
           runMutation(runUpdateShippingInfo, shippingAddress, billingAddress),
         updateShippingMethod: (method: CartShippingMethodSelection) => runMutation(runUpdateShippingMethod, method),
         applyDiscount: (code: string) => runMutation(runApplyDiscount, code),
-        removeDiscount: (discountIndex: number) => runMutation(runRemoveDiscount, discountIndex),
+        removeDiscount: (discountIndex: number) =>
+          runMutation(
+            runRemoveDiscount,
+            get().currentCart?.discounts?.find((discount) => discount.discountIndex === discountIndex)?.code,
+          ),
         updateCurrency: (currency: string) => runMutation(runUpdateCurrency, currency),
 
         clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => {

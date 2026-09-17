@@ -51,22 +51,34 @@ function asOrderDiscountType(value: string | undefined): OrderDiscount['type'] |
 function matchingAppliedDiscountRows(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+  inferSoleIdLess: boolean,
 ): Array<{ id?: string; value: number; discountType?: string }> {
-  return [
-    ...(calculatedPrice?.totalDiscount?.appliedDiscounts ?? []),
-    ...(calculatedPrice?.totalShipping?.appliedDiscounts ?? []),
-  ].filter((row) => row.id === discount.code);
+  const aggregate = calculatedPrice?.totalDiscount?.appliedDiscounts ?? [];
+  const shipping = calculatedPrice?.totalShipping?.appliedDiscounts ?? [];
+  const byId = [...aggregate, ...shipping].filter((row) => typeof row.id === 'string' && row.id === discount.code);
+  if (byId.length > 0) {
+    return byId;
+  }
+  if (inferSoleIdLess) {
+    const idLessAggregate = aggregate.filter((row) => row.id === undefined);
+    if (idLessAggregate.length > 0) {
+      return idLessAggregate;
+    }
+    return shipping.filter((row) => row.id === undefined);
+  }
+  return [];
 }
 
 function resolveOrderDiscountType(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+  inferSoleIdLess: boolean,
 ): OrderDiscount['type'] | undefined {
   const fromDiscount = asOrderDiscountType(discount.discountType);
   if (fromDiscount) {
     return fromDiscount;
   }
-  for (const row of matchingAppliedDiscountRows(discount, calculatedPrice)) {
+  for (const row of matchingAppliedDiscountRows(discount, calculatedPrice, inferSoleIdLess)) {
     const type = asOrderDiscountType(row.discountType);
     if (type) {
       return type;
@@ -78,26 +90,34 @@ function resolveOrderDiscountType(
 function resolveOrderDiscountValue(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+  inferSoleIdLess: boolean,
 ): number {
   if (typeof discount.amount === 'number') {
     return discount.amount;
   }
-  const withValue = matchingAppliedDiscountRows(discount, calculatedPrice).find((row) => typeof row.value === 'number');
+  const withValue = matchingAppliedDiscountRows(discount, calculatedPrice, inferSoleIdLess).find(
+    (row) => typeof row.value === 'number',
+  );
   return withValue?.value ?? 0;
 }
 
 function mapOrderDiscount(
   discount: EmporixDiscount,
   calculatedPrice: EmporixOrderCalculatedPrice | undefined,
+  inferSoleIdLess: boolean,
 ): OrderDiscount {
-  const type = resolveOrderDiscountType(discount, calculatedPrice);
+  const type = resolveOrderDiscountType(discount, calculatedPrice, inferSoleIdLess);
   return {
     code: discount.code,
-    value: resolveOrderDiscountValue(discount, calculatedPrice),
+    value: resolveOrderDiscountValue(discount, calculatedPrice, inferSoleIdLess),
     currency: discount.currency,
     description: discount.description ?? discount.name,
     ...(type ? { type } : {}),
   };
+}
+
+function isShopperOrderSourceDiscount(discount: EmporixDiscount): boolean {
+  return discount.code !== 'TOTAL';
 }
 
 function resolveTotalDiscountCalculationType(
@@ -154,6 +174,8 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
   constructor(@inject('EmporixAddressMapper') private readonly addressMapper: EmporixAddressMapper) {}
 
   mapToService(integrationModel: EmporixOrder): Order {
+    const sourceDiscounts = integrationModel.discounts ?? [];
+    const inferSoleIdLess = sourceDiscounts.filter(isShopperOrderSourceDiscount).length === 1;
     return {
       id: integrationModel.id,
       quoteId: integrationModel.quoteId,
@@ -170,7 +192,11 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
         : undefined,
       payments: this.mapPayments(integrationModel.payments),
       discounts: integrationModel.discounts?.map((discount) =>
-        mapOrderDiscount(discount, integrationModel.calculatedPrice),
+        mapOrderDiscount(
+          discount,
+          integrationModel.calculatedPrice,
+          inferSoleIdLess && isShopperOrderSourceDiscount(discount),
+        ),
       ),
       shipping: this.mapShipping(
         integrationModel.shipping,

@@ -162,7 +162,8 @@ export interface EmporixOrderCalculatedPrice {
     calculationType?: 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
     value: number;
     appliedDiscounts?: Array<{
-      id: string;
+      /** Optional in the Order API `calculatedAppliedDiscount` schema. */
+      id?: string;
       value: number;
       discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
     }>;

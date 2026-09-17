@@ -81,6 +81,19 @@ function mappedCartShippingGross(cart: Cart): number {
   return cart.shippingCosts?.tax?.grossValue ?? cart.shippingCosts?.amount ?? 0;
 }
 
+/**
+ * `totalPrice` is already the post-discount final. When shipping is waived the mapper may
+ * fall back to pre-discount `shipping` as `shippingCosts` if `totalShipping` is omitted —
+ * subtracting that would deduct the fee a second time (COP-4815 review 5235435332).
+ */
+function cartTotalForDisplay(cart: Cart, shippingFree: boolean): number {
+  const total = cart.totalPrice?.amount ?? 0;
+  if (shippingFree) {
+    return total;
+  }
+  return round2(total - mappedCartShippingGross(cart));
+}
+
 function cartHasAppliedCoupons(cart: Cart | null | undefined): boolean {
   if (!cart) {
     return false;
@@ -193,27 +206,28 @@ export function buildCheckoutOrderSummaryFromCart(
 
   // Emporix cart shipping is a minimum estimate until the shopper picks a findSite method.
   // Do not treat that quote as a chosen fee on checkout / cart / mini-cart.
+  const shippingFree = fromCart.shippingFree === true;
+
   if (selectedShipping == null || !Number.isFinite(selectedShipping.amount)) {
-    const cartShippingGross = mappedCartShippingGross(cart);
     return {
       ...fromCart,
       shippingFee: undefined,
       shippingVat: 0,
       showShippingVat: false,
-      total: round2((cart.totalPrice?.amount ?? 0) - cartShippingGross),
+      total: cartTotalForDisplay(cart, shippingFree),
     };
   }
 
-  // Free-shipping coupon: the cart already carries zero shipping in `totalPrice`. Show the
-  // picked method's list fee (struck through in the UI) but do not add it back to the total.
-  if (fromCart.shippingFree) {
+  // Free-shipping coupon: the cart already carries the waived total. Show the picked
+  // method's list fee (struck through) but do not subtract/add shipping again.
+  if (shippingFree) {
     return {
       ...fromCart,
       shippingFee: selectedShipping.amount,
       shippingVat: 0,
       showShippingVat: false,
       shippingVatLookupFailed: false,
-      total: round2((cart.totalPrice?.amount ?? 0) - mappedCartShippingGross(cart)),
+      total: cartTotalForDisplay(cart, true),
     };
   }
 

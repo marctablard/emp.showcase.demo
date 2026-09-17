@@ -445,6 +445,60 @@ describe('EmporixOrderMapper', () => {
     });
   });
 
+  it('fills a missing coupon amount from an id-less applied row when it is the sole shopper coupon', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [{ code: 'FREESHIP', currency: 'EUR' }],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 100, grossValue: 119, taxValue: 19 },
+          totalShipping: {
+            netValue: 0,
+            grossValue: 0,
+            appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({
+      code: 'FREESHIP',
+      value: 4.95,
+      type: 'FREE_SHIPPING',
+    });
+  });
+
+  it('does not guess an id-less applied row when multiple shopper coupons are present', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        discounts: [
+          { code: 'GOODS10', currency: 'EUR' },
+          { code: 'FREESHIP', currency: 'EUR' },
+        ],
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 90, grossValue: 107.1, taxValue: 17.1 },
+          totalDiscount: {
+            value: 14.95,
+            appliedDiscounts: [{ value: 10, discountType: 'PERCENT' }],
+          },
+          totalShipping: {
+            netValue: 0,
+            grossValue: 0,
+            appliedDiscounts: [{ value: 4.95, discountType: 'FREE_SHIPPING' }],
+          },
+        },
+      }),
+    );
+
+    expect(result.discounts?.[0]).toMatchObject({ code: 'GOODS10', value: 0 });
+    expect(result.discounts?.[0]).not.toHaveProperty('type');
+    expect(result.discounts?.[1]).toMatchObject({ code: 'FREESHIP', value: 0 });
+    expect(result.discounts?.[1]).not.toHaveProperty('type');
+  });
+
   it('fills a missing coupon amount from the calculated applied-discount value', () => {
     const result = mapper.mapToService(
       buildOrder({

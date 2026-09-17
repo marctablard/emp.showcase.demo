@@ -27,7 +27,7 @@ function AppliedPromoChip({
   discount: CartAppliedDiscount;
   removingThis: boolean;
   mutationLocked: boolean;
-  onRemove: (discountIndex: number) => void;
+  onRemove: (code: string) => void;
   removeLabel: string;
   freeShippingLabel: string;
 }>) {
@@ -50,7 +50,7 @@ function AppliedPromoChip({
           data-testid={`checkout-removePromo-${discount.code}`}
           aria-label={removeLabel}
           disabled={mutationLocked}
-          onClick={() => onRemove(discount.discountIndex)}
+          onClick={() => onRemove(discount.code)}
         >
           <X className="size-[18px]" aria-hidden />
         </button>
@@ -76,10 +76,11 @@ function AppliedPromoChip({
 export function CheckoutPromoCodeBox() {
   const t = useTranslations('checkout.summary');
   const errorId = useId();
-  const { code, setCode, applying, removingIndex, fieldError, apply, remove, discounts } = useCheckoutPromoCode();
+  const { code, setCode, applying, removingIndex, fieldError, apply, remove, discounts, cartMutating } =
+    useCheckoutPromoCode();
 
   const isInvalid = Boolean(fieldError);
-  const mutationLocked = applying || removingIndex !== null;
+  const mutationLocked = applying || removingIndex !== null || cartMutating;
   const canApply = Boolean(code.trim()) && !mutationLocked;
   const visibleDiscounts = shopperFacingCartPromos(discounts);
 
