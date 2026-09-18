@@ -7,7 +7,7 @@ import { render, screen } from '@testing-library/react';
 import { formatCurrency } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
 import { PRICE_MODEL_TYPE } from '@/platform/services/model/price/price-model-type';
-import { ProductTierPrices } from './product-tier-prices';
+import { ProductTierPrices, tierValuesMatchPriceCurrency } from './product-tier-prices';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
@@ -76,7 +76,18 @@ function normalizeWhitespace(value: string): string {
   return value.replaceAll(/\s+/g, ' ').trim();
 }
 
+describe('tierValuesMatchPriceCurrency', () => {
+  it('returns false when originalAmount is missing', () => {
+    expect(tierValuesMatchPriceCurrency(buildPrice({ originalAmount: undefined }))).toBe(false);
+  });
+});
+
 describe('ProductTierPrices', () => {
+  it('returns null when originalAmount is missing', () => {
+    const { container } = render(<ProductTierPrices price={buildPrice({ originalAmount: undefined })} quantity={1} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('returns null when tierValues is empty', () => {
     const { container } = render(<ProductTierPrices price={buildPrice({ tierValues: [] })} quantity={1} />);
     expect(container).toBeEmptyDOMElement();

@@ -57,10 +57,14 @@ export function tierValuesMatchPriceCurrency(price: ProductPrice): boolean {
     return false;
   }
   const base = [...tiers].sort((a, b) => a.minQuantity - b.minQuantity)[0];
-  if (!Number.isFinite(base.price) || !Number.isFinite(price.originalAmount) || price.originalAmount <= 0) {
+  const originalAmount = price.originalAmount;
+  if (typeof originalAmount !== 'number' || originalAmount <= 0 || !Number.isFinite(originalAmount)) {
     return false;
   }
-  return Math.abs(base.price - price.originalAmount) / price.originalAmount < 0.005;
+  if (!Number.isFinite(base.price)) {
+    return false;
+  }
+  return Math.abs(base.price - originalAmount) / originalAmount < 0.005;
 }
 
 function buildTierDisplayRows(price: ProductPrice, quantity: number): TierDisplayRow[] {
