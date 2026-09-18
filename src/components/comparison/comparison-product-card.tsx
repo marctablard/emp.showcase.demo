@@ -4,24 +4,41 @@ import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { FlipHorizontal2, MapPin, ShoppingCart, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { H3 } from '@/components/ui/h';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { WishlistPinButton } from '@/components/wishlist/wishlist-pin-button';
 import { useCart } from '@/hooks/cart/useCart';
 import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
+import type { ComparisonCardVariant } from '@/hooks/comparison/useComparisonScroller';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
 import { Link } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { formatCurrency, imageSizes } from '@/lib/utils';
+import { cn, formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 
 interface ComparisonProductCardProps {
   product: Product;
   onRemove: (id: string) => void;
+  /**
+   * How much room the column offers. Beside the price the buttons are left with barely a third of
+   * the column, where they crowd the amount — so below the width the card was drawn for, they move
+   * underneath it. A narrower column shortens the image area on top of that.
+   */
+  variant?: ComparisonCardVariant;
+  /** Drawn only between two visible products — see `useComparisonScroller`. */
+  separator?: boolean;
 }
 
-export function ComparisonProductCard({ product, onRemove }: ComparisonProductCardProps) {
+export function ComparisonProductCard({
+  product,
+  onRemove,
+  variant = 'roomy',
+  separator = false,
+}: Readonly<ComparisonProductCardProps>) {
+  const compact = variant === 'compact';
+  const stackedActions = variant !== 'roomy';
   const locale = useLocale();
   const { l10n } = useL10n(locale);
   const t = useTranslations('comparison');
@@ -56,7 +73,14 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
   };
 
   return (
-    <div className="flex flex-1 min-w-0 flex-col border-l border-border-primary px-4 py-4">
+    // `snap-start`: the scroller snaps to column starts, so a card is never left half cut off.
+    <div
+      className={cn(
+        'flex min-w-0 snap-start flex-col py-4',
+        compact ? 'px-3' : 'px-4',
+        separator && 'border-l border-border-primary',
+      )}
+    >
       {/* Remove button — fixed height */}
       <div className="flex h-8 items-center justify-end">
         <Tooltip>
@@ -75,9 +99,14 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
         </Tooltip>
       </div>
 
-      {/* Image area — fixed height */}
-      <div className="mt-3 flex w-full items-center justify-center rounded-2xl bg-surface-image-background p-6 h-[232px]">
-        <div className="relative h-[200px] w-full">
+      {/* Image area — fixed height, so the rows below it line up across the cards */}
+      <div
+        className={cn(
+          'mt-3 flex w-full items-center justify-center rounded-2xl bg-surface-image-background',
+          compact ? 'h-[140px] p-3' : 'h-[232px] p-6',
+        )}
+      >
+        <div className={cn('relative w-full', compact ? 'h-[116px]' : 'h-[200px]')}>
           {product.primaryImage ? (
             <Image
               src={product.primaryImage.url}
@@ -101,19 +130,19 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
       {/* Brand — fixed height (single line or empty) */}
       <div className="mt-3 h-5">{brand && <p className="text-sm text-text-body truncate">{brand}</p>}</div>
 
-      {/* Name — fixed height for 2 lines */}
+      {/* Name — the row's heading under "Products". Fixed height for the two lines it clamps to,
+          so the rows below stay aligned across the cards. */}
       <div className="mt-1 h-12">
-        <Link
-          href={`/product/${product.id}`}
-          className="font-headlines text-lg font-bold leading-6 text-text-headings hover:underline line-clamp-2"
-        >
-          {l10n(product.name)}
-        </Link>
+        <H3 variant="h5">
+          <Link href={`/product/${product.id}`} className="line-clamp-2 hover:underline">
+            {l10n(product.name)}
+          </Link>
+        </H3>
       </div>
 
       {/* Item number — fixed height */}
       <div className="mt-1 h-5">
-        <p className="text-sm text-text-placeholders truncate">
+        <p data-testid="comparison-card-item-number" className="text-sm text-text-placeholders truncate">
           {t('itemNumber')}: {product.id}
         </p>
       </div>
@@ -130,9 +159,14 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
         </div>
       </div>
 
-      {/* Price & CTA — fixed height */}
-      <div className="mt-3 flex h-[50px] items-center gap-4">
-        <div className="flex flex-1 min-w-0 flex-col justify-center">
+      {/* Price & CTA. A minimum rather than a fixed height: at four products the columns get narrow
+          enough for the price to wrap, and a clipped amount is worse than two cards ending at
+          slightly different heights. */}
+      <div
+        data-testid="comparison-card-actions"
+        className={cn('mt-3 flex min-h-[50px] gap-4', stackedActions ? 'flex-col gap-3' : 'items-center')}
+      >
+        <div data-testid="comparison-card-price" className="flex flex-1 min-w-0 flex-col justify-center">
           {product.price ? (
             product.price.originalAmount && product.price.originalAmount !== product.price.amount ? (
               <>
@@ -159,6 +193,7 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
             isAdding={isAddingToWishlist}
             onClick={handleAddToWishlist}
             className="h-[50px] w-[50px]"
+            itemName={l10n(product.name)}
           />
           <Tooltip>
             <TooltipTrigger asChild>
@@ -169,6 +204,9 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
                   onClick={handleAddToCart}
                   disabled={cartLoading || cartDisabled}
                   title={tProduct('addToCart')}
+                  // The comparison shows one of these per column; without the article they are four
+                  // buttons with the same name. The tooltip keeps the short wording.
+                  aria-label={`${tProduct('addToCart')} ${l10n(product.name)}`}
                 >
                   <ShoppingCart className="h-6 w-6" />
                 </Button>

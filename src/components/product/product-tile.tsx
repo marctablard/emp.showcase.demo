@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { WishlistPinButton } from '@/components/wishlist/wishlist-pin-button';
 import { useCart } from '@/hooks/cart/useCart';
 import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
-import { useComparison } from '@/hooks/comparison/useComparison';
+import { useComparisonToggle } from '@/hooks/comparison/useComparisonToggle';
 import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
@@ -38,7 +38,6 @@ import {
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product, ProductUSP, ProductVariantAttribute } from '@/platform/services/model/product';
-import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import { ToastType, notify } from '../ui/toast-notification';
 
 interface ProductTileProps {
@@ -304,7 +303,7 @@ export function ProductTile({
   const t = useTranslations('product');
   const { l10n, l10nOrEmpty } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();
-  const { isInComparison, toggleProduct, isFull } = useComparison();
+  const { isInComparison, toggle: toggleComparison } = useComparisonToggle();
   const { disabled: cartDisabled, tooltip: cartTooltip } = useValidateAddToCart(product);
   const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(product, undefined, 'wishlist');
   const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(product);
@@ -343,20 +342,7 @@ export function ProductTile({
   const handleCompareClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-
-    if (isInComparison(product.id)) {
-      toggleProduct(product.id);
-      notify({ title: t('removedFromComparison', { name: l10n(product.name) }), type: ToastType.Info });
-      return;
-    }
-
-    if (isFull) {
-      notify({ title: t('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }), type: ToastType.Warning });
-      return;
-    }
-
-    toggleProduct(product.id);
-    notify({ title: t('addedToComparison', { name: l10n(product.name) }), type: ToastType.Success });
+    toggleComparison(product.id, l10n(product.name));
   };
 
   return (

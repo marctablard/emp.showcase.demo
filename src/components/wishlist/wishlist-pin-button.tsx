@@ -16,6 +16,11 @@ interface WishlistPinButtonProps {
   iconSize?: number;
   iconChildren?: ReactNode;
   testId?: string;
+  /**
+   * The article the button acts on. Icon-only buttons otherwise all carry the same name, and a list
+   * of controls shows four identical entries where the comparison has one per column.
+   */
+  itemName?: string;
 }
 
 export function WishlistPinButton({
@@ -27,10 +32,14 @@ export function WishlistPinButton({
   iconSize = 24,
   iconChildren,
   testId,
-}: WishlistPinButtonProps) {
+  itemName,
+}: Readonly<WishlistPinButtonProps>) {
   const tProduct = useTranslations('product');
   const isBlocked = disabled || isAdding;
   const tooltip = disabled && disabledTooltip ? disabledTooltip : tProduct('addToWishlist');
+  // The tooltip keeps the short wording, the accessible name names the article — two different
+  // texts rather than the same one twice.
+  const accessibleName = itemName ? `${tProduct('addToWishlist')} ${itemName}` : tProduct('addToWishlist');
 
   return (
     <Tooltip delayDuration={200}>
@@ -39,7 +48,7 @@ export function WishlistPinButton({
           <Button
             variant="secondary"
             size="icon"
-            aria-label={tProduct('addToWishlist')}
+            aria-label={accessibleName}
             aria-busy={isAdding || undefined}
             title={tProduct('addToWishlist')}
             onClick={onClick}

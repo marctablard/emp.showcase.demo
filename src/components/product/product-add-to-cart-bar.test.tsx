@@ -32,6 +32,16 @@ jest.mock('@/hooks/common/useGlobalSyncReady', () => ({
   useGlobalSyncReady: () => ({ ready: true, reason: null }),
 }));
 
+// The compare button reaches the persisted comparison store, which lives behind StoreProvider.
+// These cases are about the bar's layout, so the hooks stand in the way rather than under test.
+jest.mock('@/hooks/comparison/useComparisonToggle', () => ({
+  useComparisonToggle: () => ({ isInComparison: () => false, isFull: false, toggle: jest.fn() }),
+}));
+
+jest.mock('@/hooks/comparison/useValidateAddToComparison', () => ({
+  useValidateAddToComparison: () => ({ disabled: false, tooltip: undefined }),
+}));
+
 jest.mock('@/hooks/useL10n', () => ({
   useL10n: () => ({
     l10n: (value: unknown) => {

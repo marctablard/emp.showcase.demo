@@ -2,7 +2,8 @@
   "title": "Product Comparison",
   "clear": "Clear comparison",
   "close": "Close comparison",
-  "noSharedAttributes": "The selected products have no shared attributes.",
+  "noAttributes": "The selected products have no attributes to compare.",
+  "valuesDiffer": "values differ",
   "emptyState": "Your comparison list is empty.",
   "emptyStateAction": "Browse products",
   "addMoreProducts": "Add at least one more product to compare.",
@@ -17,5 +18,14 @@
   "remove": "Remove",
   "addToWishlist": "Add to wishlist",
   "removeFromComparison": "Remove from comparison",
-  "productAttributes": "Product attributes"
+  "productAttributes": "Product attributes",
+  "previousProducts": "Previous products",
+  "nextProducts": "More products",
+  "productRange": "{range} of {total}",
+  "productRangeShort": "{range}/{total}",
+  "valueMissing": "Not specified",
+  "differenceNote": "Rows whose values differ are marked.",
+  "productRangeAnnouncement": "Products {first} to {last} of {total}",
+  "productPositionAnnouncement": "Product {first} of {total}",
+  "attribute": "Attribute"
 }

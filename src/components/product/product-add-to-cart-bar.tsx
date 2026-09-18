@@ -1,6 +1,8 @@
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { FlipHorizontal2, Pin, Share2 } from 'lucide-react';
+import { useComparisonToggle } from '@/hooks/comparison/useComparisonToggle';
+import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useL10n } from '@/hooks/useL10n';
 import { cn } from '@/lib/utils';
@@ -28,6 +30,14 @@ export default function ProductAddToCartBar({
   const locale = useLocale();
   const t = useTranslations('product');
   const { l10n, l10nOrEmpty } = useL10n(locale);
+  const { isInComparison, toggle: toggleComparison } = useComparisonToggle();
+  const { disabled: compareDisabled } = useValidateAddToComparison(product);
+  const compareActive = Boolean(product && isInComparison(product.id));
+
+  const handleCompareClick = (): void => {
+    if (!product) return;
+    toggleComparison(product.id, l10n(product.name));
+  };
 
   // Only treat as shown when we have a non-empty URL — same gate as <Image> src.
   // Array length alone is not enough (empty string / whitespace URLs still left-flush the name).
@@ -99,7 +109,18 @@ export default function ProductAddToCartBar({
             />
           ) : null}
           <div className="flex items-center justify-center gap-2">
-            <Button size="icon" variant="primary" aria-label={t('compare')} className="border-surface-page">
+            {/* On the blue bar the filled state is the white one, so "in comparison" reads as
+                pressed here the same way the primary variant does on the tile. */}
+            <Button
+              size="icon"
+              variant={compareActive ? 'secondary' : 'primary'}
+              aria-label={t('compare')}
+              aria-pressed={compareActive}
+              disabled={compareDisabled}
+              onClick={handleCompareClick}
+              data-testid="product-add-to-cart-bar-compare"
+              className="border-surface-page"
+            >
               <FlipHorizontal2 />
             </Button>
             <Button size="icon" variant="primary" aria-label={t('addToWishlist')} className="border-surface-page">
