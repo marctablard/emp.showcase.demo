@@ -85,6 +85,8 @@ export interface UpdateSessionCurrencyResult {
   cart?: Cart | null;
   /** Set when `/api/session/currency` returns 409 (cart cannot be repriced in the target currency). */
   cartCurrencyBlocked?: boolean;
+  /** Coupon codes on the cart when the 409 was caused (or accompanied) by coupon currency. */
+  couponCodes?: string[];
 }
 
 export async function updateSessionCurrency(currency: string): Promise<UpdateSessionCurrencyResult> {
@@ -100,7 +102,14 @@ export async function updateSessionCurrency(currency: string): Promise<UpdateSes
 
     if (!response.ok) {
       const cartCurrencyBlocked = response.status === 409;
-      return { success: false, ...(cartCurrencyBlocked ? { cartCurrencyBlocked: true } : {}) };
+      const couponCodes = Array.isArray(obj.couponCodes)
+        ? obj.couponCodes.filter((code): code is string => typeof code === 'string' && code.length > 0)
+        : [];
+      return {
+        success: false,
+        ...(cartCurrencyBlocked ? { cartCurrencyBlocked: true } : {}),
+        ...(couponCodes.length > 0 ? { couponCodes } : {}),
+      };
     }
 
     const hasCart = Object.prototype.hasOwnProperty.call(obj, 'cart');

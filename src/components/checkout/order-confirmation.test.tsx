@@ -153,6 +153,25 @@ describe('OrderConfirmation empty thumbnail', () => {
     expect(screen.queryByText(/shippingVat/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Shipping VAT/i)).not.toBeInTheDocument();
   });
+
+  it('shows a single savings amount when TOTAL and the coupon are both on the order', () => {
+    mockUseOrder(
+      buildOrder({
+        savingsTotal: 101.1,
+        discounts: [
+          { code: 'TOTAL', value: 101.1, currency: 'CHF' },
+          { code: '10POFF', value: 101.1, currency: 'CHF' },
+        ],
+      }),
+    );
+
+    render(<OrderConfirmation orderId="order-1" />);
+
+    const discountRow = screen.getByTestId('order-confirmation-discount');
+    expect(discountRow).toHaveTextContent('orders.discount');
+    expect(discountRow).toHaveTextContent(money(101.1));
+    expect(discountRow).not.toHaveTextContent(money(202.2));
+  });
 });
 
 describe('OrderConfirmation pending approval links', () => {

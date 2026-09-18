@@ -80,7 +80,12 @@ export interface OrderDiscount {
   value: number;
   currency: string;
   description?: string;
+  /** Published `discount.discountType` / applied-discount type; `FREE_SHIPPING` chips stay visible at 0. */
+  type?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
 }
+
+/** Published `calculatedPrice.totalDiscount.calculationType` — not YAML `discountCalculationType` SUBTOTAL/TOTAL. */
+export type TotalDiscountCalculationType = 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
 
 /**
  * Price information for an order
@@ -118,6 +123,12 @@ export interface Order {
   payments?: OrderPayment[];
   shipping?: OrderShipping;
   discounts?: OrderDiscount[];
+  savingsTotal?: number;
+  totalDiscountCalculationType?: TotalDiscountCalculationType;
+  includesTax?: boolean;
+  goodsDiscountedNet?: number;
+  goodsDiscountedGross?: number;
+  goodsDiscountedVat?: number;
   price?: OrderPrice;
   currency?: string;
   customerEmail?: string;

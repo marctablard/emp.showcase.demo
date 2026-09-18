@@ -120,6 +120,22 @@ export interface EmporixCartApi {
   refreshCart(cartId: string): Promise<void>;
 
   /**
+   * Apply a discount coupon to a cart
+   * @param cartId Cart ID
+   * @param code Coupon code
+   * @returns Promise resolving when the discount is applied
+   */
+  applyDiscount(cartId: string, code: string): Promise<void>;
+
+  /**
+   * Remove one discount from a cart by index
+   * @param cartId Cart ID
+   * @param discountIndex Discount index from the cart discounts list
+   * @returns Promise resolving when the discount is removed
+   */
+  removeDiscount(cartId: string, discountIndex: number): Promise<void>;
+
+  /**
    * Merge two carts into one
    * @param sourceCartId The ID of the source cart
    * @param targetCartId The ID of the target cart

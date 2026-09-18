@@ -1,5 +1,7 @@
 import { updateSessionContext } from '@/lib/client/session';
+import { CART_API_REASON } from '@/lib/common/cart-api-error-mapping';
 import { getLocaleCookieName } from '@/lib/common/locale-cookie';
+import { CART_CURRENCY_UPDATE_ERROR_CODE } from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Session } from '@/platform/services/model/session/session';
@@ -60,6 +62,7 @@ type CartStoreState = {
   syncCurrencyWithSession: jest.Mock<Promise<void>, [string, string]>;
   setError: jest.Mock<void, [Error | null]>;
   currentCart?: Cart | null | undefined;
+  error?: Error | null;
   loading?: boolean;
 };
 
@@ -145,6 +148,7 @@ function buildStores(options: BuildStoresOptions = {}): {
     syncCurrencyWithSession: jest.fn<Promise<void>, [string, string]>(() => Promise.resolve()),
     setError: jest.fn<void, [Error | null]>(),
     currentCart: options.currentCart,
+    error: null,
     loading: false,
   };
   const cartSetState = jest.fn();
@@ -1004,6 +1008,247 @@ describe('performSiteSwitch', () => {
 
       expect(result.success).toBe(true);
       expect(result.currencyFallback).toEqual({ from: 'CHF', to: 'USD' });
+    });
+
+    it('does not attach couponCodes on a generic reprice fallback even when the cart has coupons', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'USD' }],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.error = Object.assign(new Error('Failed to update cart currency'), {
+        reason: CART_API_REASON.CONTEXT_MISMATCH,
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({ from: 'CHF', to: 'USD' });
+    });
+
+    it('attaches couponCodes when the swallowed reprice error is classified by code only', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'USD' }],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.error = Object.assign(new Error('Cart currency update failed'), {
+        code: CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT,
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({
+        from: 'CHF',
+        to: 'USD',
+        couponCodes: ['ACCESSORIES15'],
+      });
+    });
+
+    it('attaches couponCodes only when the swallowed reprice error is a coupon-currency conflict', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'USD' }],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.error = Object.assign(new Error('Coupon blocks currency update'), {
+        reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({
+        from: 'CHF',
+        to: 'USD',
+        couponCodes: ['ACCESSORIES15'],
+      });
+    });
+
+    it('does not attach invalid coupon codes on a classified coupon-currency conflict', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [
+          { code: 'STALE10', discountIndex: 0, amount: 0, currency: 'USD', valid: false },
+          { code: 'ACCESSORIES15', discountIndex: 1, amount: 1.5, currency: 'USD' },
+        ],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.error = Object.assign(new Error('Coupon blocks currency update'), {
+        reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({
+        from: 'CHF',
+        to: 'USD',
+        couponCodes: ['ACCESSORIES15'],
+      });
+    });
+
+    it('attaches couponCodes when syncCurrencyWithSession rejects with a classified coupon conflict', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'USD' }],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.syncCurrencyWithSession.mockRejectedValueOnce(
+        Object.assign(new Error('Coupon blocks currency update'), {
+          reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+        }),
+      );
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({
+        from: 'CHF',
+        to: 'USD',
+        couponCodes: ['ACCESSORIES15'],
+      });
     });
   });
 

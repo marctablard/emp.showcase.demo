@@ -4,6 +4,8 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import deOrdersTranslations from '@/i18n/translations/de/orders/index.json';
+import enOrdersTranslations from '@/i18n/translations/en/orders/index.json';
 import type { Order } from '@/platform/services/model/order/order';
 import { OrderDetail } from './order-detail';
 
@@ -709,6 +711,166 @@ describe('OrderDetail', () => {
     expect(vatIndex).toBeGreaterThan(netValueOfGoodsIndex);
     expect(shippingFeeIndex).toBeGreaterThan(vatIndex);
     expect(totalValueIndex).toBeGreaterThan(shippingFeeIndex);
+  });
+
+  it('renders a net-applied coupon box and savings without a remove control', () => {
+    const netCouponOrder: Order = {
+      ...baseOrder,
+      discounts: [
+        { code: 'TOTAL', value: 101.1, currency: 'EUR', description: '10% off order' },
+        { code: '10POFF', value: 101.1, currency: 'EUR' },
+      ],
+      savingsTotal: 101.1,
+      totalDiscountCalculationType: 'ApplyDiscountBeforeTax',
+      includesTax: false,
+      goodsDiscountedNet: 909.89,
+      goodsDiscountedVat: 172.88,
+      goodsDiscountedGross: 1082.77,
+      price: {
+        subtotal: { net: 1010.99, gross: 1203.08, tax: 192.09, currency: 'EUR', taxRate: 19 },
+        total: { net: 909.89, gross: 1082.77, tax: 172.88, currency: 'EUR' },
+      },
+    };
+    mockUseOrder({ order: netCouponOrder });
+
+    render(<OrderDetail orderId={netCouponOrder.id} initialOrder={netCouponOrder} />);
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]') as HTMLElement;
+    const tenOffChip = screen.getByTestId('order-appliedPromo-10POFF');
+
+    expect(overviewHeading).toBeInTheDocument();
+    expect(screen.queryByTestId('order-appliedPromo-TOTAL')).not.toBeInTheDocument();
+    expect(tenOffChip).toHaveTextContent('10POFF');
+    expect(tenOffChip).toHaveTextContent('-101.1 EUR');
+    expect(screen.getByTestId('order-appliedPromoAmount-10POFF')).toHaveTextContent('-101.1 EUR');
+    expect(tenOffChip.querySelector('p.font-bold')).toBeNull();
+    expect(within(tenOffChip).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-removePromo-TOTAL')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-removePromo-TOTAL')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-applyPromo')).not.toBeInTheDocument();
+    expect(screen.getByTestId('order-originalValueOfGoods')).toHaveTextContent('originalValueOfGoods');
+    expect(screen.getByTestId('order-originalValueOfGoods')).toHaveTextContent('1010.99 EUR');
+    expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('yourSavings');
+    expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('-101.1 EUR');
+    expect(screen.getByTestId('order-yourSavings')).toHaveClass('text-sm');
+    expect(overviewCard).toHaveTextContent('909.89 EUR');
+    expect(overviewCard).toHaveTextContent('172.88 EUR');
+    expect(overviewCard).not.toHaveTextContent('192.09 EUR');
+    expect(screen.queryByTestId('order-originalGrossValue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-grossValueOfGoods')).not.toBeInTheDocument();
+    expect(overviewCard).not.toHaveTextContent('discount');
+    expect(overviewCard).not.toHaveTextContent(/freight/i);
+    expect(enOrdersTranslations.yourSavings).toBe('Your savings');
+    expect(enOrdersTranslations.originalValueOfGoods).toBe('Original value of goods');
+    expect(deOrdersTranslations.yourSavings).toBe('Ihre Ersparnis');
+    expect(enOrdersTranslations.promoFreeShipping).toBe('Free shipping');
+    expect(deOrdersTranslations.promoFreeShipping).toBe('Kostenloser Versand');
+  });
+
+  it('keeps a zero-amount free-shipping coupon on Order Overview and labels it Free shipping', () => {
+    const freeShippingOrder: Order = {
+      ...baseOrder,
+      discounts: [
+        { code: 'TOTAL', value: 0, currency: 'EUR' },
+        { code: 'VKTEST-COUPON05', value: 0, currency: 'EUR', type: 'FREE_SHIPPING' },
+        { code: 'NOMATCH', value: 0, currency: 'EUR', type: 'PERCENT' },
+      ],
+      shipping: { total: { value: 0, currency: 'EUR', tax: 0, taxRate: 19 } },
+    };
+    mockUseOrder({ order: freeShippingOrder });
+
+    render(<OrderDetail orderId={freeShippingOrder.id} initialOrder={freeShippingOrder} />);
+
+    const chip = screen.getByTestId('order-appliedPromo-VKTEST-COUPON05');
+    expect(chip).toHaveTextContent('VKTEST-COUPON05');
+    expect(screen.getByTestId('order-appliedPromoAmount-VKTEST-COUPON05')).toHaveTextContent('promoFreeShipping');
+    expect(chip).not.toHaveTextContent('-0');
+    expect(screen.queryByTestId('order-appliedPromo-TOTAL')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-appliedPromo-NOMATCH')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-yourSavings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalGrossValue')).not.toBeInTheDocument();
+  });
+
+  it('hides Your savings when savingsTotal is zero', () => {
+    const zeroSavingsOrder: Order = {
+      ...baseOrder,
+      discounts: [{ code: 'VKTEST-COUPON05', value: 0, currency: 'EUR', type: 'FREE_SHIPPING' }],
+      savingsTotal: 0,
+    };
+    mockUseOrder({ order: zeroSavingsOrder });
+
+    render(<OrderDetail orderId={zeroSavingsOrder.id} initialOrder={zeroSavingsOrder} />);
+
+    expect(screen.getByTestId('order-appliedPromo-VKTEST-COUPON05')).toBeInTheDocument();
+    expect(screen.queryByTestId('order-yourSavings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalValueOfGoods')).not.toBeInTheDocument();
+  });
+
+  it('renders a gross-applied coupon box with pre-discount VAT and no remove control', () => {
+    const grossCouponOrder: Order = {
+      ...baseOrder,
+      discounts: [{ code: 'GROSS10', value: 16.11, currency: 'EUR', description: 'After-tax 10%' }],
+      savingsTotal: 16.11,
+      totalDiscountCalculationType: 'ApplyDiscountAfterTax',
+      includesTax: true,
+      goodsDiscountedNet: 70,
+      goodsDiscountedVat: 12,
+      goodsDiscountedGross: 82,
+      price: {
+        subtotal: { net: 82.45, gross: 98.11, tax: 15.66, currency: 'EUR' },
+        total: { net: 70, gross: 86.95, tax: 12, currency: 'EUR' },
+      },
+    };
+    mockUseOrder({ order: grossCouponOrder });
+
+    render(<OrderDetail orderId={grossCouponOrder.id} initialOrder={grossCouponOrder} />);
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]') as HTMLElement;
+    const chip = screen.getByTestId('order-appliedPromo-GROSS10');
+
+    expect(chip).toHaveTextContent('GROSS10');
+    expect(chip).toHaveTextContent('After-tax 10%');
+    expect(within(chip).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-removePromo-GROSS10')).not.toBeInTheDocument();
+    expect(overviewCard).toHaveTextContent('valueOfGoods');
+    expect(overviewCard).toHaveTextContent('82.45 EUR');
+    expect(overviewCard).toHaveTextContent('15.66 EUR');
+    expect(overviewCard).not.toHaveTextContent('12 EUR');
+    expect(screen.getByTestId('order-originalGrossValue')).toHaveTextContent('originalGrossValue');
+    expect(screen.getByTestId('order-originalGrossValue')).toHaveTextContent('98.11 EUR');
+    expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('yourSavings');
+    expect(screen.getByTestId('order-yourSavings')).toHaveTextContent('-16.11 EUR');
+    expect(screen.getByTestId('order-grossValueOfGoods')).toHaveTextContent('grossValueOfGoods');
+    expect(screen.getByTestId('order-grossValueOfGoods')).toHaveTextContent('82 EUR');
+    expect(screen.queryByTestId('order-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(overviewCard).not.toHaveTextContent('discount');
+    expect(enOrdersTranslations.originalGrossValue).toBe('Original Gross Value');
+    expect(enOrdersTranslations.grossValueOfGoods).toBe('Gross Value of Goods');
+    expect(deOrdersTranslations.originalGrossValue).toBe('Ursprünglicher Bruttowert');
+    expect(deOrdersTranslations.grossValueOfGoods).toBe('Brutto-Warenwert');
+  });
+
+  it('hides Gross Value of Goods when after-tax orders have no discounted goods amount', () => {
+    const shippingOnlyCouponOrder: Order = {
+      ...baseOrder,
+      discounts: [
+        { code: 'SHIPFREE', value: 6.5, currency: 'EUR', description: 'Free shipping', type: 'FREE_SHIPPING' },
+      ],
+      savingsTotal: 6.5,
+      totalDiscountCalculationType: 'ApplyDiscountAfterTax',
+      includesTax: true,
+    };
+    mockUseOrder({ order: shippingOnlyCouponOrder });
+
+    render(<OrderDetail orderId={shippingOnlyCouponOrder.id} initialOrder={shippingOnlyCouponOrder} />);
+
+    expect(screen.queryByTestId('order-originalGrossValue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-grossValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-yourSavings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('order-originalValueOfGoods')).not.toBeInTheDocument();
   });
 
   it('omits an optional Shipping VAT row when the order model has no independent shipping-tax value', () => {

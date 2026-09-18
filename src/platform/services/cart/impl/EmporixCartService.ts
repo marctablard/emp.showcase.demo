@@ -1,10 +1,16 @@
 import { inject } from 'inversify';
-import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { removableCartPromoAtIndex, shopperFacingCartPromos } from '@/lib/common/applied-promo-display';
+import { isAnonymousProfileCustomerId, isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
+import type {
+  EmporixCouponApi,
+  EmporixCouponValidationOutcome,
+} from '@/platform/integrations/emporix/coupon/EmporixCouponApi';
+import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixAddCartItemRequest, EmporixUpdateCartItemRequest } from '@/platform/integrations/emporix/model';
 import type { EmporixCart, EmporixCartAddress, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
 import type {
@@ -17,9 +23,15 @@ import type {
 } from '@/platform/services/cart/CartService';
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
+  CART_DISCOUNT_REASON,
+  CART_SITE_MISMATCH_MESSAGE,
   CartCurrencyUpdateError,
+  CartDiscountError,
+  type CartDiscountReason,
   extractUpstreamBody,
   extractUpstreamStatus,
+  isCartDiscountError,
+  isCouponRelatedCurrencyFailure,
 } from '@/platform/services/cart/errors';
 import { matchDeliveryWindowForShippingMethod } from '@/platform/services/cart/match-delivery-window';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -33,6 +45,102 @@ import type { Media, Paginated, PaginationQuery } from '../../model/common';
 import type { SessionService } from '../../session/SessionService';
 import type { ShippingService } from '../../shipping/ShippingService';
 import type { SiteService } from '../../site/SiteService';
+
+/** Coupon Service `details[].type` values that mean "this customer may not use the code". */
+const COUPON_ELIGIBILITY_DETAIL_TYPES: ReadonlySet<string> = new Set([
+  'coupon_segment_customer_not_assigned',
+  'coupon_redemption_forbidden',
+]);
+
+/** Coupon Service `details[].type` values that mean "the code is not redeemable right now". */
+const COUPON_NOT_ACTIVE_DETAIL_TYPES: ReadonlySet<string> = new Set(['coupon_expired']);
+
+/**
+ * Maps a Coupon Service validation outcome onto the shopper-facing reason classes.
+ * Observed on the tenant: `resource_not_found` (404) for unknown codes; `business_error` with
+ * `coupon_segment_customer_not_assigned` (400) / `coupon_redemption_forbidden` (403) for
+ * eligibility, `coupon_expired` (400) for inactive codes and e.g.
+ * `coupon_discount_currency_incorrect` (400) for cart restrictions. The detail types are not
+ * enumerated in the docs, so any other `business_error` on a 403 is still treated as an
+ * eligibility refusal (the customer may not redeem it), while every other `business_error`
+ * (threshold, dates, categories) is "not applicable to this cart", as is a passing validation
+ * (the cart-level check failed for a reason the coupon service does not see).
+ * Anything else — auth/scope failures such as a 401 or a non-business 403 — is inconclusive
+ * and returns `undefined` so the caller keeps the generic copy.
+ */
+/** Cart API OpenAPI documents these apply-discount business rejections as HTTP 500. */
+const DOCUMENTED_COUPON_CURRENCY_REJECTION = /discount currency.+(?:not equal to|is not equal to) cart currency/i;
+const DOCUMENTED_COUPON_ALREADY_EXISTS = /already exists in cart/i;
+
+function couponRejectionText(error: CartDiscountError): string {
+  return `${error.message} ${error.upstreamBody ?? ''}`;
+}
+
+const REGEXP_SPECIAL_CHARS = new Set('.*+?^${}()|[]\\');
+
+function escapeRegExp(value: string): string {
+  return [...value].map((char) => (REGEXP_SPECIAL_CHARS.has(char) ? `\\${char}` : char)).join('');
+}
+
+function rejectionNamesSubmittedCode(text: string, submittedCode: string): boolean {
+  if (!submittedCode) {
+    return false;
+  }
+  return new RegExp(String.raw`\b${escapeRegExp(submittedCode)}\b`, 'i').test(text);
+}
+
+function cartAlreadyHasSubmittedCode(cart: Cart, submittedCode: string): boolean {
+  return (
+    cart.discounts?.some(
+      (discount) => discount.code === submittedCode && discount.code !== 'TOTAL' && discount.valid !== false,
+    ) === true
+  );
+}
+
+function isDocumentedCouponAlreadyAppliedRejection(
+  error: CartDiscountError,
+  submittedCode: string,
+  cart: Cart,
+): boolean {
+  const text = couponRejectionText(error);
+  const namesThisCode = rejectionNamesSubmittedCode(text, submittedCode);
+  const alreadyOnCart = cartAlreadyHasSubmittedCode(cart, submittedCode);
+  if (error.upstreamStatus === 409) {
+    return namesThisCode || alreadyOnCart;
+  }
+  return (
+    error.upstreamStatus === 500 && DOCUMENTED_COUPON_ALREADY_EXISTS.test(text) && (namesThisCode || alreadyOnCart)
+  );
+}
+
+function shouldClassifyCouponRejection(error: CartDiscountError): boolean {
+  if (error.upstreamStatus === 400 || error.upstreamStatus === 409) {
+    return true;
+  }
+  return error.upstreamStatus === 500 && DOCUMENTED_COUPON_CURRENCY_REJECTION.test(couponRejectionText(error));
+}
+
+export function classifyCouponRejection(outcome: EmporixCouponValidationOutcome): CartDiscountReason | undefined {
+  if (outcome.ok) {
+    return CART_DISCOUNT_REASON.NOT_APPLICABLE;
+  }
+  if (outcome.status === 404 || outcome.type === 'resource_not_found') {
+    return CART_DISCOUNT_REASON.CODE_NOT_FOUND;
+  }
+  if (outcome.detailTypes.some((type) => COUPON_ELIGIBILITY_DETAIL_TYPES.has(type))) {
+    return CART_DISCOUNT_REASON.NOT_ELIGIBLE;
+  }
+  if (outcome.detailTypes.some((type) => COUPON_NOT_ACTIVE_DETAIL_TYPES.has(type))) {
+    return CART_DISCOUNT_REASON.NOT_ACTIVE;
+  }
+  if (outcome.status === 403 && outcome.type === 'business_error') {
+    return CART_DISCOUNT_REASON.NOT_ELIGIBLE;
+  }
+  if (outcome.type === 'business_error' && outcome.status === 400) {
+    return CART_DISCOUNT_REASON.NOT_APPLICABLE;
+  }
+  return undefined;
+}
 
 /**
  * Implementation of CartService for Emporix cart data.
@@ -51,6 +159,8 @@ class EmporixCartService implements CartService {
     @inject('LoggerService') private logger: LoggerService,
     @inject('SiteService') private siteService: SiteService,
     @inject('ShippingService') private readonly shippingService: ShippingService,
+    @inject('EmporixCouponApi') private readonly couponApi: EmporixCouponApi,
+    @inject('EmporixCustomerApi') private readonly customerApi: EmporixCustomerApi,
   ) {}
 
   private normalizeLegalEntityId(value: string | undefined): string {
@@ -753,6 +863,160 @@ class EmporixCartService implements CartService {
     }
   }
 
+  async applyDiscount(cartId: string, code: string): Promise<Cart> {
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      throw new CartDiscountError('Coupon code is required');
+    }
+
+    const cartBeforeApply = await this.requireSessionCart(cartId, { checkSite: true });
+
+    try {
+      await this.cartApi.applyDiscount(cartId, trimmedCode);
+    } catch (error) {
+      const mapped = this.mapCartDiscountError(error, 'Failed to apply discount');
+      throw await this.withDiscountRejectionReason(mapped, trimmedCode, cartBeforeApply);
+    }
+
+    let cart = await this.requireSessionCart(cartId);
+    if (this.isCartMissingDiscountsAndSavings(cart)) {
+      await this.refreshCartWithCleanup(cartId);
+      cart = await this.requireSessionCart(cartId);
+    }
+
+    return cart;
+  }
+
+  async removeDiscount(cartId: string, discountIndex: number): Promise<Cart> {
+    const cart = await this.requireSessionCart(cartId, { checkSite: true });
+    if (!removableCartPromoAtIndex(cart.discounts, discountIndex)) {
+      throw new CartDiscountError('Discount is not removable', { upstreamStatus: 400 });
+    }
+
+    try {
+      await this.cartApi.removeDiscount(cartId, discountIndex);
+    } catch (error) {
+      throw this.mapCartDiscountError(error, 'Failed to remove discount');
+    }
+
+    return this.requireSessionCart(cartId);
+  }
+
+  /**
+   * Loads the cart for a discount write. With `checkSite` (the first load of a write): the id is
+   * caller-supplied and customer carts outlive a site switch, so — like `updateCartItemQuantity`
+   * — a cart from another site is refused instead of being mutated in the wrong site context.
+   */
+  private async requireSessionCart(cartId: string, options?: { checkSite?: boolean }): Promise<Cart> {
+    try {
+      const cart = await this.getCartById(cartId);
+      if (!cart) {
+        throw new CartDiscountError('Cart not found');
+      }
+      if (!options?.checkSite) {
+        return cart;
+      }
+      const session = await this.sessionService.getCurrentOrThrow();
+      if (!session) {
+        throw new CartDiscountError('Failed to get session context', { upstreamStatus: 401 });
+      }
+      if (cart.site && cart.site !== session.siteCode) {
+        this.logger.warn(
+          { cartId, cartSite: cart.site, sessionSite: session.siteCode },
+          'Cart belongs to different site during discount write — aborting',
+        );
+        throw new CartDiscountError(CART_SITE_MISMATCH_MESSAGE);
+      }
+      return cart;
+    } catch (error) {
+      if (isCartDiscountError(error)) {
+        throw error;
+      }
+      throw this.mapCartDiscountError(error, 'Failed to resolve cart for discount write');
+    }
+  }
+
+  /**
+   * Coupon Service `customerNumber` is the Customer Service path identifier, not session
+   * `customerId`. Those differ on some tenants; sending the session id classifies segment
+   * / allow-list refusals against the wrong shopper. Resolved from GET `/customer/{tenant}/me`.
+   * Omitted when the profile has no number — never fall back to session.customerId.
+   */
+  private async couponValidationCustomerNumber(session: Session): Promise<string | undefined> {
+    if (!isAuthenticatedSessionCustomerId(session.customerId)) {
+      return undefined;
+    }
+    try {
+      const profile = await this.customerApi.getCustomerProfile();
+      if (isAnonymousProfileCustomerId(profile.id)) {
+        return undefined;
+      }
+      const customerNumber = profile.customerNumber?.trim();
+      return customerNumber || undefined;
+    } catch (error) {
+      this.logger.warn({ err: error }, 'Coupon validation omitted customerNumber; profile lookup failed');
+      return undefined;
+    }
+  }
+
+  /**
+   * The Cart Service answers every coupon rejection with the same generic 400, so on that 400
+   * the Coupon Service validation is asked once for the typed reason (COP-5589 QA: "not an
+   * active promo code" was shown for segment, threshold and currency rejections alike).
+   * Re-applying a code already on the cart is a 409 Conflict and needs no lookup (mapped by
+   * status, since shopper-facing chips hide `valid: false` rows). Other 4xx
+   * (401/403/404) are cart-context failures mapped by status, not coupon rejections.
+   * Classification is best-effort — any failure or inconclusive answer keeps the original error.
+   */
+  private async withDiscountRejectionReason(
+    error: CartDiscountError,
+    code: string,
+    cart: Cart,
+  ): Promise<CartDiscountError> {
+    if (error.reason) {
+      return error;
+    }
+    if (isDocumentedCouponAlreadyAppliedRejection(error, code, cart)) {
+      return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
+    }
+    if (!shouldClassifyCouponRejection(error)) {
+      return error;
+    }
+    if (
+      cart.discounts?.some(
+        (discount) => discount.code === code && discount.code !== 'TOTAL' && discount.valid !== false,
+      )
+    ) {
+      return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
+    }
+    try {
+      const session = await this.sessionService.getCurrentOrThrow();
+      const customerNumber = session ? await this.couponValidationCustomerNumber(session) : undefined;
+      const outcome = await this.couponApi.validateCoupon(code, {
+        orderTotal: { amount: cart.subTotalPrice.amount, currency: cart.currency },
+        ...(cart.legalEntity ? { legalEntityId: cart.legalEntity } : {}),
+        ...(customerNumber ? { customerNumber } : {}),
+      });
+      const reason = classifyCouponRejection(outcome);
+      this.logger.info(
+        { cartId: cart.id, reason, validation: outcome },
+        'Coupon rejected by cart service; classified via coupon validation',
+      );
+      return reason ? this.withReason(error, reason) : error;
+    } catch (validationError) {
+      this.logger.warn({ err: validationError, cartId: cart.id }, 'Coupon validation lookup failed after rejection');
+      return error;
+    }
+  }
+
+  private withReason(error: CartDiscountError, reason: CartDiscountReason): CartDiscountError {
+    return new CartDiscountError(error.message, {
+      upstreamStatus: error.upstreamStatus,
+      upstreamBody: error.upstreamBody,
+      reason,
+    });
+  }
+
   async getSavedCarts(pagination: PaginationQuery): Promise<Paginated<Cart>> {
     const session = await this.sessionService.getCurrent();
     if (!session?.customerId) {
@@ -850,6 +1114,27 @@ class EmporixCartService implements CartService {
     return canonicalRawCart;
   }
 
+  /**
+   * Apply can return before coupon rows hydrate. A free-shipping apply often has
+   * `savingsTotal === 0` with an omitted `discounts` array — treat that as missing
+   * so we refresh once for chips (COP-4815 review 5238303353).
+   */
+  private isCartMissingDiscountsAndSavings(cart: Cart): boolean {
+    return shopperFacingCartPromos(cart.discounts).length === 0;
+  }
+
+  private mapCartDiscountError(error: unknown, message: string): CartDiscountError {
+    if (isCartDiscountError(error)) {
+      return error;
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new CartDiscountError(message, {
+      upstreamStatus: extractUpstreamStatus(errorMessage) ?? 500,
+      upstreamBody: extractUpstreamBody(errorMessage),
+    });
+  }
+
   private mapCartResolutionError(
     error: unknown,
     fallback: {
@@ -873,6 +1158,13 @@ class EmporixCartService implements CartService {
     }
 
     if (upstreamStatus === 400 || upstreamStatus === 409 || upstreamStatus === 422) {
+      if (isCouponRelatedCurrencyFailure(errorMessage, upstreamBody)) {
+        return new CartCurrencyUpdateError(
+          CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT,
+          'Coupon blocks currency update',
+          { upstreamStatus, upstreamBody },
+        );
+      }
       return new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH, 'Cart context mismatch', {
         upstreamStatus,
         upstreamBody,

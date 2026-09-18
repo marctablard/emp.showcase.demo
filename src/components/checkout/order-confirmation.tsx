@@ -10,6 +10,7 @@ import useCustomer from '@/hooks/customer/useCustomer';
 import { useOrder } from '@/hooks/order/useOrder';
 import { useL10n } from '@/hooks/useL10n';
 import { type OrderStatusKey, type PaymentModeKey, dk } from '@/i18n/dynamic-key';
+import { orderGoodsSavings } from '@/lib/common/applied-promo-display';
 import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import type { Order } from '@/platform/services/model/order/order';
@@ -17,6 +18,22 @@ import { AddressDisplay } from '../common/address-display';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H1, H2, H3 } from '../ui/h';
 import { createdApprovalDetailsPath, isPendingApprovalConfirmationSegment } from './confirmation-constants';
+
+function OrderConfirmationDiscountRow({ order }: { readonly order: Order }) {
+  const tOrder = useTranslations('orders');
+  const savings = orderGoodsSavings(order);
+  if (!savings) {
+    return null;
+  }
+  return (
+    <div className="flex justify-between mb-2" data-testid="order-confirmation-discount">
+      <span className="text-text-on-disabled">{tOrder('discount')}</span>
+      <span className="font-medium text-text-success">
+        {formatCurrency(-Math.abs(savings.amount), savings.currency || order.currency)}
+      </span>
+    </div>
+  );
+}
 
 interface OrderConfirmationProps {
   orderId: string;
@@ -174,14 +191,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
                     </div>
                   )}
 
-                  {order.discounts && order.discounts.length > 0 && (
-                    <div className="flex justify-between mb-2">
-                      <span className="text-text-on-disabled">{tOrder('discount')}</span>
-                      <span className="font-medium text-text-success">
-                        -{order.discounts.reduce((sum, discount) => sum + (discount.value || 0), 0)}
-                      </span>
-                    </div>
-                  )}
+                  <OrderConfirmationDiscountRow order={order} />
 
                   <div className="flex justify-between pt-2 border-t border-border-primary">
                     <span className="font-medium">{tOrder('total')}</span>

@@ -28,15 +28,75 @@
  * Usage:
  *   npm audit --audit-level=high --json > audit-report.json || true
  *   node scripts/verify-audit-policy.mjs audit-report.json
+ *
+ * Jest may pass `--as-of=YYYY-MM-DD` and `--exceptions-json=...` while
+ * `JEST_WORKER_ID` is set. CI must not set those flags or `VERIFY_AUDIT_POLICY_TODAY`.
  */
 import fs from 'node:fs';
 
 // --- Policy: narrowly-scoped, time-boxed exceptions only. -----------------
 // Every entry MUST have an explicit, short-lived `expires` date (YYYY-MM-DD,
-// exception is valid through the end of that UTC day) and a `reason`
-// explaining why upgrading is not currently safe. Remove the entry once a
-// real fix lands or the date passes — do not silently extend `expires`.
-const ALLOWED_EXCEPTIONS = [];
+// exception is valid through the end of that UTC day), a `reason` explaining
+// why upgrading is not currently safe, and `securitySignOff` ({ ticket,
+// recordedIn: Atlassian browse URL }) so a gate relaxation cannot land
+// without a recorded approval tracker.
+// Remove the entry once a real fix lands or the date passes — do not silently
+// extend `expires`.
+const ALLOWED_EXCEPTIONS = [
+  {
+    id: 'GHSA-p293-qw3h-jr36',
+    expires: '2026-10-12',
+    reason:
+      'Next 16.3.x lockfile rewrite OOMs npm ci on GitHub runners; stay on the last installable 16.2.12 lockfile until a generated lockfile installs.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
+  },
+  {
+    id: 'GHSA-2xp9-vwfh-vxw4',
+    expires: '2026-10-12',
+    reason:
+      'Same Next 16.3.x lockfile OOM; stay on the last installable 16.2.12 lockfile until a generated lockfile installs.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
+  },
+  {
+    id: 'GHSA-rgj7-g3m4-5g8c',
+    expires: '2026-10-12',
+    reason: 'sharp 0.35.4 lockfile rewrite OOMs npm ci; keep 0.35.3 until a generated lockfile installs.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
+  },
+  {
+    id: 'GHSA-2883-xcg3-v3hh',
+    expires: '2026-10-12',
+    reason: 'js-yaml 3.15.2/4.3.2 lockfile rewrite OOMs npm ci; keep current pins until a generated lockfile installs.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
+  },
+  {
+    id: 'GHSA-j95f-988m-3j2f',
+    expires: '2026-10-12',
+    reason:
+      'A single @tiptap/core override mismatches @tiptap/pm 3.30.0 peers. Leave the Storyblok-owned 3.30.0 set until a full 3.30.5 lockfile can be generated.',
+    securitySignOff: {
+      ticket: 'COP-5589',
+      recordedIn: 'https://emporix.atlassian.net/browse/COP-5589',
+      scope: 'CI audit gate only; no runtime dependency version change',
+    },
+  },
+];
 
 const FAIL_SEVERITIES = new Set(['high', 'critical']);
 const GHSA_RE = /GHSA-[0-9a-z]+-[0-9a-z]+-[0-9a-z]+/i;
@@ -194,14 +254,92 @@ function collectAdvisories(vulnerabilities) {
   return [...advisoriesById.values()];
 }
 
-function evaluateAdvisories(advisories, today) {
+function parseAsOfArg(argv) {
+  const flag = argv.find((arg) => arg.startsWith('--as-of='));
+  return flag ? flag.slice('--as-of='.length) : undefined;
+}
+
+/**
+ * Clock override is Jest-only (`JEST_WORKER_ID` + `--as-of=YYYY-MM-DD`).
+ * CI always uses the real UTC date so expired exceptions cannot be backdated.
+ */
+function resolvePolicyToday(argv = process.argv) {
+  const asOfFlag = parseAsOfArg(argv);
+  if (process.env.VERIFY_AUDIT_POLICY_TODAY && !process.env.JEST_WORKER_ID) {
+    fail('VERIFY_AUDIT_POLICY_TODAY is test-only; unset it so exception expiry cannot be backdated');
+  }
+  if (asOfFlag && !process.env.JEST_WORKER_ID) {
+    fail('clock override --as-of is test-only');
+  }
+  if (!asOfFlag || !process.env.JEST_WORKER_ID) {
+    return new Date();
+  }
+  const parsed = new Date(`${asOfFlag}T12:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    fail(`clock override --as-of is not a valid YYYY-MM-DD date: "${asOfFlag}"`);
+  }
+  return parsed;
+}
+
+function parseExceptionsJsonArg(argv) {
+  const flag = argv.find((arg) => arg.startsWith('--exceptions-json='));
+  return flag ? flag.slice('--exceptions-json='.length) : undefined;
+}
+
+function resolveExceptions(argv = process.argv) {
+  const raw = parseExceptionsJsonArg(argv);
+  if (!raw) {
+    return ALLOWED_EXCEPTIONS;
+  }
+  if (!process.env.JEST_WORKER_ID) {
+    fail('exceptions override --exceptions-json is test-only');
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    fail(`exceptions override --exceptions-json is not valid JSON: ${err.message}`);
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    fail('exceptions override --exceptions-json must be a non-empty array');
+  }
+  return parsed;
+}
+
+const TRUSTED_SIGN_OFF_RECORDED_IN = /^https:\/\/[a-z0-9.-]+\.atlassian\.net\/browse\/[A-Z][A-Z0-9]+-\d+$/i;
+
+function hasSecuritySignOff(exception) {
+  const signOff = exception?.securitySignOff;
+  return Boolean(
+    signOff &&
+      typeof signOff.ticket === 'string' &&
+      signOff.ticket.length > 0 &&
+      typeof signOff.recordedIn === 'string' &&
+      TRUSTED_SIGN_OFF_RECORDED_IN.test(signOff.recordedIn),
+  );
+}
+
+function assertExceptionsHaveSecuritySignOff(exceptions) {
+  const unsigned = exceptions.filter((exception) => !hasSecuritySignOff(exception));
+  if (unsigned.length > 0) {
+    fail(
+      `ALLOWED_EXCEPTIONS entries missing securitySignOff.ticket/recordedIn: ${unsigned.map((exception) => exception.id).join(', ')}`,
+    );
+  }
+}
+
+function evaluateAdvisories(advisories, today, exceptions = ALLOWED_EXCEPTIONS) {
   const disallowed = [];
   const tolerated = [];
 
   for (const advisory of advisories) {
-    const exception = ALLOWED_EXCEPTIONS.find((e) => e.id.toLowerCase() === advisory.id.toLowerCase());
+    const exception = exceptions.find((e) => e.id.toLowerCase() === advisory.id.toLowerCase());
     if (!exception) {
       disallowed.push({ ...advisory, reason: 'not in ALLOWED_EXCEPTIONS' });
+      continue;
+    }
+    if (!hasSecuritySignOff(exception)) {
+      disallowed.push({ ...advisory, reason: 'exception is missing securitySignOff.ticket/recordedIn' });
       continue;
     }
     const expires = new Date(`${exception.expires}T23:59:59.999Z`);
@@ -234,6 +372,9 @@ function main() {
     fail('missing required argument: path to an `npm audit --json` report (e.g. audit-report.json)');
   }
 
+  const exceptions = resolveExceptions();
+  assertExceptionsHaveSecuritySignOff(exceptions);
+
   const report = readReport(reportPathArg);
   const advisories = collectAdvisories(report.vulnerabilities);
 
@@ -242,7 +383,7 @@ function main() {
     return;
   }
 
-  const { disallowed, tolerated } = evaluateAdvisories(advisories, new Date());
+  const { disallowed, tolerated } = evaluateAdvisories(advisories, resolvePolicyToday(), exceptions);
 
   if (disallowed.length > 0) {
     console.error(

@@ -64,10 +64,16 @@ export function SiteSwitcher() {
           // sessionStorage may be unavailable (private mode / quota) — fall back to
           // an inline toast; at worst it flickers like before.
           notify({
-            title: t('currencyFallback', {
-              from: result.currencyFallback.from,
-              to: result.currencyFallback.to,
-            }),
+            title: result.currencyFallback.couponCodes?.length
+              ? t('currencyFallbackCoupons', {
+                  from: result.currencyFallback.from,
+                  to: result.currencyFallback.to,
+                  codes: result.currencyFallback.couponCodes.join(', '),
+                })
+              : t('currencyFallback', {
+                  from: result.currencyFallback.from,
+                  to: result.currencyFallback.to,
+                }),
             type: ToastType.Info,
             duration: 8000,
           });

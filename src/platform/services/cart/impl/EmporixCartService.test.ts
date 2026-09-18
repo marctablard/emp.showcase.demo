@@ -2,8 +2,15 @@ import { Container } from 'inversify';
 import 'reflect-metadata';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
+import type { EmporixCouponApi } from '@/platform/integrations/emporix/coupon/EmporixCouponApi';
+import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixCart } from '@/platform/integrations/emporix/model/cart';
-import { CartCurrencyUpdateError } from '@/platform/services/cart/errors';
+import {
+  CART_DISCOUNT_REASON,
+  CART_SITE_MISMATCH_MESSAGE,
+  CartCurrencyUpdateError,
+  CartDiscountError,
+} from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CartMapper } from '@/platform/services/model/cart/CartMapper';
 import type { Cart } from '@/platform/services/model/cart/cart';
@@ -32,10 +39,14 @@ describe('EmporixCartService', () => {
       | 'getCartByCriteria'
       | 'updateCartItemQuantity'
       | 'createCart'
+      | 'applyDiscount'
+      | 'removeDiscount'
     >
   >;
   let mockLogger: jest.Mocked<LoggerService>;
-  let mockSessionService: jest.Mocked<Pick<SessionService, 'getCurrent' | 'setCart' | 'clearCart'>>;
+  let mockSessionService: jest.Mocked<
+    Pick<SessionService, 'getCurrent' | 'getCurrentOrThrow' | 'setCart' | 'clearCart'>
+  >;
   let mockSiteService: jest.Mocked<Pick<SiteService, 'getSite' | 'invalidateSiteCache'>>;
   let mockPriceService: jest.Mocked<Pick<PriceService, 'getProductPrice'>>;
   let mockProductService: jest.Mocked<Pick<ProductService, 'getProductById'>>;
@@ -43,6 +54,8 @@ describe('EmporixCartService', () => {
   let mockCommonUtil: jest.Mocked<Pick<EmporixCommonUtil, 'generateProductYrn'>>;
   let mockMapper: jest.Mocked<Pick<CartMapper<EmporixCart, unknown>, 'mapToService'>>;
   let mockShippingService: jest.Mocked<Pick<ShippingService, 'getDeliveryWindowsForCart'>>;
+  let mockCouponApi: jest.Mocked<EmporixCouponApi>;
+  let mockCustomerApi: jest.Mocked<Pick<EmporixCustomerApi, 'getCustomerProfile'>>;
 
   // Minimal stubs for unused dependencies
   const noop = {} as Record<string, jest.Mock>;
@@ -68,6 +81,8 @@ describe('EmporixCartService', () => {
       getCartByCriteria: jest.fn().mockResolvedValue(null),
       updateCartItemQuantity: jest.fn().mockResolvedValue(undefined),
       createCart: jest.fn().mockResolvedValue('new-cart-id'),
+      applyDiscount: jest.fn().mockResolvedValue(undefined),
+      removeDiscount: jest.fn().mockResolvedValue(undefined),
     };
 
     mockLogger = {
@@ -82,6 +97,7 @@ describe('EmporixCartService', () => {
 
     mockSessionService = {
       getCurrent: jest.fn().mockResolvedValue(null),
+      getCurrentOrThrow: jest.fn().mockImplementation(() => mockSessionService.getCurrent()),
       setCart: jest.fn().mockResolvedValue(undefined),
       clearCart: jest.fn().mockResolvedValue(undefined),
     };
@@ -115,6 +131,16 @@ describe('EmporixCartService', () => {
       getDeliveryWindowsForCart: jest.fn().mockResolvedValue([]),
     };
 
+    mockCouponApi = {
+      validateCoupon: jest.fn().mockResolvedValue({ ok: true }),
+    };
+
+    mockCustomerApi = {
+      getCustomerProfile: jest.fn().mockRejectedValue(new Error('profile not requested')),
+    };
+
+    container.bind('EmporixCouponApi').toConstantValue(mockCouponApi);
+    container.bind('EmporixCustomerApi').toConstantValue(mockCustomerApi);
     container.bind('EmporixCommonUtil').toConstantValue(mockCommonUtil);
     container.bind('EmporixCartApi').toConstantValue(mockCartApi);
     container.bind('EmporixCartMapper').toConstantValue(mockMapper);
@@ -587,6 +613,73 @@ describe('EmporixCartService', () => {
       );
     });
 
+    it('classifies a 400 with coupon language as COUPON_CURRENCY_CONFLICT', async () => {
+      const cart: EmporixCart = {
+        id: 'cart-1',
+        currency: 'USD',
+        siteCode: 'main',
+        metadata: { version: 1 },
+      };
+
+      mockCartApi.getCart.mockResolvedValue(cart);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error(
+          'Failed to change cart currency: Bad Request {"code":400,"message":"Discount currency does not match"}',
+        ),
+      );
+
+      await expect(cartService.updateCurrency('cart-1', 'EUR')).rejects.toEqual(
+        expect.objectContaining({
+          code: 'COUPON_CURRENCY_CONFLICT',
+          upstreamStatus: 400,
+        }),
+      );
+    });
+
+    it('keeps a 400 price miss with a discount:null field as CONTEXT_MISMATCH', async () => {
+      const cart: EmporixCart = {
+        id: 'cart-1',
+        currency: 'USD',
+        siteCode: 'main',
+        metadata: { version: 1 },
+      };
+
+      mockCartApi.getCart.mockResolvedValue(cart);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error(
+          'Failed to change cart currency: Bad Request {"code":400,"message":"Price not found","discount":null}',
+        ),
+      );
+
+      await expect(cartService.updateCurrency('cart-1', 'EUR')).rejects.toEqual(
+        expect.objectContaining({
+          code: 'CONTEXT_MISMATCH',
+          upstreamStatus: 400,
+        }),
+      );
+    });
+
+    it('keeps a 400 item/price miss as CONTEXT_MISMATCH', async () => {
+      const cart: EmporixCart = {
+        id: 'cart-1',
+        currency: 'USD',
+        siteCode: 'main',
+        metadata: { version: 1 },
+      };
+
+      mockCartApi.getCart.mockResolvedValue(cart);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error('Failed to change cart currency: Bad Request {"code":400,"message":"Price not found for item"}'),
+      );
+
+      await expect(cartService.updateCurrency('cart-1', 'EUR')).rejects.toEqual(
+        expect.objectContaining({
+          code: 'CONTEXT_MISMATCH',
+          upstreamStatus: 400,
+        }),
+      );
+    });
+
     it('should throw typed forbidden error when upstream returns 403 during currency change', async () => {
       const cart: EmporixCart = {
         id: 'cart-1',
@@ -606,6 +699,690 @@ describe('EmporixCartService', () => {
           upstreamStatus: 403,
         }),
       );
+    });
+  });
+
+  describe('applyDiscount', () => {
+    const rawCart: EmporixCart = {
+      id: 'cart-1',
+      currency: 'EUR',
+      siteCode: 'main',
+      metadata: { version: 1 },
+    };
+
+    const mappedCartWithDiscount: Cart = {
+      id: 'cart-1',
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+      totalPrice: { amount: 90, originalAmount: 100, currency: 'EUR' },
+      subTotalPrice: { amount: 90, originalAmount: 100, currency: 'EUR' },
+      tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+      discounts: [{ code: 'LS10PTOTAL', discountIndex: 0, amount: 10, currency: 'EUR' }],
+      savingsTotal: 10,
+    };
+
+    beforeEach(() => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        siteCode: 'main',
+        currency: 'EUR',
+      });
+    });
+
+    it('applies a trimmed code and returns the mapped cart', async () => {
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+
+      const result = await cartService.applyDiscount('cart-1', '  LS10PTOTAL  ');
+
+      expect(mockCartApi.applyDiscount).toHaveBeenCalledWith('cart-1', 'LS10PTOTAL');
+      expect(mockCartApi.applyDiscount).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mappedCartWithDiscount);
+      expect(mockCartApi.refreshCart).not.toHaveBeenCalled();
+    });
+
+    it('refuses a cart from another site instead of applying the code in the wrong site context', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        customerId: 'cust-1',
+        currency: 'EUR',
+        siteCode: 'other-site',
+        cartId: 'cart-1',
+      });
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({ name: 'CartDiscountError', message: CART_SITE_MISMATCH_MESSAGE }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { cartId: 'cart-1', cartSite: 'main', sessionSite: 'other-site' },
+        'Cart belongs to different site during discount write — aborting',
+      );
+    });
+
+    it('refuses a discount write when the session lookup is missing', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(null);
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to get session context',
+          upstreamStatus: 401,
+        }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+    });
+
+    it('maps a 403 from the session cart guard to CartDiscountError before applying', async () => {
+      mockCartApi.getCart.mockRejectedValue(
+        new Error('Failed to get cart: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to resolve cart for discount write',
+          upstreamStatus: 403,
+        }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+    });
+
+    it('rejects an empty code without calling the API', async () => {
+      await expect(cartService.applyDiscount('cart-1', '')).rejects.toBeInstanceOf(CartDiscountError);
+      await expect(cartService.applyDiscount('cart-1', '   ')).rejects.toBeInstanceOf(CartDiscountError);
+
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+      expect(mockCartApi.getCart).not.toHaveBeenCalled();
+    });
+
+    it('refreshes once when apply succeeds with zero savings and no coupon rows', async () => {
+      const mappedFreeShippingWithoutRows: Cart = {
+        id: 'cart-1',
+        currency: 'EUR',
+        site: 'main',
+        items: [],
+        totalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+        subTotalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+        tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+        savingsTotal: 0,
+      };
+      const mappedFreeShipping: Cart = {
+        ...mappedCartWithDiscount,
+        discounts: [{ code: 'FREESHIP', discountIndex: 0, amount: 0, currency: 'EUR', type: 'FREE_SHIPPING' }],
+        savingsTotal: 0,
+      };
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService
+        .mockReturnValueOnce(mappedFreeShippingWithoutRows)
+        .mockReturnValueOnce(mappedFreeShippingWithoutRows)
+        .mockReturnValueOnce(mappedFreeShipping);
+
+      const result = await cartService.applyDiscount('cart-1', 'FREESHIP');
+
+      expect(mockCartApi.refreshCart).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mappedFreeShipping);
+    });
+
+    it('refreshes once via cleanup when apply succeeds but discounts and savings are missing', async () => {
+      const mappedWithoutSavings: Cart = {
+        id: 'cart-1',
+        currency: 'EUR',
+        site: 'main',
+        items: [],
+        totalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+        subTotalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+        tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+      };
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService
+        .mockReturnValueOnce(mappedWithoutSavings)
+        .mockReturnValueOnce(mappedWithoutSavings)
+        .mockReturnValueOnce(mappedCartWithDiscount);
+
+      const result = await cartService.applyDiscount('cart-1', 'LS10PTOTAL');
+
+      expect(mockCartApi.refreshCart).toHaveBeenCalledTimes(1);
+      expect(mockCartApi.refreshCart).toHaveBeenCalledWith('cart-1');
+      expect(result).toEqual(mappedCartWithDiscount);
+    });
+
+    it('throws CartDiscountError when apply is not OK', async () => {
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+      mockCartApi.applyDiscount.mockRejectedValue(
+        new Error('Failed to apply discount to cart: 400 Bad Request {"status":400,"message":"not allowed"}'),
+      );
+
+      await expect(cartService.applyDiscount('cart-1', 'NOTALLOWED')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to apply discount',
+          upstreamStatus: 400,
+          upstreamBody: '{"status":400,"message":"not allowed"}',
+        }),
+      );
+      expect(mockCartApi.getCart).toHaveBeenCalledTimes(1);
+    });
+
+    it('defaults unclassified apply failures (timeout / fetch) to upstream 500', async () => {
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+      mockCartApi.applyDiscount.mockRejectedValue(new Error('fetch failed'));
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to apply discount',
+          upstreamStatus: 500,
+        }),
+      );
+      expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+    });
+
+    describe('rejection classification via coupon validation', () => {
+      const cartRejection = new Error(
+        'Failed to apply discount to cart: 400 Bad Request {"code":400,"message":"Discount with code X is not valid"}',
+      );
+
+      beforeEach(() => {
+        mockCartApi.getCart.mockResolvedValue(rawCart);
+        mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+        mockCartApi.applyDiscount.mockRejectedValue(cartRejection);
+      });
+
+      it('asks the coupon service with the cart goods total and the cart legal entity', async () => {
+        mockSessionService.getCurrent.mockResolvedValue({
+          id: 'session-1',
+          customerId: 'cust-uuid',
+          currency: 'EUR',
+          siteCode: 'main',
+          legalEntityId: 'le-1',
+          cartId: 'cart-1',
+        });
+        mockCartApi.getCart.mockResolvedValue({ ...rawCart, legalEntityId: 'le-1' });
+        mockMapper.mapToService.mockReturnValue({ ...mappedCartWithDiscount, legalEntity: 'le-1' });
+        mockCustomerApi.getCustomerProfile.mockResolvedValue({
+          id: 'cust-uuid',
+          customerNumber: 'C-100',
+        });
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ name: 'CartDiscountError', reason: CART_DISCOUNT_REASON.NOT_APPLICABLE }),
+        );
+        expect(mockCustomerApi.getCustomerProfile).toHaveBeenCalledTimes(1);
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+          legalEntityId: 'le-1',
+          customerNumber: 'C-100',
+        });
+      });
+
+      it('omits customerNumber when the profile lookup fails instead of sending session.customerId', async () => {
+        mockSessionService.getCurrent.mockResolvedValue({
+          id: 'session-1',
+          customerId: 'cust-uuid',
+          currency: 'EUR',
+          siteCode: 'main',
+          cartId: 'cart-1',
+        });
+        mockCustomerApi.getCustomerProfile.mockRejectedValue(new Error('Failed to get customer profile'));
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ name: 'CartDiscountError', reason: CART_DISCOUNT_REASON.NOT_APPLICABLE }),
+        );
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+        });
+      });
+
+      it('does not look up a customerNumber for anonymous sessions', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toBeDefined();
+        expect(mockCustomerApi.getCustomerProfile).not.toHaveBeenCalled();
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+        });
+      });
+
+      it('omits legalEntityId for carts without a legal entity', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toBeDefined();
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SOMECODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+        });
+      });
+
+      it('classifies re-applying a code already on the cart (cart-service 409) as ALREADY_APPLIED without a lookup', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error('Failed to apply discount to cart: 409 Conflict {"status":409,"message":"already applied"}'),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 409 }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('classifies a 409 as ALREADY_APPLIED when the response names the submitted code', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(
+            'Failed to apply discount to cart: 409 Conflict {"status":409,"message":"Another discount already exists in cart. Discount code found: NOT-ON-MAPPED-CART"}',
+          ),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'NOT-ON-MAPPED-CART')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 409 }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('does not treat a 409 exclusive-coupon conflict as ALREADY_APPLIED for a different code', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(
+            'Failed to apply discount to cart: 409 Conflict {"status":409,"message":"Another discount already exists in cart. Discount code found: 15OFF"}',
+          ),
+        );
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'SAVE20')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_APPLICABLE, upstreamStatus: 409 }),
+        );
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('SAVE20', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+        });
+      });
+
+      it('classifies a 400 for a code already on the cart as ALREADY_APPLIED without a lookup', async () => {
+        await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 400 }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('does not label a 5xx for a code already on the cart as ALREADY_APPLIED', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error('Failed to apply discount to cart: 503 Service Unavailable {"status":503}'),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+          expect.objectContaining({ upstreamStatus: 503, reason: undefined }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('classifies a documented 500 wrong-discount-currency rejection via coupon validation', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(
+            'Failed to apply discount to cart: 500 Internal Server Error {"code":500,"status":"Internal Server Error","message":"Discount currency is CAD and is not equal to cart currency EUR."}',
+          ),
+        );
+        mockCouponApi.validateCoupon.mockResolvedValue({ ok: true });
+
+        await expect(cartService.applyDiscount('cart-1', 'CADCODE')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_APPLICABLE, upstreamStatus: 500 }),
+        );
+        expect(mockCouponApi.validateCoupon).toHaveBeenCalledWith('CADCODE', {
+          orderTotal: { amount: 90, currency: 'EUR' },
+        });
+      });
+
+      it('classifies a documented 500 already-exists rejection as ALREADY_APPLIED', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(
+            'Failed to apply discount to cart: 500 Internal Server Error {"code":500,"message":"Discount code DEVIZU already exists in cart."}',
+          ),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'DEVIZU')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.ALREADY_APPLIED, upstreamStatus: 500 }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('does not classify a generic 500 without a documented coupon-rejection payload', async () => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error('Failed to apply discount to cart: 500 Internal Server Error {"code":500,"message":"boom"}'),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ upstreamStatus: 500, reason: undefined }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+
+      it('classifies an expired code as NOT_ACTIVE', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status: 400,
+          type: 'business_error',
+          detailTypes: ['coupon_expired'],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'OLDCODE')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_ACTIVE }),
+        );
+      });
+
+      it.each([
+        ['401 without a body', { ok: false as const, status: 401, detailTypes: [] }],
+        ['401 business_error', { ok: false as const, status: 401, type: 'business_error', detailTypes: [] }],
+        ['500 business_error', { ok: false as const, status: 500, type: 'business_error', detailTypes: [] }],
+        ['non-business 403', { ok: false as const, status: 403, type: 'Forbidden', detailTypes: [] }],
+      ])('keeps the original error when the validation answer is inconclusive (%s)', async (_label, outcome) => {
+        mockCouponApi.validateCoupon.mockResolvedValue(outcome);
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ name: 'CartDiscountError', upstreamStatus: 400, reason: undefined }),
+        );
+      });
+
+      it('classifies an unknown code as CODE_NOT_FOUND', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status: 404,
+          type: 'resource_not_found',
+          detailTypes: [],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'NOPE')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.CODE_NOT_FOUND, upstreamStatus: 400 }),
+        );
+      });
+
+      it.each([
+        ['coupon_segment_customer_not_assigned', 400],
+        ['coupon_redemption_forbidden', 403],
+      ])('classifies %s as NOT_ELIGIBLE', async (detailType, status) => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status,
+          type: 'business_error',
+          detailTypes: [detailType],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'VKTEST-PROMO03')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_ELIGIBLE }),
+        );
+      });
+
+      it('classifies a 403 business error with an unknown detail type as NOT_ELIGIBLE', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status: 403,
+          type: 'business_error',
+          detailTypes: ['coupon_customer_not_allowed'],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'ALLOWLIST')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_ELIGIBLE }),
+        );
+      });
+
+      it('classifies any other business rejection (threshold, currency, dates) as NOT_APPLICABLE', async () => {
+        mockCouponApi.validateCoupon.mockResolvedValue({
+          ok: false,
+          status: 400,
+          type: 'business_error',
+          detailTypes: ['coupon_order_total_too_low'],
+        });
+
+        await expect(cartService.applyDiscount('cart-1', 'MINORDER')).rejects.toEqual(
+          expect.objectContaining({ reason: CART_DISCOUNT_REASON.NOT_APPLICABLE }),
+        );
+      });
+
+      it('keeps the original error without a reason when the validation lookup itself fails', async () => {
+        mockCouponApi.validateCoupon.mockRejectedValue(new Error('Failed to validate coupon: 503'));
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ name: 'CartDiscountError', upstreamStatus: 400, reason: undefined }),
+        );
+        expect(mockLogger.warn).toHaveBeenCalled();
+      });
+
+      it.each([
+        ['401 Unauthorized', 401],
+        ['403 Forbidden', 403],
+        ['404 Not Found', 404],
+        ['503 Service Unavailable', 503],
+      ])('does not consult the coupon service for a cart-service %s', async (statusText, status) => {
+        mockCartApi.applyDiscount.mockRejectedValue(
+          new Error(`Failed to apply discount to cart: ${statusText} {"status":${status}}`),
+        );
+
+        await expect(cartService.applyDiscount('cart-1', 'SOMECODE')).rejects.toEqual(
+          expect.objectContaining({ upstreamStatus: status, reason: undefined }),
+        );
+        expect(mockCouponApi.validateCoupon).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not apply when the cart is missing', async () => {
+      mockCartApi.getCart.mockResolvedValue(null);
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Cart not found',
+        }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+    });
+
+    it('does not apply when the cart fails the session legal-entity guard', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        customerId: 'cust-1',
+        currency: 'EUR',
+        siteCode: 'main',
+        legalEntityId: 'le-session',
+        cartId: 'cart-1',
+      });
+      mockCartApi.getCart.mockResolvedValue({
+        ...rawCart,
+        legalEntityId: 'le-other',
+      });
+
+      await expect(cartService.applyDiscount('cart-1', 'LS10PTOTAL')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Cart not found',
+        }),
+      );
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
+    });
+  });
+
+  describe('removeDiscount', () => {
+    const mappedCart: Cart = {
+      id: 'cart-1',
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+      totalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+      subTotalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+      tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+      discounts: [{ code: 'SAVE10', discountIndex: 0, amount: 5, currency: 'EUR' }],
+    };
+
+    beforeEach(() => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        siteCode: 'main',
+        currency: 'EUR',
+      });
+    });
+
+    it('removes by index and returns the mapped cart', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      const result = await cartService.removeDiscount('cart-1', 0);
+
+      expect(mockCartApi.removeDiscount).toHaveBeenCalledWith('cart-1', 0);
+      expect(result).toEqual(mappedCart);
+    });
+
+    it('maps a 403 from the session cart guard to CartDiscountError before removing', async () => {
+      mockCartApi.getCart.mockRejectedValue(
+        new Error('Failed to get cart: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to resolve cart for discount write',
+          upstreamStatus: 403,
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('throws CartDiscountError when remove is not OK', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+      mockCartApi.removeDiscount.mockRejectedValue(
+        new Error('Failed to remove discount from cart: 404 Not Found {"status":404}'),
+      );
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to remove discount',
+          upstreamStatus: 404,
+        }),
+      );
+    });
+
+    it('defaults unclassified remove failures to upstream 500', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+      mockCartApi.removeDiscount.mockRejectedValue(new Error('network timeout'));
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to remove discount',
+          upstreamStatus: 500,
+        }),
+      );
+    });
+
+    it('does not remove when the cart is missing', async () => {
+      mockCartApi.getCart.mockResolvedValue(null);
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Cart not found',
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('does not remove from a cart that belongs to another site', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        customerId: 'cust-1',
+        currency: 'EUR',
+        siteCode: 'other-site',
+        cartId: 'cart-1',
+      });
+      mockCartApi.getCart.mockResolvedValue({ id: 'cart-1', currency: 'EUR', siteCode: 'main' });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({ name: 'CartDiscountError', message: CART_SITE_MISMATCH_MESSAGE }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('does not remove when the cart fails the session legal-entity guard', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        customerId: 'cust-1',
+        currency: 'EUR',
+        siteCode: 'main',
+        legalEntityId: 'le-session',
+        cartId: 'cart-1',
+      });
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+        legalEntityId: 'le-other',
+      });
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Cart not found',
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
+    });
+
+    it('does not DELETE a TOTAL rollup index', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue({
+        ...mappedCart,
+        discounts: [{ code: 'TOTAL', discountIndex: 0, amount: 10, currency: 'EUR' }],
+      });
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Discount is not removable',
+          upstreamStatus: 400,
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('does not DELETE an unknown discount index', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      await expect(cartService.removeDiscount('cart-1', 9)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Discount is not removable',
+          upstreamStatus: 400,
+        }),
+      );
+      expect(mockCartApi.removeDiscount).not.toHaveBeenCalled();
     });
   });
 

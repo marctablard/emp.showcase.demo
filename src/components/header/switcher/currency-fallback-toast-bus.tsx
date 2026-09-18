@@ -30,6 +30,7 @@ export const PENDING_CURRENCY_FALLBACK_KEY = 'emp-pending-currency-fallback';
 interface PendingCurrencyFallback {
   from: string;
   to: string;
+  couponCodes?: string[];
 }
 
 function readPendingFallback(): PendingCurrencyFallback | null {
@@ -43,7 +44,10 @@ function readPendingFallback(): PendingCurrencyFallback | null {
     }
     const parsed = JSON.parse(raw) as Partial<PendingCurrencyFallback>;
     if (typeof parsed?.from === 'string' && typeof parsed?.to === 'string' && parsed.from && parsed.to) {
-      return { from: parsed.from, to: parsed.to };
+      const couponCodes = Array.isArray(parsed.couponCodes)
+        ? parsed.couponCodes.filter((code): code is string => typeof code === 'string' && code.length > 0)
+        : undefined;
+      return { from: parsed.from, to: parsed.to, ...(couponCodes?.length ? { couponCodes } : {}) };
     }
     // Corrupt payload — clear it so we don't keep retrying.
     window.sessionStorage.removeItem(PENDING_CURRENCY_FALLBACK_KEY);
@@ -78,8 +82,11 @@ export function CurrencyFallbackToastBus() {
     if (!pending) {
       return;
     }
+    const title = pending.couponCodes?.length
+      ? t('currencyFallbackCoupons', { from: pending.from, to: pending.to, codes: pending.couponCodes.join(', ') })
+      : t('currencyFallback', { from: pending.from, to: pending.to });
     notify({
-      title: t('currencyFallback', { from: pending.from, to: pending.to }),
+      title,
       type: ToastType.Info,
       duration: 8000,
     });
