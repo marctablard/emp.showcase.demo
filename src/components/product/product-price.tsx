@@ -190,6 +190,10 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
   // Net-first (B2B): large figure is always net; gross stays in small print.
   // Figma may still show gross-first — Jira requirements win unless a ticket explicitly overrides.
   const displayAmount = resolveNetDisplayAmount(price);
+  const hasListContext = typeof price.originalAmount === 'number' && price.originalAmount > 0;
+  if (!Number.isFinite(displayAmount) || displayAmount < 0 || (displayAmount === 0 && !hasListContext)) {
+    return <ProductPriceUnavailable />;
+  }
   const partSizes = isAddToCartBar ? CURRENCY_PART_SIZES.addToCartBar : CURRENCY_PART_SIZES.default;
   const parts = formatCurrencyToParts(displayAmount, price.currency);
   const priceFragment = buildStyledCurrencyParts(parts, t('notAvailable'), partSizes);
@@ -277,9 +281,13 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
   );
 }
 
+function isPositiveMoney(value: number | undefined | null): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
 /** Net amount for the primary (large) figure — B2B default. */
 function resolveNetDisplayAmount(price: ProductPrice): number {
-  if (price.tax?.netValue != null) {
+  if (isPositiveMoney(price.tax?.netValue)) {
     return price.tax.netValue;
   }
   return price.amount;
@@ -287,10 +295,10 @@ function resolveNetDisplayAmount(price: ProductPrice): number {
 
 /** Gross amount for secondary small print; null when tax data is unavailable. */
 function resolveGrossDisplayAmount(price: ProductPrice): number | null {
-  if (price.tax?.grossValue != null) {
+  if (isPositiveMoney(price.tax?.grossValue)) {
     return price.tax.grossValue;
   }
-  if (price.includesTax === true) {
+  if (price.includesTax === true && isPositiveMoney(price.amount)) {
     return price.amount;
   }
   return null;

@@ -3,7 +3,7 @@
  */
 import React, { createRef } from 'react';
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import deCheckoutTranslations from '@/i18n/translations/de/checkout/index.json';
 import enCheckoutTranslations from '@/i18n/translations/en/checkout/index.json';
 import type { CheckoutOrderSummaryBreakdown } from '@/lib/common/checkout-order-summary';
@@ -12,9 +12,13 @@ import CheckoutSummaryComponent from './checkout-summary';
 const mockUseCheckout = jest.fn();
 const mockUseCheckoutOrderSummary = jest.fn();
 const mockUseCartTotal = jest.fn();
+const mockUseIsCartMutating = jest.fn();
+const mockUseCheckoutPromoCode = jest.fn();
+const mockUseApprovalCheckout = jest.fn();
+const mockTranslate = jest.fn((key: string) => key);
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => mockTranslate,
   useLocale: () => 'en',
 }));
 
@@ -30,12 +34,16 @@ jest.mock('@/hooks/cart/useCartTotal', () => ({
   useCartTotal: () => mockUseCartTotal(),
 }));
 
+jest.mock('@/hooks/cart/useIsCartMutating', () => ({
+  useIsCartMutating: () => mockUseIsCartMutating(),
+}));
+
+jest.mock('@/hooks/checkout/useCheckoutPromoCode', () => ({
+  useCheckoutPromoCode: () => mockUseCheckoutPromoCode(),
+}));
+
 jest.mock('@/hooks/approval/useApprovalCheckout', () => ({
-  useApprovalCheckout: () => ({
-    requiresApproval: false,
-    loading: false,
-    setCartId: jest.fn(),
-  }),
+  useApprovalCheckout: () => mockUseApprovalCheckout(),
 }));
 
 jest.mock('@/hooks/ui/useElementScroll', () => ({
@@ -105,6 +113,7 @@ function money(amount: number): RegExp {
 
 describe('CheckoutSummaryComponent', () => {
   beforeEach(() => {
+    mockTranslate.mockImplementation((key: string) => key);
     mockUseCheckout.mockReturnValue({
       checkoutCart: CH_CART,
       loading: false,
@@ -115,6 +124,34 @@ describe('CheckoutSummaryComponent', () => {
       shippingCosts: 20,
       currency: 'CHF',
     });
+    mockUseIsCartMutating.mockReturnValue(false);
+    mockUseCheckoutPromoCode.mockReturnValue({
+      code: '',
+      setCode: jest.fn(),
+      applying: false,
+      removing: false,
+      fieldError: null,
+      apply: jest.fn(),
+      remove: jest.fn(),
+      discounts: [],
+    });
+    mockUseApprovalCheckout.mockReturnValue({
+      requiresApproval: false,
+      loading: false,
+      setCartId: jest.fn(),
+    });
+  });
+
+  it('renders t("title") and Order Overview when translations are not mocked as keys', () => {
+    renderSummary();
+    expect(screen.getByRole('heading', { name: 'title' })).toBeInTheDocument();
+    expect(enCheckoutTranslations.summary.title).toBe('Order Overview');
+    expect(deCheckoutTranslations.summary.title).toBe('Bestellübersicht');
+
+    cleanup();
+    mockTranslate.mockImplementation((key: string) => (key === 'title' ? enCheckoutTranslations.summary.title : key));
+    renderSummary();
+    expect(screen.getByRole('heading', { name: 'Order Overview' })).toBeInTheDocument();
   });
 
   it('uses ticket Shipping fee / Shipping VAT copy (EN/DE) and does not copy account Shipping Tax', () => {
@@ -240,5 +277,268 @@ describe('CheckoutSummaryComponent', () => {
 
     expect(screen.getByText('calculatedAtCheckout')).toBeInTheDocument();
     expect(screen.queryByTestId('checkout-summary-shipping-vat')).not.toBeInTheDocument();
+  });
+
+  it('promo box is available on payment and Inquire for Approval checkouts', () => {
+    renderSummary();
+    expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
+    expect(screen.getByTestId('checkout-applyPromo')).toBeInTheDocument();
+    expect(screen.getByText('valueOfGoods')).toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-submitOrder')).toHaveTextContent('submitOrder');
+    expect(screen.getByTestId('checkout-submitOrder')).toBeDisabled();
+
+    cleanup();
+    mockUseApprovalCheckout.mockReturnValue({
+      requiresApproval: true,
+      loading: false,
+      setCartId: jest.fn(),
+    });
+    renderSummary();
+    expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
+    expect(screen.getByText('inquireForApproval')).toBeInTheDocument();
+  });
+
+  it('disables Place Order while a cart mutation is in flight', () => {
+    mockUseIsCartMutating.mockReturnValue(true);
+    renderSummary();
+    expect(screen.getByTestId('checkout-submitOrder')).toBeDisabled();
+  });
+
+  it('Value of goods appearance change (net-applied): Original value of goods and Your savings', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        originalGoodsNet: 100,
+        savingsTotal: 10,
+        goodsNet: 90,
+        total: 119.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.queryByText('valueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByText(money(107.7))).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-originalValueOfGoods')).toHaveTextContent('originalValueOfGoods');
+    expect(screen.getByTestId('checkout-originalValueOfGoods')).toHaveTextContent(money(100));
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent('yourSavings');
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent(money(10));
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveClass('text-sm');
+    expect(screen.getByText('netValueOfGoods').nextElementSibling).toHaveTextContent(money(90));
+    expect(screen.queryByTestId('checkout-originalGrossValue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-grossValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-summary-shipping-vat')).toBeInTheDocument();
+    expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
+  });
+
+  it('Value of goods appearance change (gross-applied): net Value of goods plus Jira gross stack', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        couponApplyBasis: 'gross',
+        originalGoodsNet: 82.45,
+        originalGoodsVat: 15.66,
+        originalGoodsGross: 98.11,
+        savingsTotal: 16.11,
+        goodsDiscountedGross: 82,
+        goodsNet: 70,
+        goodsVat: 12,
+        total: 119.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.getByText('valueOfGoods')).toBeInTheDocument();
+    expect(screen.getByText('valueOfGoods').nextElementSibling).toHaveTextContent(money(82.45));
+    expect(screen.queryByText('originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByText('netValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.getByText('tax').nextElementSibling).toHaveTextContent(money(15.66));
+    expect(screen.getByText('tax').nextElementSibling).not.toHaveTextContent(money(12));
+    expect(screen.getByTestId('checkout-originalGrossValue')).toHaveTextContent('originalGrossValue');
+    expect(screen.getByTestId('checkout-originalGrossValue')).toHaveTextContent(money(98.11));
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent('yourSavings');
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent(money(16.11));
+    expect(screen.getByTestId('checkout-grossValueOfGoods')).toHaveTextContent('grossValueOfGoods');
+    expect(screen.getByTestId('checkout-grossValueOfGoods')).toHaveTextContent(money(82));
+    expect(screen.getByTestId('checkout-summary-shipping-vat')).toBeInTheDocument();
+    expect(screen.getByTestId('checkout-summary-shipping-vat')).toHaveTextContent(money(1.54));
+    expect(screen.queryByText(/freight/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
+  });
+
+  it('hides Gross Value of Goods when after-tax checkout has no discounted goods amount', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        couponApplyBasis: 'gross',
+        originalGoodsNet: 82.45,
+        originalGoodsVat: 15.66,
+        originalGoodsGross: 98.11,
+        savingsTotal: 6.5,
+        goodsNet: 82.45,
+        goodsVat: 15.66,
+        total: 119.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.getByTestId('checkout-originalGrossValue')).toHaveTextContent(money(98.11));
+    expect(screen.queryByTestId('checkout-grossValueOfGoods')).not.toBeInTheDocument();
+  });
+
+  it('free-shipping coupon: keeps plain goods rows, strikes the shipping fee and appends Free', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        couponApplyBasis: 'net',
+        originalGoodsNet: 100,
+        goodsDiscounted: false,
+        shippingFree: true,
+        savingsTotal: 20,
+        goodsNet: 100,
+        shippingFee: 20,
+        shippingVat: 0,
+        showShippingVat: false,
+        total: 107.7,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.getByText('valueOfGoods').nextElementSibling).toHaveTextContent(money(107.7));
+    expect(screen.queryByTestId('checkout-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-originalGrossValue')).not.toBeInTheDocument();
+    // COP-4815 QA: no "Your savings" on the goods block even though the platform reports the waived fee.
+    expect(screen.queryByTestId('checkout-yourSavings')).not.toBeInTheDocument();
+    const shippingFree = screen.getByTestId('checkout-shippingFree');
+    expect(shippingFree.querySelector('.line-through')).toHaveTextContent(money(20));
+    expect(shippingFree).toHaveTextContent('free');
+    expect(screen.getByTestId('checkout-summary-total')).toHaveTextContent(money(107.7));
+  });
+
+  it('free-shipping coupon on an after-tax cart does not render the gross stack', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        couponApplyBasis: 'gross',
+        originalGoodsNet: 100,
+        originalGoodsVat: 7.7,
+        originalGoodsGross: 107.7,
+        goodsDiscounted: false,
+        shippingFree: true,
+        savingsTotal: 0,
+        goodsNet: 100,
+        goodsVat: 7.7,
+        shippingFee: 20,
+        total: 107.7,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.queryByTestId('checkout-originalGrossValue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-yourSavings')).not.toBeInTheDocument();
+    expect(screen.getByText('netValueOfGoods').nextElementSibling).toHaveTextContent(money(100));
+    expect(screen.getByText('tax').nextElementSibling).toHaveTextContent(money(7.7));
+    expect(screen.getByTestId('checkout-shippingFree')).toBeInTheDocument();
+  });
+
+  it('keeps Your savings for a goods coupon that reports a saving without discounted figures', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        originalGoodsNet: 100,
+        goodsDiscounted: false,
+        savingsTotal: 6.92,
+        goodsNet: 100,
+        total: 129.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.getByText('valueOfGoods')).toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent(money(6.92));
+    expect(screen.queryByTestId('checkout-shippingFree')).not.toBeInTheDocument();
+  });
+
+  it('does not strike the shipping fee for a goods-only coupon', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        originalGoodsNet: 100,
+        goodsDiscounted: true,
+        savingsTotal: 10,
+        goodsNet: 90,
+        total: 119.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.queryByTestId('checkout-shippingFree')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-originalValueOfGoods')).toBeInTheDocument();
+  });
+
+  it('removing the last code restores the no-coupon Value of goods row', () => {
+    mockUseCheckoutPromoCode.mockReturnValue({
+      code: '',
+      setCode: jest.fn(),
+      applying: false,
+      removing: false,
+      fieldError: null,
+      apply: jest.fn(),
+      remove: jest.fn(),
+      discounts: [
+        {
+          code: 'ACCESSORIES15',
+          name: '15% discount',
+          discountIndex: 0,
+          amount: 10,
+          currency: 'CHF',
+        },
+      ],
+    });
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        originalGoodsNet: 100,
+        savingsTotal: 10,
+        goodsNet: 90,
+        total: 119.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.queryByText('valueOfGoods')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-originalValueOfGoods')).toBeInTheDocument();
+    expect(screen.getByTestId('checkout-yourSavings')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('checkout-removePromo-ACCESSORIES15'));
+
+    cleanup();
+    mockUseCheckoutPromoCode.mockReturnValue({
+      code: '',
+      setCode: jest.fn(),
+      applying: false,
+      removing: false,
+      fieldError: null,
+      apply: jest.fn(),
+      remove: jest.fn(),
+      discounts: [],
+    });
+    mockUseCheckoutOrderSummary.mockReturnValue(breakdown());
+    renderSummary();
+
+    expect(screen.getByText('valueOfGoods')).toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-yourSavings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-originalGrossValue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-grossValueOfGoods')).not.toBeInTheDocument();
   });
 });

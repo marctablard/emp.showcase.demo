@@ -272,4 +272,70 @@ describe('ProductPriceComponent discount wording and list price', () => {
     expect(text).toContain(normalizeWhitespace(formatCurrency(1071, 'EUR')));
     expect(text).toContain('gross');
   });
+
+  it('falls back to amount when tax.netValue is a bogus 0', () => {
+    const price = buildPrice({
+      amount: 372.59,
+      tax: {
+        taxCode: 'STANDARD',
+        taxRate: 19,
+        netValue: 0,
+        grossValue: 0,
+        amount: 0,
+        currency: 'EUR',
+      },
+    });
+    render(<ProductPriceComponent price={price} />);
+
+    expectLargeFigure(372.59);
+    expect(normalizedText(screen.getByTestId('product-price'))).not.toContain('gross');
+  });
+
+  it('shows unavailable instead of a large 0 when no positive amount exists', () => {
+    render(
+      <ProductPriceComponent
+        price={buildPrice({
+          amount: 0,
+          originalAmount: 0,
+          tax: {
+            taxCode: 'STANDARD',
+            taxRate: 19,
+            netValue: 0,
+            grossValue: 0,
+            amount: 0,
+            currency: 'EUR',
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('product-price')).toHaveAttribute('data-product-price-state', 'unavailable');
+    expect(document.getElementById('price')).toBeNull();
+  });
+
+  it('shows a zero net amount when the list price is still present (100% discount)', () => {
+    render(
+      <ProductPriceComponent
+        price={buildPrice({
+          amount: 0,
+          originalAmount: 459.99,
+          discountPercentage: 100,
+          tax: {
+            taxCode: 'STANDARD',
+            taxRate: 19,
+            netValue: 0,
+            grossValue: 0,
+            amount: 0,
+            currency: 'EUR',
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('product-price')).not.toHaveAttribute('data-product-price-state', 'unavailable');
+    expectLargeFigure(0);
+    expect(normalizedText(screen.getByTestId('product-price'))).toContain(
+      normalizeWhitespace(formatCurrency(459.99, 'EUR')),
+    );
+  });
 });

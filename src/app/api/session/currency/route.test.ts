@@ -116,16 +116,96 @@ describe('PUT /api/session/currency', () => {
 
   it('does NOT set the cookie when cart update fails with a non-recoverable code (409)', async () => {
     sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
-    cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({
+      id: 'c1',
+      site: 'us',
+      currency: 'EUR',
+      discounts: [
+        { code: 'TOTAL', discountIndex: 0 },
+        { code: 'ACCESSORIES15', discountIndex: 1 },
+      ],
+    });
     cartService.updateCurrency.mockRejectedValue(
       new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.UNSUPPORTED_CURRENCY, 'nope'),
     );
 
     const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { couponCodes?: string[] };
 
     expect(response.status).toBe(409);
+    expect(body.couponCodes).toBeUndefined();
     expect(sessionService.setCurrency).not.toHaveBeenCalled();
     expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
+  });
+
+  it('does not attach couponCodes to a generic context-mismatch currency failure', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({
+      id: 'c1',
+      site: 'us',
+      currency: 'EUR',
+      discounts: [
+        { code: 'TOTAL', discountIndex: 0 },
+        { code: 'ACCESSORIES15', discountIndex: 1 },
+      ],
+    });
+    cartService.updateCurrency.mockRejectedValue(
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH, 'price missing for item'),
+    );
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { couponCodes?: string[]; code?: string };
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH);
+    expect(body.couponCodes).toBeUndefined();
+    expect(sessionService.setCurrency).not.toHaveBeenCalled();
+  });
+
+  it('includes couponCodes only for a classified coupon-currency conflict', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({
+      id: 'c1',
+      site: 'us',
+      currency: 'EUR',
+      discounts: [
+        { code: 'TOTAL', discountIndex: 0 },
+        { code: 'ACCESSORIES15', discountIndex: 1 },
+      ],
+    });
+    cartService.updateCurrency.mockRejectedValue(
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT, 'coupon blocks currency'),
+    );
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { couponCodes?: string[]; code?: string };
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe(CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT);
+    expect(body.couponCodes).toEqual(['ACCESSORIES15']);
+    expect(sessionService.setCurrency).not.toHaveBeenCalled();
+  });
+
+  it('does not attach invalid coupon codes on a classified coupon-currency conflict', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({
+      id: 'c1',
+      site: 'us',
+      currency: 'EUR',
+      discounts: [
+        { code: 'STALE10', discountIndex: 0, valid: false },
+        { code: 'ACCESSORIES15', discountIndex: 1 },
+      ],
+    });
+    cartService.updateCurrency.mockRejectedValue(
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT, 'coupon blocks currency'),
+    );
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { couponCodes?: string[] };
+
+    expect(response.status).toBe(409);
+    expect(body.couponCodes).toEqual(['ACCESSORIES15']);
   });
 
   it('does NOT set the cookie when the body is missing currency (400)', async () => {

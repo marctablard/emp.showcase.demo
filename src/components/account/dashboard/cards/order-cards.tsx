@@ -18,10 +18,27 @@ import { useOrders } from '@/hooks/order/useOrders';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
 import { isOrderAccessDeniedError } from '@/lib/client/orders';
+import { orderGoodsSavings } from '@/lib/common/applied-promo-display';
 import type { Order } from '@/platform/services/model/order/order';
 import type { DashboardCardProps } from './dashboard-card';
 import { DashboardCard } from './dashboard-card';
 import { StatCard } from './stat-card';
+
+function DashboardOrderDiscountRow({ order }: { readonly order: Order }) {
+  const tOrder = useTranslations('orders');
+  const savings = orderGoodsSavings(order);
+  if (!savings) {
+    return null;
+  }
+  return (
+    <div className="flex justify-between mb-2" data-testid="dashboard-order-discount">
+      <span>{tOrder('discount')}</span>
+      <span>
+        -{savings.amount} {savings.currency}
+      </span>
+    </div>
+  );
+}
 
 /**
  * Order Summary Card component
@@ -339,14 +356,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
               </div>
             )}
 
-            {order.discounts && order.discounts.length > 0 && (
-              <div className="flex justify-between mb-2">
-                <span>{tOrder('discount')}</span>
-                <span>
-                  -{order.discounts[0].value} {order.discounts[0].currency}
-                </span>
-              </div>
-            )}
+            <DashboardOrderDiscountRow order={order} />
 
             <div className="flex justify-between font-bold mt-4 pt-4 border-t">
               <span>{tOrder('total')}</span>

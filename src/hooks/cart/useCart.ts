@@ -16,13 +16,17 @@ interface UseCart {
   totalItems: number;
 
   loading: boolean;
+  /** True while a cart write is queued or in flight (including promo apply/remove). */
+  mutating: boolean;
   error: Error | null;
 
   addItem: (productId: string, quantity: number) => Promise<ModifyCartItemResult>;
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
-  removeItem: (itemId: string) => Promise<void>;
+  removeItem: (itemId: string) => Promise<{ leftoverCouponsCleared: boolean }>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
   updateShippingMethod: (method: CartShippingMethodSelection) => Promise<void>;
+  applyDiscount: (code: string) => Promise<void>;
+  removeDiscount: (discountIndex: number) => Promise<void>;
   clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => void;
   loadCart: (cartId: string, type?: string) => Promise<Cart | null | undefined>;
 
@@ -40,12 +44,15 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
   const {
     currentCart: cart,
     loading,
+    mutating,
     error,
     addToCart,
     updateItemQuantity,
     removeItem,
     updateShippingInfo,
     updateShippingMethod,
+    applyDiscount,
+    removeDiscount,
     clearCart,
     fetchCart,
     setCurrentCart,
@@ -80,6 +87,7 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     cartId: cart?.id || null,
     totalItems: cart?.items?.reduce((total, item) => total + item.quantity, 0) || 0,
     loading,
+    mutating,
     error,
     // Map store functions to the expected hook interface
     addItem: addToCart,
@@ -87,6 +95,8 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     removeItem,
     updateShippingInfo,
     updateShippingMethod,
+    applyDiscount,
+    removeDiscount,
     clearCart,
     refetch: async () => {
       await fetchCart(false);

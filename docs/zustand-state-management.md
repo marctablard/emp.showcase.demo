@@ -89,6 +89,16 @@ This implementation:
 - Sets up cross-store synchronization (session ↔ cart) via `setupStoreSynchronization`
 - Exposes store hooks (e.g., `useProductStore`) for components to access state
 
+### Cart Store write serialization
+
+`src/stores/cart-store.ts` runs every cart write (`addToCart`, `updateItemQuantity`, `removeItem`, `applyDiscount`, `removeDiscount`, `updateShippingMethod`, `updateShippingInfo`, `updateCurrency`) through a single `CartMutationQueue`:
+
+- Writes are serialized: the next API call starts only after the previous one has settled, so two rapid clicks can never race on the server cart.
+- Every cart reset (`clearCart`, `validateCart`, `validateSite`, `validateLegalEntity`) bumps an **epoch**. A mutation that already started can no longer commit state or refetch; any response it already has is dropped instead of resurrecting the pre-reset cart.
+- Id-bound / snapshot writes that were still queued when the reset happened (`applyDiscount`, `removeDiscount`, `updateShippingMethod`, line-item updates) are skipped and never replayed on the re-resolved cart. Promo apply/remove **throw** `CartMutationCancelledError` so callers do not treat a cancelled apply as success. Shipping-method and shipping-info skips resolve without throwing.
+- `addToCart` retries once after a cancellation, since the click is still valid against the re-resolved cart; a second reset surfaces `CartMutationCancelledError` to the caller.
+- `fetchCart` never runs a pending currency reprice while the queue is busy (that would deadlock on re-entry); the reprice is drained once the queue becomes idle.
+
 ## API Layer
 
 The product data API is split by execution context:

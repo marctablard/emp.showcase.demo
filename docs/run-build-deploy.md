@@ -194,17 +194,21 @@ The **Run npm audit** steps of `.github/workflows/github-actions-deploy-pr-previ
     node scripts/verify-audit-policy.mjs audit-report.json
 ```
 
-`ALLOWED_EXCEPTIONS` is **currently empty** — there is no active exception, and every high/critical advisory fails CI.
+`ALLOWED_EXCEPTIONS` currently holds a short-lived set (expires **2026-10-12**) for Next.js (`GHSA-p293-qw3h-jr36`, `GHSA-2xp9-vwfh-vxw4`), `sharp` (`GHSA-rgj7-g3m4-5g8c`), `js-yaml` (`GHSA-2883-xcg3-v3hh`), and `@tiptap/core` (`GHSA-j95f-988m-3j2f`). A hand-rewritten patched lockfile OOMed `npm ci` on GitHub runners, so the last installable lockfile stays in place until a generated lockfile can be committed. Do not extend `expires` without that lockfile.
 
 High/critical `browserslist` advisories [`GHSA-c83g-rgw3-j3cx`](https://github.com/advisories/GHSA-c83g-rgw3-j3cx) and [`GHSA-73wf-gq98-2v4g`](https://github.com/advisories/GHSA-73wf-gq98-2v4g) are fixed by pinning the patched `4.28.8` release via `overrides` in `package.json` (same pattern as `brace-expansion`). Do not add those GHSAs to `ALLOWED_EXCEPTIONS`. `browserslist@4.28.8` also pulls a too-new `electron-to-chromium` that safe-chain's minimum-package-age gate rejects on workflows that still run unmodified `npm ci` (production deploy, non-PR smoke, other branch deploys). Pin `electron-to-chromium` to the previously settled `1.5.389` until a newer release has aged in; then drop that override.
 
-The mechanism exists to allow narrowly-scoped, time-boxed exceptions when a fix genuinely is not yet available, while keeping every other failure mode fatal. Its one historical entry has been resolved:
+High/critical Next.js ([`GHSA-p293-qw3h-jr36`](https://github.com/advisories/GHSA-p293-qw3h-jr36), [`GHSA-2xp9-vwfh-vxw4`](https://github.com/advisories/GHSA-2xp9-vwfh-vxw4)), `sharp` ([`GHSA-rgj7-g3m4-5g8c`](https://github.com/advisories/GHSA-rgj7-g3m4-5g8c)), `js-yaml` ([`GHSA-2883-xcg3-v3hh`](https://github.com/advisories/GHSA-2883-xcg3-v3hh)), and `@tiptap/core` ([`GHSA-j95f-988m-3j2f`](https://github.com/advisories/GHSA-j95f-988m-3j2f)) advisories are temporarily excepted as above. Do not add a single-package `@tiptap/core` override (it breaks `@tiptap/pm` / extension peers). Remove the exceptions as soon as a generated lockfile with the patched releases installs under `npm ci`.
+
+The mechanism exists to allow narrowly-scoped, time-boxed exceptions when a fix genuinely is not yet available, while keeping every other failure mode fatal. The active allowlist is the 2026-10-12 Next.js / `sharp` / `js-yaml` / `@tiptap/core` set above. The separately resolved historical `brace-expansion` entry is no longer in `ALLOWED_EXCEPTIONS`:
 
 - **Advisory:** [`GHSA-mh99-v99m-4gvg`](https://github.com/advisories/GHSA-mh99-v99m-4gvg) — `brace-expansion` DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively through `minimatch` by the ESLint and Jest toolchains.
 - **Resolved:** upstream published fixed patch releases on both affected major lines (`1.1.17` and `2.1.3`), so the advisory is fixed **without** the semver-major `eslint`/`jest` bump the exception was originally taken for. Both are pinned via `overrides` in `package.json` (`minimatch@^3.0.0 → brace-expansion 1.1.17` and `brace-expansion@^2.0.0 → 2.1.3`), and `npm audit --audit-level=high` now reports zero vulnerabilities. The entry was removed from `ALLOWED_EXCEPTIONS` per its own removal condition, ahead of its 2026-08-08 expiry.
 - **Scope note:** `ALLOWED_EXCEPTIONS` is module-level in `scripts/verify-audit-policy.mjs`, so any future entry is honored by **every** workflow that runs that script: today PR preview and `smoke_prod`. Do not add an exception unless it is acceptable on both. Develop preview, production deploy, and the other named-env deploys run plain `npm audit --audit-level=high` with no allowlist. That asymmetry is why a tolerated advisory can be green on those script-backed jobs and still red on a branch/prod deploy — an exception buys time only where `verify-audit-policy.mjs` is the gate.
 
-If a new exception ever becomes necessary, it MUST carry an explicit short-lived `expires` date and a written rationale, and be removed as soon as a real fix lands.
+If a new exception ever becomes necessary, it MUST carry an explicit short-lived `expires` date, a written rationale, and `securitySignOff` (`ticket` + `recordedIn`). `recordedIn` must be an Atlassian browse URL (`https://….atlassian.net/browse/TICKET-123`), not a GitHub PR or free-text note. Do not add an unsigned exception. Remove the entry as soon as a real fix lands.
+
+The current 2026-10-12 set is recorded on [COP-5589](https://emporix.atlassian.net/browse/COP-5589) as a CI-gate-only relaxation (no runtime dependency versions changed). Independent security sign-off on that ticket is still required before merge.
 
 `scripts/verify-audit-policy.mjs` is deliberately strict about everything else:
 
@@ -212,6 +216,7 @@ If a new exception ever becomes necessary, it MUST carry an explicit short-lived
 - A missing, empty, unparsable, or unexpectedly-shaped audit report (e.g. a registry/network error instead of a real report) fails CI.
 - Trailing npm/safe-chain notices after the first JSON object are ignored so a valid report is not rejected as malformed. The first object must still be a real audit report.
 - It is robust to the two shapes `npm audit --json` uses inside each vulnerability's `via` array: a plain dependency-name string (transitive propagation through an already-reported package) versus an advisory object (an actual disclosed vulnerability, carrying its own `severity`/`url`/`title`). Only advisory objects are checked against the allowlist.
+- Clock override (`--as-of=YYYY-MM-DD`) and the fixture allowlist (`--exceptions-json=...`) are accepted only under Jest (`JEST_WORKER_ID`). CI always uses the real UTC date and production `ALLOWED_EXCEPTIONS` so an expired exception cannot be backdated and tests cannot inject a fake allowlist.
 
 To reproduce this exact CI check locally:
 

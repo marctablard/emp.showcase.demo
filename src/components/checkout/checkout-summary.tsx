@@ -5,11 +5,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LockKeyhole } from 'lucide-react';
 import { useApprovalCheckout } from '@/hooks/approval/useApprovalCheckout';
+import { useIsCartMutating } from '@/hooks/cart/useIsCartMutating';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useCheckoutOrderSummary } from '@/hooks/checkout/useCheckoutOrderSummary';
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { createCheckoutApprovalContext } from '@/lib/approval/contracts';
+import type { CheckoutOrderSummaryBreakdown } from '@/lib/common/checkout-order-summary';
 import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -18,12 +20,155 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
 import { H5 } from '../ui/h';
 import { ToastType, notify } from '../ui/toast-notification';
 import { ApprovalModal } from './approval-modal';
+import { CheckoutPromoCodeBox } from './checkout-promo-code';
 import { focusFirstInvalid, useCheckoutValidation, useRegisterCheckoutForm } from './checkout-validation-registry';
 
 interface OrderSummaryProps {
   isReadOnly?: boolean;
   leftContent: RefObject<HTMLDivElement | null>;
   onSubmit: (approvalData?: { approverId: string; comment: string }) => void;
+}
+
+function CheckoutSavingsBadge(props: Readonly<{ amount: number; currency: string; label: string }>) {
+  return (
+    <div className="flex justify-end">
+      <div
+        className="rounded-sm bg-surface-success px-2 py-1 text-sm leading-5 text-text-body"
+        data-testid="checkout-yourSavings"
+      >
+        <span>{props.label} </span>
+        <span className="font-bold">{formatCurrency(-Math.abs(props.amount), props.currency)}</span>
+      </div>
+    </div>
+  );
+}
+
+function CheckoutGrossValueOfGoodsRow(
+  props: Readonly<{ amount: number | undefined; currency: string; label: string }>,
+) {
+  if (typeof props.amount !== 'number') {
+    return null;
+  }
+  return (
+    <div className="flex justify-between" data-testid="checkout-grossValueOfGoods">
+      <span>{props.label}</span>
+      <span className="font-bold">{formatCurrency(props.amount, props.currency)}</span>
+    </div>
+  );
+}
+
+type CheckoutGoodsTotalsProps = {
+  breakdown: CheckoutOrderSummaryBreakdown;
+  isGrossApplied: boolean;
+  moneyCurrency: string;
+  fallbackGross: number;
+  idleGoodsAmount: number;
+  idleGoodsCurrency: string;
+};
+
+/**
+ * Shipping fee cell. With a free-shipping coupon the picked method's list fee is struck
+ * through and followed by "Free" (COP-5589 QA follow-up; not specified in Figma).
+ */
+function CheckoutShippingFeeValue(
+  props: Readonly<{ shippingFee: number | undefined; shippingFree: boolean; currency: string }>,
+) {
+  const t = useTranslations('checkout.summary');
+  const { shippingFee, shippingFree, currency } = props;
+  if (shippingFee === undefined) {
+    return <span>{t('calculatedAtCheckout')}</span>;
+  }
+  if (shippingFree) {
+    return (
+      <span className="flex items-baseline gap-2" data-testid="checkout-shippingFree">
+        <span className="line-through">{formatCurrency(shippingFee, currency)}</span>
+        <span className="font-bold">{t('free')}</span>
+      </span>
+    );
+  }
+  return <span>{formatCurrency(shippingFee, currency)}</span>;
+}
+
+function CheckoutGoodsTotals(props: Readonly<CheckoutGoodsTotalsProps>) {
+  const t = useTranslations('checkout.summary');
+  const tCommon = useTranslations('common');
+  const { breakdown, isGrossApplied, moneyCurrency, fallbackGross, idleGoodsAmount, idleGoodsCurrency } = props;
+  // Builder always sets the flag when coupons are applied; `?? true` only guards hand-built breakdowns.
+  const goodsDiscounted = breakdown.goodsDiscounted ?? true;
+  const { savingsTotal } = breakdown;
+  const savingsBadge =
+    typeof savingsTotal === 'number' && savingsTotal > 0 ? (
+      <CheckoutSavingsBadge amount={savingsTotal} currency={moneyCurrency} label={t('yourSavings')} />
+    ) : null;
+
+  if (isGrossApplied) {
+    return (
+      <>
+        <div className="flex justify-between">
+          <span>{t('valueOfGoods')}</span>
+          <span>{formatCurrency(breakdown.originalGoodsNet ?? breakdown.goodsNet, moneyCurrency)}</span>
+        </div>
+        <div className="flex justify-between text-base">
+          <span>{tCommon('tax')}</span>
+          <span>{formatCurrency(breakdown.originalGoodsVat ?? 0, moneyCurrency)}</span>
+        </div>
+        <div className="flex flex-col gap-2 border-t border-border-primary pt-4">
+          <div className="flex justify-between" data-testid="checkout-originalGrossValue">
+            <span>{t('originalGrossValue')}</span>
+            <span className="line-through">
+              {formatCurrency(breakdown.originalGoodsGross ?? fallbackGross, moneyCurrency)}
+            </span>
+          </div>
+          {savingsBadge}
+          <CheckoutGrossValueOfGoodsRow
+            amount={breakdown.goodsDiscountedGross}
+            currency={moneyCurrency}
+            label={t('grossValueOfGoods')}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (breakdown.hasAppliedCoupons && goodsDiscounted) {
+    return (
+      <>
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between" data-testid="checkout-originalValueOfGoods">
+            <span>{t('originalValueOfGoods')}</span>
+            <span className="line-through">
+              {formatCurrency(breakdown.originalGoodsNet ?? breakdown.goodsNet, moneyCurrency)}
+            </span>
+          </div>
+          {savingsBadge}
+        </div>
+        <div className="flex justify-between border-t border-border-primary pt-4 text-base">
+          <span>{t('netValueOfGoods')}</span>
+          <span className="font-bold">{formatCurrency(breakdown.goodsNet, moneyCurrency)}</span>
+        </div>
+      </>
+    );
+  }
+
+  // No coupon, or a coupon that leaves goods untouched: plain goods rows. The badge still
+  // surfaces a reported saving without discounted figures, but never for a free-shipping
+  // coupon — COP-4815 (QA 2026-09-15): the waiver is shown on the shipping row instead.
+  const showPlainSavings = breakdown.hasAppliedCoupons === true && breakdown.shippingFree !== true;
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <div className="flex justify-between">
+          <span className="">{t('valueOfGoods')}</span>
+          <span>{formatCurrency(idleGoodsAmount, idleGoodsCurrency)}</span>
+        </div>
+        {showPlainSavings ? savingsBadge : null}
+      </div>
+      <div className="flex justify-between border-t border-border-primary pt-4 text-base">
+        <span>{t('netValueOfGoods')}</span>
+        <span className="font-bold">{formatCurrency(breakdown.goodsNet, moneyCurrency)}</span>
+      </div>
+    </>
+  );
 }
 
 /**
@@ -40,6 +185,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     shippingMethodsLoading = false,
   } = useCheckout();
   const { requiresApproval, loading: approvalLoading, setCartId } = useApprovalCheckout(cart?.id?.toString());
+  const cartMutating = useIsCartMutating();
   const loading = checkoutLoading || approvalLoading;
   const t = useTranslations('checkout.summary');
   const tCommon = useTranslations('common');
@@ -80,8 +226,8 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   const fixedContainer = useRef<HTMLDivElement>(null);
   // 112 = pinned top offset (`top-[112px]` below) — trigger and pin must use the same value.
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, 112, leftContent);
+  const summary = useCheckoutOrderSummary();
   const {
-    goodsNet,
     goodsVat,
     shippingFee,
     shippingVat,
@@ -90,7 +236,14 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     feesTotal,
     total,
     currency,
-  } = useCheckoutOrderSummary();
+    hasAppliedCoupons,
+    couponApplyBasis,
+    goodsDiscounted,
+    shippingFree,
+  } = summary;
+  // Missing couponApplyBasis stays on the shipped net-applied path (COP-4815).
+  // The gross stack only makes sense when goods were actually discounted (COP-5589 QA: free shipping).
+  const isGrossApplied = Boolean(hasAppliedCoupons) && couponApplyBasis === 'gross' && (goodsDiscounted ?? true);
   if (!cart) {
     return (
       <div className="bg-surface-page p-6 rounded-md shadow-sm">
@@ -98,6 +251,10 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
       </div>
     );
   }
+
+  const moneyCurrency = currency || cart.tax.currency;
+  const idleSubmitLabel = requiresApproval ? t('inquireForApproval') : t('submitOrder');
+  const submitLabel = isSubmitting || loading ? t('processing') : idleSubmitLabel;
 
   return (
     <div className={cn('flex flex-col gap-4 w-full', isContainerBottom ? 'justify-end' : 'justify-start')}>
@@ -110,33 +267,38 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
         ref={fixedContainer}
       >
         <Card className={cn('bg-surface-action-hover-2 p-6 border-none gap-4 w-full')} ref={summaryRootRef}>
-          <CardHeader className="p-0">
+          {/* COP-4815 / Figma 4452:97361: title box is 24px; Card gap-4 is spacing/4 (16px) to Input Button. Collapse CardHeader's default grid-rows-[auto_auto] + gap-1.5 so the extra 6px row is gone. */}
+          <CardHeader className="grid-rows-[auto] gap-0 p-0">
             <CardTitle>
               <H5>{t('title')}</H5>
             </CardTitle>
           </CardHeader>
+          <CheckoutPromoCodeBox />
           <CardContent className="bg-surface-page rounded-md p-4">
             <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="">{t('valueOfGoods')}</span>
-                <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
-              </div>
-              <div className="flex justify-between text-base pt-4 border-t border-border-primary">
-                <span>{t('netValueOfGoods')}</span>
-                <span className="font-bold">{formatCurrency(goodsNet, currency || cart.tax.currency)}</span>
-              </div>
+              {/* COP-5589: net-applied original/savings. COP-4815: after-tax stack is Jira AC — Figma 4517:46711 is net + separator only. */}
+              <CheckoutGoodsTotals
+                breakdown={summary}
+                isGrossApplied={isGrossApplied}
+                moneyCurrency={moneyCurrency}
+                fallbackGross={cart.tax.grossValue}
+                idleGoodsAmount={cart.subTotalPrice.amount}
+                idleGoodsCurrency={cart.subTotalPrice.currency}
+              />
               <div className="flex flex-col gap-2">
-                <div className="flex justify-between text-base">
-                  <span>{tCommon('tax')}</span>
-                  <span>{formatCurrency(goodsVat, currency || cart.tax.currency)}</span>
-                </div>
+                {!isGrossApplied && (
+                  <div className="flex justify-between text-base">
+                    <span>{tCommon('tax')}</span>
+                    <span>{formatCurrency(goodsVat, moneyCurrency)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-base">
                   <span>{t('shippingFee')}</span>
-                  {shippingFee === undefined ? (
-                    <span>{t('calculatedAtCheckout')}</span>
-                  ) : (
-                    <span>{formatCurrency(shippingFee, currency || cart.currency)}</span>
-                  )}
+                  <CheckoutShippingFeeValue
+                    shippingFee={shippingFee}
+                    shippingFree={shippingFree === true}
+                    currency={currency || cart.currency}
+                  />
                 </div>
                 {/* Shipping VAT is a Jira override — Figma Order Overview has no Shipping VAT line and shows Freight Costs instead. */}
                 {showShippingVat && (
@@ -186,7 +348,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                 type="submit"
                 onClick={async (e) => {
                   e.preventDefault();
-                  if (isSubmitting || loading) {
+                  if (isSubmitting || loading || cartMutating) {
                     return;
                   }
                   setIsSubmitting(true);
@@ -226,15 +388,11 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                     setIsSubmitting(false);
                   }
                 }}
-                disabled={disabled || isSubmitting || loading || approvalLoading}
+                disabled={disabled || isSubmitting || loading || approvalLoading || cartMutating}
                 className="w-full"
                 data-testid="checkout-submitOrder"
               >
-                {isSubmitting || loading
-                  ? t('processing')
-                  : requiresApproval
-                    ? t('inquireForApproval')
-                    : t('submitOrder')}
+                {submitLabel}
               </Button>
             </Form>
             <div className="flex align-center gap-2 text-text-on-disabled pt-4">

@@ -18,7 +18,7 @@ interface HeaderMiniCartContentProps {
 export function HeaderMiniCartContent({ loading, cart, scrollHeight, scrollContainer }: HeaderMiniCartContentProps) {
   const t = useTranslations('cart');
   const tCommon = useTranslations('common');
-  const { cartTotal, shippingCosts, shippingVat, showShippingVat, currency } = useCartTotal();
+  const { cartTotal, goodsGross, goodsVat, shippingCosts, shippingVat, showShippingVat, currency } = useCartTotal();
   const router = useRouter();
 
   if (loading) {
@@ -45,11 +45,11 @@ export function HeaderMiniCartContent({ loading, cart, scrollHeight, scrollConta
       <div className="flex flex-col gap-2 pr-4">
         <div className="flex justify-between border-b border-border-primary py-2">
           <span className="">{t('summary.valueOfGoods')}</span>
-          <span>{formatCurrency(cart.subTotalPrice.amount, cart.subTotalPrice.currency)}</span>
+          <span>{formatCurrency(goodsGross, currency)}</span>
         </div>
         <div className="flex justify-between">
           <span>{tCommon('tax')}</span>
-          <span>{formatCurrency(cart.tax.amount, cart.tax.currency)}</span>
+          <span>{formatCurrency(goodsVat, currency)}</span>
         </div>
         <div className="flex justify-between">
           <span>{t('summary.shippingCosts')}</span>

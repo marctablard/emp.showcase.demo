@@ -177,6 +177,26 @@ describe('CurrencyUrlAligner', () => {
     expect(mockRefresh).not.toHaveBeenCalled();
   });
 
+  it('toasts the coupon-specific copy when the 409 includes coupon codes', async () => {
+    mockSetCurrency.mockResolvedValue({
+      success: false,
+      cartCurrencyBlocked: true,
+      couponCodes: ['ACCESSORIES15'],
+    });
+    render(
+      <Wrapper>
+        <CurrencyUrlAligner />
+      </Wrapper>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockNotify).toHaveBeenCalledWith(expect.objectContaining({ title: 'currencySwitchCouponBlocked' }));
+  });
+
   it('does not apply while the URL site and session site disagree', async () => {
     mockSession = { siteCode: 'us-branch', currency: 'EUR' };
     render(

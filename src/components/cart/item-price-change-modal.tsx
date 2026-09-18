@@ -7,12 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useCart } from '@/hooks/cart/useCart';
 import { useL10n } from '@/hooks/useL10n';
+import { cartCouponCodesForMessage } from '@/lib/common/applied-promo-display';
 import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import type { CartItem, CartItemPriceChange } from '@/platform/services/model/cart/cart.d';
+import { isCartMutationCancelledError } from '@/stores/cart-store';
 
 interface ItemPriceChangeModalProps {
   isOpen: boolean;
@@ -28,7 +31,7 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
   const { l10n } = useL10n();
   const imageSrc = resolveProductImageSrc(cartItem.product?.images?.[0]?.url);
   const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : l10n(cartItem.product?.name || 'Product');
-  const { removeItem, loading } = useCart();
+  const { cart, removeItem, loading } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Handle confirming the price change
@@ -42,9 +45,21 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
 
     setIsProcessing(true);
     try {
-      await removeItem(cartItem.id);
+      const couponCodes = cartCouponCodesForMessage(cart?.discounts);
+      const removingLastItem = (cart?.items.length ?? 0) === 1;
+      const { leftoverCouponsCleared } = await removeItem(cartItem.id);
+      if (removingLastItem && couponCodes.length > 0 && leftoverCouponsCleared) {
+        notify({
+          type: ToastType.Info,
+          title: t('couponsRemovedFromEmptyCart', { codes: couponCodes.join(', ') }),
+          duration: 8000,
+        });
+      }
       onDone();
     } catch (error) {
+      if (isCartMutationCancelledError(error)) {
+        return;
+      }
       getLogger().error({ err: error }, 'Error removing item from cart');
     } finally {
       setIsProcessing(false);
