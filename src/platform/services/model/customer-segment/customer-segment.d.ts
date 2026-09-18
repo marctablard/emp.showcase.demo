@@ -21,6 +21,18 @@ export interface ItemAssignment {
   mixins?: Mixins;
 }
 
+/**
+ * Customer segment in the service layer. Tolerant projection of the Emporix segment
+ * (`GET /segments`, `GET /segments/me`): only `id` is guaranteed.
+ */
+export interface Segment {
+  id: string;
+  name?: LocalizedString;
+  status?: 'ACTIVE' | 'INACTIVE' | string;
+  siteCode?: string;
+  validity?: { from?: string; to?: string };
+}
+
 export interface CustomerSegmentQueryOptions {
   q?: string;
   pageSize?: number;

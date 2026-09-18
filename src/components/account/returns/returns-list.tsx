@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
@@ -12,6 +11,8 @@ import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRo
 import { TablePagination } from '@/components/ui/table-pagination';
 import { useReturns } from '@/hooks/return/useReturns';
 import { useRouter } from '@/i18n/navigation';
+import { ReturnApiError } from '@/lib/client/returns';
+import { RETURN_ERROR_CODE } from '@/lib/common/returns/return-error-codes';
 import { cn } from '@/lib/utils';
 import type { Return } from '@/platform/services/model/return';
 import {
@@ -23,10 +24,12 @@ import {
 } from './helpers';
 import { renderReturnReasonLabel } from './reason-labels';
 import { ReturnStatusBadge } from './return-status-badge';
+import { useReturnErrorMessage } from './use-return-error-message';
 
 type ReturnSortField = 'date' | 'status' | 'returnNumber' | 'netValue' | 'reason' | 'customer';
 const RETURNS_PER_PAGE = 5;
 const SEARCH_DEBOUNCE_MS = 500;
+const ERROR_MESSAGE_ID = 'returns-list-error';
 /**
  * Raw upstream Emporix Return fields backing each sortable column (see resources/emporix/returns.yml).
  * Customer sorts by `requestor.firstName` (the first sub-field of the displayed name), mirroring the
@@ -56,6 +59,7 @@ export function ReturnsList({
   initialTotalCount,
 }: Readonly<ReturnsListProps>) {
   const t = useTranslations('account.returns');
+  const returnErrorMessage = useReturnErrorMessage();
   const locale = useLocale();
   const router = useRouter();
   const [quickSearch, setQuickSearch] = useState('');
@@ -160,61 +164,29 @@ export function ReturnsList({
     setCurrentPage((prev) => Math.max(prev - 1, 1));
   };
 
+  // The debounce lags behind the input, so a plain refresh would repeat the term that just failed.
+  const handleRetry = () => {
+    const nextNormalizedSearch = quickSearch.trim();
+    if (nextNormalizedSearch !== normalizedSearch) {
+      setCurrentPage(1);
+      setNormalizedSearch(nextNormalizedSearch);
+      return;
+    }
+
+    void refreshReturns();
+  };
+
   const handleNextPage = () => {
     setCurrentPage((prev) => (hasServerTotalCount ? Math.min(prev + 1, totalPages) : prev + 1));
   };
 
-  if (isInitialLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[48px] font-bold leading-[52px]">{t('title')}</CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <div className="flex flex-col items-center space-y-2">
-            <Spinner color="primary" variant="md" />
-            <div>{t('loading')}</div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[48px] font-bold leading-[52px]">{t('title')}</CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-surface-error p-4 rounded-md text-text-error">
-            {t('errorLoading')}: {error.message}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={() => refreshReturns()} data-testid="returns-retryButton">
-            {t('tryAgain')}
-          </Button>
-        </CardFooter>
-      </Card>
-    );
-  }
-
-  if (visibleReturns.length === 0 && !quickSearch) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[48px] font-bold leading-[52px]">{t('title')}</CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center py-8">
-          <p className="text-text-placeholders">{t('noReturns')}</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const isSearchFailure =
+    normalizedSearch.length > 0 &&
+    error instanceof ReturnApiError &&
+    error.code === RETURN_ERROR_CODE.RETURNS_FETCH_FAILED;
+  const errorMessage = isSearchFailure
+    ? t('errorLoadingSearch', { term: normalizedSearch })
+    : (returnErrorMessage(error) ?? t('errorLoading'));
 
   return (
     <div className="space-y-6">
@@ -234,6 +206,8 @@ export function ReturnsList({
               className="pr-10"
               endIcon={isTableReloading ? undefined : Search}
               aria-label={t('searchPlaceholder')}
+              aria-invalid={isSearchFailure}
+              aria-describedby={error ? ERROR_MESSAGE_ID : undefined}
               data-testid="returns-search"
             />
             {isTableReloading && (
@@ -247,128 +221,151 @@ export function ReturnsList({
           </div>
         </div>
 
-        <div
-          className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}
-          aria-busy={isTableReloading}
-        >
-          <Table containerClassName="pr-1">
-            <TableHeader>
-              <TableRow className="text-base">
-                {renderSortableHead('returnNumber', t('returnNumber'), '!h-14 w-[180px] font-bold')}
-                {renderSortableHead('date', t('returnDate'), '!h-14 w-[160px] font-bold')}
-                {renderSortableHead('status', t('statusLabel'), '!h-14 w-[140px] font-bold')}
-                <TableHead className="!h-14 w-[160px] font-bold">{t('orderNumber')}</TableHead>
-                {renderSortableHead('netValue', t('netReturnValue'), '!h-14 w-[180px] font-bold')}
-                {renderSortableHead('reason', t('reasonLabel'), '!h-14 w-[160px] font-bold')}
-                <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!loading && visibleReturns.length === 0 && quickSearch && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-4">
-                    {t('noMatches')}
-                  </TableCell>
-                </TableRow>
-              )}
-              {visibleReturns.map((returnItem, index) => {
-                const returnHref = `/account/returns/${returnItem.id}`;
-                const rowAriaLabel = t('viewReturnAriaLabel', { id: returnItem.id });
-                const netValue = getNetReturnValue(returnItem);
-                const reasonCode = getReturnReasonCode(returnItem);
-                const firstOrderId = getFirstOrderId(returnItem);
-                const hasFirstOrderId = firstOrderId !== '-';
-
-                return (
-                  <TableRow
-                    key={returnItem.id}
-                    className={cn(
-                      'hover:bg-surface-image-background cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-                      index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                    )}
-                    tabIndex={0}
-                    aria-label={rowAriaLabel}
-                    data-testid={`returns-row-${returnItem.id}`}
-                    onClick={() => router.push(returnHref)}
-                    onKeyDown={(event) => {
-                      if (event.target !== event.currentTarget) {
-                        return;
-                      }
-
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        router.push(returnHref);
-                      }
-                    }}
-                  >
-                    <TableCell className="px-2 py-4 font-medium">
-                      <UiLink
-                        type="Link"
-                        href={returnHref}
-                        variant="table"
-                        className="font-bold"
-                        onClick={(event) => event.stopPropagation()}
-                        data-testid={`returns-id-${returnItem.id}`}
-                      >
-                        {returnItem.id}
-                      </UiLink>
-                    </TableCell>
-                    <TableCell className="px-2 py-4">{formatReturnDate(returnItem.createdAt, locale)}</TableCell>
-                    <TableCell className="px-2 py-4">
-                      <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
-                    </TableCell>
-                    <TableCell className="px-2 py-4">
-                      {hasFirstOrderId ? (
-                        <UiLink
-                          type="Link"
-                          href={`/account/orders/${firstOrderId}`}
-                          variant="table"
-                          onClick={(event) => event.stopPropagation()}
-                          data-testid={`returns-relatedOrder-${firstOrderId}`}
-                        >
-                          {firstOrderId}
-                        </UiLink>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell className="px-2 py-4 font-medium">
-                      {formatReturnCurrency(netValue.value, netValue.currency, locale)}
-                    </TableCell>
-                    <TableCell className="px-2 py-4">
-                      {reasonCode ? renderReturnReasonLabel(t, reasonCode) : '-'}
-                    </TableCell>
-                    <TableCell className="px-2 py-4 text-center">
-                      <div className="flex items-center justify-center">
-                        <UiLink
-                          type="Link"
-                          href={returnHref}
-                          variant="table"
-                          onClick={(event) => event.stopPropagation()}
-                          aria-label={t('viewReturnAriaLabel', { id: returnItem.id })}
-                          data-testid={`returns-view-${returnItem.id}`}
-                        >
-                          <ArrowRight className="h-6 w-6" />
-                        </UiLink>
-                      </div>
-                    </TableCell>
+        {error && (
+          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
+            {/* The button stays out of the live region: it would be read as part of the field description. */}
+            <p id={ERROR_MESSAGE_ID} role="alert">
+              {errorMessage}
+            </p>
+            <Button onClick={handleRetry} data-testid="returns-retryButton">
+              {t('tryAgain')}
+            </Button>
+          </div>
+        )}
+        {!error && isInitialLoading && (
+          <div className="flex justify-center py-8">
+            <div className="flex flex-col items-center space-y-2">
+              <Spinner color="primary" variant="md" />
+              <div>{t('loading')}</div>
+            </div>
+          </div>
+        )}
+        {!error && !isInitialLoading && (
+          <>
+            <div
+              className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}
+              aria-busy={isTableReloading}
+            >
+              <Table containerClassName="pr-1">
+                <TableHeader>
+                  <TableRow className="text-base">
+                    {renderSortableHead('returnNumber', t('returnNumber'), '!h-14 w-[180px] font-bold')}
+                    {renderSortableHead('date', t('returnDate'), '!h-14 w-[160px] font-bold')}
+                    {renderSortableHead('status', t('statusLabel'), '!h-14 w-[140px] font-bold')}
+                    <TableHead className="!h-14 w-[160px] font-bold">{t('orderNumber')}</TableHead>
+                    {renderSortableHead('netValue', t('netReturnValue'), '!h-14 w-[180px] font-bold')}
+                    {renderSortableHead('reason', t('reasonLabel'), '!h-14 w-[160px] font-bold')}
+                    <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {!loading && visibleReturns.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-4 text-text-placeholders">
+                        {quickSearch ? t('noMatches') : t('noReturns')}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {visibleReturns.map((returnItem, index) => {
+                    const returnHref = `/account/returns/${returnItem.id}`;
+                    const rowAriaLabel = t('viewReturnAriaLabel', { id: returnItem.id });
+                    const netValue = getNetReturnValue(returnItem);
+                    const reasonCode = getReturnReasonCode(returnItem);
+                    const firstOrderId = getFirstOrderId(returnItem);
+                    const hasFirstOrderId = firstOrderId !== '-';
 
-        <TablePagination
-          className="px-3"
-          currentPage={currentPage}
-          totalPages={totalPages}
-          pageIndicator={t('pageIndicator', { current: currentPage, total: totalPages })}
-          previousLabel={t('previous')}
-          nextLabel={t('next')}
-          onPreviousPage={handlePreviousPage}
-          onNextPage={handleNextPage}
-        />
+                    return (
+                      <TableRow
+                        key={returnItem.id}
+                        className={cn(
+                          'hover:bg-surface-image-background cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+                          index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
+                        )}
+                        tabIndex={0}
+                        aria-label={rowAriaLabel}
+                        data-testid={`returns-row-${returnItem.id}`}
+                        onClick={() => router.push(returnHref)}
+                        onKeyDown={(event) => {
+                          if (event.target !== event.currentTarget) {
+                            return;
+                          }
+
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            router.push(returnHref);
+                          }
+                        }}
+                      >
+                        <TableCell className="px-2 py-4 font-medium">
+                          <UiLink
+                            type="Link"
+                            href={returnHref}
+                            variant="table"
+                            className="font-bold"
+                            onClick={(event) => event.stopPropagation()}
+                            data-testid={`returns-id-${returnItem.id}`}
+                          >
+                            {returnItem.id}
+                          </UiLink>
+                        </TableCell>
+                        <TableCell className="px-2 py-4">{formatReturnDate(returnItem.createdAt, locale)}</TableCell>
+                        <TableCell className="px-2 py-4">
+                          <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
+                        </TableCell>
+                        <TableCell className="px-2 py-4">
+                          {hasFirstOrderId ? (
+                            <UiLink
+                              type="Link"
+                              href={`/account/orders/${firstOrderId}`}
+                              variant="table"
+                              onClick={(event) => event.stopPropagation()}
+                              data-testid={`returns-relatedOrder-${firstOrderId}`}
+                            >
+                              {firstOrderId}
+                            </UiLink>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-4 font-medium">
+                          {formatReturnCurrency(netValue.value, netValue.currency, locale)}
+                        </TableCell>
+                        <TableCell className="px-2 py-4">
+                          {reasonCode ? renderReturnReasonLabel(t, reasonCode) : '-'}
+                        </TableCell>
+                        <TableCell className="px-2 py-4 text-center">
+                          <div className="flex items-center justify-center">
+                            <UiLink
+                              type="Link"
+                              href={returnHref}
+                              variant="table"
+                              onClick={(event) => event.stopPropagation()}
+                              aria-label={t('viewReturnAriaLabel', { id: returnItem.id })}
+                              data-testid={`returns-view-${returnItem.id}`}
+                            >
+                              <ArrowRight className="h-6 w-6" />
+                            </UiLink>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            <TablePagination
+              className="px-3"
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageIndicator={t('pageIndicator', { current: currentPage, total: totalPages })}
+              previousLabel={t('previous')}
+              nextLabel={t('next')}
+              onPreviousPage={handlePreviousPage}
+              onNextPage={handleNextPage}
+            />
+          </>
+        )}
       </TableCard>
     </div>
   );

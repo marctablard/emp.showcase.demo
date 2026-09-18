@@ -55,6 +55,7 @@
   "gross": "Brutto ",
   "hours": "Stunden: ",
   "phone": "Telefon: ",
+  "couponsRemovedFromEmptyCart": "Promo-Codes {codes} wurden entfernt, weil der Warenkorb leer ist.",
   "cartEmpty": "Oh nein, Ihr Warenkorb ist gerade leer!",
   "cartEmptyText": "Produkte hinzufügen oder anmelden, um einen gespeicherten Warenkorb zu laden.",
   "cartEmptyTextLoggedIn": "Fügen Sie Produkte zu Ihrem Warenkorb hinzu.",

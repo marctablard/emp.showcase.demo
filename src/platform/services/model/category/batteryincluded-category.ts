@@ -5,6 +5,11 @@ export const BATTERY_INCLUDED_BREADCRUMB_FILTER = '_product_i18n.categoryBreadcr
 export const BATTERY_INCLUDED_PUBLISHED_FILTER = '_product.published';
 export const BATTERY_INCLUDED_CATEGORY_IDS_FILTER = '_product.categoryIds';
 export const BATTERY_INCLUDED_PRODUCT_ID_FILTER = '_product.id';
+/**
+ * BI indexes customer-segment membership under the site-aware branch (facet label "Segments IDs").
+ * A top-level `segmentIds` filter is silently ignored by BI (COP-4822).
+ */
+export const BATTERY_INCLUDED_SEGMENT_IDS_FILTER = '_product_siteAware.segmentIds';
 /** Indexing `IndexItem.id` — used only as a one-shot retry when `_product.id` browse returns no matching hit. */
 export const BATTERY_INCLUDED_INDEX_ITEM_ID_FILTER = 'id';
 
@@ -15,7 +20,12 @@ export interface BatteryIncludedCategoryMetadata {
   labelPath: string;
   leafLabel: string;
   publicationAnchorId: string;
-  count: number;
+  /**
+   * Static product count from the public BI category snapshot. Absent on forests enriched for a
+   * customer segment (COP-4822) where the public count would be wrong; consumers fall back to
+   * the live facet / per-category counts when it is `undefined`.
+   */
+  count?: number;
   idPath: string[];
 }
 

@@ -15,7 +15,9 @@
     "label": "Site",
     "switchFailed": "Der Standortwechsel ist fehlgeschlagen. Bitte versuche es erneut.",
     "currencyFallback": "Währung von {from} auf {to} umgestellt — einige Artikel in deinem Warenkorb sind nicht in {from} bepreist.",
-    "currencySwitchCartBlocked": "Währung nicht von {fromCurrency} auf {toCurrency} gewechselt — einige Artikel in deinem Warenkorb sind nicht in {toCurrency} bepreist."
+    "currencyFallbackCoupons": "Währung von {from} auf {to} umgestellt — entferne zuerst Coupon {codes}, wenn du {from} benötigst.",
+    "currencySwitchCartBlocked": "Währung nicht von {fromCurrency} auf {toCurrency} gewechselt — einige Artikel in deinem Warenkorb sind nicht in {toCurrency} bepreist.",
+    "currencySwitchCouponBlocked": "Währung nicht von {fromCurrency} auf {toCurrency} gewechselt — entferne zuerst Coupon {codes} und versuche es erneut."
   },
   "Companies": {
     "label": "Unternehmen",
@@ -54,5 +56,6 @@
     }
   },
   "optional": "(optional)",
-  "tax": "MwSt"
+  "tax": "MwSt",
+  "close": "Schließen"
 }

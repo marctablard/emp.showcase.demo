@@ -15,7 +15,9 @@
     "label": "Site",
     "switchFailed": "Unable to switch site. Please try again.",
     "currencyFallback": "Currency switched from {from} to {to} — your cart has items that are not priced in {from}.",
-    "currencySwitchCartBlocked": "Currency not switched from {fromCurrency} to {toCurrency} — your cart has items that are not priced in {toCurrency}."
+    "currencyFallbackCoupons": "Currency switched from {from} to {to} — remove coupon {codes} first if you need {from}.",
+    "currencySwitchCartBlocked": "Currency not switched from {fromCurrency} to {toCurrency} — your cart has items that are not priced in {toCurrency}.",
+    "currencySwitchCouponBlocked": "Currency not switched from {fromCurrency} to {toCurrency} — remove coupon {codes} first, then try again."
   },
   "Companies": {
     "label": "Company",
@@ -54,5 +56,6 @@
     }
   },
   "optional": "(optional)",
-  "tax": "VAT"
+  "tax": "VAT",
+  "close": "Close"
 }

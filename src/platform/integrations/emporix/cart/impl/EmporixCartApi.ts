@@ -346,6 +346,43 @@ class EmporixCartApi implements IEmporixCartApi {
     }
   }
 
+  async applyDiscount(cartId: string, code: string): Promise<void> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/cart/${this.config.tenant}/carts/${cartId}/discounts`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      },
+      'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/discounts'),
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to apply discount to cart: ${response.status} ${response.statusText} ${errorDetails}`);
+    }
+  }
+
+  async removeDiscount(cartId: string, discountIndex: number): Promise<void> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/cart/${this.config.tenant}/carts/${cartId}/discounts/${discountIndex}`,
+      { method: 'DELETE' },
+      'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/discounts/{discountIndex}'),
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to remove discount from cart: ${response.status} ${response.statusText} ${errorDetails}`);
+    }
+  }
+
   async mergeCarts(sourceCartId: string, targetCartId: string): Promise<void> {
     const response = await this.apiClient.authenticatedFetch(
       `/cart/${this.config.tenant}/carts/${targetCartId}/merge`,

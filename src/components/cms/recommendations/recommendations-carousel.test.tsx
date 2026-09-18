@@ -15,7 +15,7 @@
  * provider stack. The `<Carousel>` UI primitive renders for real.
  */
 import '@testing-library/jest-dom';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { useProducts } from '@/hooks/product/useProducts';
 import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
 import type { Product } from '@/platform/services/model/product';
@@ -72,6 +72,14 @@ function buildProds(overrides: Partial<UseProdsReturn> = {}): UseProdsReturn {
   };
 }
 
+async function renderCarousel(ui: Parameters<typeof render>[0]) {
+  const view = render(ui);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return view;
+}
+
 beforeEach(() => {
   mockedUseRecs.mockReset();
   mockedUseProds.mockReset();
@@ -81,56 +89,58 @@ beforeEach(() => {
 });
 
 describe('RecommendationsCarousel — client island', () => {
-  it('renders nothing when neither productId nor products is supplied', () => {
-    const { container } = render(<RecommendationsCarousel />);
+  it('renders nothing when neither productId nor products is supplied', async () => {
+    const { container } = await renderCarousel(<RecommendationsCarousel />);
 
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders nothing when useRecommendations reports an error', () => {
+  it('renders nothing when useRecommendations reports an error', async () => {
     mockedUseRecs.mockReturnValue(buildRecs({ error: 'boom' }));
 
-    const { container } = render(<RecommendationsCarousel productId="p-1" />);
+    const { container } = await renderCarousel(<RecommendationsCarousel productId="p-1" />);
 
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders nothing when recommendations resolves to an empty list', () => {
+  it('renders nothing when recommendations resolves to an empty list', async () => {
     mockedUseRecs.mockReturnValue(buildRecs({ recommendations: { products: [] } }));
 
-    const { container } = render(<RecommendationsCarousel productId="p-1" />);
+    const { container } = await renderCarousel(<RecommendationsCarousel productId="p-1" />);
 
     expect(container.firstChild).toBeNull();
     expect(container.querySelector('.py-8')).toBeNull();
     expect(container.querySelector('.content-container')).toBeNull();
   });
 
-  it('renders nothing (no py-8 shell) when useRecommendations finishes with undefined products', () => {
+  it('renders nothing (no py-8 shell) when useRecommendations finishes with undefined products', async () => {
     mockedUseRecs.mockReturnValue(buildRecs({ loading: false, recommendations: undefined }));
 
-    const { container } = render(<RecommendationsCarousel productId="p-1" className="should-not-appear" />);
+    const { container } = await renderCarousel(
+      <RecommendationsCarousel productId="p-1" className="should-not-appear" />,
+    );
 
     expect(container.firstChild).toBeNull();
     expect(container.querySelector('.py-8')).toBeNull();
   });
 
-  it('keeps the py-8 shell while loading skeleton tiles (even before products arrive)', () => {
+  it('keeps the py-8 shell while loading skeleton tiles (even before products arrive)', async () => {
     mockedUseRecs.mockReturnValue(buildRecs({ loading: true, recommendations: undefined }));
 
-    const { container } = render(<RecommendationsCarousel productId="p-1" />);
+    const { container } = await renderCarousel(<RecommendationsCarousel productId="p-1" />);
 
     expect(container.firstChild).toHaveClass('py-8', 'content-container');
     expect(container.querySelectorAll('[data-testid="mock-product-tile-skeleton"]')).toHaveLength(5);
   });
 
-  it('renders the headline when provided and the carousel has products', () => {
+  it('renders the headline when provided and the carousel has products', async () => {
     mockedUseRecs.mockReturnValue(
       buildRecs({
         recommendations: { products: [{ id: 'r1', name: 'Hammer' } as unknown as Product] },
       }),
     );
 
-    const { getByText, container } = render(
+    const { getByText, container } = await renderCarousel(
       <RecommendationsCarousel productId="p-1" headline="Customers also bought" />,
     );
 
@@ -138,19 +148,19 @@ describe('RecommendationsCarousel — client island', () => {
     expect(getByText('Customers also bought')).toBeInTheDocument();
   });
 
-  it('renders the overline when provided', () => {
+  it('renders the overline when provided', async () => {
     mockedUseRecs.mockReturnValue(
       buildRecs({
         recommendations: { products: [{ id: 'r1', name: 'Hammer' } as unknown as Product] },
       }),
     );
 
-    const { getByText } = render(<RecommendationsCarousel productId="p-1" overline="Promo" />);
+    const { getByText } = await renderCarousel(<RecommendationsCarousel productId="p-1" overline="Promo" />);
 
     expect(getByText('Promo')).toBeInTheDocument();
   });
 
-  it('renders a product tile per resolved recommendation in the happy path', () => {
+  it('renders a product tile per resolved recommendation in the happy path', async () => {
     mockedUseRecs.mockReturnValue(
       buildRecs({
         recommendations: {
@@ -159,12 +169,12 @@ describe('RecommendationsCarousel — client island', () => {
       }),
     );
 
-    const { container } = render(<RecommendationsCarousel productId="p-1" />);
+    const { container } = await renderCarousel(<RecommendationsCarousel productId="p-1" />);
 
     expect(container.querySelectorAll('[data-testid="mock-product-tile"]')).toHaveLength(2);
   });
 
-  it('renders five skeleton tiles while the source list is loading with a prior product', () => {
+  it('renders five skeleton tiles while the source list is loading with a prior product', async () => {
     mockedUseRecs.mockReturnValue(
       buildRecs({
         loading: true,
@@ -172,15 +182,15 @@ describe('RecommendationsCarousel — client island', () => {
       }),
     );
 
-    const { container } = render(<RecommendationsCarousel productId="p-1" />);
+    const { container } = await renderCarousel(<RecommendationsCarousel productId="p-1" />);
 
     expect(container.querySelectorAll('[data-testid="mock-product-tile-skeleton"]')).toHaveLength(5);
   });
 
-  it('uses useProducts when the comma-separated `products` string is supplied', () => {
+  it('uses useProducts when the comma-separated `products` string is supplied', async () => {
     mockedUseProds.mockReturnValue(buildProds({ products: [{ id: 'p-1', name: 'A' } as unknown as Product] }));
 
-    render(<RecommendationsCarousel products="p-1, p-2, p-3" />);
+    await renderCarousel(<RecommendationsCarousel products="p-1, p-2, p-3" />);
 
     expect(mockedUseProds).toHaveBeenCalled();
     const callArgs = mockedUseProds.mock.calls[0]?.[0];

@@ -4,7 +4,9 @@ import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import { PlpPendingLink } from '@/components/search/list-view/plp-pending-link';
+import { PlpProductsModeSwitch } from '@/components/search/list-view/plp-products-mode-switch';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { H5 } from '@/components/ui/h';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
@@ -37,8 +39,12 @@ export function PlpCategoryTree({
   const t = useTranslations('search.plpCategoryTree');
   const tSearch = useTranslations('search.searchResults');
   const searchParams = useSearchParams();
+  const { mode: productsMode } = useProductsMode();
 
   const { ancestorTrail, currentCategory, currentChildren } = plpCategoryContext;
+  // COP-4822 AC2: segmented customers see "Assigned Products" as the root row; ALL mode and anonymous keep "All Products".
+  const rootLabel = productsMode === 'assigned' ? tSearch('assignedProducts') : tSearch('allProducts');
+  const currentLabel = currentCategory ? l10n(currentCategory.name, locale) : rootLabel;
 
   const selectedLabelRef = useRef<HTMLAnchorElement | null>(null);
 
@@ -101,14 +107,11 @@ export function PlpCategoryTree({
           className="inline-flex min-h-[50px] w-full items-center justify-between font-bold text-text-headings outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
           aria-current="page"
           ref={selectedLabelRef}
-          title={currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
+          title={currentLabel}
           data-testid="plp-category-tree-current"
         >
-          <span
-            className="truncate"
-            title={currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
-          >
-            {currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
+          <span className="truncate" title={currentLabel}>
+            {currentLabel}
           </span>
           {currentCategory && categoryCountsById[currentCategory.id] !== undefined && (
             <span className="shrink-0 text-text-on-disabled font-normal ml-2">
@@ -159,8 +162,10 @@ export function PlpCategoryTree({
       data-testid="plp-category-tree"
       className={className || 'gap-0 pt-4 pb-6 shadow-sm border-border-primary rounded-[8px]'}
     >
-      <CardHeader className="px-6 pb-4 pt-0">
-        <H5>{t('title')}</H5>
+      {/* COP-4822 CR-1: ASSIGNED / ALL sits on one row with the "Categories" title (12px toggle type in the 274px sidebar). */}
+      <CardHeader className="flex flex-nowrap items-center justify-between gap-x-2 px-6 pb-4 pt-0">
+        <H5 className="shrink-0">{t('title')}</H5>
+        <PlpProductsModeSwitch />
       </CardHeader>
       <CardContent className="px-6 pb-0">{treeContent}</CardContent>
     </Card>

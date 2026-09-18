@@ -7,30 +7,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { SearchSort } from './search-sort';
 
-window.HTMLElement.prototype.scrollIntoView = jest.fn();
-window.HTMLElement.prototype.releasePointerCapture = jest.fn();
-window.HTMLElement.prototype.hasPointerCapture = () => false;
-
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
-
-class ResizeObserverMock {
-  observe = jest.fn();
-  unobserve = jest.fn();
-  disconnect = jest.fn();
-}
-Object.defineProperty(window, 'ResizeObserver', { writable: true, value: ResizeObserverMock });
+jest.mock('@/components/ui/select', () => jest.requireActual('../../../jest/mocks/ui-select'));
 
 const mockChangeSort = jest.fn();
 
@@ -64,27 +41,20 @@ describe('SearchSort', () => {
     );
   };
 
-  it('renders sort options correctly', async () => {
+  it('renders sort options correctly', () => {
     renderComponent();
-    const trigger = screen.getByRole('combobox');
-    fireEvent.click(trigger);
-    expect(await screen.findByText('Product name Ascending')).toBeInTheDocument();
-    expect(await screen.findByText('Popularity (BI) Descending')).toBeInTheDocument();
+    expect(screen.getByTestId('search-sort-option-name-asc')).toHaveTextContent('Product name Ascending');
+    expect(screen.getByTestId('search-sort-option-popularity-desc')).toHaveTextContent('Popularity (BI) Descending');
   });
 
-  it('calls changeSort with correct value', async () => {
+  it('calls changeSort with correct value', () => {
     renderComponent();
-    const trigger = screen.getByRole('combobox');
-    fireEvent.click(trigger);
-    const option = await screen.findByText('Product name Ascending');
-    fireEvent.click(option);
+    fireEvent.click(screen.getByTestId('search-sort-option-name-asc'));
     expect(mockChangeSort).toHaveBeenCalledWith('name:asc');
   });
 
-  it('does not render a clear item', async () => {
+  it('does not render a clear item', () => {
     renderComponent();
-
-    fireEvent.click(screen.getByRole('combobox'));
     expect(screen.queryByText('Clear sort')).not.toBeInTheDocument();
   });
 

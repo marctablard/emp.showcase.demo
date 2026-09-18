@@ -43,10 +43,22 @@ export interface EmporixCartItem {
 }
 
 export interface EmporixCalculatedAppliedDiscount {
-  id: string;
+  /** Discount identifier — optional in the Cart API `calculatedAppliedDiscount` schema. */
+  id?: string;
   value: number;
   discountType: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
   origin: 'INTERNAL' | 'EXTERNAL';
+}
+
+export interface EmporixCartDiscount {
+  id?: string;
+  code: string;
+  name?: string;
+  discountIndex?: number;
+  valid?: boolean;
+  amount?: number;
+  currency?: string;
+  discountRate?: number;
 }
 
 export interface EmporixTaxInfo {
@@ -114,6 +126,7 @@ export interface EmporixCart {
       appliedDiscounts: EmporixCalculatedAppliedDiscount[];
     };
   };
+  discounts?: EmporixCartDiscount[];
   totalUnitsCount?: number;
   metadata?: EmporixMetadata;
   mixins?: Mixins;

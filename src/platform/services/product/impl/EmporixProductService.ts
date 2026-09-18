@@ -28,6 +28,14 @@ const TEMPLATE_REF_ID_CHUNK_SIZE = 50;
 
 type ProductTemplateRef = { id: string; version?: string };
 
+/**
+ * `true` when the caller is segment-scoped but the scope is empty (COP-4822 fail closed, e.g. after
+ * a failed segment lookup): `undefined` means unscoped, `[]` means nothing is visible.
+ */
+function isEmptySegmentScope(segmentIds: string[] | undefined): boolean {
+  return segmentIds?.length === 0;
+}
+
 function templateCacheKey(id: string, version?: string): string {
   return version ? `${id}@${version}` : id;
 }
@@ -67,13 +75,15 @@ class EmporixProductService implements ProductService {
   ) {}
 
   async getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined> {
+    // Empty segment scope: nothing is visible, so the lookup is a miss without any upstream call (COP-4822).
+    if (isEmptySegmentScope(options?.segmentIds)) return undefined;
+
     const product = await this.productApi.getProduct(id);
     if (!product || !product.id) return undefined;
 
-    // Filter by customer segments if requested
-    if (options?.customerSegments) {
-      const [filteredProduct] = await this.segmentFilterService.filterByCustomerSegments([product]);
-      if (!filteredProduct) return undefined;
+    if (options?.segmentIds !== undefined) {
+      const inScope = await this.filterIdsInSegmentScope([product.id], options.segmentIds, options.siteCode);
+      if (!inScope.has(product.id)) return undefined;
     }
 
     // Map the base product
@@ -86,6 +96,8 @@ class EmporixProductService implements ProductService {
   }
 
   async getVariantProducts(parentId: string, options?: ProductFetchOptions): Promise<Product[]> {
+    if (isEmptySegmentScope(options?.segmentIds)) return [];
+
     const paginated = await this.productApi.searchProducts({
       expand: ['parentVariant', 'template'],
       criteria: { parentVariantId: parentId },
@@ -93,15 +105,7 @@ class EmporixProductService implements ProductService {
       size: 100,
     });
 
-    // Filter by customer segments before mapping
-    let items: EmporixProduct[] = [];
-    if (options?.customerSegments) {
-      items = (await this.segmentFilterService.filterByCustomerSegments(
-        paginated.items.filter((item: EmporixProduct) => !!item.id),
-      )) as EmporixProduct[];
-    } else {
-      items = paginated.items;
-    }
+    const items = await this.applySegmentScope(paginated.items, options);
 
     // Map all variant products first
     const mappedProducts = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
@@ -113,17 +117,13 @@ class EmporixProductService implements ProductService {
   }
 
   async getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {
+    if (isEmptySegmentScope(options?.segmentIds)) {
+      return { items: [], page: page ?? 0, pageSize: pageSize ?? 0, total: 0 };
+    }
+
     const paginated = await this.productApi.getProducts(page, pageSize);
 
-    // Filter by customer segments before mapping
-    let items: EmporixProduct[] = [];
-    if (options?.customerSegments) {
-      items = (await this.segmentFilterService.filterByCustomerSegments(
-        paginated.items.filter((item: EmporixProduct) => !!item.id),
-      )) as EmporixProduct[];
-    } else {
-      items = paginated.items;
-    }
+    const items = await this.applySegmentScope(paginated.items, options);
     const mappedProducts: Product[] = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
 
     // Add additional data to all products
@@ -133,8 +133,73 @@ class EmporixProductService implements ProductService {
       items: enhancedProducts,
       page: paginated.page,
       pageSize: paginated.size,
-      total: paginated.total,
+      // Assigned scope is applied after the unscoped Product API page: the upstream `total` would
+      // count out-of-segment products. Report the filtered page size so callers cannot paginate
+      // past items that are actually visible (COP-4822). Assigned PLP uses SearchService, not this.
+      total: options?.segmentIds === undefined ? paginated.total : enhancedProducts.length,
     };
+  }
+
+  /**
+   * Keeps only the products inside the customer's segment scope when `options.segmentIds` is set
+   * (fail closed). `undefined` leaves the items untouched; `[]` is an empty scope and drops every
+   * item without an upstream membership call.
+   */
+  private async applySegmentScope(items: EmporixProduct[], options?: ProductFetchOptions): Promise<EmporixProduct[]> {
+    if (options?.segmentIds === undefined) {
+      return items;
+    }
+    if (isEmptySegmentScope(options.segmentIds)) {
+      return [];
+    }
+    const withIds = items.filter((item: EmporixProduct) => !!item.id);
+    const inScope = await this.filterIdsInSegmentScope(
+      withIds.map((item) => item.id as string),
+      options.segmentIds,
+      options.siteCode,
+    );
+    return withIds.filter((item) => inScope.has(item.id as string));
+  }
+
+  async isInSegmentScope(
+    productId: string,
+    options?: Pick<ProductFetchOptions, 'segmentIds' | 'siteCode'>,
+  ): Promise<boolean> {
+    if (options?.segmentIds === undefined) {
+      return true;
+    }
+    if (isEmptySegmentScope(options.segmentIds)) {
+      return false;
+    }
+    const id = productId.trim();
+    if (!id) {
+      return false;
+    }
+    const inScope = await this.filterIdsInSegmentScope([id], options.segmentIds, options.siteCode);
+    return inScope.has(id);
+  }
+
+  /**
+   * Segment membership for the effective site the mode was resolved for (`options.siteCode`),
+   * falling back to the session site — the same site authority this service already uses for
+   * prices. Only the active `segmentIds` count; without any usable site nothing can be proven in
+   * scope, so the result is empty.
+   */
+  private async filterIdsInSegmentScope(
+    ids: string[],
+    segmentIds: string[],
+    effectiveSiteCode: string | undefined,
+  ): Promise<Set<string>> {
+    let siteCode = effectiveSiteCode?.trim() || undefined;
+    if (!siteCode) {
+      const session = await this.sessionService.getCurrent();
+      siteCode = session?.siteCode?.trim() || undefined;
+    }
+    if (!siteCode) {
+      this.logger.warn({ ids: ids.length }, 'Segment scope requested without a usable site; failing closed');
+      return new Set();
+    }
+    return this.segmentFilterService.filterProductIdsInScope(ids, siteCode, segmentIds);
   }
 
   /**
@@ -562,30 +627,18 @@ class EmporixProductService implements ProductService {
           options?.categories ? this.categoryService.getCategoriesForProduct(id, true) : undefined,
         ),
       ),
-      (async () => {
-        const ids = [...productIds];
-        if (typeof options?.prices === 'object' && options.prices !== null) {
-          return this.priceService.getProductPrices(ids, undefined, undefined, options.prices);
-        } else if (options?.prices === true) {
-          sessionForProductPrices = await this.sessionService.getCurrent();
-          if (sessionForProductPrices) {
-            return this.priceService.getProductPrices(
-              ids,
-              undefined,
-              undefined,
-              priceFetchOptionsFromSession(sessionForProductPrices) ?? {
-                siteCode: sessionForProductPrices.siteCode,
-                currency: sessionForProductPrices.currency,
-                country: sessionForProductPrices.country,
-                useFallback: false,
-              },
-            );
-          }
-          return this.priceService.getProductPrices(ids);
-        }
-        return new Map<string, ProductPrice | null>();
-      })(),
-      Promise.all([...productIds].map((id) => (options?.variants ? this.getVariantProducts(id) : undefined))),
+      this.fetchProductPricesForEnrichment(productIds, options, (session) => {
+        sessionForProductPrices = session;
+      }),
+      // Forward ONLY the segment scope (`segmentIds` + effective `siteCode`): passing the full options
+      // would re-enter variant/price enrichment per variant.
+      options?.variants
+        ? Promise.all(
+            [...productIds].map((id) =>
+              this.getVariantProducts(id, { segmentIds: options.segmentIds, siteCode: options.siteCode }),
+            ),
+          )
+        : Promise.resolve<Product[][]>([]),
     ]);
 
     // Create lookup maps for brands
@@ -624,6 +677,48 @@ class EmporixProductService implements ProductService {
       );
 
     return { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap };
+  }
+
+  /**
+   * Price enrichment is best-effort. A 404 / failed Price API must not fail the catalog
+   * identity — the PDP still renders and omits the price (COP-4822 QA).
+   */
+  private async fetchProductPricesForEnrichment(
+    productIds: Set<string>,
+    options: ProductFetchOptions | undefined,
+    rememberSession: (session: Awaited<ReturnType<SessionService['getCurrent']>>) => void,
+  ): Promise<Map<string, ProductPrice | null>> {
+    const ids = [...productIds];
+    try {
+      if (typeof options?.prices === 'object' && options.prices !== null) {
+        return await this.priceService.getProductPrices(ids, undefined, undefined, options.prices);
+      }
+      if (options?.prices === true) {
+        const session = await this.sessionService.getCurrent();
+        if (session) {
+          rememberSession(session);
+          return await this.priceService.getProductPrices(
+            ids,
+            undefined,
+            undefined,
+            priceFetchOptionsFromSession(session) ?? {
+              siteCode: session.siteCode,
+              currency: session.currency,
+              country: session.country,
+              useFallback: false,
+            },
+          );
+        }
+        return await this.priceService.getProductPrices(ids);
+      }
+      return new Map<string, ProductPrice | null>();
+    } catch (error) {
+      this.logger.warn(
+        { err: error instanceof Error ? error : String(error), productIds: ids },
+        'Product price lookup failed; continuing without prices',
+      );
+      return new Map<string, ProductPrice | null>();
+    }
   }
 }
 

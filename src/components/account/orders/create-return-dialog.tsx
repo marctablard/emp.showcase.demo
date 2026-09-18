@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatReturnDate } from '@/components/account/returns/helpers';
 import { type ItemQuantity, ReturnItemSelector } from '@/components/account/returns/return-item-selector';
+import { useReturnErrorMessage } from '@/components/account/returns/use-return-error-message';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -40,6 +41,8 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
   const MAX_DESCRIPTION_LENGTH = 500;
   const t = useTranslations('account.returns.createDialog');
   const tReturns = useTranslations('account.returns');
+  const locale = useLocale();
+  const returnErrorMessage = useReturnErrorMessage();
   const router = useRouter();
   const [quantities, setQuantities] = useState<ItemQuantity>({});
   const [reasonCode, setReasonCode] = useState<ReturnReasonCode | ''>('');
@@ -59,11 +62,6 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
     : order.items;
 
   const totalSelectedItems = Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
-
-  const formatDate = (dateString: string | undefined): string => {
-    if (!dateString) return '-';
-    return format(new Date(dateString), 'MMMM d, yyyy');
-  };
 
   const updateQuantity = (itemId: string, newQty: number, maxQty: number): void => {
     const clampedQty = Math.max(0, Math.min(newQty, maxQty));
@@ -130,13 +128,14 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
       onOpenChange(false);
       router.push(`/account/returns/${response.id}`);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('submitError');
+      // The server's English text goes to the log; the shopper sees the translated code.
       getLogger().error(
         { err, orderId: order.id, selectedItems: Object.keys(quantities).length },
         'Failed to create return',
       );
       notify({
-        title: errorMessage,
+        title: t('submitError'),
+        description: returnErrorMessage(err) ?? t('submitErrorGeneric'),
         type: ToastType.Error,
       });
     } finally {
@@ -176,7 +175,7 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
           </div>
           <div>
             <p className="text-sm font-semibold text-text-body">{t('deliveryDate')}</p>
-            <p className="font-normal">{formatDate(order.lastStatusChange)}</p>
+            <p className="font-normal">{formatReturnDate(order.lastStatusChange, locale)}</p>
           </div>
         </div>
 
@@ -222,9 +221,6 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
               placeholder={t('descriptionPlaceholder')}
               data-testid="return-description"
             />
-            <p className="mt-2 text-xs text-text-on-disabled">
-              {reasonDetails.length}/{MAX_DESCRIPTION_LENGTH}
-            </p>
           </div>
 
           <div className="flex items-start gap-3 mt-4">

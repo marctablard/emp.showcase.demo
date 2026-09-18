@@ -25,7 +25,8 @@ export function CartSummary({ cart, boundingContent, onRequestQuote }: Readonly<
   const fixedContainer = useRef<HTMLDivElement>(null);
   const topPosition = 112;
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, topPosition, boundingContent);
-  const { cartTotal, shippingCosts, shippingVat, showShippingVat, currency } = useCartTotal();
+  const { cartTotal, goodsGross, goodsNet, goodsVat, shippingCosts, shippingVat, showShippingVat, currency } =
+    useCartTotal();
 
   return (
     <div className="mb-6 flex">
@@ -54,19 +55,17 @@ export function CartSummary({ cart, boundingContent, onRequestQuote }: Readonly<
                 </div>
                 <div className="flex justify-between">
                   <span className="">{t('valueOfGoods')}</span>
-                  <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
+                  <span>{formatCurrency(goodsGross, currency)}</span>
                 </div>
 
                 <div className="flex justify-between text-base pt-4 border-t border-border-primary">
                   <span>{t('netValueOfGoods')}</span>
-                  <span className="font-bold font-headlines">
-                    {formatCurrency(cart.tax.netValue, cart.tax.currency)}
-                  </span>
+                  <span className="font-bold font-headlines">{formatCurrency(goodsNet, currency)}</span>
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between text-base">
                     <span>{tCommon('tax')}</span>
-                    <span>{formatCurrency(cart.tax.amount, cart.tax.currency)}</span>
+                    <span>{formatCurrency(goodsVat, currency)}</span>
                   </div>
                   <div className="flex justify-between text-base">
                     <span>{t('shippingCosts')}</span>

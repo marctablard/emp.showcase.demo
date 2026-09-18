@@ -2,14 +2,16 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { ReturnApiError } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 import { ReturnDetail } from './return-detail';
 
 const mockUseReturn = jest.fn();
+const mockUseProducts = jest.fn();
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => Object.assign((key: string) => key, { has: () => true }),
   useLocale: () => 'en-US',
 }));
 
@@ -23,7 +25,7 @@ jest.mock('@/hooks/return/useReturn', () => ({
 }));
 
 jest.mock('@/hooks/product/useProducts', () => ({
-  useProducts: () => ({ products: [], loading: false, error: null, refetch: jest.fn(), setAsCurrent: jest.fn() }),
+  useProducts: () => mockUseProducts(),
 }));
 
 jest.mock('@/hooks/useL10n', () => ({
@@ -87,6 +89,13 @@ describe('ReturnDetail', () => {
       loading: false,
       error: null,
       refreshReturn: jest.fn(),
+    });
+    mockUseProducts.mockReturnValue({
+      products: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      setAsCurrent: jest.fn(),
     });
   });
 
@@ -435,5 +444,71 @@ describe('ReturnDetail', () => {
     expect(desktopRow.className).toContain('sm:grid');
     expect(trailingCell).toHaveClass('min-w-0', 'text-right');
     expect(within(trailingCell).getByText('€100.00')).toBeInTheDocument();
+  });
+
+  it('shows a translated error alert and retries via refreshReturn on click', () => {
+    const refreshReturn = jest.fn();
+    mockUseReturn.mockReturnValue({
+      returnItem: null,
+      loading: false,
+      error: new Error('Network exploded'),
+      refreshReturn,
+    });
+
+    render(<ReturnDetail returnId="return-err" />);
+
+    expect(screen.getByText('error')).toBeInTheDocument();
+    // The raw Error carries no code; the page names this one return, not the whole list.
+    expect(screen.getByText('apiError.RETURN_FETCH_FAILED')).toBeInTheDocument();
+    expect(screen.queryByText('errorLoading')).not.toBeInTheDocument();
+    expect(screen.queryByText('Network exploded')).not.toBeInTheDocument();
+    expect(screen.queryByText('returnNotFound')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('return-detail-retryButton'));
+    expect(refreshReturn).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the translated message for a coded failure instead of the load-context fallback', () => {
+    mockUseReturn.mockReturnValue({
+      returnItem: null,
+      loading: false,
+      error: new ReturnApiError('Failed to fetch return', 500, { code: 'RETURN_FETCH_FAILED' }),
+      refreshReturn: jest.fn(),
+    });
+
+    render(<ReturnDetail returnId="return-err" />);
+
+    expect(screen.getByText('RETURN_FETCH_FAILED')).toBeInTheDocument();
+    expect(screen.queryByText('apiError.RETURN_FETCH_FAILED')).not.toBeInTheDocument();
+  });
+
+  it('names the product from the catalog when the return payload carries no name', () => {
+    // The return payload frequently omits the name; without a fallback the link renders empty and
+    // the image alternative text reads "undefined".
+    const nameless = buildReturn();
+    delete (nameless.orders[0].items[0] as { name?: string }).name;
+    mockUseReturn.mockReturnValue({ returnItem: nameless, loading: false, error: null, refreshReturn: jest.fn() });
+    mockUseProducts.mockReturnValue({
+      products: [{ id: 'blue-solar', name: 'BlueSolar aus dem Katalog' }],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      setAsCurrent: jest.fn(),
+    });
+
+    render(<ReturnDetail returnId="return-1" />);
+
+    expect(screen.getAllByText('BlueSolar aus dem Katalog').length).toBeGreaterThan(0);
+    expect(screen.queryByText('undefined')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the item number when neither payload nor catalog knows the name', () => {
+    const nameless = buildReturn();
+    delete (nameless.orders[0].items[0] as { name?: string }).name;
+    mockUseReturn.mockReturnValue({ returnItem: nameless, loading: false, error: null, refreshReturn: jest.fn() });
+
+    render(<ReturnDetail returnId="return-1" />);
+
+    expect(screen.getAllByText('blue-solar-55w').length).toBeGreaterThan(0);
   });
 });

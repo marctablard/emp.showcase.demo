@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { checkout } from '@/lib/client/checkout';
 import type { CheckoutAddress } from '@/platform/services/model/checkout';
+import type { ShippingMethod } from '@/platform/services/model/shipping';
 import { checkoutAddressToCartShipping, hasCheckoutShippingDestination, useCheckout } from './useCheckout';
 
 const mockUseCheckoutStore = jest.fn();
@@ -104,7 +105,7 @@ const buildCheckoutAddress = (type: 'SHIPPING' | 'BILLING', country: string, zip
 });
 
 const buildShippingMethodsValue = (overrides: {
-  methods: Array<{ id: string; name?: string; cost?: { amount: number } }>;
+  methods: Array<{ id: string; name?: string; zoneId?: string; cost?: { amount: number; currency?: string } }>;
   clearShippingMethods: jest.Mock;
   fetchShippingMethods: jest.Mock;
 }) => ({
@@ -152,7 +153,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -174,7 +175,7 @@ describe('useCheckout', () => {
     );
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -208,7 +209,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -234,7 +235,7 @@ describe('useCheckout', () => {
     const clearShippingMethods = jest.fn();
     const fetchShippingMethods = jest.fn().mockResolvedValue(undefined);
     const setShippingMethod = jest.fn();
-    const freshMethod = { id: 'ch-express', name: 'CH Express', cost: { amount: 9 } };
+    const freshMethod = { id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } };
 
     mockUseCheckoutStore.mockReturnValue(
       buildCheckoutStoreValue({
@@ -273,7 +274,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'other-method', name: 'Other', cost: { amount: 3 } }],
+        methods: [{ id: 'other-method', name: 'Other', cost: { amount: 3, currency: 'EUR' } }],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
       }),
@@ -302,7 +303,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -396,7 +397,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -426,7 +427,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
       }),
@@ -455,7 +456,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
       }),
@@ -483,7 +484,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
       }),
@@ -525,7 +526,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
       }),
@@ -549,6 +550,8 @@ describe('useCheckout', () => {
     expect(
       checkoutAddressToCartShipping({
         type: 'SHIPPING',
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
         country: ' ch ',
         zipCode: ' 6300 ',
         city: 'Zug',
@@ -563,6 +566,9 @@ describe('useCheckout', () => {
     expect(
       checkoutAddressToCartShipping({
         type: 'SHIPPING',
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
+        city: 'Zug',
         country: '   ',
         zipCode: '   ',
       }),
@@ -588,7 +594,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
       }),
@@ -607,7 +613,12 @@ describe('useCheckout', () => {
   it('stores a newly selected shipping method without persisting it on the cart', () => {
     const updateShippingMethod = jest.fn();
     const setShippingMethod = jest.fn();
-    const selected = { id: 'new-shipping-7', name: 'New Shipping 7%', zoneId: 'zone-de', cost: { amount: 20 } };
+    const selected: ShippingMethod = {
+      id: 'new-shipping-7',
+      name: 'New Shipping 7%',
+      zoneId: 'zone-de',
+      cost: { amount: 20, currency: 'EUR' },
+    };
 
     mockUseCheckoutStore.mockReturnValue(
       buildCheckoutStoreValue({
@@ -619,7 +630,10 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, jest.fn(), updateShippingMethod));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', zoneId: 'zone-de', cost: { amount: 5 } }, selected],
+        methods: [
+          { id: 'de-standard', name: 'DE Standard', zoneId: 'zone-de', cost: { amount: 5, currency: 'EUR' } },
+          selected,
+        ],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
       }),
@@ -655,7 +669,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART, jest.fn(), updateShippingMethod));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', zoneId: 'zone-de', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', zoneId: 'zone-de', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
       }),
@@ -670,7 +684,7 @@ describe('useCheckout', () => {
         id: 'de-standard',
         name: 'DE Standard',
         zoneId: 'zone-de',
-        cost: { amount: 5 },
+        cost: { amount: 5, currency: 'EUR' },
       });
     });
 
@@ -699,7 +713,7 @@ describe('useCheckout', () => {
     );
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -744,7 +758,7 @@ describe('useCheckout', () => {
     mockUseCustomer.mockReturnValue({ customer: { id: 'c1' } });
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods: jest.fn(),
         fetchShippingMethods: jest.fn(),
       }),

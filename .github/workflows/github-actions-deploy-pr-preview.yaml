@@ -45,26 +45,26 @@ jobs:
         run: |
           npm i -g @aikidosec/safe-chain
           safe-chain setup-ci
-      # Same preview-only age-gate skip as npm ci: Vercel CLI currently pulls
-      # a too-new @napi-rs/wasm-runtime. See docs/run-build-deploy.md.
+      # Preview-only age-gate skip: same policy as
+      # `npm run verify:ci-install:preview-override`
+      # (`SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1`). Vercel CLI currently pulls
+      # a too-new @napi-rs/wasm-runtime; freshly published app deps can hit
+      # the same gate. Malware checks stay on. Production keeps the full age
+      # gate. See docs/run-build-deploy.md.
       - name: Install Vercel CLI
         run: npm i -g vercel --safe-chain-skip-minimum-package-age
-      # Preview-only, time-boxed override: skips safe-chain's minimum-package-age
-      # gate (only) to unblock an urgent security patch. All other safe-chain
-      # malware protections and the npm audit step below stay enforced, and a
-      # non-safe-chain install failure still fails this step. See
-      # docs/run-build-deploy.md ("Preview-Only Safe-Chain Minimum-Package-Age
-      # Override") before copying this to any other workflow.
       - name: Install dependencies
         run: npm ci --safe-chain-skip-minimum-package-age
       # Runs the real `npm audit --audit-level=high` (unchanged) and captures
       # its JSON report; the exit code of that command is intentionally not
       # what fails this step. scripts/verify-audit-policy.mjs re-derives the
       # pass/fail decision from the report itself, so CI still fails on any
-      # high/critical advisory, malformed report, or script error — the ONLY
-      # narrow exception is GHSA-mh99-v99m-4gvg (brace-expansion DoS), which
-      # expires 2026-08-08. See docs/run-build-deploy.md ("npm audit Policy
-      # Exceptions") before touching this step or the script's allowlist.
+      # high/critical advisory, malformed report, or script error — except
+      # time-boxed entries in scripts/verify-audit-policy.mjs ALLOWED_EXCEPTIONS
+      # (currently the 2026-10-12 Next.js / sharp / js-yaml / @tiptap/core set).
+      # The historical brace-expansion exception is resolved. See
+      # docs/run-build-deploy.md ("npm audit Policy Exceptions") before
+      # touching this step or the script's allowlist.
       - name: Run npm audit
         run: |
           npm audit --audit-level=high --json > audit-report.json || true

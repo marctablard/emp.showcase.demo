@@ -1,0 +1,405 @@
+import { act, renderHook } from '@testing-library/react';
+import { CART_API_REASON } from '@/lib/common/cart-api-error-mapping';
+import type { Cart, CartAppliedDiscount } from '@/platform/services/model/cart/cart';
+import { CartMutationCancelledError } from '@/stores/cart-store';
+import { useCheckoutPromoCode } from './useCheckoutPromoCode';
+
+const FIGMA_PROMO_ERROR = 'This is not an active promo code. Please check your entry.';
+
+const mockApplyDiscount = jest.fn();
+const mockRemoveDiscount = jest.fn();
+const mockUseCart = jest.fn();
+
+jest.mock('../cart/useCart', () => ({
+  useCart: () => mockUseCart(),
+}));
+
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => (key === 'promoCodeError' ? FIGMA_PROMO_ERROR : key),
+}));
+
+jest.mock('@/hooks/common/useLogger', () => ({
+  useLogger: () => ({
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  }),
+}));
+
+const existingDiscount: CartAppliedDiscount = {
+  code: 'LS10PTOTAL',
+  discountIndex: 0,
+  amount: 10,
+  currency: 'EUR',
+};
+
+function cartWithDiscount(overrides?: Partial<Cart>): Cart {
+  return {
+    id: 'cart-1',
+    currency: 'EUR',
+    site: 'main',
+    items: [],
+    totalPrice: { amount: 90, currency: 'EUR' },
+    subTotalPrice: { amount: 100, currency: 'EUR' },
+    tax: { amount: 0, currency: 'EUR', netValue: 100, grossValue: 100 },
+    discounts: [existingDiscount],
+    ...overrides,
+  };
+}
+
+describe('useCheckoutPromoCode', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApplyDiscount.mockReset();
+    mockRemoveDiscount.mockReset();
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount(),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+      mutating: false,
+    });
+  });
+
+  it('does not call applyDiscount when the code is empty', async () => {
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      await result.current.apply();
+    });
+    expect(mockApplyDiscount).not.toHaveBeenCalled();
+
+    await act(async () => {
+      result.current.setCode('   ');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+    expect(mockApplyDiscount).not.toHaveBeenCalled();
+  });
+
+  it('sets a generic field error on failed apply and keeps mocked cart discounts', async () => {
+    mockApplyDiscount.mockRejectedValue(new Error('You are not in segment GOLD'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('NOTALLOWED');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.fieldError).toBe(FIGMA_PROMO_ERROR);
+    expect(result.current.fieldError).not.toContain('segment');
+    expect(result.current.discounts).toEqual([existingDiscount]);
+    expect(mockApplyDiscount).toHaveBeenCalledWith('NOTALLOWED');
+    expect(mockApplyDiscount).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps an inactive code apply failure to the generic Figma error', async () => {
+    mockApplyDiscount.mockRejectedValue(new Error('inactive'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('INACTIVE');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.fieldError).toBe(FIGMA_PROMO_ERROR);
+    expect(result.current.fieldError).not.toContain('segment');
+    expect(result.current.fieldError).not.toMatch(/currency/i);
+    expect(mockApplyDiscount).toHaveBeenCalledWith('INACTIVE');
+  });
+
+  it.each([
+    [CART_API_REASON.COUPON_NOT_FOUND, FIGMA_PROMO_ERROR],
+    [CART_API_REASON.COUPON_NOT_ACTIVE, FIGMA_PROMO_ERROR],
+    [CART_API_REASON.COUPON_NOT_ELIGIBLE, 'promoCodeNotEligible'],
+    [CART_API_REASON.COUPON_NOT_APPLICABLE, 'promoCodeNotApplicable'],
+    [CART_API_REASON.COUPON_ALREADY_APPLIED, 'promoCodeAlreadyApplied'],
+    [CART_API_REASON.DISCOUNT_NOT_APPLICABLE, FIGMA_PROMO_ERROR],
+    ['some_future_reason', FIGMA_PROMO_ERROR],
+  ])('picks the copy for API reason %s', async (reason, expectedMessage) => {
+    const err: Error & { reason?: string; status?: number } = new Error('Discount is not applicable');
+    err.reason = reason;
+    err.status = 400;
+    mockApplyDiscount.mockRejectedValue(err);
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('VKTEST-PROMO03');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.fieldError).toBe(expectedMessage);
+  });
+
+  it('maps cannot apply twice (already exists on cart) to the generic Figma error', async () => {
+    mockApplyDiscount.mockRejectedValue(new Error('Coupon already exists on this cart'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('LS10PTOTAL');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.fieldError).toBe(FIGMA_PROMO_ERROR);
+    expect(result.current.fieldError).not.toContain('already exists');
+    expect(result.current.fieldError).not.toContain('segment');
+    expect(result.current.fieldError).not.toMatch(/currency/i);
+    expect(result.current.discounts).toEqual([existingDiscount]);
+    expect(mockApplyDiscount).toHaveBeenCalledWith('LS10PTOTAL');
+  });
+
+  it('clears the field error on success and relies on updated cart discounts', async () => {
+    mockApplyDiscount.mockRejectedValueOnce(new Error('Coupon already exists on this cart'));
+    mockApplyDiscount.mockResolvedValueOnce(undefined);
+
+    const { result, rerender } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('BADCODE');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+    expect(result.current.fieldError).toBe(FIGMA_PROMO_ERROR);
+
+    const updatedDiscount: CartAppliedDiscount = {
+      code: 'LS10PTOTAL',
+      name: '10% off',
+      discountIndex: 0,
+      amount: 12.5,
+      currency: 'EUR',
+    };
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({ discounts: [updatedDiscount] }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+    });
+
+    await act(async () => {
+      result.current.setCode('LS10PTOTAL');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+    rerender();
+
+    expect(result.current.fieldError).toBeNull();
+    expect(result.current.discounts).toEqual([updatedDiscount]);
+    expect(result.current.discounts[0]?.code).toBe('LS10PTOTAL');
+  });
+
+  it('applies a second promo with a second successful applyDiscount call', async () => {
+    const firstDiscount: CartAppliedDiscount = {
+      code: 'ACCESSORIES15',
+      name: '15% discount',
+      discountIndex: 0,
+      amount: 1.5,
+      currency: 'EUR',
+    };
+    const secondDiscount: CartAppliedDiscount = {
+      code: 'SOLAR10',
+      name: '10% discount',
+      discountIndex: 1,
+      amount: 10,
+      currency: 'EUR',
+    };
+
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({ discounts: [] }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+    });
+    mockApplyDiscount.mockResolvedValue(undefined);
+
+    const { result, rerender } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('ACCESSORIES15');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+    expect(mockApplyDiscount).toHaveBeenCalledWith('ACCESSORIES15');
+
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({ discounts: [firstDiscount] }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+    });
+    rerender();
+
+    await act(async () => {
+      result.current.setCode('SOLAR10');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(mockApplyDiscount).toHaveBeenCalledWith('SOLAR10');
+    expect(mockApplyDiscount).toHaveBeenCalledTimes(2);
+
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({ discounts: [firstDiscount, secondDiscount] }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+    });
+    rerender();
+
+    expect(result.current.fieldError).toBeNull();
+    expect(result.current.discounts).toEqual([firstDiscount, secondDiscount]);
+  });
+
+  it('does not apply or remove while another cart write is in flight', async () => {
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount(),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+      mutating: true,
+    });
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('KEEPME');
+    });
+    await act(async () => {
+      await result.current.apply();
+      await result.current.remove(existingDiscount.code);
+    });
+
+    expect(mockApplyDiscount).not.toHaveBeenCalled();
+    expect(mockRemoveDiscount).not.toHaveBeenCalled();
+    expect(result.current.cartMutating).toBe(true);
+  });
+
+  it('re-resolves remove to the current index for the coupon code', async () => {
+    mockUseCart.mockReturnValue({
+      cart: cartWithDiscount({
+        discounts: [
+          { code: 'GOODS10', discountIndex: 0, amount: 10, currency: 'EUR' },
+          { ...existingDiscount, discountIndex: 1 },
+        ],
+      }),
+      applyDiscount: mockApplyDiscount,
+      removeDiscount: mockRemoveDiscount,
+      mutating: false,
+    });
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      await result.current.remove(existingDiscount.code);
+    });
+
+    expect(mockRemoveDiscount).toHaveBeenCalledWith(1);
+  });
+
+  it('does not set a remove error when chip removal is cancelled by a cart reset', async () => {
+    mockRemoveDiscount.mockRejectedValue(new CartMutationCancelledError('discount'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      await result.current.remove(existingDiscount.code);
+    });
+
+    expect(result.current.fieldError).toBeNull();
+  });
+
+  it('keeps the typed code when apply is cancelled by a cart reset', async () => {
+    mockApplyDiscount.mockRejectedValue(new CartMutationCancelledError('discount'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      result.current.setCode('KEEPME');
+    });
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.code).toBe('KEEPME');
+    expect(result.current.fieldError).toBeNull();
+  });
+
+  it('uses remove-specific copy when chip removal fails', async () => {
+    mockRemoveDiscount.mockRejectedValue(new Error('upstream'));
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    await act(async () => {
+      await result.current.remove(existingDiscount.code);
+    });
+
+    expect(result.current.fieldError).toBe('promoCodeRemoveError');
+    expect(result.current.fieldError).not.toBe(FIGMA_PROMO_ERROR);
+  });
+
+  it('tracks removingIndex while a chip is being removed', async () => {
+    let resolveRemove!: () => void;
+    mockRemoveDiscount.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveRemove = resolve;
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+    expect(result.current.removingIndex).toBeNull();
+
+    let removePromise: Promise<void>;
+    act(() => {
+      removePromise = result.current.remove(existingDiscount.code);
+    });
+    expect(result.current.removingIndex).toBe(0);
+    expect(result.current.removing).toBe(true);
+
+    await act(async () => {
+      resolveRemove();
+      await removePromise;
+    });
+
+    expect(result.current.removingIndex).toBeNull();
+    expect(result.current.removing).toBe(false);
+  });
+
+  it('ignores a second remove while a remove is already in flight', async () => {
+    let resolveFirst!: () => void;
+    mockRemoveDiscount.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckoutPromoCode());
+
+    let firstRemove: Promise<void>;
+    act(() => {
+      firstRemove = result.current.remove(existingDiscount.code);
+    });
+    await act(async () => {
+      await result.current.remove('OTHER');
+    });
+
+    expect(mockRemoveDiscount).toHaveBeenCalledTimes(1);
+    expect(mockRemoveDiscount).toHaveBeenCalledWith(0);
+    expect(result.current.removingIndex).toBe(0);
+
+    await act(async () => {
+      resolveFirst();
+      await firstRemove;
+    });
+  });
+});

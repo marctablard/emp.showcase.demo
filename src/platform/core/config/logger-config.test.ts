@@ -13,6 +13,11 @@ function expectNoTraceIds(record: Record<string, unknown>): void {
   }
 }
 
+/** `NODE_ENV` is declared read-only on `NodeJS.ProcessEnv`; tests switch it through a property write. */
+function setNodeEnv(value: string): void {
+  Object.defineProperty(process.env, 'NODE_ENV', { value, configurable: true, enumerable: true, writable: true });
+}
+
 function setOtelFlag(value: string | undefined): void {
   if (value === undefined) {
     delete process.env.NEXT_LOG_OTEL_ENABLED;
@@ -67,7 +72,7 @@ describe('getServerLoggerConfig / getClientLoggerConfig', () => {
   describe('off path', () => {
     it.each(OFF_FLAG_VALUES)('keeps current Pino keys when NEXT_LOG_OTEL_ENABLED is %j', (value) => {
       setOtelFlag(value);
-      process.env.NODE_ENV = 'test';
+      setNodeEnv('test');
 
       const config = getServerLoggerConfig();
 
@@ -79,7 +84,7 @@ describe('getServerLoggerConfig / getClientLoggerConfig', () => {
 
     it('attaches a single pino-pretty transport in development', () => {
       setOtelFlag(undefined);
-      process.env.NODE_ENV = 'development';
+      setNodeEnv('development');
 
       const config = getServerLoggerConfig();
 
@@ -98,7 +103,7 @@ describe('getServerLoggerConfig / getClientLoggerConfig', () => {
 
     it('omits transport in development when includePrettyTransport is false', () => {
       setOtelFlag(undefined);
-      process.env.NODE_ENV = 'development';
+      setNodeEnv('development');
 
       const config = getServerLoggerConfig({ includePrettyTransport: false });
 
@@ -109,7 +114,7 @@ describe('getServerLoggerConfig / getClientLoggerConfig', () => {
   describe('on path', () => {
     beforeEach(() => {
       setOtelFlag('true');
-      process.env.NODE_ENV = 'test';
+      setNodeEnv('test');
     });
 
     it('merges OTel formatter options without a pretty transport', () => {
@@ -124,7 +129,7 @@ describe('getServerLoggerConfig / getClientLoggerConfig', () => {
     });
 
     it('sets pretty timestampKey and messageKey when development pretty is included', () => {
-      process.env.NODE_ENV = 'development';
+      setNodeEnv('development');
 
       const config = getServerLoggerConfig();
 
@@ -142,7 +147,7 @@ describe('getServerLoggerConfig / getClientLoggerConfig', () => {
     });
 
     it('never sets transport when includePrettyTransport is false, even in development', () => {
-      process.env.NODE_ENV = 'development';
+      setNodeEnv('development');
 
       const config = getServerLoggerConfig({ includePrettyTransport: false });
 
@@ -204,7 +209,8 @@ describe('getServerLoggerConfig / getClientLoggerConfig', () => {
     it('does not add OTel formatters or messageKey body when the server flag is on', () => {
       setOtelFlag('true');
 
-      const config = getClientLoggerConfig();
+      // The client config type deliberately has no OTel keys; read it as generic Pino options to prove their absence.
+      const config = getClientLoggerConfig() as pino.LoggerOptions;
 
       expect(config.messageKey).toBeUndefined();
       expect(config.formatters).toBeUndefined();

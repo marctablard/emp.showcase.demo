@@ -35,15 +35,17 @@ set -euo pipefail
 #     an explicit, documented policy exception. Do not respond to it by
 #     removing safe-chain, pinning an older safe-chain release, or otherwise
 #     bypassing it.
-#   - The ONE documented, time-boxed exception to the above is the preview
-#     deploy workflow's `--safe-chain-skip-minimum-package-age` override (see
-#     docs/run-build-deploy.md, "Preview-Only Safe-Chain Minimum-Package-Age
-#     Override"). To reproduce that exact CI behavior locally, opt in with:
+#   - The documented lockfile exception is the standing preview-lane
+#     `--safe-chain-skip-minimum-package-age` override (PR preview, develop
+#     preview, and smoke_prod on pull_request). Production deploy and
+#     non-PR smoke keep the full age gate. See docs/run-build-deploy.md,
+#     "Preview-Only Safe-Chain Minimum-Package-Age Override". To reproduce
+#     that preview lockfile install locally, opt in with:
 #       SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install
 #     This is off by default and only ever skips the minimum-package-age
 #     gate — malware blocking and the npm audit step below are unaffected.
 #     Do not set it to work around anything other than reproducing that
-#     specific, documented preview-only policy exception.
+#     documented preview-lane policy.
 #   - Runs `npm ci --ignore-scripts` because the disposable directory is not
 #     a git worktree: the `prepare` (husky) lifecycle script requires `.git`
 #     and would fail outside the real repo. Dependency lifecycle scripts are

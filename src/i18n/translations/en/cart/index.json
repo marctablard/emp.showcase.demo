@@ -59,6 +59,7 @@
   "gross": "Gross ",
   "hours": "Hours: ",
   "phone": "Phone: ",
+  "couponsRemovedFromEmptyCart": "Promo codes {codes} were removed because the cart is empty.",
   "cartEmpty": "Oh no, your shopping cart is currently empty!",
   "cartEmptyText": "Add products or log in to load a saved cart.",
   "cartEmptyTextLoggedIn": "Add products to your cart.",

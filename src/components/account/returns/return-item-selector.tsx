@@ -177,9 +177,6 @@ export function ReturnItemSelector({
                     placeholder={t('descriptionPlaceholder' as any)}
                     data-testid={`return-item-description-${item.id}`}
                   />
-                  <p className="mt-2 text-xs text-text-on-disabled">
-                    {(itemReasonDetails[item.id] || '').length}/{MAX_DESCRIPTION_LENGTH}
-                  </p>
                 </div>
               )}
 
@@ -300,9 +297,6 @@ export function ReturnItemSelector({
                       placeholder={t('descriptionPlaceholder' as any)}
                       data-testid={`return-item-description-mobile-${item.id}`}
                     />
-                    <p className="mt-2 text-xs text-text-on-disabled">
-                      {(itemReasonDetails[item.id] || '').length}/{MAX_DESCRIPTION_LENGTH}
-                    </p>
                   </div>
                 )}
               </div>

@@ -765,7 +765,7 @@ describe('ApprovalDetails', () => {
             methodName: 'Standard',
             amount: 5,
           },
-          paymentMethods: [{ id: 'pm-1', code: 'invoice', active: true, provider: 'invoice', method: 'invoice' }],
+          paymentMethods: [{ id: 'pm-1', code: 'invoice', active: true, provider: 'invoice' }],
         },
       };
       render(<ApprovalDetails approvalId="approval-requestor-1" />);

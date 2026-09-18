@@ -107,10 +107,24 @@ export interface EmporixShipping {
  */
 export interface EmporixDiscount {
   code: string;
-  amount: number;
+  /** Optional on some coupon rows (`discountRate` only); fall back to calculated applied amounts. */
+  amount?: number;
   currency: string;
   sequenceId?: number;
+  name?: string;
   description?: string;
+  /** YAML `discount.discountType` — `FREE_SHIPPING` coupons often have `amount: 0`. */
+  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+  /** YAML `discount.calculationType` — apply basis when `ApplyDiscountBeforeTax` | `ApplyDiscountAfterTax`. */
+  calculationType?: string;
+}
+
+/** YAML `calculatedAppliedDiscount` — id is optional on some Order API rows. */
+export interface EmporixCalculatedAppliedDiscount {
+  id?: string;
+  value: number;
+  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+  origin?: string;
 }
 
 /**
@@ -137,6 +151,31 @@ export interface EmporixOrderCalculatedPrice {
     taxValue?: number;
     taxCode?: string;
     taxRate?: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
+  };
+  /** YAML `orderCalculatedPrice.discountedPrice` — goods after discounts. */
+  discountedPrice?: {
+    netValue: number;
+    grossValue: number;
+    taxValue: number;
+    taxCode?: string;
+    taxRate?: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
+  };
+  /** YAML `orderCalculatedPrice.totalFee` — fees after discounts. */
+  totalFee?: {
+    netValue: number;
+    grossValue: number;
+    taxValue?: number;
+    taxCode?: string;
+    taxRate?: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
+  };
+  /** YAML `orderCalculatedPrice.totalDiscount`. */
+  totalDiscount?: {
+    calculationType?: 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
+    value: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
   };
 }
 
