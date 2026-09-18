@@ -56,5 +56,6 @@
     }
   },
   "optional": "(optional)",
-  "tax": "VAT"
+  "tax": "VAT",
+  "close": "Close"
 }

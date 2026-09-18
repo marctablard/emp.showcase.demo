@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { format } from 'date-fns';
 import { BadgePercent, Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
 import {
   type DetailTaxLineInput,
@@ -28,6 +27,7 @@ import { isFreeShippingPromo, shopperFacingOrderPromos } from '@/lib/common/appl
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { type OrderOverviewSummaryBreakdown, buildOrderOverviewBreakdown } from '@/lib/common/order-overview-summary';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
+import { formatDate } from '@/lib/date-utils';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Address } from '@/platform/services/model/common';
 import type { Order, OrderDiscount, OrderStatus } from '@/platform/services/model/order/order';
@@ -589,7 +589,7 @@ export function OrderDetail({
               {order.id}
             </SummaryField>
             <SummaryField label={tOrder('orderDate')} valueClassName="text-sm">
-              {order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}
+              {order.createdAt ? formatDate(order.createdAt, locale) : '-'}
             </SummaryField>
             {order.quoteId && (
               <SummaryField label={tOrder('relatedQuote')} valueClassName="text-sm">
@@ -635,7 +635,7 @@ export function OrderDetail({
               {shippingMethodName && <SummaryField label={tOrder('shippingMethod')}>{shippingMethodName}</SummaryField>}
               {order.expectedDeliveryDate && (
                 <SummaryField label={tOrder('deliveryDate')}>
-                  {format(new Date(order.expectedDeliveryDate), 'PPP')}
+                  {formatDate(order.expectedDeliveryDate, locale)}
                 </SummaryField>
               )}
               {order.shippingAddress && (

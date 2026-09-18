@@ -3,19 +3,24 @@
  */
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { ReturnApiError } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 import { ReturnsList } from './returns-list';
 
 const push = jest.fn();
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-    if (values && 'id' in values) {
-      return `${key}:${values.id}`;
-    }
+  useTranslations: () =>
+    Object.assign(
+      (key: string, values?: Record<string, string | number>) => {
+        if (values && 'id' in values) {
+          return `${key}:${values.id}`;
+        }
 
-    return key;
-  },
+        return key;
+      },
+      { has: () => true },
+    ),
   useLocale: () => 'en-US',
 }));
 
@@ -512,14 +517,121 @@ describe('ReturnsList', () => {
     expect(screen.getByText('noReturns')).toBeInTheDocument();
   });
 
-  it('shows an error state and retries via refreshReturns', () => {
+  it('shows a translated error and retries via refreshReturns', () => {
     const refreshReturns = jest.fn();
     mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom'), refreshReturns });
     render(<ReturnsList initialReturns={[]} />);
 
-    expect(screen.getByText(/errorLoading/)).toBeInTheDocument();
+    expect(screen.getByText('errorLoading')).toBeInTheDocument();
     fireEvent.click(screen.getByText('tryAgain'));
     expect(refreshReturns).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the translated message for a coded failure, not the English server text', () => {
+    const coded = new ReturnApiError('Failed to fetch returns', 500, { code: 'RETURNS_FETCH_FAILED' });
+    mockReturnsResult({ returns: [], totalCount: 0, error: coded });
+    render(<ReturnsList initialReturns={[]} />);
+
+    expect(screen.getByText('RETURNS_FETCH_FAILED')).toBeInTheDocument();
+    expect(screen.queryByText('Failed to fetch returns')).not.toBeInTheDocument();
+    expect(screen.queryByText('errorLoading')).not.toBeInTheDocument();
+  });
+
+  it('still runs a fresh query when the term is changed while the error is shown', () => {
+    // The point of the in-form error: the term that broke the search stays editable and a
+    // corrected term reaches the hook. Asserting only that the field renders would not show that.
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
+    render(<ReturnsList initialReturns={[]} />);
+
+    const search = screen.getByLabelText('searchPlaceholder');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: ')' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    const [, brokenOptions] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(brokenOptions.query).toBe('id:~())');
+
+    fireEvent.change(search, { target: { value: 'RET-7' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    const [, correctedOptions] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(correctedOptions.query).toBe('id:~(RET-7)');
+  });
+
+  it('announces the error without pulling the retry button into the field description', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
+    render(<ReturnsList initialReturns={[]} />);
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('errorLoading');
+    // The button must stay outside the live region and outside the description.
+    expect(alert).not.toHaveTextContent('tryAgain');
+
+    const search = screen.getByLabelText('searchPlaceholder');
+    expect(search).toHaveAttribute('aria-describedby', alert.id);
+  });
+
+  it('does not mark the field invalid for a plain load failure without a search term', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
+    render(<ReturnsList initialReturns={[]} />);
+
+    expect(screen.getByLabelText('searchPlaceholder')).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  it('blames the search term when a term is active, instead of advising a retry', () => {
+    const coded = new ReturnApiError('Failed to fetch returns', 500, { code: 'RETURNS_FETCH_FAILED' });
+    mockReturnsResult({ returns: [], totalCount: 0, error: coded });
+    render(<ReturnsList initialReturns={[]} />);
+
+    fireEvent.change(screen.getByLabelText('searchPlaceholder'), { target: { value: ')' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('errorLoadingSearch');
+    expect(screen.getByLabelText('searchPlaceholder')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('keeps heading and search mounted while the first page is still loading', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, loading: true });
+    render(<ReturnsList initialReturns={[]} />);
+
+    // The loading state used to replace the whole frame, which made the field vanish under the cursor.
+    expect(screen.getByLabelText('searchPlaceholder')).toBeInTheDocument();
+    expect(screen.getAllByText('loading').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the search mounted when the account has no returns at all', () => {
+    mockReturnsResult({ returns: [], totalCount: 0 });
+    render(<ReturnsList initialReturns={[]} />);
+
+    expect(screen.getByLabelText('searchPlaceholder')).toBeInTheDocument();
+    expect(screen.getByText('noReturns')).toBeInTheDocument();
+  });
+
+  it('retries with the corrected term instead of the one that failed', () => {
+    const refreshReturns = jest.fn();
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom'), refreshReturns });
+    render(<ReturnsList initialReturns={[]} />);
+
+    fireEvent.change(screen.getByLabelText('searchPlaceholder'), { target: { value: 'RET-7' } });
+    fireEvent.click(screen.getByText('tryAgain'));
+
+    // The debounce has not fired yet, so a plain refresh would repeat the old query.
+    expect(refreshReturns).not.toHaveBeenCalled();
+    const [, options] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(options.query).toBe('id:~(RET-7)');
+  });
+
+  it('shows the error instead of the empty state when a load fails without a search term', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
+    render(<ReturnsList initialReturns={[]} />);
+
+    expect(screen.getByText('errorLoading')).toBeInTheDocument();
+    expect(screen.queryByText('noReturns')).not.toBeInTheDocument();
   });
 
   it('shows only the Next control on the first page and only the Previous control on the last page', () => {

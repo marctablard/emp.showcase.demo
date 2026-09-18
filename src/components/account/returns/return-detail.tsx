@@ -26,6 +26,7 @@ import type { Return } from '@/platform/services/model/return';
 import { formatReturnCurrency } from './helpers';
 import { RETURN_REASON_LABEL_KEYS, renderReturnReasonLabel } from './reason-labels';
 import { ReturnStatusBadge } from './return-status-badge';
+import { useReturnErrorMessage } from './use-return-error-message';
 
 const MAX_DESCRIPTION_CHARACTERS = 500;
 
@@ -300,7 +301,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
 
     return {
       id: item.id,
-      name: item.name,
+      name: item.name || l10n(catalogProduct?.name ?? '') || item.itemNumber || item.productId || '',
       brand: coalesceBrandLabel(item.brand ?? item.vendorName, resolveProductBrandLabel(catalogProduct, l10n)),
       itemNumber: item.itemNumber,
       quantity: item.quantity,
@@ -505,6 +506,7 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
 
 export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
   const t = useTranslations('account.returns');
+  const returnErrorMessage = useReturnErrorMessage();
   const locale = useLocale();
   const { returnItem: apiReturnItem, loading, error, refreshReturn } = useReturn(returnId, initialReturn);
 
@@ -541,7 +543,9 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
         <Alert variant="destructive">
           <CircleAlert className="h-4 w-4" />
           <AlertTitle>{t('error')}</AlertTitle>
-          <AlertDescription>{error?.message || t('returnNotFound')}</AlertDescription>
+          <AlertDescription>
+            {error ? (returnErrorMessage(error) ?? t('apiError.RETURN_FETCH_FAILED')) : t('returnNotFound')}
+          </AlertDescription>
         </Alert>
         <div className="flex gap-4">
           <Button onClick={() => refreshReturn()} data-testid="return-detail-retryButton">

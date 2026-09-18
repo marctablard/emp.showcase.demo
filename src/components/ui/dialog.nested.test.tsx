@@ -6,6 +6,11 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Dialog, DialogContent } from './dialog';
 
+// DialogContent translates its close label, so it needs a translator even here.
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 function NestedDialogs({ onParentOpenChange }: { onParentOpenChange: (open: boolean) => void }) {
   const [parentOpen, setParentOpen] = useState(true);
   const [childOpen, setChildOpen] = useState(true);
