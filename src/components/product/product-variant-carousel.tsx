@@ -165,6 +165,7 @@ export function ProductVariantCarousel({
   if (prevSelectionSyncKey !== selectionSyncKey) {
     setPrevSelectionSyncKey(selectionSyncKey);
     setUserPage(null);
+    setIsNavigating(false);
   }
   const page = Math.min(userPage ?? selectedPage, maxPage);
 
@@ -208,10 +209,10 @@ export function ProductVariantCarousel({
   return (
     <div className={cn('flex min-w-0 w-full flex-col gap-4', className)} data-testid="product-variant-carousel">
       {showListLoading ? (
-        <div role="status" className="w-full" data-testid="product-variant-list-loading">
+        <output className="block w-full" data-testid="product-variant-list-loading">
           <span className="sr-only">{t('loadingVariants')}</span>
           <Skeleton className="h-6 w-full" />
-        </div>
+        </output>
       ) : null}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">

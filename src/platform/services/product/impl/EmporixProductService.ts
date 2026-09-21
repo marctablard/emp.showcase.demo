@@ -244,7 +244,9 @@ class EmporixProductService implements ProductService {
     if (typeof entry.sellable === 'boolean') {
       merged.sellable = entry.sellable;
     }
-    merged.variantAttributes = this.mapDynamicVariantMapAttributes(entry);
+    if (entry.variantAttributes) {
+      merged.variantAttributes = this.mapDynamicVariantMapAttributes(entry);
+    }
     merged.purchasable = entry.sellable === true;
     return merged;
   }
@@ -277,10 +279,7 @@ class EmporixProductService implements ProductService {
     return current;
   }
 
-  private async hydrateDynamicVariantMembers(
-    memberIds: string[],
-    options?: ProductFetchOptions,
-  ): Promise<Map<string, Product>> {
+  private async hydrateDynamicVariantMembers(memberIds: string[]): Promise<Map<string, Product>> {
     const hydrated = new Map<string, Product>();
     if (memberIds.length === 0) {
       return hydrated;
@@ -294,8 +293,8 @@ class EmporixProductService implements ProductService {
         criteria: { id: `(${chunk.join(',')})` },
         expand: ['template', 'parentVariant'],
       });
-      const scopedItems = await this.applySegmentScope(response.items ?? [], options);
-      scopedItems.forEach((item) => {
+      const items: EmporixProduct[] = response.items ?? [];
+      items.forEach((item) => {
         if (!item.id) {
           return;
         }
@@ -328,7 +327,7 @@ class EmporixProductService implements ProductService {
       return [];
     }
 
-    const hydratedById = await this.hydrateDynamicVariantMembers(scopedMemberIds, options);
+    const hydratedById = await this.hydrateDynamicVariantMembers(scopedMemberIds);
     return scopedMemberIds
       .map((memberId) => {
         const entry = variantEntries[memberId];

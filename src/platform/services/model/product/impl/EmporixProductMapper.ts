@@ -92,8 +92,8 @@ function resolvePurchasable(source: EmporixProduct): boolean {
  */
 function mapDynamicVariantAttributes(source: EmporixProduct): ProductVariantAttribute[] {
   const accumulated: Record<string, EmporixDynamicVariantAttribute> = {
-    ...(source.inheritedVariantAttributes ?? {}),
-    ...(source.ownVariantAttributes ?? {}),
+    ...source.inheritedVariantAttributes,
+    ...source.ownVariantAttributes,
   };
 
   return Object.entries(accumulated)
@@ -130,6 +130,58 @@ function mapDynamicVariantAttribute(
   };
 }
 
+function mapProductImages(source: EmporixProduct): Pick<Product, 'images' | 'primaryImage'> {
+  const images = source.media
+    ? source.media.map((media) => ({
+        url: media.url,
+        altText: source.name,
+        contentType: media.contentType,
+      }))
+    : [];
+
+  return {
+    images,
+    primaryImage: source.media ? source.media[0] : undefined,
+  };
+}
+
+function mapProductTemplateRef(templateSource: EmporixProductTemplate | undefined): Product['template'] | undefined {
+  if (!templateSource?.id) {
+    return undefined;
+  }
+  const version = resolveTemplateVersion(templateSource);
+  return version ? { id: templateSource.id, version } : { id: templateSource.id };
+}
+
+function mapProductSpecifications(source: EmporixProduct): ProductSpecification[] {
+  if (!Array.isArray(source.mixins?.specifications?.specifications)) {
+    return [];
+  }
+
+  return source.mixins.specifications.specifications.map((rawSpec: unknown): ProductSpecification => {
+    const spec =
+      rawSpec !== null && typeof rawSpec === 'object' && !Array.isArray(rawSpec)
+        ? (rawSpec as Record<string, unknown>)
+        : {};
+    // normalizeLocalizedLeaf() can return undefined for empty arrays/objects; only spread the
+    // optional props when a defined value exists so we never emit { groupLabel: undefined }.
+    const groupLabel = normalizeLocalizedLeaf(spec.groupLabel);
+    const unit = normalizeLocalizedLeaf(spec.unit);
+    const key = typeof spec.key === 'string' ? spec.key : '';
+    // Schema is boolean | null — coerce null / missing to omitted (never emit highlight: undefined).
+    const highlight = typeof spec.highlight === 'boolean' ? spec.highlight : undefined;
+    return {
+      key,
+      label: normalizeLocalizedLeaf(spec.label, key) || { en: key },
+      value: normalizeLocalizedLeaf(spec.value) || { en: '' },
+      ...(typeof spec.group === 'string' && spec.group ? { group: spec.group } : {}),
+      ...(groupLabel ? { groupLabel } : {}),
+      ...(unit ? { unit } : {}),
+      ...(typeof highlight === 'boolean' ? { highlight } : {}),
+    };
+  });
+}
+
 /**
  * Implementation of ProductMapper for Emporix product data.
  * Maps between Emporix API product format and internal Product model.
@@ -145,16 +197,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
    * @returns The internal Product model
    */
   mapToService(source: EmporixProduct): Product {
-    // Extract images from media array
-    const images = source.media
-      ? source.media.map((media) => ({
-          url: media.url,
-          altText: source.name,
-          contentType: media.contentType,
-        }))
-      : [];
-
-    const primaryImage = source.media ? source.media[0] : undefined;
+    const { images, primaryImage } = mapProductImages(source);
 
     // Extract localized name and description
     const name = source.name || ''; // Add null/empty check
@@ -163,30 +206,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       source.mixins?.productTemplateAttributes as Record<string, unknown> | undefined,
     );
     const highlights = normalizeLocalizedHighlights(source.mixins?.highlights?.highlights);
-    const mappedSpecs = !Array.isArray(source.mixins?.specifications?.specifications)
-      ? []
-      : source.mixins.specifications.specifications.map((rawSpec: unknown): ProductSpecification => {
-          const spec =
-            rawSpec !== null && typeof rawSpec === 'object' && !Array.isArray(rawSpec)
-              ? (rawSpec as Record<string, unknown>)
-              : {};
-          // normalizeLocalizedLeaf() can return undefined for empty arrays/objects; only spread the
-          // optional props when a defined value exists so we never emit { groupLabel: undefined }.
-          const groupLabel = normalizeLocalizedLeaf(spec.groupLabel);
-          const unit = normalizeLocalizedLeaf(spec.unit);
-          const key = typeof spec.key === 'string' ? spec.key : '';
-          // Schema is boolean | null — coerce null / missing to omitted (never emit highlight: undefined).
-          const highlight = typeof spec.highlight === 'boolean' ? spec.highlight : undefined;
-          return {
-            key,
-            label: normalizeLocalizedLeaf(spec.label, key) || { en: key },
-            value: normalizeLocalizedLeaf(spec.value) || { en: '' },
-            ...(typeof spec.group === 'string' && spec.group ? { group: spec.group } : {}),
-            ...(groupLabel ? { groupLabel } : {}),
-            ...(unit ? { unit } : {}),
-            ...(typeof highlight === 'boolean' ? { highlight } : {}),
-          };
-        });
+    const mappedSpecs = mapProductSpecifications(source);
 
     // Also create a grouped version of specifications
     const groupedSpecifications = mappedSpecs.length > 0 ? this.groupSpecificationsByGroup(mappedSpecs) : [];
@@ -196,7 +216,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       types: templateAttributeTypes,
       order: templateAttributeOrder,
     } = mapTemplateAttributeMeta(templateSource);
-    const templateVersion = resolveTemplateVersion(templateSource);
+    const template = mapProductTemplateRef(templateSource);
 
     return {
       id: source.id || source.code,
@@ -212,21 +232,14 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       specifications: mappedSpecs,
       groupedSpecifications: groupedSpecifications,
       highlights,
-      ...(templateSource?.id
-        ? {
-            template: {
-              id: templateSource.id,
-              ...(templateVersion ? { version: templateVersion } : {}),
-            },
-          }
-        : {}),
+      ...(template ? { template } : {}),
       templateAttributes,
       ...(templateAttributeOrder ? { templateAttributeOrder } : {}),
       ...(templateAttributeLabels ? { templateAttributeLabels } : {}),
       ...(templateAttributeTypes ? { templateAttributeTypes } : {}),
       ...(source.productType ? { productType: source.productType } : {}),
       ...(typeof source.sellable === 'boolean' ? { sellable: source.sellable } : {}),
-      ...(source.parentVariantPath !== undefined ? { parentVariantPath: source.parentVariantPath } : {}),
+      ...(source.parentVariantPath === undefined ? {} : { parentVariantPath: source.parentVariantPath }),
       variantAttributes:
         source.productType === 'DYNAMIC_VARIANT'
           ? mapDynamicVariantAttributes(source)

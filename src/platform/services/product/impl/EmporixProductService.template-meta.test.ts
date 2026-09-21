@@ -415,6 +415,78 @@ describe('EmporixProductService template meta enrichment', () => {
       );
     });
 
+    it('keeps hydrated dynamic attributes when the variants map omits variantAttributes', async () => {
+      const getProduct = jest.fn().mockImplementation((id: string) => {
+        if (id === 'opened-dynamic') {
+          return Promise.resolve({
+            id: 'opened-dynamic',
+            code: 'opened-dynamic',
+            productType: 'DYNAMIC_VARIANT',
+            variants: {
+              'opened-dynamic': {
+                sellable: true,
+                name: { en: 'Opened dynamic' },
+              },
+            },
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [{ id: 'opened-dynamic', code: 'opened-dynamic', productType: 'DYNAMIC_VARIANT' }],
+      });
+      const mapToServiceDynamic = jest.fn().mockImplementation((product: { id: string }) => ({
+        id: product.id,
+        name: { en: product.id },
+        description: {},
+        purchasable: true,
+        variantAttributes: [{ key: 'frequency', name: { en: 'Frequency' }, values: [{ key: '50', selected: true }] }],
+      }));
+      const service = createService({
+        getProduct,
+        searchProducts,
+        mapToService: mapToServiceDynamic,
+        getCurrent,
+      });
+
+      const variants = await service.getVariantProducts('opened-dynamic');
+
+      expect(variants[0].variantAttributes).toEqual([
+        { key: 'frequency', name: { en: 'Frequency' }, values: [{ key: '50', selected: true }] },
+      ]);
+    });
+
+    it('scopes a dynamic family once before hydration', async () => {
+      const getProduct = jest.fn().mockResolvedValue({
+        id: 'opened-dynamic',
+        code: 'opened-dynamic',
+        productType: 'DYNAMIC_VARIANT',
+        variants: {
+          'opened-dynamic': { sellable: true, name: { en: 'Opened' } },
+          'leaf-sellable': { sellable: true, name: { en: 'Leaf' } },
+        },
+      });
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [
+          { id: 'opened-dynamic', code: 'opened-dynamic', productType: 'DYNAMIC_VARIANT' },
+          { id: 'leaf-sellable', code: 'leaf-sellable', productType: 'DYNAMIC_VARIANT' },
+        ],
+      });
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['opened-dynamic', 'leaf-sellable']));
+      const service = createService({
+        getProduct,
+        searchProducts,
+        mapToService,
+        getCurrent,
+        filterProductIdsInScope,
+      });
+
+      await service.getVariantProducts('opened-dynamic', { segmentIds: ['s1'], siteCode: 'us' });
+
+      expect(filterProductIdsInScope).toHaveBeenCalledTimes(1);
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['opened-dynamic', 'leaf-sellable'], 'us', ['s1']);
+    });
+
     it('throws when dynamic GET-walk exhausts without a variants map', async () => {
       const getProduct = jest.fn().mockImplementation((id: string) => {
         if (id === 'dyn-child') {

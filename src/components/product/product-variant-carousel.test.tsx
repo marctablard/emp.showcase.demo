@@ -269,6 +269,33 @@ describe('ProductVariantCarousel', () => {
     expect(screen.getByTestId('product-variant-list-loading')).toBeInTheDocument();
   });
 
+  it('clears navigation loading when the opened product id changes', () => {
+    const variants = [buildVariant('v1', '12 Ah'), buildVariant('v2', '60 Ah')];
+    const prices = [buildPrice('v1', 290.9), buildPrice('v2', 900)];
+    const { rerender } = render(
+      <ProductVariantCarousel
+        variants={variants}
+        prices={prices}
+        currentProductId="v1"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByTestId('product-variant-carousel-card')[1]);
+    expect(screen.getByTestId('product-variant-list-loading')).toBeInTheDocument();
+
+    rerender(
+      <ProductVariantCarousel
+        variants={variants}
+        prices={prices}
+        currentProductId="v2"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    expect(screen.queryByTestId('product-variant-list-loading')).not.toBeInTheDocument();
+  });
+
   it('omits chip-selected axes from card call-outs and keeps differentiating values', () => {
     const variants: Product[] = [
       {
@@ -353,7 +380,7 @@ describe('ProductVariantCarousel', () => {
 
     const loading = screen.getByTestId('product-variant-list-loading');
     expect(loading).toBeInTheDocument();
-    expect(loading).toHaveAttribute('role', 'status');
+    expect(loading.tagName).toBe('OUTPUT');
     expect(screen.getByText('variants.sellableVariants')).toBeInTheDocument();
     expect(screen.getByTestId('product-variant-carousel-card')).toBeInTheDocument();
     expect(screen.getByTestId('product-variant-carousel-prev')).toBeInTheDocument();
