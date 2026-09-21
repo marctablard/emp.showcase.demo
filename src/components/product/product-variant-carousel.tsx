@@ -6,19 +6,28 @@ import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { H5 } from '@/components/ui/h';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useL10n } from '@/hooks/useL10n';
 import { useRouter } from '@/i18n/navigation';
 import { formatTemplateAttributeValue } from '@/lib/common/product-template-attributes';
-import { getSelectedVariantAttributeValues } from '@/lib/common/product-variant-attributes';
+import {
+  type VariantAttributeDisplayPair,
+  getUnselectedVariantAttributePairs,
+} from '@/lib/common/product-variant-attributes';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product, ProductTemplateAttributeType } from '@/platform/services/model/product';
 
-/** Figma card content width (`12799:113117`). */
-const VARIANT_CARD_WIDTH_PX = 157;
+/** Figma Link card outer border-box (`12799:113116`). */
+const VARIANT_CARD_WIDTH_PX = 161;
+/** Inner thumbnail / info width (`12799:113117`); 2px inset is the border. */
+const VARIANT_CARD_INNER_WIDTH_PX = 157;
 /** Gap between cards (Figma row gap / `spacing/4`). */
 const VARIANT_CARD_GAP_PX = 16;
+/** Figma Slider Controls (`12799:113113`) — 40×40, icon 24×24. */
+const VARIANT_CAROUSEL_PAGER_CLASS_NAME =
+  'static size-10 translate-y-0 border-border-action bg-surface-primary p-2 disabled:border-transparent disabled:bg-surface-disabled [&_svg]:size-6 [&_svg]:text-icon-action';
 
 export interface ProductVariantCarouselProps {
   variants: Product[];
@@ -26,6 +35,12 @@ export interface ProductVariantCarouselProps {
   currentProductId: string;
   attributeOrder: string[];
   attributeTypes?: Record<string, ProductTemplateAttributeType>;
+  /** Chip axes the shopper already selected — omitted from card call-outs. */
+  selectedFilters?: Record<string, string>;
+  /** Filter or navigation in flight — skeleton above the Sellable variants heading. */
+  isLoading?: boolean;
+  /** When set, the selector owns navigation (and can keep the list loader visible). */
+  onVariantSelect?: (variantId: string) => void;
   className?: string;
 }
 
@@ -74,6 +89,23 @@ export function resolvePageCount(variantCount: number, slidesPerPage: number): n
   return Math.max(1, Math.ceil(variantCount / Math.max(1, slidesPerPage)));
 }
 
+function orderDisplayPairs(
+  pairs: VariantAttributeDisplayPair[],
+  attributeOrder: string[],
+): VariantAttributeDisplayPair[] {
+  if (attributeOrder.length === 0) {
+    return pairs;
+  }
+  const pairByKey = new Map(pairs.map((pair) => [pair.key, pair]));
+  return [
+    ...attributeOrder.flatMap((key) => {
+      const pair = pairByKey.get(key);
+      return pair ? [pair] : [];
+    }),
+    ...pairs.filter((pair) => !attributeOrder.includes(pair.key)),
+  ];
+}
+
 /**
  * Figma Sellable variants carousel (`12799:113107`) — thumbnail + attribute values + net price.
  * Page-based track (arrows + dots move by fully visible cards). Card click → variant PDP.
@@ -87,6 +119,9 @@ export function ProductVariantCarousel({
   currentProductId,
   attributeOrder,
   attributeTypes,
+  selectedFilters = {},
+  isLoading = false,
+  onVariantSelect,
   className,
 }: Readonly<ProductVariantCarouselProps>): JSX.Element | null {
   const t = useTranslations('product');
@@ -95,8 +130,12 @@ export function ProductVariantCarousel({
   const { l10nOrEmpty } = useL10n();
   const router = useRouter();
   const viewportRef = useRef<HTMLDivElement>(null);
+  const selectedCardRef = useRef<HTMLButtonElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
-  const [page, setPage] = useState(0);
+  const [userPage, setUserPage] = useState<number | null>(null);
+  const [prevSelectionSyncKey, setPrevSelectionSyncKey] = useState('');
+  const [isNavigating, setIsNavigating] = useState(false);
+  const showListLoading = isLoading || isNavigating;
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -120,11 +159,20 @@ export function ProductVariantCarousel({
   const slidesPerPage = resolveSlidesPerPage(viewportWidth);
   const pageCount = resolvePageCount(variants.length, slidesPerPage);
   const maxPage = Math.max(0, pageCount - 1);
-  if (page > maxPage) {
-    setPage(maxPage);
+  const selectedIndex = variants.findIndex((variant) => variant.id === currentProductId);
+  const selectedPage = selectedIndex >= 0 && slidesPerPage >= 1 ? Math.floor(selectedIndex / slidesPerPage) : 0;
+  const selectionSyncKey = `${currentProductId}:${slidesPerPage}:${variants.map((variant) => variant.id).join(',')}`;
+  if (prevSelectionSyncKey !== selectionSyncKey) {
+    setPrevSelectionSyncKey(selectionSyncKey);
+    setUserPage(null);
   }
+  const page = Math.min(userPage ?? selectedPage, maxPage);
 
-  if (variants.length === 0) {
+  useEffect(() => {
+    selectedCardRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [currentProductId, page, variants]);
+
+  if (variants.length === 0 && !showListLoading) {
     return null;
   }
 
@@ -140,11 +188,31 @@ export function ProductVariantCarousel({
   const canScrollNext = safePage < pageCount - 1;
 
   const goToPage = (nextPage: number): void => {
-    setPage(Math.max(0, Math.min(nextPage, pageCount - 1)));
+    setUserPage(Math.max(0, Math.min(nextPage, pageCount - 1)));
+  };
+
+  const openVariant = (variant: Product): void => {
+    if (variant.sellable === false || variant.id === currentProductId) {
+      return;
+    }
+    setIsNavigating(true);
+    if (onVariantSelect) {
+      onVariantSelect(variant.id);
+      return;
+    }
+    startTransition(() => {
+      router.push(`/product/${variant.id}`);
+    });
   };
 
   return (
     <div className={cn('flex min-w-0 w-full flex-col gap-4', className)} data-testid="product-variant-carousel">
+      {showListLoading ? (
+        <div role="status" className="w-full" data-testid="product-variant-list-loading">
+          <span className="sr-only">{t('loadingVariants')}</span>
+          <Skeleton className="h-6 w-full" />
+        </div>
+      ) : null}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <H5>{t('variants.sellableVariants')}</H5>
@@ -155,7 +223,7 @@ export function ProductVariantCarousel({
             type="button"
             variant="carouselControl"
             size="icon"
-            className="static translate-y-0 [&_svg]:h-6 [&_svg]:w-6 [&_svg]:text-icon-action"
+            className={VARIANT_CAROUSEL_PAGER_CLASS_NAME}
             disabled={!canScrollPrev}
             title={tCarousel('prev')}
             data-testid="product-variant-carousel-prev"
@@ -167,7 +235,7 @@ export function ProductVariantCarousel({
             type="button"
             variant="carouselControl"
             size="icon"
-            className="static translate-y-0 [&_svg]:h-6 [&_svg]:w-6 [&_svg]:text-icon-action"
+            className={VARIANT_CAROUSEL_PAGER_CLASS_NAME}
             disabled={!canScrollNext}
             title={tCarousel('next')}
             data-testid="product-variant-carousel-next"
@@ -187,11 +255,11 @@ export function ProductVariantCarousel({
         >
           {variants.map((variant) => {
             const isSelected = variant.id === currentProductId;
-            const selectedValues = getSelectedVariantAttributeValues(variant);
-            const orderedKeys = attributeOrder.filter(
-              (key) => selectedValues[key] !== undefined && selectedValues[key] !== '',
+            const isDisabled = variant.sellable === false;
+            const displayPairs = orderDisplayPairs(
+              getUnselectedVariantAttributePairs(variant, selectedFilters),
+              attributeOrder,
             );
-            const displayKeys = orderedKeys.length > 0 ? orderedKeys : Object.keys(selectedValues);
             const price = getPrice(variant.id);
             const netAmount = resolveNetUnitPrice(price);
             const image = variant.images?.[0] ?? variant.primaryImage;
@@ -199,22 +267,17 @@ export function ProductVariantCarousel({
             return (
               <button
                 key={variant.id}
+                ref={isSelected ? selectedCardRef : undefined}
                 type="button"
+                aria-disabled={isDisabled || undefined}
                 className={cn(
-                  'group flex shrink-0 cursor-pointer flex-col rounded-sm border-2 p-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
+                  'group box-border flex h-[228px] w-[161px] min-w-[161px] shrink-0 flex-col overflow-hidden rounded-sm border-2 p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
                   isSelected ? 'border-border-secondary' : 'border-border-primary',
+                  isDisabled ? 'cursor-not-allowed bg-surface-disabled text-text-disabled' : 'cursor-pointer',
                 )}
-                style={{ width: VARIANT_CARD_WIDTH_PX, minWidth: VARIANT_CARD_WIDTH_PX }}
                 data-testid="product-variant-carousel-card"
                 data-variant-selected={isSelected ? 'true' : 'false'}
-                onClick={() => {
-                  if (variant.id === currentProductId) {
-                    return;
-                  }
-                  startTransition(() => {
-                    router.push(`/product/${variant.id}`);
-                  });
-                }}
+                onClick={() => openVariant(variant)}
               >
                 <div className="flex h-[112px] w-full items-center justify-center bg-surface-image-background p-4">
                   {image?.url ? (
@@ -228,19 +291,19 @@ export function ProductVariantCarousel({
                         }
                         fill
                         className="object-contain object-center"
-                        sizes={`${VARIANT_CARD_WIDTH_PX}px`}
+                        sizes={`${VARIANT_CARD_INNER_WIDTH_PX}px`}
                       />
                     </div>
                   ) : (
                     <span className="text-sm text-text-on-disabled">{t('noImage')}</span>
                   )}
                 </div>
-                <div className="flex w-full flex-col gap-2 px-2 py-1 text-base text-text-body">
+                <div className="flex h-[112px] w-full flex-col gap-2 px-2 py-1 text-base text-text-body">
                   <div className="flex flex-col">
-                    {displayKeys.map((key) => (
+                    {displayPairs.map((pair) => (
                       <ProductVariantCarouselValue
-                        key={key}
-                        value={formatTemplateAttributeValue(selectedValues[key], attributeTypes?.[key], locale)}
+                        key={pair.key}
+                        value={formatTemplateAttributeValue(pair.value, attributeTypes?.[pair.key], locale)}
                       />
                     ))}
                   </div>

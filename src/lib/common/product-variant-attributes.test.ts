@@ -5,6 +5,7 @@ import {
   getCompatibleAttributeValues,
   getFirstVariantAttributeGroupFromChildren,
   getSelectedVariantAttributeValues,
+  getUnselectedVariantAttributePairs,
   getVariantAttributeDisplayPairs,
   isVariantFamilyProduct,
   sortKeysByTemplateAttributeOrder,
@@ -498,6 +499,35 @@ describe('isVariantFamilyProduct', () => {
         variantAttributes: [],
       }),
     ).toBe(false);
+  });
+
+  it('treats DYNAMIC_VARIANT as a family without classic parent flags', () => {
+    expect(
+      isVariantFamilyProduct({
+        id: 'dyn-root',
+        name: 'Dynamic root',
+        description: '',
+        purchasable: false,
+        productType: 'DYNAMIC_VARIANT',
+        sellable: false,
+        parentVariantPath: [],
+      }),
+    ).toBe(true);
+  });
+});
+
+describe('getUnselectedVariantAttributePairs', () => {
+  it('omits axes the shopper already selected and keeps the remaining pairs', () => {
+    const variant = buildVariant('leaf', [
+      { key: 'width', value: '15', name: 'Width' },
+      { key: 'height', value: 'Short', name: 'Height' },
+      { key: 'frequency', value: '50Hz', name: 'Frequency' },
+    ]);
+
+    expect(getUnselectedVariantAttributePairs(variant, { width: '15' })).toEqual([
+      { key: 'height', name: 'Height', value: 'Short' },
+      { key: 'frequency', name: 'Frequency', value: '50Hz' },
+    ]);
   });
 });
 

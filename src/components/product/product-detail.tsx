@@ -81,14 +81,17 @@ export interface ProductDetailProps {
   catalogDisplayName?: string;
 }
 
-function PdpPriceBlock({ price }: Readonly<{ price: ProductPrice | null | undefined }>): React.ReactElement {
+function PdpPriceBlock({
+  price,
+  quantity,
+}: Readonly<{ price: ProductPrice | null | undefined; quantity: number }>): React.ReactElement {
   if (price === undefined) {
     return <ProductPriceSkeleton />;
   }
   if (price === null) {
     return <ProductPriceUnavailable />;
   }
-  return <ProductPriceComponent price={price} />;
+  return <ProductPriceComponent price={price} quantity={quantity} />;
 }
 
 function PdpBrandName({ name }: Readonly<{ name: string }>): React.ReactElement {
@@ -505,8 +508,6 @@ function PdpHighlights({
 interface PdpDetailViewProps {
   product: Product;
   className?: string;
-  price: ProductPrice | null | undefined;
-  availability: StockAvailability | undefined;
   session: Session | null | undefined;
   catalogDisplayName?: string;
 }
@@ -514,8 +515,6 @@ interface PdpDetailViewProps {
 function PdpDetailView({
   product,
   className,
-  price,
-  availability,
   session,
   catalogDisplayName,
 }: Readonly<PdpDetailViewProps>): React.ReactElement {
@@ -531,8 +530,9 @@ function PdpDetailView({
   const addToCartButton = useRef<HTMLDivElement>(null);
   const addToCartBar = useRef<HTMLDivElement>(null);
   const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
-  const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(product, price, 'wishlist');
   const [quantity, setQuantity] = useState(1);
+  const { price, availability } = usePdpPurchaseData(product, session, site, quantity);
+  const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(product, price, 'wishlist');
   const { shippingCost, postalCode: shippingPostalCode } = usePdpShippingCost(price, quantity);
   const stickyAtcVisible = usePdpStickyAtcVisibility(addToCartButton, isAboveMediumScreen);
   const showLabels = hasProductLabels(product);
@@ -671,7 +671,7 @@ function PdpDetailView({
               ref={addToCartButton}
             >
               <div className="col-start-1 sm:row-start-1 sm:col-end-3 md:col-end-4 lg:col-end-5">
-                <PdpPriceBlock price={price} />
+                <PdpPriceBlock price={price} quantity={quantity} />
               </div>
             </div>
             <ProductAddToCart
@@ -790,7 +790,6 @@ export default function ProductDetail({
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
   const { mode: productsMode } = useProductsMode();
   const { session } = useSession();
-  const { site } = useSite();
   // Usable SSR seed = full Product object (not an id string). Keep it as fallback during
   // session/pricing bootstrap so a transient null/error does not become false Not Found.
   const ssrSeedProduct = ssrSeedFromInitialProduct(initialProduct);
@@ -805,7 +804,6 @@ export default function ProductDetail({
     hideUnscopedSeed,
     ssrSeedProduct,
   );
-  const { price, availability } = usePdpPurchaseData(resolvedProduct, session, site);
   usePdpCurrentProduct(resolvedProduct, setAsCurrent);
 
   // Painted seed/client product stays on screen during catalog refetch and shop-context
@@ -815,8 +813,6 @@ export default function ProductDetail({
       <PdpDetailView
         product={resolvedProduct}
         className={className}
-        price={price}
-        availability={availability}
         session={session}
         catalogDisplayName={catalogDisplayName}
       />

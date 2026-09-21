@@ -6,8 +6,11 @@ export const PARENT_VARIANT_LABEL_BADGE_LIMIT = 6;
 /** Child / sellable variant tiles: value + label pairs. */
 export const VARIANT_ATTRIBUTE_PAIR_BADGE_LIMIT = 3;
 
-/** Parent, child, or any product that already carries variant-family data. */
+/** Parent, child, DYNAMIC_VARIANT tree, or any product that already carries variant-family data. */
 export function isVariantFamilyProduct(product: Product): boolean {
+  if (product.productType === 'DYNAMIC_VARIANT') {
+    return true;
+  }
   if (product.isParentVariant || Boolean(product.parentVariantId)) {
     return true;
   }
@@ -127,6 +130,17 @@ export interface VariantAttributeDisplayPair {
   key: string;
   name?: ProductVariantAttribute['name'];
   value: string;
+}
+
+/**
+ * Card call-outs: display pairs the shopper has not selected yet.
+ * Used so sellable cards omit axes already chosen in the configurator.
+ */
+export function getUnselectedVariantAttributePairs(
+  product: Product,
+  selectedAttributes: Record<string, string> = {},
+): VariantAttributeDisplayPair[] {
+  return getVariantAttributeDisplayPairs(product).filter((pair) => !hasAttributeValue(selectedAttributes[pair.key]));
 }
 
 /** Selected value/label pairs for a sellable variant, ordered by `templateAttributeOrder`. */

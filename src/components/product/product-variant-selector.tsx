@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useSession } from '@/hooks/session/useSession';
+import { useRouter } from '@/i18n/navigation';
 import { fetchProductPrices } from '@/lib/client/prices';
 import { fetchProductVariants } from '@/lib/client/products';
+import { filterDynamicMembersByQualifiers, filterSellableDynamicMembers } from '@/lib/common/product-dynamic-variants';
 import {
   collectVariantAttributeGroups,
   getCompatibleValuesByAttribute,
@@ -24,28 +26,115 @@ export interface ProductVariantSelectorProps {
   className?: string;
 }
 
+function variantMatchesFilters(variant: Product, filters: Record<string, string>): boolean {
+  const values = getSelectedVariantAttributeValues(variant);
+  return Object.entries(filters).every(([key, value]) => values[key] === value);
+}
+
+function isSellableForAutoSelect(variant: Product): boolean {
+  return variant.sellable !== false;
+}
+
+/** Classic parent, or last `parentVariantPath` entry for dynamic — never guess a missing root. */
+function resolveVariantClearAllDestination(product: Product, family: Product[]): string | undefined {
+  if (product.productType === 'DYNAMIC_VARIANT') {
+    const openedRoot = product.parentVariantPath?.at(-1);
+    if (openedRoot) {
+      return openedRoot;
+    }
+    for (const member of family) {
+      const memberRoot = member.parentVariantPath?.at(-1);
+      if (memberRoot) {
+        return memberRoot;
+      }
+    }
+    return undefined;
+  }
+  return product.parentVariantId;
+}
+
+function findSingleAutoSelectId(
+  variants: Product[],
+  filters: Record<string, string>,
+  currentProductId: string,
+): string | undefined {
+  if (Object.keys(filters).length === 0) {
+    return undefined;
+  }
+  const matching = variants.filter(
+    (variant) => isSellableForAutoSelect(variant) && variantMatchesFilters(variant, filters),
+  );
+  if (matching.length !== 1) {
+    return undefined;
+  }
+  const onlyId = matching[0].id;
+  if (onlyId === currentProductId) {
+    return undefined;
+  }
+  return onlyId;
+}
+
+function navigateToProduct(router: { push: (href: string) => void }, productId: string): void {
+  startTransition(() => {
+    router.push(`/product/${productId}`);
+  });
+}
+
+function isDynamicVariantFamily(product: Product, family: Product[]): boolean {
+  return product.productType === 'DYNAMIC_VARIANT' || family.some((member) => member.productType === 'DYNAMIC_VARIANT');
+}
+
+function includeOpenedFamilyMember(product: Product, variants: Product[]): Product[] {
+  if (variants.some((variant) => variant.id === product.id)) {
+    return variants;
+  }
+  if (product.productType === 'DYNAMIC_VARIANT') {
+    return [product, ...variants];
+  }
+  if (product.parentVariantId && !product.isParentVariant) {
+    return [product, ...variants];
+  }
+  return variants;
+}
+
+function buildSellableListSource(product: Product, family: Product[]): Product[] {
+  if (isDynamicVariantFamily(product, family)) {
+    return filterSellableDynamicMembers(family, product.id);
+  }
+  return family;
+}
+
 /**
- * PDP variant area: attribute-value chips (display-only) + sellable-variants carousel.
+ * PDP variant area: interactive attribute chips + sellable-variants carousel.
  * Replaces the previous simple card grid / multi dropdowns (Figma `12799:113082` + `12799:113107`).
  */
 export default function ProductVariantSelector({ product, className }: ProductVariantSelectorProps) {
+  const router = useRouter();
   const [variants, setVariants] = useState<Product[]>([]);
   const [variantsLoaded, setVariantsLoaded] = useState(false);
   const [variantPrices, setVariantPrices] = useState<ProductPrice[] | undefined>(undefined);
+  const [filterSelection, setFilterSelection] = useState<Record<string, string>>({});
+  const [isListLoading, setIsListLoading] = useState(false);
+  const autoSelectTargetRef = useRef<string | null>(null);
   const { session } = useSession();
   const clientDedupeScope = useClientFetchScope();
 
-  const parentId = product.parentVariantId || product.id;
   const shouldLoadVariants = isVariantFamilyProduct(product);
-  const [prevParentId, setPrevParentId] = useState(parentId);
+  const [prevProductId, setPrevProductId] = useState(product.id);
   const [prevClientDedupeScope, setPrevClientDedupeScope] = useState(clientDedupeScope);
-  if (prevParentId !== parentId || prevClientDedupeScope !== clientDedupeScope) {
-    setPrevParentId(parentId);
+  if (prevProductId !== product.id || prevClientDedupeScope !== clientDedupeScope) {
+    setPrevProductId(product.id);
     setPrevClientDedupeScope(clientDedupeScope);
     setVariants([]);
     setVariantsLoaded(false);
     setVariantPrices(undefined);
+    setFilterSelection({});
+    setIsListLoading(false);
   }
+
+  useEffect(() => {
+    autoSelectTargetRef.current = null;
+  }, [product.id, clientDedupeScope]);
 
   const sessionCurrency = session?.currency;
   const [prevSessionCurrency, setPrevSessionCurrency] = useState(sessionCurrency);
@@ -65,7 +154,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
 
     const loadVariants = async (): Promise<void> => {
       try {
-        const fetchedVariants = await fetchProductVariants(parentId, clientDedupeScope);
+        const fetchedVariants = await fetchProductVariants(product.id, clientDedupeScope);
         if (isCancelled) {
           return;
         }
@@ -89,7 +178,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
     return () => {
       isCancelled = true;
     };
-  }, [parentId, shouldLoadVariants, clientDedupeScope]);
+  }, [product.id, shouldLoadVariants, clientDedupeScope]);
 
   useEffect(() => {
     if (!variantsLoaded || variants.length === 0) {
@@ -121,24 +210,69 @@ export default function ProductVariantSelector({ product, className }: ProductVa
     return () => {
       isCancelled = true;
     };
-  }, [parentId, sessionCurrency, variants, variantsLoaded]);
+  }, [product.id, sessionCurrency, variants, variantsLoaded]);
 
   const attributeGroups = useMemo(() => collectVariantAttributeGroups(product, variants), [product, variants]);
   const attributeOrder = useMemo(() => attributeGroups.map((group) => group.key), [attributeGroups]);
   const selectedAttributeValues = useMemo(() => getSelectedVariantAttributeValues(product), [product]);
-  const carouselVariants = useMemo(() => {
-    if (variants.some((variant) => variant.id === product.id)) {
-      return variants;
-    }
-    if (product.parentVariantId && !product.isParentVariant) {
-      return [product, ...variants];
-    }
-    return variants;
-  }, [product, variants]);
-  const compatibleValuesByAttribute = useMemo(
-    () => getCompatibleValuesByAttribute(carouselVariants, selectedAttributeValues, attributeOrder),
-    [carouselVariants, selectedAttributeValues, attributeOrder],
+  const familyVariants = useMemo(() => includeOpenedFamilyMember(product, variants), [product, variants]);
+  const listSource = useMemo(() => buildSellableListSource(product, familyVariants), [familyVariants, product]);
+  const listVariants = useMemo(
+    () => filterDynamicMembersByQualifiers(listSource, filterSelection),
+    [filterSelection, listSource],
   );
+  const compatibleValuesByAttribute = useMemo(
+    () => getCompatibleValuesByAttribute(listSource, filterSelection, attributeOrder),
+    [attributeOrder, filterSelection, listSource],
+  );
+
+  const autoSelectTargetId = useMemo(
+    () => findSingleAutoSelectId(listSource, filterSelection, product.id),
+    [filterSelection, listSource, product.id],
+  );
+
+  useEffect(() => {
+    if (!autoSelectTargetId) {
+      autoSelectTargetRef.current = null;
+      return;
+    }
+    if (autoSelectTargetRef.current === autoSelectTargetId) {
+      return;
+    }
+    autoSelectTargetRef.current = autoSelectTargetId;
+    navigateToProduct(router, autoSelectTargetId);
+  }, [autoSelectTargetId, router]);
+
+  const handleAttributeSelect = (attributeKey: string, value: string): void => {
+    setFilterSelection((current) => {
+      if (current[attributeKey] === value) {
+        const next = { ...current };
+        delete next[attributeKey];
+        return next;
+      }
+      return { ...current, [attributeKey]: value };
+    });
+  };
+
+  const handleClearAllFilters = (): void => {
+    setFilterSelection({});
+    autoSelectTargetRef.current = null;
+    const destination = resolveVariantClearAllDestination(product, familyVariants);
+    if (!destination || destination === product.id) {
+      setIsListLoading(false);
+      return;
+    }
+    setIsListLoading(true);
+    navigateToProduct(router, destination);
+  };
+
+  const handleVariantSelect = (variantId: string): void => {
+    if (variantId === product.id) {
+      return;
+    }
+    setIsListLoading(true);
+    navigateToProduct(router, variantId);
+  };
 
   if (!shouldLoadVariants) {
     return null;
@@ -168,17 +302,23 @@ export default function ProductVariantSelector({ product, className }: ProductVa
     <div className={cn('flex min-w-0 w-full flex-col gap-8', className)} data-testid="product-variant-selector">
       <ProductVariantAttributeGroups
         groups={attributeGroups}
-        selectedValues={selectedAttributeValues}
+        selectedValues={filterSelection}
+        productValues={selectedAttributeValues}
         compatibleValuesByAttribute={compatibleValuesByAttribute}
         attributeLabels={product.templateAttributeLabels}
         attributeTypes={product.templateAttributeTypes}
+        onSelect={handleAttributeSelect}
+        onClearAll={handleClearAllFilters}
       />
       <ProductVariantCarousel
-        variants={carouselVariants}
+        variants={listVariants}
         prices={variantPrices ?? []}
         currentProductId={product.id}
         attributeOrder={attributeOrder}
         attributeTypes={product.templateAttributeTypes}
+        selectedFilters={filterSelection}
+        isLoading={isListLoading || autoSelectTargetId != null}
+        onVariantSelect={handleVariantSelect}
       />
     </div>
   );

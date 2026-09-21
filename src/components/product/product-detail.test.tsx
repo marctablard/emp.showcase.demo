@@ -25,6 +25,7 @@ import { usePdpPurchaseData } from '@/hooks/product/usePdpPurchaseData';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
+import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
 import type { ProductFetchOptions } from '@/platform/services/product';
 import ProductDetail from './product-detail';
@@ -85,8 +86,25 @@ jest.mock('@/hooks/product/usePdpStickyAtcVisibility', () => ({
   usePdpStickyAtcVisibility: () => ({ stickyVisible: false, primaryAtcRef: { current: null } }),
 }));
 
-jest.mock('@/hooks/cart/useValidateAddToCart', () => ({
-  useValidateAddToCart: () => ({ disabled: false, tooltip: undefined }),
+jest.mock('@/hooks/cart/useValidateAddToCart', () =>
+  jest.requireActual<typeof import('@/hooks/cart/useValidateAddToCart')>('@/hooks/cart/useValidateAddToCart'),
+);
+
+jest.mock('@/hooks/cart/useCart', () => ({
+  useCart: () => ({ addItem: jest.fn(), cart: { id: 'cart-1' } }),
+}));
+
+jest.mock('@/hooks/common/useGlobalSyncReady', () => ({
+  useGlobalSyncReady: () => ({ ready: true, reason: null }),
+}));
+
+jest.mock('@/lib/logger/use-logger-client', () => ({
+  getLogger: () => ({
+    debug: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+  }),
 }));
 
 jest.mock('@/hooks/comparison/useComparison', () => ({
@@ -140,9 +158,18 @@ jest.mock('../cms/recommendations', () => ({
   default: () => null,
 }));
 
+const pdpAtcHarness = { renderReal: false };
+
 jest.mock('./product-add-to-cart', () => ({
   __esModule: true,
-  default: () => null,
+  default: (props: Record<string, unknown>) => {
+    if (!pdpAtcHarness.renderReal) {
+      return null;
+    }
+    const React = require('react') as typeof import('react');
+    const Real = jest.requireActual<typeof import('./product-add-to-cart')>('./product-add-to-cart').default;
+    return React.createElement(Real, props);
+  },
 }));
 
 jest.mock('./product-add-to-cart-bar', () => ({
@@ -224,6 +251,7 @@ function mockReadyHooks(productResult: { product: Product | null; loading: boole
 
 beforeEach(() => {
   jest.clearAllMocks();
+  pdpAtcHarness.renderReal = false;
   useProductsModeMock.mockReturnValue({
     mode: 'anonymous',
     isSegmented: false,
@@ -407,5 +435,90 @@ describe('ProductDetail — Not Found contract (true absence vs cold bootstrap)'
     expect(screen.getByRole('heading', { level: 1, name: 'Settled DE' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1, name: 'Parent' })).not.toBeInTheDocument();
     expect(notFoundMock).not.toHaveBeenCalled();
+  });
+});
+
+const eurPrice: ProductPrice = {
+  id: 'price-pdp',
+  productId: '6a4260610e319b17b667d5c2',
+  amount: 10,
+  currency: 'EUR',
+  discountValue: 0,
+  discountPercentage: 0,
+  totalValue: 10,
+  quantity: { quantity: 1 },
+  includesTax: false,
+  tierValues: [],
+};
+
+const inStock = {
+  productId: '6a4260610e319b17b667d5c2',
+  availableQuantity: 5,
+  availableInDays: null,
+  isAvailable: true,
+};
+
+/** Live COP-4811 dynamic grouping node: 800 | 10, sellable: false. */
+const nonSellableGroupingNode: Product = {
+  id: '6a42601f345f085853088ee7',
+  name: '800 | 10',
+  description: 'Dynamic grouping node',
+  productType: 'DYNAMIC_VARIANT',
+  sellable: false,
+  purchasable: false,
+  variantAttributes: [
+    { key: 'frequency', values: [{ key: '800', selected: true }] },
+    { key: 'width', values: [{ key: '10', selected: true }] },
+    { key: 'height', values: [{ key: '20', selected: false }] },
+  ],
+};
+
+describe('ProductDetail — Add to Cart sellable gate (COP-5507)', () => {
+  beforeEach(() => {
+    pdpAtcHarness.renderReal = true;
+  });
+
+  it('keeps data-testid="product-addToCartButton" and disables it when sellable === false', () => {
+    mockReadyHooks({ product: nonSellableGroupingNode, loading: false, error: null });
+    usePdpPurchaseDataMock.mockReturnValue({ price: eurPrice, availability: inStock });
+
+    render(<ProductDetail product={nonSellableGroupingNode} options={PUBLIC_PDP_OPTIONS} />);
+
+    const addToCart = screen.getByTestId('product-addToCartButton');
+    expect(addToCart).toBeDisabled();
+    expect(screen.queryByTestId('product-add-to-cart-button')).not.toBeInTheDocument();
+  });
+
+  it('disables PARENT_VARIANT ATC but keeps product-addToCartButton', () => {
+    const masterProduct: Product = {
+      id: 'classic-parent',
+      name: 'Classic parent',
+      description: 'PARENT_VARIANT master',
+      productType: 'PARENT_VARIANT',
+      purchasable: false,
+      variantAttributes: [{ key: 'color', values: [{ key: 'red', selected: false }] }],
+    };
+    mockReadyHooks({ product: masterProduct, loading: false, error: null });
+    usePdpPurchaseDataMock.mockReturnValue({ price: eurPrice, availability: inStock });
+
+    render(<ProductDetail product={masterProduct} options={PUBLIC_PDP_OPTIONS} />);
+
+    expect(screen.getByTestId('product-addToCartButton')).toBeDisabled();
+  });
+
+  it('keeps BASIC with undefined sellable enabled when priced and in stock', () => {
+    const basicProduct: Product = {
+      id: '6a4260610e319b17b667d5c2',
+      name: 'Ubiquity-router',
+      description: 'Sellable leaf',
+      productType: 'BASIC',
+      purchasable: true,
+    };
+    mockReadyHooks({ product: basicProduct, loading: false, error: null });
+    usePdpPurchaseDataMock.mockReturnValue({ price: eurPrice, availability: inStock });
+
+    render(<ProductDetail product={basicProduct} options={PUBLIC_PDP_OPTIONS} />);
+
+    expect(screen.getByTestId('product-addToCartButton')).toBeEnabled();
   });
 });

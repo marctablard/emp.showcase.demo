@@ -100,20 +100,21 @@ export async function fetchProductById(
 }
 
 /**
- * Fetch variants for a product by parent ID.
+ * Fetch variant-family products for an opened product ID.
+ * The service GET-first remaps classic PARENT_VARIANT / VARIANT and DYNAMIC_VARIANT trees.
  * Uses module-level in-flight map to deduplicate concurrent requests.
  */
-export async function fetchProductVariants(parentId: string, clientDedupeScope = ''): Promise<Product[]> {
-  const cacheKey = `${parentId}:${clientDedupeScope}`;
+export async function fetchProductVariants(productId: string, clientDedupeScope = ''): Promise<Product[]> {
+  const cacheKey = `${productId}:${clientDedupeScope}`;
   const existing = _variantInflight.get(cacheKey);
   if (existing) return existing;
 
   const promise = (async () => {
     const response = await fetch(
-      appendSiteQuery(`/api/products/${parentId}/variants`, requestSiteFromClientDedupeScope(clientDedupeScope)),
+      appendSiteQuery(`/api/products/${productId}/variants`, requestSiteFromClientDedupeScope(clientDedupeScope)),
       {
         cache: 'no-store',
-        next: { tags: [`product-variants-${parentId}`] },
+        next: { tags: [`product-variants-${productId}`] },
       },
     );
 
@@ -135,7 +136,7 @@ export async function fetchProductVariants(parentId: string, clientDedupeScope =
   try {
     return await promise;
   } catch (error) {
-    getLogger().error({ err: error, parentId }, 'Error fetching product variants');
+    getLogger().error({ err: error, productId }, 'Error fetching product variants');
     throw error;
   }
 }

@@ -36,7 +36,7 @@ jest.mock('@/components/ui/tooltip', () => ({
 }));
 
 describe('ProductVariantAttributeGroups', () => {
-  it('renders attribute labels and chips', () => {
+  it('renders attribute labels and chips as buttons', () => {
     render(
       <ProductVariantAttributeGroups
         groups={[
@@ -48,7 +48,12 @@ describe('ProductVariantAttributeGroups', () => {
 
     expect(screen.getByText('Capacity')).toBeInTheDocument();
     expect(screen.getByText('Voltage')).toBeInTheDocument();
-    expect(screen.getAllByTestId('product-variant-attribute-chip')).toHaveLength(3);
+    const chips = screen.getAllByTestId('product-variant-attribute-chip');
+    expect(chips).toHaveLength(3);
+    chips.forEach((chip) => {
+      expect(chip.tagName).toBe('BUTTON');
+      expect(chip).toHaveAttribute('type', 'button');
+    });
   });
 
   it('renders numeric-looking value keys as visible chip text', () => {
@@ -64,29 +69,104 @@ describe('ProductVariantAttributeGroups', () => {
     expect(screen.getByText('100')).toBeInTheDocument();
   });
 
-  it('keeps the selected chip emphasized and grays out all other values', () => {
+  it('distinguishes selected, soft, inactive, and disabled chip states', () => {
     render(
       <ProductVariantAttributeGroups
         groups={[
-          { key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] },
+          { key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah', '100 Ah'] },
           { key: 'voltage', name: 'Voltage', values: ['12 V', '24 V'] },
         ]}
-        selectedValues={{ capacity: '12 Ah', voltage: '12 V' }}
+        selectedValues={{ capacity: '12 Ah' }}
+        productValues={{ capacity: '60 Ah', voltage: '12 V' }}
+        compatibleValuesByAttribute={{
+          capacity: new Set(['12 Ah', '60 Ah']),
+          voltage: new Set(['12 V']),
+        }}
       />,
     );
 
     const selected = screen.getByText('12 Ah');
-    const inactive = screen.getByText('60 Ah');
+    const soft = screen.getByText('60 Ah');
+    const disabled = screen.getByText('100 Ah');
+    const productSoft = screen.getByText('12 V');
+    const inactiveDisabled = screen.getByText('24 V');
 
     expect(selected).toHaveAttribute('data-chip-state', 'selected');
-    expect(selected).toHaveClass('cursor-not-allowed');
-    expect(inactive).toHaveAttribute('data-chip-state', 'inactive');
-    expect(inactive).toHaveClass('cursor-not-allowed', 'bg-surface-disabled', 'text-text-disabled');
-    expect(screen.getByText('12 V')).toHaveAttribute('data-chip-state', 'selected');
-    expect(screen.getByText('24 V')).toHaveAttribute('data-chip-state', 'inactive');
-    expect(screen.getAllByTestId('product-variant-attribute-chip-tooltip')[0]).toHaveTextContent(
-      'variantAttributeSelectViaListTooltip',
+    expect(selected).toHaveClass('border-2', 'border-border-black');
+    expect(selected).not.toBeDisabled();
+
+    expect(soft).toHaveAttribute('data-chip-state', 'soft');
+    expect(soft).toHaveClass('border-2', 'border-border-secondary');
+
+    expect(disabled).toHaveAttribute('data-chip-state', 'disabled');
+    expect(disabled).toBeDisabled();
+    expect(disabled).toHaveClass('bg-surface-disabled', 'text-text-disabled');
+
+    expect(productSoft).toHaveAttribute('data-chip-state', 'soft');
+    expect(inactiveDisabled).toHaveAttribute('data-chip-state', 'disabled');
+    expect(inactiveDisabled).toBeInTheDocument();
+  });
+
+  it('shows the list tooltip only on disabled chips', () => {
+    render(
+      <ProductVariantAttributeGroups
+        groups={[{ key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] }]}
+        selectedValues={{ capacity: '12 Ah' }}
+        compatibleValuesByAttribute={{ capacity: new Set(['12 Ah']) }}
+      />,
     );
+
+    const tooltips = screen.getAllByTestId('product-variant-attribute-chip-tooltip');
+    expect(tooltips).toHaveLength(1);
+    expect(tooltips[0]).toHaveTextContent('variantAttributeSelectViaListTooltip');
+    expect(screen.getByText('12 Ah')).toHaveAttribute('data-chip-state', 'selected');
+    expect(screen.getByText('60 Ah')).toHaveAttribute('data-chip-state', 'disabled');
+  });
+
+  it('does not show the list tooltip on inactive chips', () => {
+    render(
+      <ProductVariantAttributeGroups groups={[{ key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] }]} />,
+    );
+
+    expect(screen.queryByTestId('product-variant-attribute-chip-tooltip')).not.toBeInTheDocument();
+    expect(screen.getByText('12 Ah')).toHaveAttribute('data-chip-state', 'inactive');
+    expect(screen.getByText('60 Ah')).toHaveAttribute('data-chip-state', 'inactive');
+  });
+
+  it('calls onSelect for an enabled chip and keeps disabled chips in the DOM', () => {
+    const onSelect = jest.fn();
+    render(
+      <ProductVariantAttributeGroups
+        groups={[{ key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] }]}
+        compatibleValuesByAttribute={{ capacity: new Set(['12 Ah']) }}
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('12 Ah'));
+    fireEvent.click(screen.getByText('60 Ah'));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith('capacity', '12 Ah');
+    expect(screen.getByText('60 Ah')).toBeDisabled();
+    expect(screen.getByText('60 Ah')).toBeInTheDocument();
+  });
+
+  it('exposes clear-all and per-row show more/less test ids', () => {
+    const onClearAll = jest.fn();
+    const values = Array.from({ length: 8 }, (_, index) => `${index + 1} Ah`);
+
+    render(
+      <ProductVariantAttributeGroups
+        groups={[{ key: 'capacity', name: 'Capacity', values }]}
+        onClearAll={onClearAll}
+      />,
+    );
+
+    expect(screen.getByTestId('product-variant-clearAllFilters')).toBeInTheDocument();
+    expect(screen.getByTestId('product-variant-showMore-capacity')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('product-variant-clearAllFilters'));
+    expect(onClearAll).toHaveBeenCalledTimes(1);
   });
 
   it('collapses long value lists behind show more', () => {
@@ -95,9 +175,9 @@ describe('ProductVariantAttributeGroups', () => {
     render(<ProductVariantAttributeGroups groups={[{ key: 'capacity', name: 'Capacity', values }]} />);
 
     expect(screen.getAllByTestId('product-variant-attribute-chip')).toHaveLength(6);
-    fireEvent.click(screen.getByText('showMore'));
+    fireEvent.click(screen.getByTestId('product-variant-showMore-capacity'));
     expect(screen.getAllByTestId('product-variant-attribute-chip')).toHaveLength(8);
-    fireEvent.click(screen.getByText('showLess'));
+    fireEvent.click(screen.getByTestId('product-variant-showLess-capacity'));
     expect(screen.getAllByTestId('product-variant-attribute-chip')).toHaveLength(6);
   });
 

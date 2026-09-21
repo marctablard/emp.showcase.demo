@@ -239,12 +239,205 @@ describe('EmporixProductService template meta enrichment', () => {
         items: [{ id: 'v1', parentVariantId: 'p1' }, { id: 'v2', parentVariantId: 'p1' }, { parentVariantId: 'p1' }],
       });
       const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['v2']));
-      const service = createService({ searchProducts, mapToService, filterProductIdsInScope, getCurrent });
+      const service = createService({
+        searchProducts,
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent,
+        getProduct: jest.fn().mockResolvedValue({ id: 'p1', code: 'p1', productType: 'PARENT_VARIANT' }),
+      });
 
       const variants = await service.getVariantProducts('p1', { segmentIds: ['s1'] });
 
       expect(filterProductIdsInScope).toHaveBeenCalledWith(['v1', 'v2'], 'main', ['s1']);
       expect(variants.map((variant) => variant.id)).toEqual(['v2']);
+    });
+
+    it('returns the same classic sibling family for a parent and one of its children', async () => {
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [
+          { id: 'child-1', parentVariantId: 'parent-1' },
+          { id: 'child-2', parentVariantId: 'parent-1' },
+        ],
+      });
+      const getProduct = jest.fn().mockImplementation((id: string) => {
+        if (id === 'parent-1') {
+          return Promise.resolve({ id: 'parent-1', code: 'parent-1', productType: 'PARENT_VARIANT' });
+        }
+        if (id === 'child-1') {
+          return Promise.resolve({
+            id: 'child-1',
+            code: 'child-1',
+            productType: 'VARIANT',
+            parentVariantId: 'parent-1',
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+      const service = createService({ searchProducts, mapToService, getProduct, getCurrent });
+
+      const fromParent = await service.getVariantProducts('parent-1');
+      const fromChild = await service.getVariantProducts('child-1');
+
+      expect(searchProducts).toHaveBeenCalledTimes(2);
+      expect(searchProducts).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ criteria: { parentVariantId: 'parent-1' } }),
+      );
+      expect(searchProducts).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ criteria: { parentVariantId: 'parent-1' } }),
+      );
+      expect(fromParent.map((item) => item.id)).toEqual(fromChild.map((item) => item.id));
+    });
+
+    it('maps addAdditionalData variants by opened product id, not family parent id', async () => {
+      const service = createService({ mapToService, getCurrent });
+      jest.spyOn(service, 'getVariantProducts').mockResolvedValue([
+        {
+          id: 'child-1',
+          name: { en: 'Child' },
+          description: {},
+          purchasable: true,
+          parentVariantId: 'family-parent',
+        },
+      ]);
+
+      const [enriched] = await service.addAdditionalData(
+        [{ id: 'opened-1', name: { en: 'Opened' }, description: {}, purchasable: true }],
+        { variants: true, categories: false, prices: false },
+      );
+
+      expect(enriched.variants?.map((variant) => variant.id)).toEqual(['child-1']);
+    });
+
+    it('resolves dynamic families from the root variants map with a GET-walk and disables recursive enrichment', async () => {
+      const getProduct = jest.fn().mockImplementation((id: string) => {
+        if (id === 'opened-dynamic') {
+          return Promise.resolve({
+            id: 'opened-dynamic',
+            code: 'opened-dynamic',
+            productType: 'DYNAMIC_VARIANT',
+            parentVariantId: 'direct-parent',
+            parentVariantPath: ['direct-parent', 'first-root-candidate'],
+          });
+        }
+        if (id === 'first-root-candidate') {
+          return Promise.resolve({
+            id: 'first-root-candidate',
+            code: 'first-root-candidate',
+            productType: 'DYNAMIC_VARIANT',
+            parentVariantId: 'actual-root',
+            parentVariantPath: ['actual-root'],
+          });
+        }
+        if (id === 'actual-root') {
+          return Promise.resolve({
+            id: 'actual-root',
+            code: 'actual-root',
+            productType: 'DYNAMIC_VARIANT',
+            variants: {
+              'opened-dynamic': {
+                parentVariantId: 'actual-root',
+                sellable: false,
+                name: { en: 'Opened dynamic' },
+                variantAttributes: {
+                  frequency: { name: { en: 'Frequency' }, value: { qualifier: '50', name: { en: '50 Hz' } } },
+                },
+              },
+              'leaf-sellable': {
+                parentVariantId: 'opened-dynamic',
+                sellable: true,
+                name: { en: 'Leaf dynamic' },
+                variantAttributes: {
+                  frequency: { name: { en: 'Frequency' }, value: { qualifier: '60', name: { en: '60 Hz' } } },
+                },
+              },
+            },
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [
+          { id: 'opened-dynamic', code: 'opened-dynamic', productType: 'DYNAMIC_VARIANT' },
+          { id: 'leaf-sellable', code: 'leaf-sellable', productType: 'DYNAMIC_VARIANT' },
+        ],
+      });
+      const mapToServiceDynamic = jest.fn().mockImplementation((product: { id: string; parentVariantId?: string }) => ({
+        id: product.id,
+        name: { en: product.id },
+        description: {},
+        purchasable: true,
+        parentVariantId: product.parentVariantId,
+        variantAttributes: [],
+      }));
+      const service = createService({
+        getProduct,
+        searchProducts,
+        mapToService: mapToServiceDynamic,
+        getCurrent,
+      });
+      const addAdditionalDataSpy = jest.spyOn(service, 'addAdditionalData');
+
+      const variants = await service.getVariantProducts('opened-dynamic');
+
+      expect(getProduct).toHaveBeenNthCalledWith(1, 'opened-dynamic');
+      expect(getProduct).toHaveBeenNthCalledWith(2, 'first-root-candidate');
+      expect(getProduct).toHaveBeenNthCalledWith(3, 'actual-root');
+      expect(searchProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ criteria: { id: '(opened-dynamic,leaf-sellable)' } }),
+      );
+      expect(addAdditionalDataSpy).toHaveBeenCalledTimes(1);
+      const [, forwardedOptions] = addAdditionalDataSpy.mock.calls[0];
+      expect(forwardedOptions?.variants).not.toBe(true);
+      expect(variants).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'opened-dynamic',
+            productType: 'DYNAMIC_VARIANT',
+            sellable: false,
+            purchasable: false,
+          }),
+          expect.objectContaining({
+            id: 'leaf-sellable',
+            productType: 'DYNAMIC_VARIANT',
+            sellable: true,
+            purchasable: true,
+          }),
+        ]),
+      );
+      expect(variants[0].variantAttributes?.[0]).toEqual(
+        expect.objectContaining({
+          key: 'frequency',
+          values: [expect.objectContaining({ key: expect.any(String), selected: true })],
+        }),
+      );
+    });
+
+    it('throws when dynamic GET-walk exhausts without a variants map', async () => {
+      const getProduct = jest.fn().mockImplementation((id: string) => {
+        if (id === 'dyn-child') {
+          return Promise.resolve({
+            id: 'dyn-child',
+            code: 'dyn-child',
+            productType: 'DYNAMIC_VARIANT',
+            parentVariantId: 'dyn-parent',
+            parentVariantPath: ['dyn-parent'],
+          });
+        }
+        if (id === 'dyn-parent') {
+          return Promise.resolve({
+            id: 'dyn-parent',
+            code: 'dyn-parent',
+            productType: 'DYNAMIC_VARIANT',
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+      const service = createService({ getProduct, mapToService, getCurrent });
+
+      await expect(service.getVariantProducts('dyn-child')).rejects.toThrow('Dynamic variant family map missing');
     });
 
     it('addAdditionalData forwards only the segment scope (segmentIds + siteCode) into getVariantProducts', async () => {

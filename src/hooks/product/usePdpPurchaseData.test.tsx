@@ -86,7 +86,7 @@ describe('usePdpPurchaseData', () => {
     await waitFor(() => {
       expect(fetchProductPriceMock).toHaveBeenCalledTimes(1);
     });
-    expect(fetchProductPriceMock).toHaveBeenCalledWith('p-1', undefined, undefined, 'USD');
+    expect(fetchProductPriceMock).toHaveBeenCalledWith('p-1', 1, undefined, 'USD');
 
     rerender({ product: catalogProduct('p-1') });
 
@@ -111,7 +111,7 @@ describe('usePdpPurchaseData', () => {
     await waitFor(() => {
       expect(fetchProductPriceMock).toHaveBeenCalledTimes(2);
     });
-    expect(fetchProductPriceMock).toHaveBeenLastCalledWith('p-2', undefined, undefined, 'USD');
+    expect(fetchProductPriceMock).toHaveBeenLastCalledWith('p-2', 1, undefined, 'USD');
   });
 
   test('applies a new embedded purchase price when the same product id is enriched', async () => {
@@ -147,7 +147,48 @@ describe('usePdpPurchaseData', () => {
     await waitFor(() => {
       expect(fetchProductPriceMock).toHaveBeenCalledTimes(1);
     });
-    expect(fetchProductPriceMock).toHaveBeenCalledWith('p-1', undefined, undefined, 'USD');
+    expect(fetchProductPriceMock).toHaveBeenCalledWith('p-1', 1, undefined, 'USD');
     expect(result.current.price).toEqual(matchedPrice('p-1'));
+  });
+
+  test('re-fetches price with the new quantity when quantity changes', async () => {
+    const { rerender } = renderHook(
+      ({ quantity }) => usePdpPurchaseData(catalogProduct('p-1'), session, site, quantity),
+      { initialProps: { quantity: 1 } },
+    );
+
+    await waitFor(() => {
+      expect(fetchProductPriceMock).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchProductPriceMock).toHaveBeenCalledWith('p-1', 1, undefined, 'USD');
+
+    rerender({ quantity: 30 });
+
+    await waitFor(() => {
+      expect(fetchProductPriceMock).toHaveBeenCalledTimes(2);
+    });
+    expect(fetchProductPriceMock).toHaveBeenLastCalledWith('p-1', 30, undefined, 'USD');
+  });
+
+  test('does not reuse embedded price when it does not match the current quantity', async () => {
+    const qty1Embedded = matchedPrice('p-1');
+    const qty30Fetched: ProductPrice = {
+      ...matchedPrice('p-1'),
+      id: 'price-p-1-qty-30',
+      amount: 8,
+      totalValue: 8,
+      quantity: { quantity: 30 },
+    };
+    fetchProductPriceMock.mockResolvedValue(qty30Fetched);
+
+    const product = { ...catalogProduct('p-1'), price: qty1Embedded };
+    const { result } = renderHook(() => usePdpPurchaseData(product, session, site, 30));
+
+    await waitFor(() => {
+      expect(fetchProductPriceMock).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchProductPriceMock).toHaveBeenCalledWith('p-1', 30, undefined, 'USD');
+    expect(result.current.price).toEqual(qty30Fetched);
+    expect(result.current.price).not.toEqual(qty1Embedded);
   });
 });

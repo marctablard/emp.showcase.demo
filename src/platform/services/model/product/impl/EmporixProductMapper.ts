@@ -1,5 +1,9 @@
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixProduct, EmporixProductTemplate } from '@/platform/integrations/emporix/model/product';
+import type {
+  EmporixDynamicVariantAttribute,
+  EmporixProduct,
+  EmporixProductTemplate,
+} from '@/platform/integrations/emporix/model/product';
 import type { LocalizedString } from '@/platform/services/model/common';
 import type {
   GroupedSpecification,
@@ -65,6 +69,64 @@ function mapTemplateAttributeMeta(template: EmporixProductTemplate | undefined):
     ...(Object.keys(labels).length > 0 ? { labels } : {}),
     ...(Object.keys(types).length > 0 ? { types } : {}),
     ...(order.length > 0 ? { order } : {}),
+  };
+}
+
+/**
+ * Storefront buy flag: classic parents are never purchasable; dynamic nodes follow sellable;
+ * BASIC / VARIANT stay purchasable when sellable is omitted.
+ */
+function resolvePurchasable(source: EmporixProduct): boolean {
+  if (source.productType === 'PARENT_VARIANT') {
+    return false;
+  }
+  if (source.productType === 'DYNAMIC_VARIANT') {
+    return source.sellable === true;
+  }
+  return source.sellable !== false;
+}
+
+/**
+ * Accumulated DYNAMIC_VARIANT attributes (inherited + own). Classic array-of-keys
+ * `variantAttributes` must not be read here — that path stays in `mapVariantAttributes`.
+ */
+function mapDynamicVariantAttributes(source: EmporixProduct): ProductVariantAttribute[] {
+  const accumulated: Record<string, EmporixDynamicVariantAttribute> = {
+    ...(source.inheritedVariantAttributes ?? {}),
+    ...(source.ownVariantAttributes ?? {}),
+  };
+
+  return Object.entries(accumulated)
+    .map(([key, attribute]) => mapDynamicVariantAttribute(key, attribute))
+    .filter((attribute): attribute is ProductVariantAttribute => attribute !== undefined);
+}
+
+function mapDynamicVariantAttribute(
+  key: string,
+  attribute: EmporixDynamicVariantAttribute | undefined,
+): ProductVariantAttribute | undefined {
+  if (!attribute || typeof attribute !== 'object') {
+    return undefined;
+  }
+
+  const qualifier = attribute.value?.qualifier;
+  const valueKey = qualifier === null || qualifier === undefined ? '' : String(qualifier);
+  if (valueKey.length === 0) {
+    return undefined;
+  }
+
+  const name = normalizeLocalizedLeaf(attribute.name);
+  const valueName = normalizeLocalizedLeaf(attribute.value?.name);
+  return {
+    key,
+    ...(name ? { name } : {}),
+    values: [
+      {
+        key: valueKey,
+        ...(valueName ? { name: valueName } : {}),
+        selected: true,
+      },
+    ],
   };
 }
 
@@ -162,8 +224,14 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       ...(templateAttributeOrder ? { templateAttributeOrder } : {}),
       ...(templateAttributeLabels ? { templateAttributeLabels } : {}),
       ...(templateAttributeTypes ? { templateAttributeTypes } : {}),
-      variantAttributes: this.mapVariantAttributes(source),
-      purchasable: source.productType !== 'PARENT_VARIANT',
+      ...(source.productType ? { productType: source.productType } : {}),
+      ...(typeof source.sellable === 'boolean' ? { sellable: source.sellable } : {}),
+      ...(source.parentVariantPath !== undefined ? { parentVariantPath: source.parentVariantPath } : {}),
+      variantAttributes:
+        source.productType === 'DYNAMIC_VARIANT'
+          ? mapDynamicVariantAttributes(source)
+          : this.mapVariantAttributes(source),
+      purchasable: resolvePurchasable(source),
       variantAttributeValues: normalizeProductAttributeStringMap(
         source.mixins?.productVariantAttributes as Record<string, unknown> | undefined,
       ),

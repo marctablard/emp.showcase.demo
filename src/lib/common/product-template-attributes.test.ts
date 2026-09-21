@@ -83,6 +83,14 @@ describe('resolveVariantAttributeLabel', () => {
       L10N_MISSING_LABEL,
     );
   });
+
+  it('prefers a localized display name over a camelCase key', () => {
+    expect(resolveVariantAttributeLabel('colorFinish', { en: 'Color' }, undefined, l10n)).toBe('Color');
+  });
+
+  it('returns missing label when name is absent', () => {
+    expect(resolveVariantAttributeLabel('colorFinish', undefined, undefined, l10n)).toBe(L10N_MISSING_LABEL);
+  });
 });
 
 describe('parseBooleanTemplateAttributeValue', () => {
