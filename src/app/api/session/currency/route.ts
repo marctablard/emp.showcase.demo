@@ -20,19 +20,6 @@ const RECOVERABLE_CART_ERROR_CODES = new Set<CartCurrencyUpdateErrorCode>([
 
 type CartCurrencyReconcile = { cart: Cart | null } | { conflict: NextResponse };
 
-async function readCartAfterForbiddenCurrencyUpdate(
-  cartService: CartService,
-  logger: LoggerService,
-  cartId: string,
-): Promise<Cart | null> {
-  try {
-    return await cartService.getCartById(cartId);
-  } catch (readError) {
-    logger.warn({ err: readError, cartId }, 'Could not re-read cart after forbidden currency update');
-    return null;
-  }
-}
-
 function cartCurrencyConflictResponse(code: CartCurrencyUpdateErrorCode, couponCodes: string[]): NextResponse {
   const includeCouponCodes =
     code === CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT && couponCodes.length > 0;
@@ -55,8 +42,8 @@ async function releaseForbiddenEmptyCart(
   cartSite: string,
   code: CartCurrencyUpdateErrorCode,
 ): Promise<boolean> {
-  const fresh = (await readCartAfterForbiddenCurrencyUpdate(cartService, logger, cartId)) ?? null;
-  const provenEmpty = fresh !== null && Array.isArray(fresh.items) && fresh.items.length === 0;
+  // Mapped carts turn an omitted items expansion into []. Ask the service, which reads the raw payload.
+  const provenEmpty = await cartService.isProvenEmptyCart(cartId);
   if (provenEmpty) {
     const current = await sessionService.getCurrent();
     const boundCartId = current?.cartId;

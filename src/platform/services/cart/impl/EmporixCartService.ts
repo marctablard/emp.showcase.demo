@@ -571,6 +571,19 @@ class EmporixCartService implements CartService {
     return this.mapper.mapToService(raw);
   }
 
+  async isProvenEmptyCart(cartId: string): Promise<boolean> {
+    try {
+      const raw = await this.cartApi.getCart(cartId);
+      if (!raw) {
+        return false;
+      }
+      return this.cartHasNoLines(raw);
+    } catch (error) {
+      this.logger.warn({ err: error, cartId }, 'Could not prove cart is empty');
+      return false;
+    }
+  }
+
   async addItemToCart(cartId: string, productId: string, quantity: number): Promise<ModifyCartItemResult> {
     const [initialRawCart, product, session] = await Promise.all([
       this.cartApi.getCart(cartId),
@@ -591,24 +604,9 @@ class EmporixCartService implements CartService {
     // Determine the cart's effective site code
     let cartSiteCode = rawCart.siteCode || session.siteCode;
 
-    // GUARD: If cart belongs to a different site, auto-recover by fetching/creating the correct cart.
-    // This handles race conditions where the session site changed but the cart ID wasn't updated yet.
-    if (cartSiteCode !== session.siteCode) {
-      this.logger.warn(
-        { cartId, cartSite: cartSiteCode, sessionSite: session.siteCode },
-        'Cart belongs to different site — auto-recovering correct cart',
-      );
-      const correctCart = await this.getCart();
-      if (!correctCart) {
-        throw new Error('Failed to get cart for current site');
-      }
-      // Prevent infinite recursion: if we got back the same cart, something is fundamentally wrong
-      if (correctCart.id === cartId) {
-        throw new Error(
-          `Cart site mismatch cannot be resolved: cart ${cartId} site=${cartSiteCode}, session site=${session.siteCode}`,
-        );
-      }
-      return this.addItemToCart(correctCart.id, productId, quantity);
+    const redirected = await this.redirectAddWhenCartSiteDiffers(cartId, cartSiteCode, productId, quantity, session);
+    if (redirected) {
+      return redirected;
     }
 
     if (this.isEmptyCartBoundToOtherSession(rawCart, session)) {
@@ -677,6 +675,36 @@ class EmporixCartService implements CartService {
       statusDetailCode: (hasSufficientStock ? undefined : 'addToCart.insufficientStock') as CartStatusDetailCode,
       statusDetailPayload: { availableQuantity },
     };
+  }
+
+  /**
+   * A cart from another site is not mutated. Returns the add on the session cart, or undefined
+   * when the requested cart already matches the session site.
+   */
+  private async redirectAddWhenCartSiteDiffers(
+    cartId: string,
+    cartSiteCode: string,
+    productId: string,
+    quantity: number,
+    session: Session,
+  ): Promise<ModifyCartItemResult | undefined> {
+    if (cartSiteCode === session.siteCode) {
+      return undefined;
+    }
+    this.logger.warn(
+      { cartId, cartSite: cartSiteCode, sessionSite: session.siteCode },
+      'Cart belongs to different site — auto-recovering correct cart',
+    );
+    const correctCart = await this.getCart();
+    if (!correctCart) {
+      throw new Error('Failed to get cart for current site');
+    }
+    if (correctCart.id === cartId) {
+      throw new Error(
+        `Cart site mismatch cannot be resolved: cart ${cartId} site=${cartSiteCode}, session site=${session.siteCode}`,
+      );
+    }
+    return this.addItemToCart(correctCart.id, productId, quantity);
   }
 
   private async checkStock(site: string, productId: string, quantity: number) {

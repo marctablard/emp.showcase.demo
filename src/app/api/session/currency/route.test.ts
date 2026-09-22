@@ -42,6 +42,7 @@ describe('PUT /api/session/currency', () => {
     cartService = {
       getCart: jest.fn(),
       getCartById: jest.fn(),
+      isProvenEmptyCart: jest.fn(),
       updateCurrency: jest.fn(),
     };
     sessionService = {
@@ -118,7 +119,7 @@ describe('PUT /api/session/currency', () => {
   it('clears an empty forbidden cart and still updates the session currency', async () => {
     sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
     cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
-    cartService.getCartById.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
+    cartService.isProvenEmptyCart.mockResolvedValue(true);
     cartService.updateCurrency.mockRejectedValue(
       new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
     );
@@ -140,12 +141,7 @@ describe('PUT /api/session/currency', () => {
       currency: 'EUR',
       items: [{ id: 'line-1' }],
     });
-    cartService.getCartById.mockResolvedValue({
-      id: 'c1',
-      site: 'us',
-      currency: 'EUR',
-      items: [{ id: 'line-1' }],
-    });
+    cartService.isProvenEmptyCart.mockResolvedValue(false);
     cartService.updateCurrency.mockRejectedValue(
       new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
     );
@@ -162,12 +158,7 @@ describe('PUT /api/session/currency', () => {
   it('does not clear when a fresh read shows the forbidden cart gained a line', async () => {
     sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR', cartId: 'c1' });
     cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
-    cartService.getCartById.mockResolvedValue({
-      id: 'c1',
-      site: 'us',
-      currency: 'EUR',
-      items: [{ id: 'line-1' }],
-    });
+    cartService.isProvenEmptyCart.mockResolvedValue(false);
     cartService.updateCurrency.mockRejectedValue(
       new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
     );
@@ -182,7 +173,7 @@ describe('PUT /api/session/currency', () => {
   it('does not clear a session pointer that moved to a different cart', async () => {
     sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR', cartId: 'c-newer' });
     cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
-    cartService.getCartById.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
+    cartService.isProvenEmptyCart.mockResolvedValue(true);
     cartService.updateCurrency.mockRejectedValue(
       new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
     );

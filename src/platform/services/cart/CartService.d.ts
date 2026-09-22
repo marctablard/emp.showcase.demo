@@ -83,6 +83,12 @@ export interface CartService {
   getCartById(id: string, checkSession?: boolean): Promise<Cart | null>;
 
   /**
+   * True only when the upstream cart payload proves there are no lines.
+   * An omitted `items` expansion is not empty — the mapper turns that into `[]`.
+   */
+  isProvenEmptyCart(cartId: string): Promise<boolean>;
+
+  /**
    * Adds an item to a cart with stock checking
    * @param cartId The ID of the cart
    * @param productId The ID of the product to add

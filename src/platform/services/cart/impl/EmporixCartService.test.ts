@@ -2192,6 +2192,44 @@ describe('EmporixCartService', () => {
       expect(result).toBeNull();
     });
 
+    it('does not treat an omitted items expansion as an empty cart', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+
+      await expect(cartService.isProvenEmptyCart('cart-old')).resolves.toBe(false);
+    });
+
+    it('uses totalUnitsCount when the items expansion is omitted', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+        totalUnitsCount: 2,
+      });
+
+      await expect(cartService.isProvenEmptyCart('cart-old')).resolves.toBe(false);
+    });
+
+    it('treats totalUnitsCount 0 as a proven-empty cart', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+        totalUnitsCount: 0,
+      });
+
+      await expect(cartService.isProvenEmptyCart('cart-old')).resolves.toBe(true);
+    });
+
+    it('fails closed when the cart read for an empty check throws', async () => {
+      mockCartApi.getCart.mockRejectedValue(new Error('upstream'));
+
+      await expect(cartService.isProvenEmptyCart('cart-old')).resolves.toBe(false);
+    });
+
     it('should throw when session is not available', async () => {
       mockSessionService.getCurrent.mockResolvedValue(undefined);
 
