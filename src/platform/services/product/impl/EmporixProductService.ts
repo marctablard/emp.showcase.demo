@@ -116,8 +116,14 @@ class EmporixProductService implements ProductService {
       return [];
     }
 
+    const openedKey = openedProduct.id ?? openedId;
+    const knownInScope = await this.membershipForOpenedProduct(openedKey, options);
+    if (knownInScope && !knownInScope.has(openedKey)) {
+      return [];
+    }
+
     if (openedProduct.productType === 'DYNAMIC_VARIANT') {
-      const dynamicFamily = await this.getDynamicVariantProducts(openedProduct, openedId, options);
+      const dynamicFamily = await this.getDynamicVariantProducts(openedProduct, openedId, options, knownInScope);
       if (dynamicFamily.length === 0) {
         return [];
       }
@@ -136,7 +142,7 @@ class EmporixProductService implements ProductService {
       size: 100,
     });
 
-    const items = await this.applySegmentScope(paginated.items, options);
+    const items = await this.applySegmentScope(paginated.items, options, knownInScope);
     const mappedProducts = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
     if (mappedProducts.length === 0) {
       return [];
@@ -174,7 +180,24 @@ class EmporixProductService implements ProductService {
    * (fail closed). `undefined` leaves the items untouched; `[]` is an empty scope and drops every
    * item without an upstream membership call.
    */
-  private async applySegmentScope(items: EmporixProduct[], options?: ProductFetchOptions): Promise<EmporixProduct[]> {
+  /**
+   * Assigned mode only. `undefined` means the caller is unscoped and must not filter.
+   */
+  private async membershipForOpenedProduct(
+    openedKey: string,
+    options?: ProductFetchOptions,
+  ): Promise<Set<string> | undefined> {
+    if (options?.segmentIds === undefined || !openedKey) {
+      return undefined;
+    }
+    return this.filterIdsInSegmentScope([openedKey], options.segmentIds, options.siteCode);
+  }
+
+  private async applySegmentScope(
+    items: EmporixProduct[],
+    options?: ProductFetchOptions,
+    knownInScope?: Set<string>,
+  ): Promise<EmporixProduct[]> {
     if (options?.segmentIds === undefined) {
       return items;
     }
@@ -182,11 +205,11 @@ class EmporixProductService implements ProductService {
       return [];
     }
     const withIds = items.filter((item: EmporixProduct) => !!item.id);
-    const inScope = await this.filterIdsInSegmentScope(
-      withIds.map((item) => item.id as string),
-      options.segmentIds,
-      options.siteCode,
-    );
+    const uncheckedIds = withIds.map((item) => item.id as string).filter((id) => !knownInScope?.has(id));
+    const checked = uncheckedIds.length
+      ? await this.filterIdsInSegmentScope(uncheckedIds, options.segmentIds, options.siteCode)
+      : new Set<string>();
+    const inScope = new Set<string>([...(knownInScope ?? []), ...checked]);
     return withIds.filter((item) => inScope.has(item.id as string));
   }
 
@@ -345,12 +368,13 @@ class EmporixProductService implements ProductService {
     openedProduct: EmporixProduct,
     openedId: string,
     options?: ProductFetchOptions,
+    knownInScope?: Set<string>,
   ): Promise<Product[]> {
     const openedKey = openedProduct.id ?? openedId;
-    let knownInScope: Set<string> | undefined;
-    if (options?.segmentIds !== undefined) {
-      knownInScope = await this.filterIdsInSegmentScope([openedKey], options.segmentIds, options.siteCode);
-      if (!knownInScope.has(openedKey)) {
+    let scopedKnown = knownInScope;
+    if (options?.segmentIds !== undefined && !scopedKnown?.has(openedKey)) {
+      scopedKnown = await this.filterIdsInSegmentScope([openedKey], options.segmentIds, options.siteCode);
+      if (!scopedKnown.has(openedKey)) {
         return [];
       }
     }
@@ -362,7 +386,7 @@ class EmporixProductService implements ProductService {
       return [];
     }
 
-    const scopedMemberIds = await this.scopeDynamicMemberIds(allMemberIds, openedKey, options, knownInScope);
+    const scopedMemberIds = await this.scopeDynamicMemberIds(allMemberIds, openedKey, options, scopedKnown);
     if (!scopedMemberIds || scopedMemberIds.length === 0) {
       return [];
     }

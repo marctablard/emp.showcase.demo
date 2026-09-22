@@ -238,7 +238,10 @@ describe('EmporixProductService template meta enrichment', () => {
       const searchProducts = jest.fn().mockResolvedValue({
         items: [{ id: 'v1', parentVariantId: 'p1' }, { id: 'v2', parentVariantId: 'p1' }, { parentVariantId: 'p1' }],
       });
-      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['v2']));
+      const allowed = new Set(['p1', 'v2']);
+      const filterProductIdsInScope = jest.fn().mockImplementation(async (ids: string[]) => {
+        return new Set(ids.filter((id) => allowed.has(id)));
+      });
       const service = createService({
         searchProducts,
         mapToService,
@@ -249,8 +252,33 @@ describe('EmporixProductService template meta enrichment', () => {
 
       const variants = await service.getVariantProducts('p1', { segmentIds: ['s1'] });
 
-      expect(filterProductIdsInScope).toHaveBeenCalledWith(['v1', 'v2'], 'main', ['s1']);
+      expect(filterProductIdsInScope).toHaveBeenNthCalledWith(1, ['p1'], 'main', ['s1']);
+      expect(filterProductIdsInScope).toHaveBeenNthCalledWith(2, ['v1', 'v2'], 'main', ['s1']);
       expect(variants.map((variant) => variant.id)).toEqual(['v2']);
+    });
+
+    it('returns no classic family when the opened variant is outside segment scope', async () => {
+      const searchProducts = jest.fn();
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set());
+      const getProduct = jest.fn().mockResolvedValue({
+        id: 'child-1',
+        code: 'child-1',
+        productType: 'VARIANT',
+        parentVariantId: 'parent-1',
+      });
+      const service = createService({
+        searchProducts,
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent,
+        getProduct,
+      });
+
+      await expect(service.getVariantProducts('child-1', { segmentIds: ['s1'], siteCode: 'us' })).resolves.toEqual([]);
+
+      expect(filterProductIdsInScope).toHaveBeenCalledTimes(1);
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['child-1'], 'us', ['s1']);
+      expect(searchProducts).not.toHaveBeenCalled();
     });
 
     it('returns the same classic sibling family for a parent and one of its children', async () => {
