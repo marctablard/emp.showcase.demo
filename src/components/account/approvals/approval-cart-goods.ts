@@ -33,6 +33,60 @@ function shippingVat(shipping: OrderShipping | undefined): number {
   return 0;
 }
 
+const MONEY_EPSILON = 0.005;
+
+function closeMoney(left: number, right: number): boolean {
+  return Math.abs(left - right) < MONEY_EPSILON;
+}
+
+/**
+ * Shipping sits inside `totalPrice` only when the numbers say so.
+ * A goods-only net cannot exceed the pre-coupon subtotal, so a higher charged net includes
+ * shipping (fixture: 1,194.79 + 11 = 1,205.79), including a coupon smaller than shipping.
+ * A lower charged net is already the post-coupon goods figure when it matches `gross − tax`.
+ * It includes shipping only when gross/tax stay on the goods and the net is that goods net
+ * plus `details.shipping.amount` — CART gross excludes shipping.
+ */
+function shippingInsideChargedTotal(
+  chargedNet: number,
+  originalNet: number,
+  shippingAmount: number,
+  shippingVatAmount: number,
+  chargedGross: number | undefined,
+  chargedVat: number | undefined,
+): { net: number; vat: number } {
+  if (shippingAmount <= 0) {
+    return { net: 0, vat: 0 };
+  }
+  if (chargedNet - originalNet >= MONEY_EPSILON) {
+    return { net: shippingAmount, vat: shippingVatAmount };
+  }
+  if (typeof chargedGross !== 'number' || typeof chargedVat !== 'number') {
+    return { net: 0, vat: 0 };
+  }
+
+  const goodsNetWhenTaxExcludesShipping = round2(chargedGross - chargedVat);
+  if (
+    closeMoney(chargedNet, goodsNetWhenTaxExcludesShipping + shippingAmount) &&
+    !closeMoney(chargedNet, goodsNetWhenTaxExcludesShipping)
+  ) {
+    return { net: shippingAmount, vat: 0 };
+  }
+
+  if (shippingVatAmount <= 0) {
+    return { net: 0, vat: 0 };
+  }
+  const goodsNetWhenTaxIncludesShipping = round2(chargedGross - (chargedVat - shippingVatAmount));
+  if (
+    closeMoney(chargedNet, goodsNetWhenTaxIncludesShipping + shippingAmount) &&
+    !closeMoney(chargedNet, goodsNetWhenTaxIncludesShipping)
+  ) {
+    return { net: shippingAmount, vat: shippingVatAmount };
+  }
+
+  return { net: 0, vat: 0 };
+}
+
 /**
  * CART approval Order Overview goods rows.
  *
@@ -40,13 +94,12 @@ function shippingVat(shipping: OrderShipping | undefined): number {
  * separates the figures checkout uses:
  * - `subtotalAggregate` / line nets — goods before the coupon
  * - `totalPrice.netValue` — charged total. It matches the goods subtotal when shipping is
- *   stored only on `details.shipping`. Otherwise it includes shipping net
+ *   stored only on `details.shipping`. Otherwise it can include shipping net
  *   (fixture: 1,194.79 goods + 11 shipping = 1,205.79).
+ * - `totalPrice.grossValue` — goods gross; CART shipping is not stored there.
  *
- * Peel shipping off only when the charged net is not already the goods subtotal. A matching
- * total next to shipping details is goods-only and must not become a fake coupon. A different
- * total includes shipping, so a coupon smaller than shipping is still detected and a larger
- * coupon does not fold shipping into the goods net or savings.
+ * Derive the goods charged net/tax before deciding `discounted`. A goods-only discount
+ * (charged net below the subtotal, with shipping details beside it) is left unchanged.
  */
 export function resolveApprovalCartGoods(approval: Approval, lineGoodsNet: number): ApprovalCartGoodsDisplay {
   const aggregate = approval.resource.subtotalAggregate;
@@ -54,15 +107,22 @@ export function resolveApprovalCartGoods(approval: Approval, lineGoodsNet: numbe
   const originalNet = aggregate?.netValue ?? subTotal?.netValue ?? lineGoodsNet;
   const originalVat = aggregate?.taxValue ?? subTotal?.taxValue ?? 0;
   const shipping = approval.details?.shipping;
-  const shippingAmount = shippingNet(shipping);
   const chargedNetRaw = approval.resource.totalPrice?.netValue;
   const chargedVatRaw = approval.resource.totalPrice?.taxValue;
-  const chargedIncludesShipping =
-    typeof chargedNetRaw === 'number' && shippingAmount > 0 && Math.abs(chargedNetRaw - originalNet) >= 0.005;
-  const shippingNetInTotal = chargedIncludesShipping ? shippingAmount : 0;
-  const shippingVatInTotal = chargedIncludesShipping ? shippingVat(shipping) : 0;
-  const chargedGoodsNet = typeof chargedNetRaw === 'number' ? round2(chargedNetRaw - shippingNetInTotal) : undefined;
-  const chargedGoodsVat = typeof chargedVatRaw === 'number' ? round2(chargedVatRaw - shippingVatInTotal) : undefined;
+  const chargedGrossRaw = approval.resource.totalPrice?.grossValue;
+  const included =
+    typeof chargedNetRaw === 'number'
+      ? shippingInsideChargedTotal(
+          chargedNetRaw,
+          originalNet,
+          shippingNet(shipping),
+          shippingVat(shipping),
+          chargedGrossRaw,
+          chargedVatRaw,
+        )
+      : { net: 0, vat: 0 };
+  const chargedGoodsNet = typeof chargedNetRaw === 'number' ? round2(chargedNetRaw - included.net) : undefined;
+  const chargedGoodsVat = typeof chargedVatRaw === 'number' ? round2(chargedVatRaw - included.vat) : undefined;
   const discounted = typeof chargedGoodsNet === 'number' && originalNet - chargedGoodsNet >= 0.005;
 
   if (!discounted || typeof chargedGoodsNet !== 'number') {

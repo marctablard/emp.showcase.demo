@@ -1,6 +1,10 @@
 import type { Approval } from '@/platform/services/model/approval';
 import { resolveApprovalCartGoods } from './approval-cart-goods';
 
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 function approval(resource: Partial<Approval['resource']> = {}): Approval {
   return {
     id: 'approval-1',
@@ -115,12 +119,20 @@ describe('resolveApprovalCartGoods', () => {
     expect(result.savings).toBe(5);
   });
 
-  it('strips shipping from a coupon larger than shipping so savings stay goods-only', () => {
+  it('strips shipping from a coupon larger than shipping when gross stays on the goods', () => {
+    const goodsNet = 1174.79;
+    const goodsVat = 223.21;
     const result = resolveApprovalCartGoods(
       {
         ...approval({
           subtotalAggregate: { currency: 'EUR', netValue: 1194.79, grossValue: 1421.8, taxValue: 226.99 },
-          totalPrice: { currency: 'EUR', amount: 1185.79, netValue: 1185.79, grossValue: 1411.09, taxValue: 225.3 },
+          totalPrice: {
+            currency: 'EUR',
+            amount: goodsNet + 11,
+            netValue: goodsNet + 11,
+            grossValue: roundMoney(goodsNet + goodsVat),
+            taxValue: goodsVat,
+          },
         }),
         details: {
           currency: 'EUR',
@@ -132,6 +144,70 @@ describe('resolveApprovalCartGoods', () => {
 
     expect(result.discounted).toBe(true);
     expect(result.net).toBe(1174.79);
+    expect(result.savings).toBe(20);
+    expect(result.vat).toBe(223.21);
+  });
+
+  it('keeps a goods-only discounted total when shipping details are stored separately', () => {
+    const result = resolveApprovalCartGoods(
+      {
+        ...approval({
+          subtotalAggregate: { currency: 'EUR', netValue: 100, grossValue: 119, taxValue: 19 },
+          totalPrice: { currency: 'EUR', amount: 90, netValue: 90, grossValue: 107.1, taxValue: 17.1 },
+        }),
+        details: {
+          currency: 'EUR',
+          shipping: {
+            methodId: 'dhl',
+            zoneId: 'de',
+            methodName: 'DHL',
+            amount: 11,
+            grossAmount: 12.19,
+          },
+        },
+      },
+      100,
+    );
+
+    expect(result.discounted).toBe(true);
+    expect(result.net).toBe(90);
+    expect(result.vat).toBe(17.1);
+    expect(result.savings).toBe(10);
+  });
+
+  it('strips shipping VAT when gross excludes shipping and taxValue includes it', () => {
+    const goodsNet = 1174.79;
+    const goodsVat = 223.21;
+    const shippingVat = 2.09;
+    const result = resolveApprovalCartGoods(
+      {
+        ...approval({
+          subtotalAggregate: { currency: 'EUR', netValue: 1194.79, grossValue: 1421.8, taxValue: 226.99 },
+          totalPrice: {
+            currency: 'EUR',
+            amount: goodsNet + 11,
+            netValue: goodsNet + 11,
+            grossValue: roundMoney(goodsNet + goodsVat),
+            taxValue: roundMoney(goodsVat + shippingVat),
+          },
+        }),
+        details: {
+          currency: 'EUR',
+          shipping: {
+            methodId: 'dhl',
+            zoneId: 'de',
+            methodName: 'DHL',
+            amount: 11,
+            grossAmount: 13.09,
+          },
+        },
+      },
+      1194.79,
+    );
+
+    expect(result.discounted).toBe(true);
+    expect(result.net).toBe(1174.79);
+    expect(result.vat).toBe(223.21);
     expect(result.savings).toBe(20);
   });
 
