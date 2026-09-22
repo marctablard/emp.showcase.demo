@@ -27,14 +27,6 @@ jest.mock('@/hooks/useL10n', () => ({
   }),
 }));
 
-jest.mock('@/components/ui/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="product-variant-attribute-chip-tooltip">{children}</div>
-  ),
-}));
-
 describe('ProductVariantAttributeGroups', () => {
   it('renders attribute labels and chips as buttons', () => {
     render(
@@ -69,76 +61,57 @@ describe('ProductVariantAttributeGroups', () => {
     expect(screen.getByText('100')).toBeInTheDocument();
   });
 
-  it('distinguishes selected, soft, inactive, and disabled chip states', () => {
+  it('keeps every chip clickable and marks the opened variant with a thin blue border', () => {
     render(
       <ProductVariantAttributeGroups
         groups={[
           { key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah', '100 Ah'] },
-          { key: 'voltage', name: 'Voltage', values: ['12 V', '24 V'] },
+          { key: 'color', name: 'Color', values: ['Red', 'Blue'] },
         ]}
-        selectedValues={{ capacity: '12 Ah' }}
-        productValues={{ capacity: '60 Ah', voltage: '12 V' }}
-        compatibleValuesByAttribute={{
-          capacity: new Set(['12 Ah', '60 Ah']),
-          voltage: new Set(['12 V']),
-        }}
+        selectedValues={{ color: ['Red', 'Blue'] }}
+        productValues={{ capacity: '60 Ah' }}
       />,
     );
 
-    const selected = screen.getByText('12 Ah');
-    const soft = screen.getByText('60 Ah');
-    const disabled = screen.getByText('100 Ah');
-    const productSoft = screen.getByText('12 V');
-    const inactiveDisabled = screen.getByText('24 V');
+    const selectedRed = screen.getByText('Red');
+    const selectedBlue = screen.getByText('Blue');
+    const current = screen.getByText('60 Ah');
+    const inactive = screen.getByText('100 Ah');
 
-    expect(selected).toHaveAttribute('data-chip-state', 'selected');
-    expect(selected).toHaveClass('border-2', 'border-border-black');
-    expect(selected).not.toBeDisabled();
+    expect(selectedRed).toHaveAttribute('data-chip-state', 'selected');
+    expect(selectedRed).toHaveClass('border-2', 'border-border-black');
+    expect(selectedRed).not.toBeDisabled();
+    expect(selectedBlue).toHaveAttribute('data-chip-state', 'selected');
+    expect(selectedBlue).not.toBeDisabled();
 
-    expect(soft).toHaveAttribute('data-chip-state', 'soft');
-    expect(soft).toHaveClass('border-2', 'border-border-secondary');
+    expect(current).toHaveAttribute('data-chip-state', 'soft');
+    expect(current).toHaveAttribute('aria-current', 'true');
+    expect(current).toHaveClass('border', 'border-border-secondary');
+    expect(current).not.toHaveClass('border-2');
 
-    expect(disabled).toHaveAttribute('data-chip-state', 'disabled');
-    expect(disabled).toBeDisabled();
-    expect(disabled).toHaveClass('bg-surface-disabled', 'text-text-disabled');
-
-    expect(productSoft).toHaveAttribute('data-chip-state', 'soft');
-    expect(inactiveDisabled).toHaveAttribute('data-chip-state', 'disabled');
-    expect(inactiveDisabled).toBeInTheDocument();
+    expect(inactive).toHaveAttribute('data-chip-state', 'inactive');
+    expect(inactive).not.toBeDisabled();
   });
 
-  it('shows the list tooltip only on disabled chips', () => {
+  it('lets the black filter border win when the opened value is also selected', () => {
     render(
       <ProductVariantAttributeGroups
         groups={[{ key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] }]}
-        selectedValues={{ capacity: '12 Ah' }}
-        compatibleValuesByAttribute={{ capacity: new Set(['12 Ah']) }}
+        selectedValues={{ capacity: ['12 Ah'] }}
+        productValues={{ capacity: '12 Ah' }}
       />,
     );
 
-    const tooltips = screen.getAllByTestId('product-variant-attribute-chip-tooltip');
-    expect(tooltips).toHaveLength(1);
-    expect(tooltips[0]).toHaveTextContent('variantAttributeSelectViaListTooltip');
     expect(screen.getByText('12 Ah')).toHaveAttribute('data-chip-state', 'selected');
-    expect(screen.getByText('60 Ah')).toHaveAttribute('data-chip-state', 'disabled');
-  });
-
-  it('does not show the list tooltip on inactive chips', () => {
-    render(
-      <ProductVariantAttributeGroups groups={[{ key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] }]} />,
-    );
-
-    expect(screen.queryByTestId('product-variant-attribute-chip-tooltip')).not.toBeInTheDocument();
-    expect(screen.getByText('12 Ah')).toHaveAttribute('data-chip-state', 'inactive');
     expect(screen.getByText('60 Ah')).toHaveAttribute('data-chip-state', 'inactive');
+    expect(screen.queryByTestId('product-variant-attribute-chip-tooltip')).not.toBeInTheDocument();
   });
 
-  it('calls onSelect for an enabled chip and keeps disabled chips in the DOM', () => {
+  it('calls onSelect for every chip', () => {
     const onSelect = jest.fn();
     render(
       <ProductVariantAttributeGroups
         groups={[{ key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] }]}
-        compatibleValuesByAttribute={{ capacity: new Set(['12 Ah']) }}
         onSelect={onSelect}
       />,
     );
@@ -146,10 +119,10 @@ describe('ProductVariantAttributeGroups', () => {
     fireEvent.click(screen.getByText('12 Ah'));
     fireEvent.click(screen.getByText('60 Ah'));
 
-    expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect).toHaveBeenCalledWith('capacity', '12 Ah');
-    expect(screen.getByText('60 Ah')).toBeDisabled();
-    expect(screen.getByText('60 Ah')).toBeInTheDocument();
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    expect(onSelect).toHaveBeenNthCalledWith(1, 'capacity', '12 Ah');
+    expect(onSelect).toHaveBeenNthCalledWith(2, 'capacity', '60 Ah');
+    expect(screen.getByText('60 Ah')).not.toBeDisabled();
   });
 
   it('exposes clear-all and per-row show more/less test ids', () => {

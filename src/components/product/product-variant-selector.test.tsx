@@ -355,7 +355,7 @@ describe('ProductVariantSelector', () => {
     });
   });
 
-  it('auto-selects the single remaining sellable variant when it is not the opened product', async () => {
+  it('filters the sellable list without navigating when one chip is selected', async () => {
     fetchProductVariantsMock.mockResolvedValue([
       buildProduct({
         id: 'v-12',
@@ -386,13 +386,18 @@ describe('ProductVariantSelector', () => {
     fireEvent.click(screen.getByText('60 Ah'));
 
     await waitFor(() => {
-      expect(push).toHaveBeenCalledWith('/product/v-60');
+      expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
+        'data-selected',
+        JSON.stringify({ capacity: ['60 Ah'] }),
+      );
     });
-    expect(screen.getByTestId('product-variant-list-loading')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('product-variant-list-loading')).not.toBeInTheDocument();
     expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-count', '1');
+    expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-ids', 'v-60');
   });
 
-  it('does not auto-select when the single remaining sellable id is already the opened product', async () => {
+  it('keeps the opened product when its own attribute is selected as a filter', async () => {
     fetchProductVariantsMock.mockResolvedValue([
       buildProduct({
         id: 'v-12',
@@ -425,14 +430,14 @@ describe('ProductVariantSelector', () => {
     await waitFor(() => {
       expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
         'data-selected',
-        JSON.stringify({ capacity: '12 Ah' }),
+        JSON.stringify({ capacity: ['12 Ah'] }),
       );
     });
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-count', '1');
     expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute(
       'data-selected-filters',
-      JSON.stringify({ capacity: '12 Ah' }),
+      JSON.stringify({ capacity: ['12 Ah'] }),
     );
     expect(screen.queryByTestId('product-variant-list-loading')).not.toBeInTheDocument();
   });
@@ -466,7 +471,7 @@ describe('ProductVariantSelector', () => {
     await waitFor(() => {
       expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
         'data-selected',
-        JSON.stringify({ capacity: '12 Ah' }),
+        JSON.stringify({ capacity: ['12 Ah'] }),
       );
     });
 
@@ -625,6 +630,90 @@ describe('ProductVariantSelector', () => {
     });
     expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-selected-filters', '{}');
     expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-selected', '{}');
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-product-values', '{}');
+  });
+
+  it('ORs values on one attribute and ANDs them with other attributes without navigating', async () => {
+    const member = (id: string, height: string, color: string): Product =>
+      buildProduct({
+        id,
+        parentVariantId: 'parent-1',
+        variantAttributeValues: { height, color },
+        variantAttributes: [
+          { key: 'height', name: 'Height', values: [{ key: height, selected: true }] },
+          { key: 'color', name: 'Color', values: [{ key: color, selected: true }] },
+        ],
+      });
+
+    fetchProductVariantsMock.mockResolvedValue([
+      member('red-30', '30', 'Red'),
+      member('blue-30', '30', 'Blue'),
+      member('red-10', '10', 'Red'),
+      member('green-30', '30', 'Green'),
+    ]);
+    fetchProductPricesMock.mockResolvedValue({});
+
+    render(
+      <ProductVariantSelector
+        product={buildProduct({
+          id: 'red-30',
+          variantAttributeValues: { height: '30', color: 'Red' },
+          variantAttributes: [
+            { key: 'height', name: 'Height', values: [{ key: '30', selected: true }] },
+            { key: 'color', name: 'Color', values: [{ key: 'Red', selected: true }] },
+          ],
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-count', '4');
+    });
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
+      'data-product-values',
+      JSON.stringify({ height: '30', color: 'Red' }),
+    );
+
+    fireEvent.click(screen.getByText('30'));
+    fireEvent.click(screen.getByText('Red'));
+    fireEvent.click(screen.getByText('Blue'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-ids', 'red-30,blue-30');
+    });
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('marks the opened variant from the family member when the page product has no attributes', async () => {
+    fetchProductVariantsMock.mockResolvedValue([
+      buildProduct({
+        id: 'leaf-open',
+        productType: 'DYNAMIC_VARIANT',
+        parentVariantId: 'root-1',
+        variantAttributeValues: { height: '30', Width: '40' },
+        variantAttributes: [],
+      }),
+    ]);
+    fetchProductPricesMock.mockResolvedValue({});
+
+    render(
+      <ProductVariantSelector
+        product={buildProduct({
+          id: 'leaf-open',
+          productType: 'DYNAMIC_VARIANT',
+          parentVariantId: 'root-1',
+          variantAttributes: [],
+          variantAttributeValues: undefined,
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
+        'data-product-values',
+        JSON.stringify({ height: '30', Width: '40' }),
+      );
+    });
   });
 
   it('hides non-sellable dynamic members unless they are the opened node', async () => {

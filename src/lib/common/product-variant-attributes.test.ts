@@ -529,6 +529,17 @@ describe('getUnselectedVariantAttributePairs', () => {
       { key: 'frequency', name: 'Frequency', value: '50Hz' },
     ]);
   });
+
+  it('keeps an axis on the card when several values of that axis are selected', () => {
+    const variant = buildVariant('leaf', [
+      { key: 'color', value: 'Red', name: 'Color' },
+      { key: 'height', value: '30', name: 'Height' },
+    ]);
+
+    expect(getUnselectedVariantAttributePairs(variant, { color: ['Red', 'Blue'], height: ['30'] })).toEqual([
+      { key: 'color', name: 'Color', value: 'Red' },
+    ]);
+  });
 });
 
 describe('getCompatibleAttributeValues', () => {

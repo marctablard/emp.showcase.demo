@@ -1,6 +1,6 @@
 'use client';
 
-import React, { startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useEffect, useMemo, useState } from 'react';
 import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useSession } from '@/hooks/session/useSession';
 import { useRouter } from '@/i18n/navigation';
@@ -9,7 +9,6 @@ import { fetchProductVariants } from '@/lib/client/products';
 import { filterDynamicMembersByQualifiers, filterSellableDynamicMembers } from '@/lib/common/product-dynamic-variants';
 import {
   collectVariantAttributeGroups,
-  getCompatibleValuesByAttribute,
   getSelectedVariantAttributeValues,
   isVariantFamilyProduct,
 } from '@/lib/common/product-variant-attributes';
@@ -24,15 +23,6 @@ export interface ProductVariantSelectorProps {
   product: Product;
   price?: ProductPrice | null;
   className?: string;
-}
-
-function variantMatchesFilters(variant: Product, filters: Record<string, string>): boolean {
-  const values = getSelectedVariantAttributeValues(variant);
-  return Object.entries(filters).every(([key, value]) => values[key] === value);
-}
-
-function isSellableForAutoSelect(variant: Product): boolean {
-  return variant.sellable !== false;
 }
 
 /** Classic parent, or last `parentVariantPath` entry for dynamic — never guess a missing root. */
@@ -51,27 +41,6 @@ function resolveVariantClearAllDestination(product: Product, family: Product[]):
     return undefined;
   }
   return product.parentVariantId;
-}
-
-function findSingleAutoSelectId(
-  variants: Product[],
-  filters: Record<string, string>,
-  currentProductId: string,
-): string | undefined {
-  if (Object.keys(filters).length === 0) {
-    return undefined;
-  }
-  const matching = variants.filter(
-    (variant) => isSellableForAutoSelect(variant) && variantMatchesFilters(variant, filters),
-  );
-  if (matching.length !== 1) {
-    return undefined;
-  }
-  const onlyId = matching[0].id;
-  if (onlyId === currentProductId) {
-    return undefined;
-  }
-  return onlyId;
 }
 
 function navigateToProduct(router: { push: (href: string) => void }, productId: string): void {
@@ -97,6 +66,36 @@ function includeOpenedFamilyMember(product: Product, variants: Product[]): Produ
   return variants;
 }
 
+/** Blue border marks the opened node's own attributes. Parents and dynamic roots stay unmarked. */
+function isOpenedVariantProduct(product: Product): boolean {
+  if (product.isParentVariant || product.productType === 'PARENT_VARIANT') {
+    return false;
+  }
+  if (product.productType === 'DYNAMIC_VARIANT') {
+    const rootId = product.parentVariantPath?.at(-1);
+    if (rootId && rootId !== product.id) {
+      return true;
+    }
+    return Boolean(product.parentVariantId);
+  }
+  return Boolean(product.parentVariantId);
+}
+
+function toggleFilterValue(
+  current: Record<string, string[]>,
+  attributeKey: string,
+  value: string,
+): Record<string, string[]> {
+  const existing = current[attributeKey] ?? [];
+  const nextValues = existing.includes(value) ? existing.filter((item) => item !== value) : [...existing, value];
+  if (nextValues.length === 0) {
+    const next = { ...current };
+    delete next[attributeKey];
+    return next;
+  }
+  return { ...current, [attributeKey]: nextValues };
+}
+
 function buildSellableListSource(product: Product, family: Product[]): Product[] {
   if (isDynamicVariantFamily(product, family)) {
     return filterSellableDynamicMembers(family, product.id);
@@ -113,9 +112,8 @@ export default function ProductVariantSelector({ product, className }: ProductVa
   const [variants, setVariants] = useState<Product[]>([]);
   const [variantsLoaded, setVariantsLoaded] = useState(false);
   const [variantPrices, setVariantPrices] = useState<ProductPrice[] | undefined>(undefined);
-  const [filterSelection, setFilterSelection] = useState<Record<string, string>>({});
+  const [filterSelection, setFilterSelection] = useState<Record<string, string[]>>({});
   const [isListLoading, setIsListLoading] = useState(false);
-  const autoSelectTargetRef = useRef<string | null>(null);
   const { session } = useSession();
   const clientDedupeScope = useClientFetchScope();
 
@@ -131,10 +129,6 @@ export default function ProductVariantSelector({ product, className }: ProductVa
     setFilterSelection({});
     setIsListLoading(false);
   }
-
-  useEffect(() => {
-    autoSelectTargetRef.current = null;
-  }, [product.id, clientDedupeScope]);
 
   const sessionCurrency = session?.currency;
   const [prevSessionCurrency, setPrevSessionCurrency] = useState(sessionCurrency);
@@ -214,49 +208,27 @@ export default function ProductVariantSelector({ product, className }: ProductVa
 
   const attributeGroups = useMemo(() => collectVariantAttributeGroups(product, variants), [product, variants]);
   const attributeOrder = useMemo(() => attributeGroups.map((group) => group.key), [attributeGroups]);
-  const selectedAttributeValues = useMemo(() => getSelectedVariantAttributeValues(product), [product]);
   const familyVariants = useMemo(() => includeOpenedFamilyMember(product, variants), [product, variants]);
+  const openedMember = useMemo(
+    () => familyVariants.find((variant) => variant.id === product.id) ?? product,
+    [familyVariants, product],
+  );
+  const selectedAttributeValues = useMemo(
+    () => (isOpenedVariantProduct(product) ? getSelectedVariantAttributeValues(openedMember) : {}),
+    [openedMember, product],
+  );
   const listSource = useMemo(() => buildSellableListSource(product, familyVariants), [familyVariants, product]);
   const listVariants = useMemo(
     () => filterDynamicMembersByQualifiers(listSource, filterSelection),
     [filterSelection, listSource],
   );
-  const compatibleValuesByAttribute = useMemo(
-    () => getCompatibleValuesByAttribute(listSource, filterSelection, attributeOrder),
-    [attributeOrder, filterSelection, listSource],
-  );
-
-  const autoSelectTargetId = useMemo(
-    () => findSingleAutoSelectId(listSource, filterSelection, product.id),
-    [filterSelection, listSource, product.id],
-  );
-
-  useEffect(() => {
-    if (!autoSelectTargetId) {
-      autoSelectTargetRef.current = null;
-      return;
-    }
-    if (autoSelectTargetRef.current === autoSelectTargetId) {
-      return;
-    }
-    autoSelectTargetRef.current = autoSelectTargetId;
-    navigateToProduct(router, autoSelectTargetId);
-  }, [autoSelectTargetId, router]);
 
   const handleAttributeSelect = (attributeKey: string, value: string): void => {
-    setFilterSelection((current) => {
-      if (current[attributeKey] === value) {
-        const next = { ...current };
-        delete next[attributeKey];
-        return next;
-      }
-      return { ...current, [attributeKey]: value };
-    });
+    setFilterSelection((current) => toggleFilterValue(current, attributeKey, value));
   };
 
   const handleClearAllFilters = (): void => {
     setFilterSelection({});
-    autoSelectTargetRef.current = null;
     const destination = resolveVariantClearAllDestination(product, familyVariants);
     if (!destination || destination === product.id) {
       setIsListLoading(false);
@@ -304,7 +276,6 @@ export default function ProductVariantSelector({ product, className }: ProductVa
         groups={attributeGroups}
         selectedValues={filterSelection}
         productValues={selectedAttributeValues}
-        compatibleValuesByAttribute={compatibleValuesByAttribute}
         attributeLabels={product.templateAttributeLabels}
         attributeTypes={product.templateAttributeTypes}
         onSelect={handleAttributeSelect}
@@ -317,7 +288,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
         attributeOrder={attributeOrder}
         attributeTypes={product.templateAttributeTypes}
         selectedFilters={filterSelection}
-        isLoading={isListLoading || autoSelectTargetId != null}
+        isLoading={isListLoading}
         onVariantSelect={handleVariantSelect}
       />
     </div>

@@ -119,4 +119,9 @@ export interface EmporixProduct {
   variants?: Record<string, EmporixDynamicVariantEntry>;
   /** Catalog / navigation root category ids (Product Service). */
   categoryIds?: string[];
+  /**
+   * Product-level segment assignment. Distinct from segment-item PRODUCT rows and from
+   * category assignment. DYNAMIC_VARIANT nodes often carry this when category search misses them.
+   */
+  customerSegmentIds?: string[];
 }

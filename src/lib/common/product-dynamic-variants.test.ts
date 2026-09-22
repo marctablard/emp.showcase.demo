@@ -182,4 +182,41 @@ describe('dynamic qualifier matching', () => {
     expect([...getCompatibleDynamicAttributeValues(members, { width: '15' }, 'frequency')]).toEqual(['50Hz']);
     expect([...getCompatibleDynamicAttributeValues(members, { width: '15' }, 'width')].sort()).toEqual(['15', '20']);
   });
+
+  it('ORs values on one axis and ANDs values across axes', () => {
+    const colored = [
+      buildDynamicMember('red-30', {
+        sellable: true,
+        attributes: [
+          { key: 'height', value: '30' },
+          { key: 'color', value: 'Red' },
+        ],
+      }),
+      buildDynamicMember('blue-30', {
+        sellable: true,
+        attributes: [
+          { key: 'height', value: '30' },
+          { key: 'color', value: 'Blue' },
+        ],
+      }),
+      buildDynamicMember('red-10', {
+        sellable: true,
+        attributes: [
+          { key: 'height', value: '10' },
+          { key: 'color', value: 'Red' },
+        ],
+      }),
+      buildDynamicMember('green-30', {
+        sellable: true,
+        attributes: [
+          { key: 'height', value: '30' },
+          { key: 'color', value: 'Green' },
+        ],
+      }),
+    ];
+
+    expect(
+      filterDynamicMembersByQualifiers(colored, { height: ['30'], color: ['Red', 'Blue'] }).map((member) => member.id),
+    ).toEqual(['red-30', 'blue-30']);
+  });
 });

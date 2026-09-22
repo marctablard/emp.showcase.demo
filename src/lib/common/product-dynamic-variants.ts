@@ -1,8 +1,10 @@
 import {
   type ProductVariantAttributeGroup,
+  type VariantAttributeFilters,
   getCompatibleAttributeValues,
   getSelectedVariantAttributeValues,
   normalizeVariantAttributeValueKey,
+  variantFilterValues,
 } from '@/lib/common/product-variant-attributes';
 import type { Product, ProductVariantAttribute } from '@/platform/services/model/product';
 
@@ -91,14 +93,17 @@ export function unionDynamicVariantAttributes(members: Product[]): ProductVarian
  * True when the member's selected qualifiers match every provided axis.
  * Qualifiers are compared as normalized strings (`15` and `15` number → `"15"`).
  */
-export function dynamicMemberMatchesQualifiers(member: Product, selectedQualifiers: Record<string, string>): boolean {
+export function dynamicMemberMatchesQualifiers(member: Product, selectedQualifiers: VariantAttributeFilters): boolean {
   const values = getSelectedVariantAttributeValues(member);
   return Object.entries(selectedQualifiers).every(([attributeKey, raw]) => {
-    const selected = normalizeVariantAttributeValueKey(raw);
-    if (selected === undefined) {
+    const selected = variantFilterValues(raw)
+      .map((value) => normalizeVariantAttributeValueKey(value))
+      .filter((value): value is string => value !== undefined);
+    if (selected.length === 0) {
       return true;
     }
-    return values[attributeKey] === selected;
+    const memberValue = values[attributeKey];
+    return memberValue !== undefined && selected.includes(memberValue);
   });
 }
 
@@ -108,7 +113,7 @@ export function dynamicMemberMatchesQualifiers(member: Product, selectedQualifie
  */
 export function filterDynamicMembersByQualifiers(
   members: Product[],
-  selectedQualifiers: Record<string, string>,
+  selectedQualifiers: VariantAttributeFilters,
 ): Product[] {
   return members.filter((member) => dynamicMemberMatchesQualifiers(member, selectedQualifiers));
 }

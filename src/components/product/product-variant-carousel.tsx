@@ -13,6 +13,7 @@ import { useRouter } from '@/i18n/navigation';
 import { formatTemplateAttributeValue } from '@/lib/common/product-template-attributes';
 import {
   type VariantAttributeDisplayPair,
+  type VariantAttributeFilters,
   getUnselectedVariantAttributePairs,
 } from '@/lib/common/product-variant-attributes';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -35,8 +36,8 @@ export interface ProductVariantCarouselProps {
   currentProductId: string;
   attributeOrder: string[];
   attributeTypes?: Record<string, ProductTemplateAttributeType>;
-  /** Chip axes the shopper already selected — omitted from card call-outs. */
-  selectedFilters?: Record<string, string>;
+  /** Chip axes the shopper already selected — a single pinned value is omitted from card call-outs. */
+  selectedFilters?: VariantAttributeFilters;
   /** Filter or navigation in flight — skeleton above the Sellable variants heading. */
   isLoading?: boolean;
   /** When set, the selector owns navigation (and can keep the list loader visible). */

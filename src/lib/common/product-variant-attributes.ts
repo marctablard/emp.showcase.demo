@@ -50,6 +50,27 @@ function hasAttributeValue(value: string | undefined): boolean {
   return value !== undefined && value !== '';
 }
 
+/** One axis: a single value, or several values combined with OR. */
+export type VariantAttributeFilterValue = string | readonly string[];
+
+/** Shopper chip filters. Within one key, values are OR; across keys, AND. */
+export type VariantAttributeFilters = Record<string, VariantAttributeFilterValue>;
+
+export function variantFilterValues(raw: VariantAttributeFilterValue | undefined): string[] {
+  if (typeof raw === 'string') {
+    return hasAttributeValue(raw) ? [raw] : [];
+  }
+  if (!raw) {
+    return [];
+  }
+  return raw.filter((value) => hasAttributeValue(value));
+}
+
+/** Card call-outs drop an axis only when the shopper pinned it to exactly one value. */
+export function isSingleVariantFilterValue(raw: VariantAttributeFilterValue | undefined): boolean {
+  return variantFilterValues(raw).length === 1;
+}
+
 /**
  * Stable storefront order: Product Templates `attributes[]` (`templateAttributeOrder`),
  * then any remaining keys in first-seen order.
@@ -133,14 +154,17 @@ export interface VariantAttributeDisplayPair {
 }
 
 /**
- * Card call-outs: display pairs the shopper has not selected yet.
- * Used so sellable cards omit axes already chosen in the configurator.
+ * Card call-outs: pairs the shopper has not pinned to a single value.
+ * One selected value hides that axis. Several OR values on the same axis stay visible
+ * so cards can still be told apart.
  */
 export function getUnselectedVariantAttributePairs(
   product: Product,
-  selectedAttributes: Record<string, string> = {},
+  selectedAttributes: VariantAttributeFilters = {},
 ): VariantAttributeDisplayPair[] {
-  return getVariantAttributeDisplayPairs(product).filter((pair) => !hasAttributeValue(selectedAttributes[pair.key]));
+  return getVariantAttributeDisplayPairs(product).filter(
+    (pair) => !isSingleVariantFilterValue(selectedAttributes[pair.key]),
+  );
 }
 
 /** Selected value/label pairs for a sellable variant, ordered by `templateAttributeOrder`. */
