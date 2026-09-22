@@ -170,6 +170,54 @@ describe('ApprovalSummary', () => {
     expect(screen.queryByTestId('approval-overview-shipping-tax-estimated')).not.toBeInTheDocument();
   });
 
+  it('shows original goods, savings, and the post-coupon net when totalPrice is lower than the goods subtotal', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      resource: {
+        id: 'cart-coupon',
+        items: [
+          {
+            productId: 'product-1',
+            quantity: 1,
+            itemPrice: {
+              currency: 'EUR',
+              amount: 3095.07,
+              netValue: 2600.9,
+              taxValue: 494.17,
+            },
+          },
+        ],
+        subtotalAggregate: { currency: 'EUR', netValue: 2600.9, grossValue: 3095.07, taxValue: 494.17 },
+        totalPrice: { currency: 'EUR', amount: 2340.81, netValue: 2340.81, grossValue: 2785.56, taxValue: 444.75 },
+      },
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 0 } as any,
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    const original = screen.getByTestId('approval-originalValueOfGoods');
+    expect(original).toHaveTextContent('originalValueOfGoods');
+    expect(original).toHaveTextContent(/2\.600,90/);
+    expect(original.querySelector('.line-through')).toBeInTheDocument();
+
+    const savings = screen.getByTestId('approval-yourSavings');
+    expect(savings).toHaveTextContent('yourSavings');
+    expect(savings).toHaveTextContent(/260,09/);
+    expect(savings).toHaveClass('text-sm', 'bg-surface-success');
+
+    const net = screen.getByTestId('approval-netValueOfGoods');
+    expect(net).toHaveTextContent('netValueOfGoods');
+    expect(net).toHaveTextContent(/2\.340,81/);
+    expect(screen.getByText('tax').parentElement).toHaveTextContent(/444,75/);
+    expect(screen.getByRole('heading', { level: 5, name: 'totalValueOfGoods' }).parentElement).toHaveTextContent(
+      /2\.785,56/,
+    );
+  });
+
   it('uses 2 columns from sm and 4 columns from lg for CART approval cards', () => {
     const approval: Approval = {
       ...baseApproval,
