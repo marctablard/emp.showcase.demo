@@ -39,12 +39,14 @@ function shippingVat(shipping: OrderShipping | undefined): number {
  * Approval GET does not return `discounts[]` or a coupon code. The snapshot still
  * separates the figures checkout uses:
  * - `subtotalAggregate` / line nets — goods before the coupon
- * - `totalPrice.netValue` — charged total, which can be goods-only or goods + shipping net
- *   (fixture: 1,194.79 goods + 11 shipping = 1,205.79)
+ * - `totalPrice.netValue` — charged total. It matches the goods subtotal when shipping is
+ *   stored only on `details.shipping`. Otherwise it includes shipping net
+ *   (fixture: 1,194.79 goods + 11 shipping = 1,205.79).
  *
- * Subtract shipping net/VAT before comparing with the goods subtotal. Otherwise a coupon
- * smaller than shipping looks like no discount, and a larger coupon folds shipping into
- * the discounted goods net and savings.
+ * Peel shipping off only when the charged net is not already the goods subtotal. A matching
+ * total next to shipping details is goods-only and must not become a fake coupon. A different
+ * total includes shipping, so a coupon smaller than shipping is still detected and a larger
+ * coupon does not fold shipping into the goods net or savings.
  */
 export function resolveApprovalCartGoods(approval: Approval, lineGoodsNet: number): ApprovalCartGoodsDisplay {
   const aggregate = approval.resource.subtotalAggregate;
@@ -52,10 +54,15 @@ export function resolveApprovalCartGoods(approval: Approval, lineGoodsNet: numbe
   const originalNet = aggregate?.netValue ?? subTotal?.netValue ?? lineGoodsNet;
   const originalVat = aggregate?.taxValue ?? subTotal?.taxValue ?? 0;
   const shipping = approval.details?.shipping;
+  const shippingAmount = shippingNet(shipping);
   const chargedNetRaw = approval.resource.totalPrice?.netValue;
   const chargedVatRaw = approval.resource.totalPrice?.taxValue;
-  const chargedGoodsNet = typeof chargedNetRaw === 'number' ? round2(chargedNetRaw - shippingNet(shipping)) : undefined;
-  const chargedGoodsVat = typeof chargedVatRaw === 'number' ? round2(chargedVatRaw - shippingVat(shipping)) : undefined;
+  const chargedIncludesShipping =
+    typeof chargedNetRaw === 'number' && shippingAmount > 0 && Math.abs(chargedNetRaw - originalNet) >= 0.005;
+  const shippingNetInTotal = chargedIncludesShipping ? shippingAmount : 0;
+  const shippingVatInTotal = chargedIncludesShipping ? shippingVat(shipping) : 0;
+  const chargedGoodsNet = typeof chargedNetRaw === 'number' ? round2(chargedNetRaw - shippingNetInTotal) : undefined;
+  const chargedGoodsVat = typeof chargedVatRaw === 'number' ? round2(chargedVatRaw - shippingVatInTotal) : undefined;
   const discounted = typeof chargedGoodsNet === 'number' && originalNet - chargedGoodsNet >= 0.005;
 
   if (!discounted || typeof chargedGoodsNet !== 'number') {

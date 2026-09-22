@@ -243,6 +243,7 @@ class EmporixProductService implements ProductService {
     }
     if (typeof entry.sellable === 'boolean') {
       merged.sellable = entry.sellable;
+      merged.purchasable = entry.sellable;
     }
     if (entry.variantAttributes) {
       const attributes = this.mapDynamicVariantMapAttributes(entry);
@@ -256,7 +257,6 @@ class EmporixProductService implements ProductService {
         }),
       );
     }
-    merged.purchasable = entry.sellable === true;
     return merged;
   }
 

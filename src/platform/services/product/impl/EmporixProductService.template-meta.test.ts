@@ -501,6 +501,38 @@ describe('EmporixProductService template meta enrichment', () => {
       ]);
     });
 
+    it('keeps hydrated purchasable when the variants map omits sellable', async () => {
+      const getProduct = jest.fn().mockResolvedValue({
+        id: 'opened-dynamic',
+        code: 'opened-dynamic',
+        productType: 'DYNAMIC_VARIANT',
+        variants: {
+          'opened-dynamic': { name: { en: 'Opened dynamic' } },
+        },
+      });
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [{ id: 'opened-dynamic', code: 'opened-dynamic', productType: 'DYNAMIC_VARIANT' }],
+      });
+      const mapToServiceDynamic = jest.fn().mockImplementation((product: { id: string }) => ({
+        id: product.id,
+        name: { en: product.id },
+        description: {},
+        purchasable: true,
+        sellable: true,
+      }));
+      const service = createService({
+        getProduct,
+        searchProducts,
+        mapToService: mapToServiceDynamic,
+        getCurrent,
+      });
+
+      const variants = await service.getVariantProducts('opened-dynamic');
+
+      expect(variants[0].sellable).toBe(true);
+      expect(variants[0].purchasable).toBe(true);
+    });
+
     it('scopes a dynamic family once before hydration', async () => {
       const getProduct = jest.fn().mockResolvedValue({
         id: 'opened-dynamic',

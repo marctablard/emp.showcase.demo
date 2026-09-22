@@ -68,6 +68,33 @@ describe('resolveApprovalCartGoods', () => {
     expect(result.savings).toBeUndefined();
   });
 
+  it('keeps a goods-only charged total when shipping details are present beside it', () => {
+    const result = resolveApprovalCartGoods(
+      {
+        ...approval({
+          subtotalAggregate: { currency: 'EUR', netValue: 1194.79, grossValue: 1421.8, taxValue: 226.99 },
+          totalPrice: { currency: 'EUR', amount: 1194.79, netValue: 1194.79, grossValue: 1421.8, taxValue: 226.99 },
+        }),
+        details: {
+          currency: 'EUR',
+          shipping: {
+            methodId: 'dhl',
+            zoneId: 'de',
+            methodName: 'DHL',
+            amount: 11,
+            grossAmount: 12.19,
+          },
+        },
+      },
+      1194.79,
+    );
+
+    expect(result.discounted).toBe(false);
+    expect(result.net).toBe(1194.79);
+    expect(result.vat).toBe(226.99);
+    expect(result.savings).toBeUndefined();
+  });
+
   it('detects a coupon smaller than shipping after stripping shipping net from the charged total', () => {
     const result = resolveApprovalCartGoods(
       {
