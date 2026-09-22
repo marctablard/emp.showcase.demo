@@ -11,6 +11,7 @@ import { useOrder } from '@/hooks/order/useOrder';
 import { useL10n } from '@/hooks/useL10n';
 import { type OrderStatusKey, type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { orderGoodsSavings } from '@/lib/common/applied-promo-display';
+import { orderShippingListFee } from '@/lib/common/order-overview-summary';
 import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import type { Order } from '@/platform/services/model/order/order';
@@ -18,6 +19,35 @@ import { AddressDisplay } from '../common/address-display';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H1, H2, H3 } from '../ui/h';
 import { createdApprovalDetailsPath, isPendingApprovalConfirmationSegment } from './confirmation-constants';
+
+function OrderConfirmationShippingValue({ order, freeLabel }: { readonly order: Order; readonly freeLabel: string }) {
+  const currency = order.shipping?.total.currency || order.currency;
+  const discounted = order.shipping?.total.value;
+  const listFee = orderShippingListFee(order.shipping);
+  if (typeof discounted !== 'number' || discounted === 0) {
+    if (typeof listFee === 'number') {
+      return (
+        <span
+          className="flex items-baseline justify-end gap-2 font-medium"
+          data-testid="order-confirmation-shippingFee"
+        >
+          <span className="line-through font-normal">{formatCurrency(listFee, currency)}</span>
+          <span>{freeLabel}</span>
+        </span>
+      );
+    }
+    return <span className="font-medium">{freeLabel}</span>;
+  }
+  if (typeof listFee !== 'number') {
+    return <span className="font-medium">{formatCurrency(discounted, currency)}</span>;
+  }
+  return (
+    <span className="flex items-baseline justify-end gap-2 font-medium" data-testid="order-confirmation-shippingFee">
+      <span className="line-through font-normal">{formatCurrency(listFee, currency)}</span>
+      <span className="font-bold">{formatCurrency(discounted, currency)}</span>
+    </span>
+  );
+}
 
 function OrderConfirmationDiscountRow({ order }: { readonly order: Order }) {
   const tOrder = useTranslations('orders');
@@ -183,11 +213,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
                   {order.shipping && (
                     <div className="flex justify-between mb-2">
                       <span className="text-text-on-disabled">{tOrder('shipping')}</span>
-                      <span className="font-medium">
-                        {order.shipping.total?.value
-                          ? formatCurrency(order.shipping.total.value, order.shipping.total.currency || order.currency)
-                          : tOrder('free')}
-                      </span>
+                      <OrderConfirmationShippingValue order={order} freeLabel={tOrder('free')} />
                     </div>
                   )}
 

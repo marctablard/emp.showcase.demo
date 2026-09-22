@@ -3,6 +3,7 @@
 import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CreditCard, List, NotebookPen, ReceiptText, Truck } from 'lucide-react';
+import { resolveApprovalCartGoods } from '@/components/account/approvals/approval-cart-goods';
 import {
   resolveCartOrderOverviewShippingTax,
   resolveCartOrderOverviewTotalGross,
@@ -28,6 +29,7 @@ interface ApprovalSummaryProps {
 
 export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) => {
   const t = useTranslations('orders.Approval');
+  const tOrders = useTranslations('orders');
   const tCommon = useTranslations('common');
   const locale = useLocale();
 
@@ -53,8 +55,9 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     return sum + (price?.amount || 0);
   }, 0);
   const shippingCost = details?.shipping?.amount ?? 0;
-  const vat = approval.resource.subtotalAggregate?.taxValue ?? 0;
-  const goodsNet = valueOfGoods > 0 ? valueOfGoods : (approval.resource.subtotalAggregate?.netValue ?? 0);
+  const goods = resolveApprovalCartGoods(approval, valueOfGoods);
+  const vat = goods.vat;
+  const goodsNet = goods.net;
   const taxLine = {
     taxAmount: vat,
     netAmount: goodsNet,
@@ -234,10 +237,39 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           hasHeadline
         >
           <div className="space-y-2 text-base font-body text-text-body">
-            <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
-              <span>{t('netValueOfGoods')}</span>
-              <span className="text-right font-normal">{fmt(valueOfGoods)}</span>
-            </div>
+            {goods.discounted ? (
+              <>
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-start gap-4" data-testid="approval-originalValueOfGoods">
+                    <span>{tOrders('originalValueOfGoods')}</span>
+                    <span className="text-right font-normal line-through">{fmt(goods.originalNet)}</span>
+                  </div>
+                  {typeof goods.savings === 'number' ? (
+                    <div className="flex justify-end">
+                      <div
+                        className="rounded-sm bg-surface-success px-2 py-1 text-sm leading-5 text-text-body"
+                        data-testid="approval-yourSavings"
+                      >
+                        <span>{tOrders('yourSavings')} </span>
+                        <span className="font-bold">{formatCurrency(-Math.abs(goods.savings), currency, locale)}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <div
+                  className="flex justify-between items-start gap-4 border-t border-border-primary pt-4"
+                  data-testid="approval-netValueOfGoods"
+                >
+                  <span>{t('netValueOfGoods')}</span>
+                  <span className="text-right font-bold">{fmt(goods.net)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
+                <span>{t('netValueOfGoods')}</span>
+                <span className="text-right font-normal">{fmt(valueOfGoods)}</span>
+              </div>
+            )}
             {showTaxLine && (
               <div className="flex justify-between gap-4 pt-2">
                 <span>

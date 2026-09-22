@@ -154,6 +154,23 @@ describe('OrderConfirmation empty thumbnail', () => {
     expect(screen.queryByText(/Shipping VAT/i)).not.toBeInTheDocument();
   });
 
+  it('strikes the method list fee when the published shipping total is lower', () => {
+    mockUseOrder(
+      buildOrder({
+        shipping: {
+          methods: [{ id: 'super', name: 'Super Shipping', price: 1.75, currency: 'CHF' }],
+          total: { value: 1.57, currency: 'CHF' },
+        },
+      }),
+    );
+
+    render(<OrderConfirmation orderId="order-1" />);
+
+    const compare = screen.getByTestId('order-confirmation-shippingFee');
+    expect(compare.querySelector('.line-through')).toHaveTextContent(money(1.75));
+    expect(compare).toHaveTextContent(money(1.57));
+  });
+
   it('shows a single savings amount when TOTAL and the coupon are both on the order', () => {
     mockUseOrder(
       buildOrder({

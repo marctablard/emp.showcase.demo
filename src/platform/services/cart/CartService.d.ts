@@ -35,6 +35,11 @@ export interface ModifyCartItemResult {
   cartItem: CartItem;
 
   /**
+   * Cart that received the line. Differs from the caller's cart id when an empty cart was replaced.
+   */
+  cartId?: string;
+
+  /**
    * Status of the cart after adding the item
    */
   status: CartStatus;
@@ -81,6 +86,12 @@ export interface CartService {
    * @returns The cart if found, otherwise undefined.
    */
   getCartById(id: string, checkSession?: boolean): Promise<Cart | null>;
+
+  /**
+   * True only when the upstream cart payload proves there are no lines.
+   * An omitted `items` expansion is not empty — the mapper turns that into `[]`.
+   */
+  isProvenEmptyCart(cartId: string): Promise<boolean>;
 
   /**
    * Adds an item to a cart with stock checking

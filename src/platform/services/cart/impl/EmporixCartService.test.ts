@@ -1571,6 +1571,275 @@ describe('EmporixCartService', () => {
       expect(mockCartApi.addItemToCart).toHaveBeenCalled();
     });
 
+    it('replaces an empty cart when currency alignment is forbidden', async () => {
+      const emptyForeignCart: EmporixCart = {
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'us-branch',
+        sessionId: 'session-1',
+        items: [],
+        metadata: { version: 1 },
+      };
+      const replacementCart: EmporixCart = {
+        id: 'cart-new',
+        currency: 'USD',
+        siteCode: 'us-branch',
+        sessionId: 'session-1',
+        items: [],
+        metadata: { version: 1 },
+      };
+      mockCartApi.getCart
+        .mockResolvedValueOnce(emptyForeignCart)
+        .mockResolvedValueOnce(emptyForeignCart)
+        .mockResolvedValueOnce(emptyForeignCart)
+        .mockResolvedValueOnce(replacementCart)
+        .mockResolvedValueOnce(replacementCart);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error('Failed to change cart currency: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+      mockCartApi.createCart.mockResolvedValue('cart-new');
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue({ ...mockSession, currency: 'USD', cartId: 'cart-old' });
+      mockPriceService.getProductPrice.mockResolvedValue(mockPrice);
+      mockMapper.mapToService.mockReturnValue({
+        id: 'cart-new',
+        currency: 'USD',
+        site: 'us-branch',
+        items: [
+          {
+            id: 'new-item-id',
+            quantity: 1,
+            price: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+            product: { id: 'prod-1' },
+          },
+        ],
+        totalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        subTotalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        tax: { amount: 0, currency: 'USD', grossValue: 29.99, netValue: 29.99 },
+      });
+
+      await cartService.addItemToCart('cart-old', 'prod-1', 1);
+
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
+      expect(mockCartApi.createCart).toHaveBeenCalled();
+      expect(mockCartApi.addItemToCart).toHaveBeenCalledWith('cart-new', expect.any(Object));
+    });
+
+    it('reprices a rebound cart before adding when the session pointer moved', async () => {
+      const emptyCart: EmporixCart = {
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'us-branch',
+        sessionId: 'session-1',
+        items: [],
+        metadata: { version: 1 },
+      };
+      const reboundEur: EmporixCart = {
+        id: 'cart-newer',
+        currency: 'EUR',
+        siteCode: 'us-branch',
+        sessionId: 'session-1',
+        items: [],
+        metadata: { version: 1 },
+      };
+      const reboundUsd: EmporixCart = { ...reboundEur, currency: 'USD' };
+      mockCartApi.getCart.mockImplementation(async (id: string) => {
+        if (id === 'cart-newer') {
+          return mockCartApi.changeCurrency.mock.calls.some((call) => call[0] === 'cart-newer')
+            ? reboundUsd
+            : reboundEur;
+        }
+        return emptyCart;
+      });
+      mockCartApi.changeCurrency.mockImplementation(async (id: string) => {
+        if (id === 'cart-old') {
+          throw new Error('Failed to change cart currency: Forbidden {"status":403,"message":"Access denied"}');
+        }
+      });
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue({ ...mockSession, currency: 'USD', cartId: 'cart-newer' });
+      mockPriceService.getProductPrice.mockResolvedValue(mockPrice);
+      mockMapper.mapToService.mockReturnValue({
+        id: 'cart-newer',
+        currency: 'USD',
+        site: 'us-branch',
+        items: [
+          {
+            id: 'new-item-id',
+            quantity: 1,
+            price: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+            product: { id: 'prod-1' },
+          },
+        ],
+        totalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        subTotalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        tax: { amount: 0, currency: 'USD', grossValue: 29.99, netValue: 29.99 },
+      });
+
+      await cartService.addItemToCart('cart-old', 'prod-1', 1);
+
+      expect(mockSessionService.clearCart).not.toHaveBeenCalled();
+      expect(mockCartApi.createCart).not.toHaveBeenCalled();
+      expect(mockCartApi.changeCurrency).toHaveBeenCalledWith('cart-newer', 'USD');
+      expect(mockCartApi.addItemToCart).toHaveBeenCalledWith('cart-newer', expect.any(Object));
+    });
+
+    it('does not overwrite a cart bound while the replacement cart was created', async () => {
+      const emptyCart: EmporixCart = {
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'us-branch',
+        sessionId: 'session-1',
+        items: [],
+        metadata: { version: 1 },
+      };
+      const rebound: EmporixCart = {
+        id: 'cart-newer',
+        currency: 'USD',
+        siteCode: 'us-branch',
+        sessionId: 'session-1',
+        items: [{ id: 'line-1', quantity: 1 } as NonNullable<EmporixCart['items']>[number]],
+        metadata: { version: 1 },
+      };
+      let sessionReads = 0;
+      mockSessionService.getCurrent.mockImplementation(async () => {
+        sessionReads += 1;
+        const cartId = sessionReads <= 2 ? 'cart-old' : 'cart-newer';
+        return { ...mockSession, currency: 'USD', cartId };
+      });
+      mockCartApi.getCart.mockImplementation(async (id: string) => (id === 'cart-newer' ? rebound : emptyCart));
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error('Failed to change cart currency: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+      mockCartApi.createCart.mockResolvedValue('cart-unused');
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockPriceService.getProductPrice.mockResolvedValue(mockPrice);
+      mockMapper.mapToService.mockReturnValue({
+        id: 'cart-newer',
+        currency: 'USD',
+        site: 'us-branch',
+        items: [
+          {
+            id: 'new-item-id',
+            quantity: 1,
+            price: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+            product: { id: 'prod-1' },
+          },
+        ],
+        totalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        subTotalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        tax: { amount: 0, currency: 'USD', grossValue: 29.99, netValue: 29.99 },
+      });
+
+      await cartService.addItemToCart('cart-old', 'prod-1', 1);
+
+      expect(mockCartApi.createCart).toHaveBeenCalled();
+      expect(mockSessionService.setCart).not.toHaveBeenCalledWith('cart-unused');
+      expect(mockCartApi.addItemToCart).toHaveBeenCalledWith('cart-newer', expect.any(Object));
+    });
+
+    it('adds on a new cart when the requested empty cart belongs to another session', async () => {
+      const foreignEmpty: EmporixCart = {
+        id: 'cart-old',
+        currency: 'USD',
+        siteCode: 'us-branch',
+        sessionId: 'session-old',
+        items: [],
+        metadata: { version: 1 },
+      };
+      const replacementCart: EmporixCart = {
+        id: 'cart-new',
+        currency: 'USD',
+        siteCode: 'us-branch',
+        sessionId: 'session-1',
+        items: [],
+        metadata: { version: 1 },
+      };
+      mockCartApi.getCart.mockImplementation(async (id: string) =>
+        id === 'cart-new' ? replacementCart : foreignEmpty,
+      );
+      mockCartApi.getCartByCriteria.mockResolvedValue(null);
+      mockCartApi.createCart.mockResolvedValue('cart-new');
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue({ ...mockSession, cartId: 'cart-old' });
+      mockPriceService.getProductPrice.mockResolvedValue(mockPrice);
+      mockMapper.mapToService.mockReturnValue({
+        id: 'cart-new',
+        currency: 'USD',
+        site: 'us-branch',
+        items: [
+          {
+            id: 'new-item-id',
+            quantity: 1,
+            price: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+            product: { id: 'prod-1' },
+          },
+        ],
+        totalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        subTotalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        tax: { amount: 0, currency: 'USD', grossValue: 29.99, netValue: 29.99 },
+      });
+
+      await cartService.addItemToCart('cart-old', 'prod-1', 1);
+
+      expect(mockCartApi.changeCurrency).not.toHaveBeenCalled();
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
+      expect(mockCartApi.createCart).toHaveBeenCalled();
+      expect(mockCartApi.addItemToCart).toHaveBeenCalledWith('cart-new', expect.any(Object));
+    });
+
+    it('does not replace an empty cart that gained a line before the failed reprice was handled', async () => {
+      const emptyCart: EmporixCart = {
+        id: 'cart-us',
+        currency: 'EUR',
+        siteCode: 'us-branch',
+        sessionId: 'session-1',
+        items: [],
+        metadata: { version: 1 },
+      };
+      const occupiedAfterRace: EmporixCart = {
+        ...emptyCart,
+        items: [{ id: '0', quantity: 1 } as NonNullable<EmporixCart['items']>[number]],
+      };
+      mockCartApi.getCart
+        .mockResolvedValueOnce(emptyCart)
+        .mockResolvedValueOnce(emptyCart)
+        .mockResolvedValueOnce(occupiedAfterRace);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error('Failed to change cart currency: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue(mockSession);
+
+      await expect(cartService.addItemToCart('cart-us', 'prod-1', 1)).rejects.toEqual(
+        expect.objectContaining({ code: 'FORBIDDEN' }),
+      );
+      expect(mockCartApi.createCart).not.toHaveBeenCalled();
+      expect(mockSessionService.clearCart).not.toHaveBeenCalled();
+    });
+
+    it('does not replace a cart that still has lines when currency alignment is forbidden', async () => {
+      const occupiedCart: EmporixCart = {
+        id: 'cart-us',
+        currency: 'EUR',
+        siteCode: 'us-branch',
+        sessionId: 'session-old',
+        items: [{ id: '0', quantity: 1 } as NonNullable<EmporixCart['items']>[number]],
+        metadata: { version: 1 },
+      };
+      mockCartApi.getCart.mockResolvedValue(occupiedCart);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error('Failed to change cart currency: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue(mockSession);
+
+      await expect(cartService.addItemToCart('cart-us', 'prod-1', 1)).rejects.toEqual(
+        expect.objectContaining({ code: 'FORBIDDEN' }),
+      );
+      expect(mockCartApi.createCart).not.toHaveBeenCalled();
+    });
+
     it('should auto-recover when cart site differs from session site', async () => {
       // Cart is on 'main' but session says 'us-branch' (race condition scenario)
       const mainCart: EmporixCart = {
@@ -1919,6 +2188,159 @@ describe('EmporixCartService', () => {
       expect(mockSessionService.setCart).toHaveBeenCalledWith('cart-us');
 
       expect(result).toBe(mappedUsCart);
+    });
+
+    it('skips an empty cart bound to another session', async () => {
+      const session = {
+        id: 'session-now',
+        siteCode: 'main',
+        currency: 'EUR',
+        customerId: 'cust-1',
+        cartId: 'cart-old',
+      };
+      const foreignEmpty: EmporixCart = {
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+        sessionId: 'session-old',
+        customerId: 'cust-1',
+        items: [],
+      };
+      mockSessionService.getCurrent.mockResolvedValue(session);
+      mockCartApi.getCart.mockResolvedValue(foreignEmpty);
+      mockCartApi.getCartByCriteria.mockResolvedValue(null);
+
+      const result = await cartService.getCart();
+
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
+      expect(mockSessionService.setCart).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it('keeps a foreign cart when neither items nor totalUnitsCount proves it is empty', async () => {
+      const session = {
+        id: 'session-now',
+        siteCode: 'main',
+        currency: 'EUR',
+        customerId: 'cust-1',
+        cartId: 'cart-old',
+      };
+      const unproven: EmporixCart = {
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+        sessionId: 'session-old',
+        customerId: 'cust-1',
+      };
+      const mapped = {
+        id: 'cart-old',
+        currency: 'EUR',
+        site: 'main',
+        items: [],
+        totalPrice: { amount: 0, originalAmount: 0, currency: 'EUR' },
+        subTotalPrice: { amount: 0, originalAmount: 0, currency: 'EUR' },
+        tax: { amount: 0, currency: 'EUR', grossValue: 0, netValue: 0 },
+      };
+      mockSessionService.getCurrent.mockResolvedValue(session);
+      mockCartApi.getCart.mockResolvedValue(unproven);
+      mockMapper.mapToService.mockReturnValue(mapped);
+
+      const result = await cartService.getCart();
+
+      expect(mockSessionService.clearCart).not.toHaveBeenCalled();
+      expect(result).toBe(mapped);
+    });
+
+    it('treats totalUnitsCount 0 as an empty foreign cart', async () => {
+      const session = {
+        id: 'session-now',
+        siteCode: 'main',
+        currency: 'EUR',
+        customerId: 'cust-1',
+        cartId: 'cart-old',
+      };
+      const countedEmpty: EmporixCart = {
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+        sessionId: 'session-old',
+        customerId: 'cust-1',
+        totalUnitsCount: 0,
+      };
+      mockSessionService.getCurrent.mockResolvedValue(session);
+      mockCartApi.getCart.mockResolvedValue(countedEmpty);
+      mockCartApi.getCartByCriteria.mockResolvedValue(null);
+
+      const result = await cartService.getCart();
+
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it('does not clear the session when it was rebound before the foreign cart was discarded', async () => {
+      const session = {
+        id: 'session-now',
+        siteCode: 'main',
+        currency: 'EUR',
+        customerId: 'cust-1',
+        cartId: 'cart-old',
+      };
+      const foreignEmpty: EmporixCart = {
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+        sessionId: 'session-old',
+        customerId: 'cust-1',
+        items: [],
+      };
+      mockSessionService.getCurrent
+        .mockResolvedValueOnce(session)
+        .mockResolvedValueOnce({ ...session, cartId: 'cart-newer' });
+      mockCartApi.getCart.mockResolvedValue(foreignEmpty);
+      mockCartApi.getCartByCriteria.mockResolvedValue(null);
+
+      const result = await cartService.getCart();
+
+      expect(mockSessionService.clearCart).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it('does not treat an omitted items expansion as an empty cart', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+
+      await expect(cartService.isProvenEmptyCart('cart-old')).resolves.toBe(false);
+    });
+
+    it('uses totalUnitsCount when the items expansion is omitted', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+        totalUnitsCount: 2,
+      });
+
+      await expect(cartService.isProvenEmptyCart('cart-old')).resolves.toBe(false);
+    });
+
+    it('treats totalUnitsCount 0 as a proven-empty cart', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-old',
+        currency: 'EUR',
+        siteCode: 'main',
+        totalUnitsCount: 0,
+      });
+
+      await expect(cartService.isProvenEmptyCart('cart-old')).resolves.toBe(true);
+    });
+
+    it('fails closed when the cart read for an empty check throws', async () => {
+      mockCartApi.getCart.mockRejectedValue(new Error('upstream'));
+
+      await expect(cartService.isProvenEmptyCart('cart-old')).resolves.toBe(false);
     });
 
     it('should throw when session is not available', async () => {

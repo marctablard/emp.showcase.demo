@@ -157,5 +157,8 @@
   "cartTooltipNotPurchasable": "This product is not available for purchase.",
   "cartTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to cart.",
   "wishlistTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to the wishlist.",
-  "inComparisonList": "In comparison list"
+  "inComparisonList": "In comparison list",
+  "notFoundTitle": "Product not found",
+  "notFoundBody": "The requested product could not be found. Please check the catalog for other products.",
+  "notFoundHome": "Return Home"
 }

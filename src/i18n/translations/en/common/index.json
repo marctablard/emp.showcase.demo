@@ -1,6 +1,7 @@
 {
   "NotFound": {
-    "title": "404",
+    "title": "Page not found",
+    "description": "The page you requested is not available.",
     "home": "Return Home"
   },
   "Languages": {

@@ -30,6 +30,11 @@ export type OrderOverviewSummaryBreakdown = {
   goodsDiscounted?: boolean;
   /** A coupon waives shipping — "Your savings" belongs on the shipping row, not goods. */
   shippingFree?: boolean;
+  /**
+   * Sum of shipping method list fees (`shipping.lines[].amount`) when that is higher than the
+   * discounted `totalShipping` net. Order API publishes one discounted total plus the method fee.
+   */
+  shippingListFee?: number;
   discounts?: OrderDiscount[];
 };
 
@@ -45,6 +50,25 @@ function orderHasAppliedCoupons(order: Order | null | undefined): boolean {
 
 function isLowerThan(candidate: number | undefined, reference: number): boolean {
   return typeof candidate === 'number' && reference - candidate >= 0.005;
+}
+
+/**
+ * List shipping fee from order method lines when the published shipping total is lower.
+ * `shipping.lines[].amount` is the method fee; `calculatedPrice.totalShipping.netValue` is the
+ * fee after a TOTAL-base coupon. There is no separate strikethrough field.
+ */
+export function orderShippingListFee(shipping: Order['shipping'] | undefined): number | undefined {
+  const discounted = shipping?.total.value;
+  if (typeof discounted !== 'number') {
+    return undefined;
+  }
+  const listFee = (shipping?.methods ?? []).reduce((sum, method) => {
+    return typeof method.price === 'number' ? sum + method.price : sum;
+  }, 0);
+  if (listFee - discounted < 0.005) {
+    return undefined;
+  }
+  return Math.round(listFee * 100) / 100;
 }
 
 function orderHasFreeShipping(order: Order | null | undefined): boolean {
@@ -127,11 +151,13 @@ export function buildOrderOverviewBreakdown(order: Order | null | undefined): Or
       ? order.goodsDiscountedVat
       : (order?.price?.subtotal.tax ?? 0);
   const shippingVat = order?.shipping?.total.tax ?? 0;
+  const shippingListFee = orderShippingListFee(order?.shipping);
 
   return {
     goodsNet,
     goodsVat,
     shippingFee: order?.shipping?.total.value,
+    ...(typeof shippingListFee === 'number' ? { shippingListFee } : {}),
     shippingVat,
     showShippingVat: shouldDisplayTaxLine({
       taxRate: order?.shipping?.total.taxRate,

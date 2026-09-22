@@ -58,16 +58,10 @@ class EmporixSessionService implements SessionService {
   }
 
   async setCurrency(currency: string): Promise<void> {
-    const session = await this.sessionContextApi.getOwnSessionContext();
-    if (!session) {
-      return;
-    }
-    await this.sessionContextApi.updateOwnSessionContext({
-      currency: currency,
-      metadata: {
-        version: session.metadata?.version || 1,
-      },
-    });
+    // Re-read own context and retry once on a stale metadata.version. A parallel
+    // session PATCH (another tab on this same session) otherwise fails the currency
+    // write. Another browser is a different session and is not read here.
+    await this.updateContext({ currency });
   }
 
   async setCountry(country: string): Promise<void> {
