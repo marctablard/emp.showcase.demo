@@ -217,6 +217,22 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       order: templateAttributeOrder,
     } = mapTemplateAttributeMeta(templateSource);
     const template = mapProductTemplateRef(templateSource);
+    const variantAttributes =
+      source.productType === 'DYNAMIC_VARIANT'
+        ? mapDynamicVariantAttributes(source)
+        : this.mapVariantAttributes(source);
+    const mixinVariantValues = normalizeProductAttributeStringMap(
+      source.mixins?.productVariantAttributes as Record<string, unknown> | undefined,
+    );
+    const variantAttributeValues =
+      source.productType === 'DYNAMIC_VARIANT' && variantAttributes.length > 0
+        ? Object.fromEntries(
+            variantAttributes.flatMap((attribute) => {
+              const value = attribute.values[0]?.key;
+              return value === undefined ? [] : [[attribute.key, String(value)]];
+            }),
+          )
+        : mixinVariantValues;
 
     return {
       id: source.id || source.code,
@@ -240,14 +256,9 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       ...(source.productType ? { productType: source.productType } : {}),
       ...(typeof source.sellable === 'boolean' ? { sellable: source.sellable } : {}),
       ...(source.parentVariantPath === undefined ? {} : { parentVariantPath: source.parentVariantPath }),
-      variantAttributes:
-        source.productType === 'DYNAMIC_VARIANT'
-          ? mapDynamicVariantAttributes(source)
-          : this.mapVariantAttributes(source),
+      variantAttributes,
       purchasable: resolvePurchasable(source),
-      variantAttributeValues: normalizeProductAttributeStringMap(
-        source.mixins?.productVariantAttributes as Record<string, unknown> | undefined,
-      ),
+      variantAttributeValues,
     };
   }
 

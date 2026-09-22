@@ -447,6 +447,7 @@ describe('EmporixProductMapper', () => {
             value: { type: 'STRING', qualifier: '50Hz', name: { en: '50 Hz' } },
           },
         },
+        mixins: { productVariantAttributes: { width: 'stale', extra: 'x' } },
       } as any;
 
       const result = mapper.mapToService(input);
@@ -472,6 +473,7 @@ describe('EmporixProductMapper', () => {
           values: [{ key: '50Hz', name: { en: '50 Hz' }, selected: true }],
         },
       ]);
+      expect(result.variantAttributeValues).toEqual({ width: '15', height: 'Short', frequency: '50Hz' });
     });
 
     it('12. DYNAMIC_VARIANT purchasable is true only when sellable is true', () => {

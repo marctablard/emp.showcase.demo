@@ -360,6 +360,7 @@ describe('ProductVariantCarousel', () => {
     );
 
     const cards = screen.getAllByTestId('product-variant-carousel-card');
+    expect(cards[1]).toBeDisabled();
     expect(cards[1]).toHaveAttribute('aria-disabled', 'true');
     expect(cards[1]).toHaveAttribute('data-variant-selected', 'true');
     fireEvent.click(cards[1]);

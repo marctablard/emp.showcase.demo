@@ -271,6 +271,7 @@ export function ProductVariantCarousel({
                 key={variant.id}
                 ref={isSelected ? selectedCardRef : undefined}
                 type="button"
+                disabled={isDisabled}
                 aria-disabled={isDisabled || undefined}
                 className={cn(
                   'group box-border flex h-[228px] w-[161px] min-w-[161px] shrink-0 flex-col overflow-hidden rounded-sm border-2 p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
