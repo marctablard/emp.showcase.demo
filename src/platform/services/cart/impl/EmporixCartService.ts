@@ -206,8 +206,18 @@ class EmporixCartService implements CartService {
     return typeof value === 'string' ? value.trim().toUpperCase() : '';
   }
 
+  /**
+   * True only when the payload proves there are no lines. `items` is optional, so a response
+   * that omits the line expansion is not treated as empty. `totalUnitsCount` wins when present.
+   */
   private cartHasNoLines(cart: EmporixCart): boolean {
-    return (cart.items?.length ?? 0) === 0;
+    if (typeof cart.totalUnitsCount === 'number') {
+      return cart.totalUnitsCount === 0;
+    }
+    if (Array.isArray(cart.items)) {
+      return cart.items.length === 0;
+    }
+    return false;
   }
 
   /** Empty cart created in another session. A cart with lines is kept — it is still this customer's. */
@@ -239,7 +249,10 @@ class EmporixCartService implements CartService {
       { abandonedCartId, sessionId: session.id, currency: session.currency },
       'Replacing empty cart this session cannot reprice',
     );
-    await this.sessionService.clearCart();
+    const cleared = await this.clearSessionCartIfStillBound(abandonedCartId);
+    if (!cleared) {
+      return this.reboundCartOrThrow(abandonedCartId);
+    }
     const newId = await this.createCart(session.currency, session.siteCode);
     if (newId === abandonedCartId) {
       throw new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context');
@@ -276,9 +289,61 @@ class EmporixCartService implements CartService {
       'Skipping empty cart bound to another session',
     );
     if (session.cartId === cart.id) {
-      await this.sessionService.clearCart();
+      await this.clearSessionCartIfStillBound(cart.id);
     }
     return undefined;
+  }
+
+  /** Clear `currentCart` only when this session still points at `cartId`. */
+  private async clearSessionCartIfStillBound(cartId: string): Promise<boolean> {
+    const current = await this.sessionService.getCurrent();
+    if (current?.cartId !== cartId) {
+      this.logger.info(
+        { cartId, sessionCartId: current?.cartId },
+        'Leaving session cart pointer — it no longer matches the cart being dropped',
+      );
+      return false;
+    }
+    await this.sessionService.clearCart();
+    return true;
+  }
+
+  /**
+   * Do not add a line to an empty cart that belongs to another session. Drop the pointer when
+   * it still names that cart, then add on the cart bound to this session.
+   */
+  private async addItemOnCurrentSessionCart(
+    abandonedCartId: string,
+    productId: string,
+    quantity: number,
+    session: Session,
+  ): Promise<ModifyCartItemResult> {
+    this.logger.info(
+      { cartId: abandonedCartId, sessionId: session.id },
+      'Skipping empty cart bound to another session before line mutation',
+    );
+    await this.clearSessionCartIfStillBound(abandonedCartId);
+    const currentCart = await this.getCart();
+    if (currentCart && currentCart.id !== abandonedCartId) {
+      return this.addItemToCart(currentCart.id, productId, quantity);
+    }
+    const createdId = await this.createCart(session.currency, session.siteCode);
+    if (createdId === abandonedCartId) {
+      throw new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context');
+    }
+    return this.addItemToCart(createdId, productId, quantity);
+  }
+
+  private async reboundCartOrThrow(abandonedCartId: string): Promise<EmporixCart> {
+    const current = await this.sessionService.getCurrent();
+    const reboundId = current?.cartId;
+    if (reboundId && reboundId !== abandonedCartId && current) {
+      const rebound = await this.cartApi.getCart(reboundId);
+      if (rebound && !this.isEmptyCartBoundToOtherSession(rebound, current)) {
+        return rebound;
+      }
+    }
+    throw new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context');
   }
 
   /**
@@ -544,6 +609,10 @@ class EmporixCartService implements CartService {
         );
       }
       return this.addItemToCart(correctCart.id, productId, quantity);
+    }
+
+    if (this.isEmptyCartBoundToOtherSession(rawCart, session)) {
+      return this.addItemOnCurrentSessionCart(rawCart.id, productId, quantity, session);
     }
 
     rawCart = await this.ensureCartCurrencyMatchesSessionBeforeLineMutation(rawCart, session);

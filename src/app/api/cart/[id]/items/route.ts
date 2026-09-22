@@ -70,9 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } catch (lookupError) {
       logger.warn({ err: lookupError, cartId }, 'Current cart lookup failed after add; using the requested cart');
     }
-    if (!updatedCart) {
-      updatedCart = await cartService.getCartById(cartId);
-    }
+    updatedCart ??= await cartService.getCartById(cartId);
 
     return NextResponse.json({
       ...result,
