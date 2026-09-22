@@ -35,6 +35,11 @@ export interface ModifyCartItemResult {
   cartItem: CartItem;
 
   /**
+   * Cart that received the line. Differs from the caller's cart id when an empty cart was replaced.
+   */
+  cartId?: string;
+
+  /**
    * Status of the cart after adding the item
    */
   status: CartStatus;

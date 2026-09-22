@@ -20,6 +20,8 @@ const RECOVERABLE_CART_ERROR_CODES = new Set<CartCurrencyUpdateErrorCode>([
 
 type CartCurrencyReconcile = { cart: Cart | null } | { conflict: NextResponse };
 
+type ForbiddenCartRelease = { action: 'cleared' } | { action: 'rebound'; cartId: string } | { action: 'blocked' };
+
 function cartCurrencyConflictResponse(code: CartCurrencyUpdateErrorCode, couponCodes: string[]): NextResponse {
   const includeCouponCodes =
     code === CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT && couponCodes.length > 0;
@@ -41,27 +43,54 @@ async function releaseForbiddenEmptyCart(
   currency: string,
   cartSite: string,
   code: CartCurrencyUpdateErrorCode,
-): Promise<boolean> {
+): Promise<ForbiddenCartRelease> {
   // Mapped carts turn an omitted items expansion into []. Ask the service, which reads the raw payload.
   const provenEmpty = await cartService.isProvenEmptyCart(cartId);
-  if (provenEmpty) {
-    const current = await sessionService.getCurrent();
-    const boundCartId = current?.cartId;
-    if (boundCartId === undefined || boundCartId === cartId) {
-      await sessionService.clearCart();
-      logger.warn(
-        { code, cartId, currency, cartSite },
-        'Empty cart currency update forbidden — cleared cart and updating session only',
-      );
-    } else {
-      logger.warn(
-        { code, cartId, currency, cartSite, sessionCartId: boundCartId },
-        'Empty cart currency update forbidden — session cart pointer already moved',
-      );
-    }
-    return true;
+  if (!provenEmpty) {
+    return { action: 'blocked' };
   }
-  return false;
+  // getCurrent() also returns undefined when the read fails. That must not look like "no pointer".
+  const current = await sessionService.getCurrentOrThrow();
+  if (!current) {
+    logger.warn(
+      { code, cartId, currency, cartSite },
+      'Empty cart currency update forbidden — session is absent, leaving the cart pointer',
+    );
+    return { action: 'blocked' };
+  }
+  const boundCartId = current.cartId;
+  if (boundCartId === undefined || boundCartId === cartId) {
+    await sessionService.clearCart();
+    logger.warn(
+      { code, cartId, currency, cartSite },
+      'Empty cart currency update forbidden — cleared cart and updating session only',
+    );
+    return { action: 'cleared' };
+  }
+  logger.warn(
+    { code, cartId, currency, cartSite, sessionCartId: boundCartId },
+    'Empty cart currency update forbidden — session cart pointer already moved',
+  );
+  return { action: 'rebound', cartId: boundCartId };
+}
+
+async function reconcileReboundCart(
+  cartService: CartService,
+  sessionService: SessionService,
+  logger: LoggerService,
+  reboundCartId: string,
+  abandonedCartId: string,
+  currency: string,
+  couponCodes: string[],
+): Promise<CartCurrencyReconcile> {
+  const rebound = await cartService.getCartById(reboundCartId);
+  if (!rebound || rebound.id === abandonedCartId) {
+    return { conflict: cartCurrencyConflictResponse(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, couponCodes) };
+  }
+  if (rebound.currency === currency) {
+    return { cart: rebound };
+  }
+  return reconcileCartCurrency(cartService, sessionService, logger, rebound, currency, false);
 }
 
 async function reconcileCartCurrency(
@@ -70,6 +99,7 @@ async function reconcileCartCurrency(
   logger: LoggerService,
   cart: Cart,
   currency: string,
+  allowRebound = true,
 ): Promise<CartCurrencyReconcile> {
   const cartId = cart.id;
   const cartSite = cart.site;
@@ -90,11 +120,22 @@ async function reconcileCartCurrency(
     }
     // An empty cart this session cannot reprice must not block the currency switch.
     // Re-read after the failure: the pre-update snapshot can miss a line added in parallel.
-    if (
-      cartError.code === CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN &&
-      (await releaseForbiddenEmptyCart(cartService, sessionService, logger, cartId, currency, cartSite, cartError.code))
-    ) {
-      return { cart: null };
+    if (cartError.code === CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN) {
+      const release = await releaseForbiddenEmptyCart(
+        cartService,
+        sessionService,
+        logger,
+        cartId,
+        currency,
+        cartSite,
+        cartError.code,
+      );
+      if (release.action === 'cleared') {
+        return { cart: null };
+      }
+      if (release.action === 'rebound' && allowRebound) {
+        return reconcileReboundCart(cartService, sessionService, logger, release.cartId, cartId, currency, couponCodes);
+      }
     }
     logger.error(
       { code: cartError.code, cartId, currency, cartSite, couponCodes },

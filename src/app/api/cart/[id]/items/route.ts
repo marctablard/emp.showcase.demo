@@ -61,16 +61,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Add item to cart
     const result = await cartService.addItemToCart(cartId, productId, quantity);
+    const effectiveCartId = result.cartId || cartId;
 
     // Session cart id may have moved when an empty, unusable cart was replaced.
-    // A rejected current-cart lookup must not turn a successful add into a 500.
+    // A rejected current-cart lookup must not turn a successful add into a 500,
+    // and must not fall back to the abandoned cart id.
     let updatedCart: Awaited<ReturnType<CartService['getCart']>> = null;
     try {
       updatedCart = await cartService.getCart();
     } catch (lookupError) {
-      logger.warn({ err: lookupError, cartId }, 'Current cart lookup failed after add; using the requested cart');
+      logger.warn(
+        { err: lookupError, cartId, effectiveCartId },
+        'Current cart lookup failed after add; using the cart that received the line',
+      );
     }
-    updatedCart ??= await cartService.getCartById(cartId);
+    updatedCart ??= await cartService.getCartById(effectiveCartId);
 
     return NextResponse.json({
       ...result,

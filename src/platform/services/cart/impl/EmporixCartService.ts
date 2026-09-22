@@ -251,17 +251,69 @@ class EmporixCartService implements CartService {
     );
     const cleared = await this.clearSessionCartIfStillBound(abandonedCartId);
     if (!cleared) {
-      return this.reboundCartOrThrow(abandonedCartId);
+      const rebound = await this.reboundCartOrThrow(abandonedCartId);
+      return this.alignReboundCartCurrency(rebound, session);
     }
-    const newId = await this.createCart(session.currency, session.siteCode);
-    if (newId === abandonedCartId) {
+    return this.openReplacementCart(session, abandonedCartId);
+  }
+
+  /**
+   * Create a replacement cart, then bind it only if the session has not already moved
+   * to another cart. Binding is the last step so a newer pointer is not overwritten.
+   */
+  private async openReplacementCart(session: Session, abandonedCartId: string): Promise<EmporixCart> {
+    const created = await this.createCartDocument(session.currency, session.siteCode);
+    if (created.id === abandonedCartId) {
       throw new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context');
     }
-    const created = await this.cartApi.getCart(newId);
+    if (!created.fresh) {
+      const existing = await this.cartApi.getCart(created.id);
+      if (!existing) {
+        throw new Error('Cart not found');
+      }
+      return this.alignReboundCartCurrency(existing, session);
+    }
+    return this.bindReplacementCart(created.id, abandonedCartId, session);
+  }
+
+  private async bindReplacementCart(
+    newCartId: string,
+    abandonedCartId: string,
+    session: Session,
+  ): Promise<EmporixCart> {
+    const current = await this.sessionService.getCurrentOrThrow();
+    const boundId = current?.cartId;
+    if (current && boundId && boundId !== abandonedCartId && boundId !== newCartId) {
+      const rebound = await this.cartApi.getCart(boundId);
+      if (rebound && !this.isEmptyCartBoundToOtherSession(rebound, current)) {
+        this.logger.info(
+          { abandonedCartId, sessionCartId: boundId, unusedCartId: newCartId },
+          'Keeping the cart bound while a replacement cart was created',
+        );
+        return this.alignReboundCartCurrency(rebound, session);
+      }
+    }
+    await this.sessionService.setCart(newCartId);
+    const created = await this.cartApi.getCart(newCartId);
     if (!created) {
       throw new Error('Cart not found');
     }
     return created;
+  }
+
+  /** Match the session currency, or surface the reprice error instead of adding against a stale cart. */
+  private async alignReboundCartCurrency(cart: EmporixCart, session: Session): Promise<EmporixCart> {
+    const cartCurrency = this.normalizeCurrencyCode(cart.currency);
+    const sessionCurrency = this.normalizeCurrencyCode(session.currency);
+    if (!cartCurrency || !sessionCurrency || cartCurrency === sessionCurrency) {
+      return cart;
+    }
+    await this.updateCurrency(cart.id, session.currency);
+    const refreshed = await this.cartApi.getCart(cart.id);
+    if (!refreshed) {
+      throw new Error('Cart not found after currency alignment');
+    }
+    return refreshed;
   }
 
   private async readCartIfStillEmpty(cartId: string): Promise<EmporixCart | undefined> {
@@ -327,15 +379,12 @@ class EmporixCartService implements CartService {
     if (currentCart && currentCart.id !== abandonedCartId) {
       return this.addItemToCart(currentCart.id, productId, quantity);
     }
-    const createdId = await this.createCart(session.currency, session.siteCode);
-    if (createdId === abandonedCartId) {
-      throw new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context');
-    }
-    return this.addItemToCart(createdId, productId, quantity);
+    const replacement = await this.openReplacementCart(session, abandonedCartId);
+    return this.addItemToCart(replacement.id, productId, quantity);
   }
 
   private async reboundCartOrThrow(abandonedCartId: string): Promise<EmporixCart> {
-    const current = await this.sessionService.getCurrent();
+    const current = await this.sessionService.getCurrentOrThrow();
     const reboundId = current?.cartId;
     if (reboundId && reboundId !== abandonedCartId && current) {
       const rebound = await this.cartApi.getCart(reboundId);
@@ -426,6 +475,21 @@ class EmporixCartService implements CartService {
   }
 
   async createCart(currency: string, siteCode: string): Promise<string> {
+    const created = await this.createCartDocument(currency, siteCode);
+    if (created.fresh) {
+      // Emporix POST /carts does not always persist `currentCart` on the session context immediately
+      // for anonymous flows. Without this, GET /api/cart?create=true can return null (getCartById
+      // / follow-up getCart) and the client shows "No cart available" until a full page reload.
+      await this.sessionService.setCart(created.id);
+    }
+    return created.id;
+  }
+
+  /**
+   * Create the cart document without binding the session. `fresh` is false when Emporix
+   * reports the session already has a cart and we resolved that cart instead.
+   */
+  private async createCartDocument(currency: string, siteCode: string): Promise<{ id: string; fresh: boolean }> {
     // Destination (legacy countryCode+zipCode, or addresses[]) is set at checkout
     // when both country and zip are known. Cart Service rejects country-only writes.
     const createCartRequest = {
@@ -440,11 +504,7 @@ class EmporixCartService implements CartService {
     };
     try {
       const cartId = await this.cartApi.createCart(createCartRequest);
-      // Emporix POST /carts does not always persist `currentCart` on the session context immediately
-      // for anonymous flows. Without this, GET /api/cart?create=true can return null (getCartById
-      // / follow-up getCart) and the client shows "No cart available" until a full page reload.
-      await this.sessionService.setCart(cartId);
-      return cartId;
+      return { id: cartId, fresh: true };
     } catch (error) {
       // Cart already exists for this session — Emporix returns either
       // 409 Conflict or a "Duplicate key found" error. Fall back to the existing cart.
@@ -456,7 +516,7 @@ class EmporixCartService implements CartService {
         if (!existingCart) {
           throw new Error('Failed to get session cart');
         }
-        return existingCart.id;
+        return { id: existingCart.id, fresh: false };
       }
       throw error;
     }
@@ -671,6 +731,7 @@ class EmporixCartService implements CartService {
     // Return result with appropriate status
     return {
       cartItem: cartItem,
+      cartId: postAlignCartId,
       status: (hasSufficientStock ? 'OK' : 'PENDING') as CartStatus,
       statusDetailCode: (hasSufficientStock ? undefined : 'addToCart.insufficientStock') as CartStatusDetailCode,
       statusDetailPayload: { availableQuantity },

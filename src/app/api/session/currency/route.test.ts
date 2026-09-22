@@ -47,9 +47,11 @@ describe('PUT /api/session/currency', () => {
     };
     sessionService = {
       getCurrent: jest.fn(),
+      getCurrentOrThrow: jest.fn(),
       setCurrency: jest.fn(),
       clearCart: jest.fn(),
     };
+    sessionService.getCurrentOrThrow.mockImplementation(() => sessionService.getCurrent());
     logger = {
       debug: jest.fn(),
       info: jest.fn(),
@@ -170,20 +172,62 @@ describe('PUT /api/session/currency', () => {
     expect(sessionService.setCurrency).not.toHaveBeenCalled();
   });
 
-  it('does not clear a session pointer that moved to a different cart', async () => {
+  it('reprices the cart the session pointer moved to instead of ignoring it', async () => {
     sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR', cartId: 'c-newer' });
+    cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
+    cartService.isProvenEmptyCart.mockResolvedValue(true);
+    cartService.updateCurrency
+      .mockRejectedValueOnce(
+        new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
+      )
+      .mockResolvedValueOnce(undefined);
+    cartService.getCartById
+      .mockResolvedValueOnce({ id: 'c-newer', site: 'us', currency: 'EUR' })
+      .mockResolvedValue({ id: 'c-newer', site: 'us', currency: 'USD' });
+    sessionService.setCurrency.mockResolvedValue(undefined);
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { cart?: { id?: string } };
+
+    expect(response.status).toBe(200);
+    expect(sessionService.clearCart).not.toHaveBeenCalled();
+    expect(cartService.updateCurrency).toHaveBeenNthCalledWith(2, 'c-newer', 'USD');
+    expect(body.cart?.id).toBe('c-newer');
+    expect(sessionService.setCurrency).toHaveBeenCalledWith('USD');
+  });
+
+  it('does not clear the cart when the session read fails during empty-cart recovery', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    sessionService.getCurrentOrThrow.mockRejectedValue(new Error('session down'));
     cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
     cartService.isProvenEmptyCart.mockResolvedValue(true);
     cartService.updateCurrency.mockRejectedValue(
       new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
     );
-    sessionService.setCurrency.mockResolvedValue(undefined);
 
     const response = await PUT(createRequest({ currency: 'USD' }) as never);
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(500);
     expect(sessionService.clearCart).not.toHaveBeenCalled();
-    expect(sessionService.setCurrency).toHaveBeenCalledWith('USD');
+    expect(sessionService.setCurrency).not.toHaveBeenCalled();
+  });
+
+  it('does not clear the cart when the session is absent during empty-cart recovery', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    sessionService.getCurrentOrThrow.mockResolvedValue(undefined);
+    cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
+    cartService.isProvenEmptyCart.mockResolvedValue(true);
+    cartService.updateCurrency.mockRejectedValue(
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
+    );
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { code?: string };
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN);
+    expect(sessionService.clearCart).not.toHaveBeenCalled();
+    expect(sessionService.setCurrency).not.toHaveBeenCalled();
   });
 
   it('does NOT set the cookie when cart update fails with a non-recoverable code (409)', async () => {
