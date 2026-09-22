@@ -456,6 +456,51 @@ describe('EmporixProductService template meta enrichment', () => {
       ]);
     });
 
+    it('replaces hydrated mixin qualifiers with the dynamic variants-map qualifiers', async () => {
+      const getProduct = jest.fn().mockResolvedValue({
+        id: 'opened-dynamic',
+        code: 'opened-dynamic',
+        productType: 'DYNAMIC_VARIANT',
+        variants: {
+          'opened-dynamic': {
+            sellable: true,
+            name: { en: 'Opened dynamic' },
+            variantAttributes: {
+              frequency: { name: { en: 'Frequency' }, value: { qualifier: '60', name: { en: '60 Hz' } } },
+            },
+          },
+        },
+      });
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [{ id: 'opened-dynamic', code: 'opened-dynamic', productType: 'DYNAMIC_VARIANT' }],
+      });
+      const mapToServiceDynamic = jest.fn().mockImplementation((product: { id: string }) => ({
+        id: product.id,
+        name: { en: product.id },
+        description: {},
+        purchasable: true,
+        variantAttributeValues: { frequency: 'stale', width: '15' },
+        variantAttributes: [{ key: 'frequency', values: [{ key: 'stale', selected: true }] }],
+      }));
+      const service = createService({
+        getProduct,
+        searchProducts,
+        mapToService: mapToServiceDynamic,
+        getCurrent,
+      });
+
+      const variants = await service.getVariantProducts('opened-dynamic');
+
+      expect(variants[0].variantAttributeValues).toEqual({ frequency: '60' });
+      expect(variants[0].variantAttributes).toEqual([
+        {
+          key: 'frequency',
+          name: { en: 'Frequency' },
+          values: [{ key: '60', name: { en: '60 Hz' }, selected: true }],
+        },
+      ]);
+    });
+
     it('scopes a dynamic family once before hydration', async () => {
       const getProduct = jest.fn().mockResolvedValue({
         id: 'opened-dynamic',

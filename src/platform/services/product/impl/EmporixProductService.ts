@@ -192,7 +192,7 @@ class EmporixProductService implements ProductService {
 
   private mapDynamicVariantMapAttributes(
     entry: NonNullable<EmporixProduct['variants']>[string],
-  ): Product['variantAttributes'] {
+  ): NonNullable<Product['variantAttributes']> {
     if (!entry.variantAttributes) {
       return [];
     }
@@ -245,7 +245,16 @@ class EmporixProductService implements ProductService {
       merged.sellable = entry.sellable;
     }
     if (entry.variantAttributes) {
-      merged.variantAttributes = this.mapDynamicVariantMapAttributes(entry);
+      const attributes = this.mapDynamicVariantMapAttributes(entry);
+      merged.variantAttributes = attributes;
+      // Mixin `variantAttributeValues` wins in chip/filter selection. The denormalized
+      // map is the qualifier source for DYNAMIC_VARIANT, so replace that mixin map too.
+      merged.variantAttributeValues = Object.fromEntries(
+        attributes.flatMap((attribute) => {
+          const value = attribute.values[0]?.key;
+          return value === undefined ? [] : [[attribute.key, String(value)]];
+        }),
+      );
     }
     merged.purchasable = entry.sellable === true;
     return merged;
