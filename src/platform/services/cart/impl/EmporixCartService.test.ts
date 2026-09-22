@@ -1591,6 +1591,7 @@ describe('EmporixCartService', () => {
       mockCartApi.getCart
         .mockResolvedValueOnce(emptyForeignCart)
         .mockResolvedValueOnce(emptyForeignCart)
+        .mockResolvedValueOnce(emptyForeignCart)
         .mockResolvedValueOnce(replacementCart)
         .mockResolvedValueOnce(replacementCart);
       mockCartApi.changeCurrency.mockRejectedValue(
@@ -1622,6 +1623,36 @@ describe('EmporixCartService', () => {
       expect(mockSessionService.clearCart).toHaveBeenCalled();
       expect(mockCartApi.createCart).toHaveBeenCalled();
       expect(mockCartApi.addItemToCart).toHaveBeenCalledWith('cart-new', expect.any(Object));
+    });
+
+    it('does not replace an empty cart that gained a line before the failed reprice was handled', async () => {
+      const emptyCart: EmporixCart = {
+        id: 'cart-us',
+        currency: 'EUR',
+        siteCode: 'us-branch',
+        sessionId: 'session-old',
+        items: [],
+        metadata: { version: 1 },
+      };
+      const occupiedAfterRace: EmporixCart = {
+        ...emptyCart,
+        items: [{ id: '0', quantity: 1 } as NonNullable<EmporixCart['items']>[number]],
+      };
+      mockCartApi.getCart
+        .mockResolvedValueOnce(emptyCart)
+        .mockResolvedValueOnce(emptyCart)
+        .mockResolvedValueOnce(occupiedAfterRace);
+      mockCartApi.changeCurrency.mockRejectedValue(
+        new Error('Failed to change cart currency: Forbidden {"status":403,"message":"Access denied"}'),
+      );
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue(mockSession);
+
+      await expect(cartService.addItemToCart('cart-us', 'prod-1', 1)).rejects.toEqual(
+        expect.objectContaining({ code: 'FORBIDDEN' }),
+      );
+      expect(mockCartApi.createCart).not.toHaveBeenCalled();
+      expect(mockSessionService.clearCart).not.toHaveBeenCalled();
     });
 
     it('does not replace a cart that still has lines when currency alignment is forbidden', async () => {

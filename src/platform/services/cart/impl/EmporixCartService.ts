@@ -251,6 +251,19 @@ class EmporixCartService implements CartService {
     return created;
   }
 
+  private async readCartIfStillEmpty(cartId: string): Promise<EmporixCart | undefined> {
+    try {
+      const latest = await this.cartApi.getCart(cartId);
+      if (!latest || !this.cartHasNoLines(latest)) {
+        return undefined;
+      }
+      return latest;
+    } catch (readError) {
+      this.logger.warn({ err: readError, cartId }, 'Could not re-read cart before empty-cart replacement');
+      return undefined;
+    }
+  }
+
   private async discardEmptyForeignSessionCart(
     cart: EmporixCart | null | undefined,
     session: Session,
@@ -293,7 +306,13 @@ class EmporixCartService implements CartService {
       if (!this.shouldReplaceEmptyCartAfterCurrencyFailure(rawCart, error)) {
         throw error;
       }
-      return this.replaceEmptyCartForSession(session, rawCart.id);
+      // Another tab may have added a line after the pre-update snapshot. Replace only
+      // when a fresh read is still empty; otherwise keep the populated cart.
+      const latestEmptyCart = await this.readCartIfStillEmpty(rawCart.id);
+      if (!latestEmptyCart) {
+        throw error;
+      }
+      return this.replaceEmptyCartForSession(session, latestEmptyCart.id);
     }
     const refreshed = await this.cartApi.getCart(rawCart.id);
     if (!refreshed) {

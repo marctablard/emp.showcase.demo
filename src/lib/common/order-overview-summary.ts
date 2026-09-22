@@ -157,7 +157,7 @@ export function buildOrderOverviewBreakdown(order: Order | null | undefined): Or
     goodsNet,
     goodsVat,
     shippingFee: order?.shipping?.total.value,
-    ...(shippingListFee !== undefined ? { shippingListFee } : {}),
+    ...(typeof shippingListFee === 'number' ? { shippingListFee } : {}),
     shippingVat,
     showShippingVat: shouldDisplayTaxLine({
       taxRate: order?.shipping?.total.taxRate,

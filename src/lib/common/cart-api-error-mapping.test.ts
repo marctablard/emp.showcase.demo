@@ -59,6 +59,20 @@ describe('cart-api-error-mapping', () => {
       expect(mapping.response.error).toBe('Coupon blocks currency update');
     });
 
+    it('maps a duck-typed CartCurrencyUpdateError using the shared type guard', () => {
+      const error = new Error('Forbidden cart context');
+      error.name = 'CartCurrencyUpdateError';
+      Object.assign(error, { code: CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN });
+
+      const mapping = mapCartCurrencyPutError(error);
+
+      expect(mapping.status).toBe(403);
+      expect(mapping.response).toEqual({
+        error: 'Cart context is forbidden',
+        reason: CART_API_REASON.FORBIDDEN,
+      });
+    });
+
     it('maps unknown errors to 500 upstream_failure', () => {
       const mapping = mapCartCurrencyPutError(new Error('boom'));
 

@@ -5,6 +5,7 @@ import {
   CartCurrencyUpdateError,
   type CartDiscountError,
   type CartDiscountReason,
+  isCartCurrencyUpdateError,
   isCartDiscountError,
 } from '@/platform/services/cart/errors';
 
@@ -93,7 +94,7 @@ export function mapCartGetError(error: unknown): CartApiErrorMapping {
 }
 
 export function mapCartCurrencyPutError(error: unknown): CartApiErrorMapping {
-  if (error instanceof CartCurrencyUpdateError) {
+  if (isCartCurrencyUpdateError(error)) {
     if (error.code === CART_CURRENCY_UPDATE_ERROR_CODE.CART_NOT_FOUND) {
       return {
         status: 404,
