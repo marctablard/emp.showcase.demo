@@ -897,6 +897,23 @@ describe('OrderDetail', () => {
     expect(screen.queryByText(/shippingVat/)).not.toBeInTheDocument();
   });
 
+  it('strikes the method list fee when the published shipping total is lower', () => {
+    const discountedShippingOrder: Order = {
+      ...baseOrder,
+      shipping: {
+        methods: [{ id: 'super', name: 'Super Shipping', price: 1.75, currency: 'CHF' }],
+        total: { value: 1.57, currency: 'CHF' },
+      },
+    };
+    mockUseOrder({ order: discountedShippingOrder });
+
+    render(<OrderDetail orderId={discountedShippingOrder.id} initialOrder={discountedShippingOrder} />);
+
+    const compare = screen.getByTestId('order-shippingFeeCompare');
+    expect(compare.querySelector('.line-through')).toHaveTextContent('1.75 CHF');
+    expect(compare).toHaveTextContent('1.57 CHF');
+  });
+
   it('omits Shipping VAT when tax amount is 0 even if rate is positive (free shipping)', () => {
     const orderWithFreeShippingTaxRate: Order = {
       ...baseOrder,

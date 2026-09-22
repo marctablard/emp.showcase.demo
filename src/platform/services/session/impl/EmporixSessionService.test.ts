@@ -304,6 +304,40 @@ describe('EmporixSessionService', () => {
       });
       expect(patchCall).not.toHaveProperty('language');
     });
+
+    it('retries a currency PATCH once after a stale session version', async () => {
+      mockSessionContextApi.getOwnSessionContext
+        .mockResolvedValueOnce({
+          sessionId: 'test-session',
+          siteCode: 'main',
+          currency: 'EUR',
+          metadata: { version: 2 },
+        })
+        .mockResolvedValueOnce({
+          sessionId: 'test-session',
+          siteCode: 'main',
+          currency: 'EUR',
+          metadata: { version: 3 },
+        });
+      mockSessionContextApi.updateOwnSessionContext
+        .mockRejectedValueOnce(
+          new Error(
+            'Failed to update own session context: Not Found - {"message":"The context with sessionId test-session and version 2 has not been found."}',
+          ),
+        )
+        .mockResolvedValueOnce();
+
+      await sessionService.setCurrency('USD');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenNthCalledWith(1, {
+        currency: 'USD',
+        metadata: { version: 2 },
+      });
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenNthCalledWith(2, {
+        currency: 'USD',
+        metadata: { version: 3 },
+      });
+    });
   });
 
   describe('setLanguage', () => {

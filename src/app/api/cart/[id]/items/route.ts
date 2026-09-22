@@ -1,7 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { mapCartCurrencyPutError } from '@/lib/common/cart-api-error-mapping';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
+import { isCartCurrencyUpdateError } from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { cartAddItemErrorResponse } from './cart-add-item-error';
 
@@ -45,6 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const cartId = resolvedParams.id;
+  const logger = server.get<LoggerService>('LoggerService');
   try {
     const cartService = server.get<CartService>('CartService');
 
@@ -58,16 +61,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Add item to cart
     const result = await cartService.addItemToCart(cartId, productId, quantity);
+    const effectiveCartId = result.cartId || cartId;
 
-    // Get updated cart
-    const updatedCart = await cartService.getCartById(cartId);
+    // Session cart id may have moved when an empty, unusable cart was replaced.
+    // A rejected current-cart lookup must not turn a successful add into a 500,
+    // and must not fall back to the abandoned cart id.
+    let updatedCart: Awaited<ReturnType<CartService['getCart']>> = null;
+    try {
+      updatedCart = await cartService.getCart();
+    } catch (lookupError) {
+      logger.warn(
+        { err: lookupError, cartId, effectiveCartId },
+        'Current cart lookup failed after add; using the cart that received the line',
+      );
+    }
+    updatedCart ??= await cartService.getCartById(effectiveCartId);
 
     return NextResponse.json({
       ...result,
       cart: updatedCart,
     });
   } catch (error) {
-    const logger = server.get<LoggerService>('LoggerService');
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     logger.error(
@@ -80,6 +94,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
       `Error adding item to cart ${cartId}`,
     );
+
+    if (isCartCurrencyUpdateError(error)) {
+      const mappedError = mapCartCurrencyPutError(error);
+      return NextResponse.json(mappedError.response, { status: mappedError.status });
+    }
 
     return cartAddItemErrorResponse(errorMessage);
   }
