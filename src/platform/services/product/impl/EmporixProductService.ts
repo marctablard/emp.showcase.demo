@@ -268,7 +268,8 @@ class EmporixProductService implements ProductService {
       parentVariantPath: openedProduct.parentVariantPath,
     });
 
-    let current = await this.productApi.getProduct(initialRootCandidateId);
+    let current =
+      initialRootCandidateId === openedId ? openedProduct : await this.productApi.getProduct(initialRootCandidateId);
     if (!current) {
       throw new Error(`Failed to resolve dynamic variant root for ${openedId}`);
     }
@@ -314,11 +315,46 @@ class EmporixProductService implements ProductService {
     return hydrated;
   }
 
+  /**
+   * Assigned mode: the opened dynamic node must itself be in scope before the root walk.
+   * The membership set is reused so that id is not sent to segment lookup again with the map.
+   * Returns `undefined` when the opened id is out of scope.
+   */
+  private async scopeDynamicMemberIds(
+    memberIds: string[],
+    openedKey: string,
+    options: ProductFetchOptions | undefined,
+    knownInScope: Set<string> | undefined,
+  ): Promise<string[] | undefined> {
+    if (options?.segmentIds === undefined) {
+      return memberIds;
+    }
+    const alreadyInScope = knownInScope ?? new Set<string>();
+    if (!alreadyInScope.has(openedKey)) {
+      return undefined;
+    }
+    const uncheckedIds = memberIds.filter((id) => !alreadyInScope.has(id));
+    const checked = uncheckedIds.length
+      ? await this.filterIdsInSegmentScope(uncheckedIds, options.segmentIds, options.siteCode)
+      : new Set<string>();
+    const inScope = new Set<string>([...alreadyInScope, ...checked]);
+    return memberIds.filter((id) => inScope.has(id));
+  }
+
   private async getDynamicVariantProducts(
     openedProduct: EmporixProduct,
     openedId: string,
     options?: ProductFetchOptions,
   ): Promise<Product[]> {
+    const openedKey = openedProduct.id ?? openedId;
+    let knownInScope: Set<string> | undefined;
+    if (options?.segmentIds !== undefined) {
+      knownInScope = await this.filterIdsInSegmentScope([openedKey], options.segmentIds, options.siteCode);
+      if (!knownInScope.has(openedKey)) {
+        return [];
+      }
+    }
+
     const rootWithVariantMap = await this.getDynamicRootWithVariants(openedProduct);
     const variantEntries = rootWithVariantMap.variants ?? {};
     const allMemberIds = Object.keys(variantEntries);
@@ -326,13 +362,8 @@ class EmporixProductService implements ProductService {
       return [];
     }
 
-    let scopedMemberIds = allMemberIds;
-    if (options?.segmentIds !== undefined) {
-      const inScope = await this.filterIdsInSegmentScope(allMemberIds, options.segmentIds, options.siteCode);
-      scopedMemberIds = allMemberIds.filter((id) => inScope.has(id));
-    }
-
-    if (scopedMemberIds.length === 0) {
+    const scopedMemberIds = await this.scopeDynamicMemberIds(allMemberIds, openedKey, options, knownInScope);
+    if (!scopedMemberIds || scopedMemberIds.length === 0) {
       return [];
     }
 

@@ -533,7 +533,61 @@ describe('EmporixProductService template meta enrichment', () => {
       expect(variants[0].purchasable).toBe(true);
     });
 
-    it('scopes a dynamic family once before hydration', async () => {
+    it('returns no dynamic family when the opened product is outside segment scope', async () => {
+      const getProduct = jest.fn().mockResolvedValue({
+        id: 'opened-dynamic',
+        code: 'opened-dynamic',
+        productType: 'DYNAMIC_VARIANT',
+        parentVariantId: 'root',
+        parentVariantPath: ['root'],
+      });
+      const searchProducts = jest.fn();
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set());
+      const service = createService({
+        getProduct,
+        searchProducts,
+        mapToService,
+        getCurrent,
+        filterProductIdsInScope,
+      });
+
+      await expect(
+        service.getVariantProducts('opened-dynamic', { segmentIds: ['s1'], siteCode: 'us' }),
+      ).resolves.toEqual([]);
+
+      expect(filterProductIdsInScope).toHaveBeenCalledTimes(1);
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['opened-dynamic'], 'us', ['s1']);
+      expect(getProduct).toHaveBeenCalledTimes(1);
+      expect(getProduct).toHaveBeenCalledWith('opened-dynamic');
+      expect(searchProducts).not.toHaveBeenCalled();
+    });
+
+    it('reuses the opened product when it is already the dynamic root', async () => {
+      const getProduct = jest.fn().mockResolvedValue({
+        id: 'opened-dynamic',
+        code: 'opened-dynamic',
+        productType: 'DYNAMIC_VARIANT',
+        variants: {
+          'opened-dynamic': { sellable: true, name: { en: 'Opened' } },
+        },
+      });
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [{ id: 'opened-dynamic', code: 'opened-dynamic', productType: 'DYNAMIC_VARIANT' }],
+      });
+      const service = createService({
+        getProduct,
+        searchProducts,
+        mapToService,
+        getCurrent,
+      });
+
+      const variants = await service.getVariantProducts('opened-dynamic');
+
+      expect(getProduct).toHaveBeenCalledTimes(1);
+      expect(variants.map((variant) => variant.id)).toEqual(['opened-dynamic']);
+    });
+
+    it('scopes the opened dynamic product before the rest of the family', async () => {
       const getProduct = jest.fn().mockResolvedValue({
         id: 'opened-dynamic',
         code: 'opened-dynamic',
@@ -549,7 +603,10 @@ describe('EmporixProductService template meta enrichment', () => {
           { id: 'leaf-sellable', code: 'leaf-sellable', productType: 'DYNAMIC_VARIANT' },
         ],
       });
-      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['opened-dynamic', 'leaf-sellable']));
+      const allowed = new Set(['opened-dynamic', 'leaf-sellable']);
+      const filterProductIdsInScope = jest.fn().mockImplementation(async (ids: string[]) => {
+        return new Set(ids.filter((id) => allowed.has(id)));
+      });
       const service = createService({
         getProduct,
         searchProducts,
@@ -560,8 +617,9 @@ describe('EmporixProductService template meta enrichment', () => {
 
       await service.getVariantProducts('opened-dynamic', { segmentIds: ['s1'], siteCode: 'us' });
 
-      expect(filterProductIdsInScope).toHaveBeenCalledTimes(1);
-      expect(filterProductIdsInScope).toHaveBeenCalledWith(['opened-dynamic', 'leaf-sellable'], 'us', ['s1']);
+      expect(filterProductIdsInScope).toHaveBeenCalledTimes(2);
+      expect(filterProductIdsInScope).toHaveBeenNthCalledWith(1, ['opened-dynamic'], 'us', ['s1']);
+      expect(filterProductIdsInScope).toHaveBeenNthCalledWith(2, ['leaf-sellable'], 'us', ['s1']);
     });
 
     it('throws when dynamic GET-walk exhausts without a variants map', async () => {
