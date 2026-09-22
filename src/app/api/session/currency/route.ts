@@ -35,6 +35,7 @@ function cartCurrencyConflictResponse(code: CartCurrencyUpdateErrorCode, couponC
 
 async function reconcileCartCurrency(
   cartService: CartService,
+  sessionService: SessionService,
   logger: LoggerService,
   cart: Cart,
   currency: string,
@@ -53,6 +54,16 @@ async function reconcileCartCurrency(
       logger.warn(
         { code: cartError.code, cartId, currency, cartSite },
         'Cart currency update skipped — updating session only',
+      );
+      return { cart: null };
+    }
+    // An empty cart this session cannot reprice must not block the currency switch.
+    // A cart with lines is left in place — dropping those lines is not a currency fix.
+    if (cartError.code === CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN && (cart.items?.length ?? 0) === 0) {
+      await sessionService.clearCart();
+      logger.warn(
+        { code: cartError.code, cartId, currency, cartSite },
+        'Empty cart currency update forbidden — cleared cart and updating session only',
       );
       return { cart: null };
     }
@@ -103,7 +114,7 @@ export async function PUT(request: NextRequest) {
 
     let updatedCart = await cartService.getCart();
     if (updatedCart && updatedCart.currency !== currency) {
-      const reconciled = await reconcileCartCurrency(cartService, logger, updatedCart, currency);
+      const reconciled = await reconcileCartCurrency(cartService, sessionService, logger, updatedCart, currency);
       if ('conflict' in reconciled) {
         return reconciled.conflict;
       }

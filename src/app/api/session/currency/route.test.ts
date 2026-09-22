@@ -47,6 +47,7 @@ describe('PUT /api/session/currency', () => {
     sessionService = {
       getCurrent: jest.fn(),
       setCurrency: jest.fn(),
+      clearCart: jest.fn(),
     };
     logger = {
       debug: jest.fn(),
@@ -112,6 +113,43 @@ describe('PUT /api/session/currency', () => {
 
     expect(response.status).toBe(200);
     expect(response.cookies.get(CURRENCY_COOKIE_NAME)?.value).toBe('USD');
+  });
+
+  it('clears an empty forbidden cart and still updates the session currency', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR', items: [] });
+    cartService.updateCurrency.mockRejectedValue(
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
+    );
+    sessionService.setCurrency.mockResolvedValue(undefined);
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+
+    expect(response.status).toBe(200);
+    expect(sessionService.clearCart).toHaveBeenCalled();
+    expect(sessionService.setCurrency).toHaveBeenCalledWith('USD');
+    expect(response.cookies.get(CURRENCY_COOKIE_NAME)?.value).toBe('USD');
+  });
+
+  it('does not clear a forbidden cart that still has lines', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({
+      id: 'c1',
+      site: 'us',
+      currency: 'EUR',
+      items: [{ id: 'line-1' }],
+    });
+    cartService.updateCurrency.mockRejectedValue(
+      new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context'),
+    );
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+    const body = (await response.json()) as { code?: string };
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN);
+    expect(sessionService.clearCart).not.toHaveBeenCalled();
+    expect(sessionService.setCurrency).not.toHaveBeenCalled();
   });
 
   it('does NOT set the cookie when cart update fails with a non-recoverable code (409)', async () => {

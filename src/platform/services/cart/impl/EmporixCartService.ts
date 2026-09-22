@@ -206,6 +206,68 @@ class EmporixCartService implements CartService {
     return typeof value === 'string' ? value.trim().toUpperCase() : '';
   }
 
+  private cartHasNoLines(cart: EmporixCart): boolean {
+    return (cart.items?.length ?? 0) === 0;
+  }
+
+  /** Empty cart created in another session. A cart with lines is kept — it is still this customer's. */
+  private isEmptyCartBoundToOtherSession(cart: EmporixCart, session: Session): boolean {
+    if (!this.cartHasNoLines(cart)) {
+      return false;
+    }
+    const cartSessionId = cart.sessionId?.trim() ?? '';
+    const sessionId = session.id?.trim() ?? '';
+    return cartSessionId.length > 0 && sessionId.length > 0 && cartSessionId !== sessionId;
+  }
+
+  private shouldReplaceEmptyCartAfterCurrencyFailure(cart: EmporixCart, error: unknown): boolean {
+    if (!this.cartHasNoLines(cart) || !(error instanceof CartCurrencyUpdateError)) {
+      return false;
+    }
+    return (
+      error.code === CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN ||
+      error.code === CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH
+    );
+  }
+
+  /**
+   * Drop the session pointer to an empty cart this session cannot reprice and open a new cart
+   * in the session currency. Does not delete the old cart (it may belong to another session).
+   */
+  private async replaceEmptyCartForSession(session: Session, abandonedCartId: string): Promise<EmporixCart> {
+    this.logger.warn(
+      { abandonedCartId, sessionId: session.id, currency: session.currency },
+      'Replacing empty cart this session cannot reprice',
+    );
+    await this.sessionService.clearCart();
+    const newId = await this.createCart(session.currency, session.siteCode);
+    if (newId === abandonedCartId) {
+      throw new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context');
+    }
+    const created = await this.cartApi.getCart(newId);
+    if (!created) {
+      throw new Error('Cart not found');
+    }
+    return created;
+  }
+
+  private async discardEmptyForeignSessionCart(
+    cart: EmporixCart | null | undefined,
+    session: Session,
+  ): Promise<EmporixCart | null | undefined> {
+    if (!cart || !this.isEmptyCartBoundToOtherSession(cart, session)) {
+      return cart;
+    }
+    this.logger.info(
+      { cartId: cart.id, cartSessionId: cart.sessionId, sessionId: session.id },
+      'Skipping empty cart bound to another session',
+    );
+    if (session.cartId === cart.id) {
+      await this.sessionService.clearCart();
+    }
+    return undefined;
+  }
+
   /**
    * Emporix validates new line prices against the cart's pricing currency. If the cart still
    * carries a stale currency (e.g. site default while the session already switched), match-prices
@@ -225,7 +287,14 @@ class EmporixCartService implements CartService {
       { cartId: rawCart.id, cartCurrency: rawCart.currency, sessionCurrency: session.currency },
       'Aligning cart currency with session before cart line mutation',
     );
-    await this.updateCurrency(rawCart.id, session.currency);
+    try {
+      await this.updateCurrency(rawCart.id, session.currency);
+    } catch (error) {
+      if (!this.shouldReplaceEmptyCartAfterCurrencyFailure(rawCart, error)) {
+        throw error;
+      }
+      return this.replaceEmptyCartForSession(session, rawCart.id);
+    }
     const refreshed = await this.cartApi.getCart(rawCart.id);
     if (!refreshed) {
       throw new Error('Cart not found after currency alignment');
@@ -344,6 +413,7 @@ class EmporixCartService implements CartService {
 
       if (cart) {
         cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
+        cart = await this.discardEmptyForeignSessionCart(cart, session);
       }
     }
 
@@ -367,6 +437,7 @@ class EmporixCartService implements CartService {
             false,
           );
           cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
+          cart = await this.discardEmptyForeignSessionCart(cart, session);
         } catch (error) {
           throw this.mapCartResolutionError(error, {
             fallbackCode: CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN,
@@ -381,6 +452,7 @@ class EmporixCartService implements CartService {
         try {
           cart = await this.cartApi.getCartByCriteria(currentSiteCode, session.id, undefined, 'shopping', false);
           cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
+          cart = await this.discardEmptyForeignSessionCart(cart, session);
         } catch (error) {
           throw this.mapCartResolutionError(error, {
             fallbackCode: CART_CURRENCY_UPDATE_ERROR_CODE.UPSTREAM_FAILURE,

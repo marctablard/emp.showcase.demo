@@ -1,5 +1,5 @@
 import type { Order } from '@/platform/services/model/order/order';
-import { buildOrderOverviewBreakdown } from './order-overview-summary';
+import { buildOrderOverviewBreakdown, orderShippingListFee } from './order-overview-summary';
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -162,5 +162,24 @@ describe('buildOrderOverviewBreakdown', () => {
     expect(breakdown.goodsDiscounted).toBe(false);
     expect(breakdown.shippingFree).toBe(true);
     expect(breakdown.goodsNet).toBe(100);
+  });
+
+  it('exposes the method list fee when the published shipping total is lower', () => {
+    const shipping = {
+      methods: [{ id: 'super', name: 'Super Shipping', price: 1.75, currency: 'CHF' }],
+      total: { value: 1.57, currency: 'CHF' },
+    };
+    expect(orderShippingListFee(shipping)).toBe(1.75);
+    const breakdown = buildOrderOverviewBreakdown({
+      ...noCouponOrder,
+      shipping,
+    });
+    expect(breakdown.shippingFee).toBe(1.57);
+    expect(breakdown.shippingListFee).toBe(1.75);
+  });
+
+  it('omits a list fee when the method amount matches the shipping total', () => {
+    expect(orderShippingListFee(noCouponOrder.shipping)).toBeUndefined();
+    expect(buildOrderOverviewBreakdown(noCouponOrder).shippingListFee).toBeUndefined();
   });
 });

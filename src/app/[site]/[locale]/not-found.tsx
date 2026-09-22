@@ -11,7 +11,8 @@ export default async function NotFound() {
       <HeaderCheckout />
       <div className="flex-grow mt-17 sm:mt-36 md:mt-52 mx-auto text-center">
         <H1 className="mb-6">{t('title')}</H1>
-        <UiLink href="/" type="Link" variant="buttonPrimary">
+        <p className="mb-6 text-text-body">{t('description')}</p>
+        <UiLink href="/" type="Link" variant="buttonPrimary" data-testid="notFound-homeLink">
           {t('home')}
         </UiLink>
       </div>

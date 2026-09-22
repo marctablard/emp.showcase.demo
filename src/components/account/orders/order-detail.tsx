@@ -340,6 +340,28 @@ function OrderOverviewNetGoodsVat(props: {
   );
 }
 
+function OrderShippingFeeValue(props: {
+  readonly listFee: number | undefined;
+  readonly discounted: number;
+  readonly currency: string;
+  readonly freeLabel: string;
+}) {
+  const discountedLabel = formatShippingFeeDisplay(
+    props.discounted,
+    (amount) => formatOverviewAmount(amount, props.currency),
+    props.freeLabel,
+  );
+  if (typeof props.listFee !== 'number') {
+    return <span>{discountedLabel}</span>;
+  }
+  return (
+    <span className="flex items-baseline justify-end gap-2" data-testid="order-shippingFeeCompare">
+      <span className="line-through">{formatOverviewAmount(props.listFee, props.currency)}</span>
+      <span className="font-bold">{discountedLabel}</span>
+    </span>
+  );
+}
+
 function OrderOverviewShippingRows(props: {
   readonly order: Order;
   readonly breakdown: OrderOverviewSummaryBreakdown;
@@ -357,13 +379,12 @@ function OrderOverviewShippingRows(props: {
     <>
       <div className="flex justify-between gap-4 pt-2">
         <span>{props.shippingLabel}</span>
-        <span>
-          {formatShippingFeeDisplay(
-            shipping.total.value,
-            (amount) => formatOverviewAmount(amount, shippingCurrency),
-            tOrder('free'),
-          )}
-        </span>
+        <OrderShippingFeeValue
+          listFee={breakdown.shippingListFee}
+          discounted={shipping.total.value}
+          currency={shippingCurrency}
+          freeLabel={tOrder('free')}
+        />
       </div>
       {breakdown.showShippingVat && typeof shippingTax === 'number' ? (
         <div className="flex justify-between gap-4 pt-2">

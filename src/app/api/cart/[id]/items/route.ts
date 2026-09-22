@@ -1,7 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { mapCartCurrencyPutError } from '@/lib/common/cart-api-error-mapping';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
+import { isCartCurrencyUpdateError } from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { cartAddItemErrorResponse } from './cart-add-item-error';
 
@@ -59,8 +61,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Add item to cart
     const result = await cartService.addItemToCart(cartId, productId, quantity);
 
-    // Get updated cart
-    const updatedCart = await cartService.getCartById(cartId);
+    // Session cart id may have moved when an empty, unusable cart was replaced.
+    const updatedCart = (await cartService.getCart()) ?? (await cartService.getCartById(cartId));
 
     return NextResponse.json({
       ...result,
@@ -80,6 +82,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
       `Error adding item to cart ${cartId}`,
     );
+
+    if (isCartCurrencyUpdateError(error)) {
+      const mappedError = mapCartCurrencyPutError(error);
+      return NextResponse.json(mappedError.response, { status: mappedError.status });
+    }
 
     return cartAddItemErrorResponse(errorMessage);
   }
