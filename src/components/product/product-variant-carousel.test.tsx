@@ -173,7 +173,10 @@ describe('ProductVariantCarousel', () => {
     expect(screen.getAllByTestId('product-variant-carousel-card')[0]).toHaveAttribute('data-variant-selected', 'true');
     for (const price of screen.getAllByTestId('product-variant-carousel-price')) {
       expect(price).toHaveClass('shrink-0');
-      expect(price.previousElementSibling).toHaveClass('flex-1');
+      expect(price.previousElementSibling).toHaveClass('flex-1', 'group-focus-visible:overflow-visible');
+      expect(price.closest('[data-testid="product-variant-carousel-card"]')).toHaveClass(
+        'focus-visible:overflow-visible',
+      );
     }
   });
 

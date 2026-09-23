@@ -298,7 +298,7 @@ export function ProductVariantCarousel({
                   disabled={isDisabled}
                   aria-disabled={isDisabled || undefined}
                   className={cn(
-                    'group box-border flex h-[228px] w-[161px] min-w-[161px] shrink-0 flex-col overflow-hidden rounded-sm border-2 p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
+                    'group box-border flex h-[228px] w-[161px] min-w-[161px] shrink-0 flex-col overflow-hidden rounded-sm border-2 p-0 text-left outline-none focus-visible:overflow-visible focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
                     isSelected ? 'border-border-secondary' : 'border-border-primary',
                     isDisabled ? 'cursor-not-allowed bg-surface-disabled text-text-disabled' : 'cursor-pointer',
                   )}
@@ -318,7 +318,7 @@ export function ProductVariantCarousel({
                     </div>
                   </div>
                   <div className="flex h-[112px] w-full min-w-0 flex-col gap-2 px-2 py-1 text-base text-text-body">
-                    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+                    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden group-focus-visible:overflow-visible">
                       {displayPairs.map((pair) => {
                         const displayValue =
                           resolveVariantAttributeValueLabel(pair.value, pair.valueName, l10n) ??
