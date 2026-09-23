@@ -3,6 +3,9 @@ import { L10N_MISSING_LABEL } from '@/lib/l10n';
 import type { LocalizedString } from '@/platform/services/model/common';
 import type { ProductTemplateAttributeType } from '@/platform/services/model/product';
 
+type LocalizedAttributeName = LocalizedString | string | undefined;
+type LocalizeAttributeName = (value: LocalizedString | string) => string;
+
 export const PRODUCT_TEMPLATE_ATTRIBUTE_TYPE = {
   TEXT: 'TEXT',
   NUMBER: 'NUMBER',
@@ -58,7 +61,7 @@ export function formatTemplateAttributeValue(
  * True when a localized name is missing or only repeats the attribute key
  * (`expand=template` / product `variantAttributes[].name` often echo the key).
  */
-export function isPlaceholderAttributeLabel(name: LocalizedString | string | undefined, key: string): boolean {
+export function isPlaceholderAttributeLabel(name: LocalizedAttributeName, key: string): boolean {
   if (name == null) {
     return true;
   }
@@ -82,9 +85,9 @@ export function isPlaceholderAttributeLabel(name: LocalizedString | string | und
  */
 export function resolveVariantAttributeLabel(
   key: string,
-  name: LocalizedString | string | undefined,
+  name: LocalizedAttributeName,
   labels: Record<string, LocalizedString> | undefined,
-  l10n: (value: LocalizedString | string) => string,
+  l10n: LocalizeAttributeName,
 ): string {
   const candidates = [name, labels?.[key]];
   let keyEcho: string | undefined;
@@ -113,8 +116,8 @@ export function resolveVariantAttributeLabel(
  */
 export function resolveVariantAttributeValueLabel(
   valueKey: string,
-  name: LocalizedString | string | undefined,
-  l10n: (value: LocalizedString | string) => string,
+  name: LocalizedAttributeName,
+  l10n: LocalizeAttributeName,
 ): string | undefined {
   if (name == null || isPlaceholderAttributeLabel(name, valueKey)) {
     return undefined;
@@ -134,7 +137,7 @@ export function resolveVariantAttributeValueLabel(
 export function resolveTemplateAttributeLabel(
   key: string,
   labels: Record<string, LocalizedString> | undefined,
-  l10n: (value: LocalizedString | string) => string,
+  l10n: LocalizeAttributeName,
 ): string {
   const fromTemplate = labels?.[key];
   if (!fromTemplate) {
