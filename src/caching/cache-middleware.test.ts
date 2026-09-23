@@ -3,6 +3,7 @@ import { applyCacheDirectives, isAuthJsSessionCookieName } from './cache-middlew
 
 const ENABLED_ENV = 'NEXT_CACHE_MIDDLEWARE_ENABLED';
 const PRODUCT_PATH = '/product/abc';
+const SEARCH_PATH = '/api/search';
 const SUGGESTIONS_PATH = '/api/search/suggestions';
 const PRIVATE_NO_STORE = 'private, no-store';
 
@@ -81,6 +82,13 @@ describe('applyCacheDirectives', () => {
     'authjs.session-token.abc=1',
   ])('still treats a look-alike cookie name as anonymous (%s)', (cookieHeader) => {
     const response = apply(SUGGESTIONS_PATH, cookieHeader);
+
+    expect(response.headers.get('Cache-Control')).toBe(PRIVATE_NO_STORE);
+    expect(response.headers.get('X-Cache-Tags')).toBe('search');
+  });
+
+  it('sets private, no-store and search tags for the primary search endpoint', () => {
+    const response = apply(SEARCH_PATH);
 
     expect(response.headers.get('Cache-Control')).toBe(PRIVATE_NO_STORE);
     expect(response.headers.get('X-Cache-Tags')).toBe('search');

@@ -6,7 +6,7 @@ export const CURRENCY_PREFERENCE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
 export function normalizeCurrencyCode(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim().toUpperCase();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 }
 
 /**

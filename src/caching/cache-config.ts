@@ -56,7 +56,8 @@ export const cacheRules: CacheRule[] = [
   },
   {
     // Listing cards carry prices. Keep the rule so it can be turned back on.
-    url: '/api/search/(.*)',
+    // The primary handler is `/api/search` (no extra slash); subpaths still match.
+    url: '/api/search(?:/.*)?',
     cache: {
       revalidate: 0,
       tags: ['search'],

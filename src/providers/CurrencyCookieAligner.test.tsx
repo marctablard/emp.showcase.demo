@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { CurrencyCookieAligner } from '@/providers/CurrencyCookieAligner';
 
 const fetchCurrentSession = jest.fn();
@@ -41,18 +41,30 @@ describe('CurrencyCookieAligner', () => {
   it('asks GET /api/session to rewrite a disagreeing cookie', () => {
     document.cookie = 'next-currency=USD';
     render(<CurrencyCookieAligner />);
-    expect(fetchCurrentSession).toHaveBeenCalledTimes(1);
+    expect(fetchCurrentSession).toHaveBeenCalledWith(true);
   });
 
   it('asks GET /api/session to write the cookie when it is missing', () => {
     render(<CurrencyCookieAligner />);
-    expect(fetchCurrentSession).toHaveBeenCalledTimes(1);
+    expect(fetchCurrentSession).toHaveBeenCalledWith(true);
   });
 
   it('treats a malformed cookie as a mismatch instead of throwing', () => {
     document.cookie = 'next-currency=%E0%A4%A';
     expect(() => render(<CurrencyCookieAligner />)).not.toThrow();
-    expect(fetchCurrentSession).toHaveBeenCalledTimes(1);
+    expect(fetchCurrentSession).toHaveBeenCalledWith(true);
+  });
+
+  it('retries a failed realignment when the session currency changes', async () => {
+    fetchCurrentSession.mockRejectedValueOnce(new Error('down'));
+    document.cookie = 'next-currency=USD';
+    const view = render(<CurrencyCookieAligner />);
+    await waitFor(() => expect(fetchCurrentSession).toHaveBeenCalledTimes(1));
+
+    mockSession = { currency: 'GBP' };
+    view.rerender(<CurrencyCookieAligner />);
+
+    await waitFor(() => expect(fetchCurrentSession).toHaveBeenCalledTimes(2));
   });
 
   it('does not fetch while the session is still loading', () => {

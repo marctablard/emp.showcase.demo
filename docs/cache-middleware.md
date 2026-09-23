@@ -129,11 +129,11 @@ This HTTP no-store on catalog JSON is independent of `DEFAULT_CACHE_REVALIDATE` 
 
 ### Search API
 
-Listing cards include prices, so `/api/search/(.*)` is `revalidate: 0` (`private, no-store`). The rule remains so the window can be turned back on.
+Listing cards include prices, so `/api/search` and its subpaths are `revalidate: 0` (`private, no-store`). The rule remains so the window can be turned back on. The pattern includes the handler with no extra path segment; `/api/search/(.*)` never matched that URL.
 
 ```ts
 {
-  url: '/api/search/(.*)',
+  url: '/api/search(?:/.*)?',
   cache: {
     revalidate: 0,
     tags: ['search'],

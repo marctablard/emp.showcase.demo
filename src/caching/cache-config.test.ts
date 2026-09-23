@@ -31,7 +31,12 @@ describe('cacheRules', () => {
     });
   });
 
-  it('sets /api/search/(.*) to revalidate 0 so listing prices are not publicly cached', () => {
-    expect(ruleFor('/api/search/(.*)')?.cache?.revalidate).toBe(0);
+  it('sets /api/search and its subpaths to revalidate 0 so listing prices are not publicly cached', () => {
+    const pattern = '/api/search(?:/.*)?';
+    expect(ruleFor(pattern)?.cache?.revalidate).toBe(0);
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test('/api/search')).toBe(true);
+    expect(regex.test('/api/search/suggestions')).toBe(true);
+    expect(regex.test('/api/searching')).toBe(false);
   });
 });

@@ -38,21 +38,25 @@ function readCurrencyCookie(): string | undefined {
  */
 export function CurrencyCookieAligner() {
   const { session, loading } = useSession();
-  const started = useRef(false);
+  const attemptedCurrency = useRef<string | undefined>(undefined);
   const sessionCurrency = session?.currency;
 
   useEffect(() => {
-    if (loading || !sessionCurrency || started.current) {
+    if (loading || !sessionCurrency) {
       return;
     }
     const cookie = normalizeCurrencyCode(readCurrencyCookie());
     const live = normalizeCurrencyCode(sessionCurrency);
-    if (!live || cookie === live) {
+    if (!live || cookie === live || attemptedCurrency.current === live) {
       return;
     }
-    started.current = true;
-    void fetchCurrentSession().catch((err) => {
-      started.current = false;
+    attemptedCurrency.current = live;
+    // `fetchCurrentSession()` swallows failures unless asked to throw, which would
+    // leave the guard set and skip the next currency change.
+    void fetchCurrentSession(true).catch((err) => {
+      if (attemptedCurrency.current === live) {
+        attemptedCurrency.current = undefined;
+      }
       getLogger().warn({ err }, 'Failed to realign next-currency with the session');
     });
   }, [loading, sessionCurrency]);
