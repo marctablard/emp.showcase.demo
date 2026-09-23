@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { PRODUCT_NO_IMAGE_SRC } from '@/lib/common/product-image';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
 import { ProductVariantCarousel, resolvePageCount, resolveSlidesPerPage } from './product-variant-carousel';
@@ -81,9 +82,9 @@ jest.mock('@/components/ui/tooltip', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: { alt: string }) => {
+  default: (props: { alt: string; src?: string }) => {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img alt={props.alt} />;
+    return <img alt={props.alt} src={props.src} />;
   },
 }));
 
@@ -386,5 +387,30 @@ describe('ProductVariantCarousel', () => {
     expect(screen.getByTestId('product-variant-carousel-card')).toBeInTheDocument();
     expect(screen.getByTestId('product-variant-carousel-prev')).toBeInTheDocument();
     expect(screen.getByTestId('product-variant-carousel-next')).toBeInTheDocument();
+  });
+
+  it('keeps the panel and explains when no sellable variants match', () => {
+    render(<ProductVariantCarousel variants={[]} prices={[]} currentProductId="v1" attributeOrder={['capacity']} />);
+
+    expect(screen.getByTestId('product-variant-carousel')).toBeInTheDocument();
+    expect(screen.getByText('variants.sellableVariants')).toBeInTheDocument();
+    expect(screen.getByTestId('product-variant-carousel-empty')).toHaveTextContent(
+      'variants.noMatchingSellableVariants',
+    );
+    expect(screen.queryByTestId('product-variant-carousel-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('product-variant-carousel-prev')).not.toBeInTheDocument();
+  });
+
+  it('uses the shared product image placeholder when a variant has no image', () => {
+    render(
+      <ProductVariantCarousel
+        variants={[buildVariant('v1', '12 Ah')]}
+        prices={[buildPrice('v1', 10)]}
+        currentProductId="v1"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: 'noImage' })).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
   });
 });

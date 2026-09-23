@@ -182,6 +182,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Currency is required' }, { status: 400 });
     }
 
+    const previousCurrency = typeof session.currency === 'string' ? session.currency.trim() : '';
     let updatedCart = await cartService.getCart();
     if (updatedCart && updatedCart.currency !== currency) {
       const reconciled = await reconcileCartCurrency(cartService, sessionService, logger, updatedCart, currency);
@@ -192,7 +193,33 @@ export async function PUT(request: NextRequest) {
     }
 
     const finalCurrency = updatedCart?.currency || currency;
-    await sessionService.setCurrency(finalCurrency);
+    try {
+      await sessionService.setCurrency(finalCurrency);
+    } catch (sessionError) {
+      // Cart reprice already committed. Put it back so a failed session write does not leave
+      // the cart in a currency the session never accepted.
+      const repricedCartId = updatedCart?.id;
+      if (repricedCartId && previousCurrency && updatedCart?.currency && updatedCart.currency !== previousCurrency) {
+        try {
+          await cartService.updateCurrency(repricedCartId, previousCurrency);
+          logger.warn(
+            { cartId: repricedCartId, previousCurrency, currency: finalCurrency },
+            'Rolled cart currency back after session currency update failed',
+          );
+        } catch (rollbackError) {
+          logger.error(
+            {
+              err: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+              cartId: repricedCartId,
+              previousCurrency,
+              currency: finalCurrency,
+            },
+            'Failed to roll cart currency back after session currency update failed',
+          );
+        }
+      }
+      throw sessionError;
+    }
     return withCurrencyCookie(
       NextResponse.json({ success: true, currency: finalCurrency, cart: updatedCart ?? null }),
       finalCurrency,

@@ -9,8 +9,10 @@ import { fetchProductVariants } from '@/lib/client/products';
 import { filterDynamicMembersByQualifiers, filterSellableDynamicMembers } from '@/lib/common/product-dynamic-variants';
 import {
   collectVariantAttributeGroups,
+  getCompatibleAttributeValuesForFilters,
   getSelectedVariantAttributeValues,
   isVariantFamilyProduct,
+  variantFilterValues,
 } from '@/lib/common/product-variant-attributes';
 import { cn } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
@@ -94,6 +96,22 @@ function toggleFilterValue(
     return next;
   }
   return { ...current, [attributeKey]: nextValues };
+}
+
+/** Classic members stay selectable unless marked unsellable. Dynamic nodes must be sellable === true. */
+function isSelectableSellableMember(member: Product): boolean {
+  if (member.productType === 'DYNAMIC_VARIANT') {
+    return member.sellable === true;
+  }
+  return member.sellable !== false;
+}
+
+function placeOpenedVariantFirst(variants: Product[], openedId: string): Product[] {
+  const index = variants.findIndex((variant) => variant.id === openedId);
+  if (index <= 0) {
+    return variants;
+  }
+  return [variants[index], ...variants.slice(0, index), ...variants.slice(index + 1)];
 }
 
 function buildSellableListSource(product: Product, family: Product[]): Product[] {
@@ -219,9 +237,19 @@ export default function ProductVariantSelector({ product, className }: ProductVa
   );
   const listSource = useMemo(() => buildSellableListSource(product, familyVariants), [familyVariants, product]);
   const listVariants = useMemo(
-    () => filterDynamicMembersByQualifiers(listSource, filterSelection),
-    [filterSelection, listSource],
+    () => placeOpenedVariantFirst(filterDynamicMembersByQualifiers(listSource, filterSelection), product.id),
+    [filterSelection, listSource, product.id],
   );
+  const disabledValues = useMemo(() => {
+    const sellableMembers = familyVariants.filter(isSelectableSellableMember);
+    const disabled: Record<string, string[]> = {};
+    attributeGroups.forEach((group) => {
+      const compatible = getCompatibleAttributeValuesForFilters(sellableMembers, filterSelection, group.key);
+      const selected = variantFilterValues(filterSelection[group.key]);
+      disabled[group.key] = group.values.filter((value) => !compatible.has(value) && !selected.includes(value));
+    });
+    return disabled;
+  }, [attributeGroups, familyVariants, filterSelection]);
 
   const handleAttributeSelect = (attributeKey: string, value: string): void => {
     setFilterSelection((current) => toggleFilterValue(current, attributeKey, value));
@@ -276,6 +304,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
         groups={attributeGroups}
         selectedValues={filterSelection}
         productValues={selectedAttributeValues}
+        disabledValues={disabledValues}
         attributeLabels={product.templateAttributeLabels}
         attributeTypes={product.templateAttributeTypes}
         onSelect={handleAttributeSelect}

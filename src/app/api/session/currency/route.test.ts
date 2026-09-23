@@ -341,4 +341,19 @@ describe('PUT /api/session/currency', () => {
     expect(response.status).toBe(401);
     expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
   });
+
+  it('rolls the cart currency back and returns 500 when the session write fails', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
+    cartService.getCart.mockResolvedValue({ id: 'c1', site: 'us', currency: 'EUR' });
+    cartService.updateCurrency.mockResolvedValue(undefined);
+    cartService.getCartById.mockResolvedValue({ id: 'c1', site: 'us', currency: 'USD' });
+    sessionService.setCurrency.mockRejectedValue(new Error('version conflict'));
+
+    const response = await PUT(createRequest({ currency: 'USD' }) as never);
+
+    expect(response.status).toBe(500);
+    expect(cartService.updateCurrency).toHaveBeenNthCalledWith(1, 'c1', 'USD');
+    expect(cartService.updateCurrency).toHaveBeenNthCalledWith(2, 'c1', 'EUR');
+    expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
+  });
 });

@@ -74,6 +74,11 @@ function CurrencySwitcherContent() {
           type: ToastType.Info,
           duration: 8000,
         });
+      } else {
+        notify({
+          title: t('switchFailed'),
+          type: ToastType.Error,
+        });
       }
     } finally {
       setIsSwitching(false);

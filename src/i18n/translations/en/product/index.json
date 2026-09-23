@@ -31,7 +31,8 @@
   "otherVariants": "Other variants",
   "variants": {
     "sellableVariants": "Sellable variants",
-    "count": "({count, plural, one {# variant} other {# variants}})"
+    "count": "({count, plural, one {# variant} other {# variants}})",
+    "noMatchingSellableVariants": "There are no sellable variants matching your attribute selection."
   },
   "addToCartResult": {
     "successTitle": "Added to Cart",

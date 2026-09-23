@@ -234,6 +234,9 @@ class EmporixProductService implements ProductService {
             {
               key: String(qualifier),
               ...(attribute.value?.name ? { name: attribute.value.name } : {}),
+              ...(typeof attribute.value?.unit === 'string' && attribute.value.unit.trim()
+                ? { unit: attribute.value.unit.trim() }
+                : {}),
               selected: true,
             },
           ],

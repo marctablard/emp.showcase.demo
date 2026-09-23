@@ -763,7 +763,7 @@ describe('ProductVariantSelector', () => {
     await waitFor(() => {
       expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute(
         'data-variant-ids',
-        'leaf-sellable,leaf-open',
+        'leaf-open,leaf-sellable',
       );
     });
     expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-count', '2');
@@ -806,7 +806,7 @@ describe('ProductVariantSelector', () => {
     await waitFor(() => {
       expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute(
         'data-variant-ids',
-        'leaf-sellable,leaf-open',
+        'leaf-open,leaf-sellable',
       );
     });
   });

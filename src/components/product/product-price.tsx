@@ -25,7 +25,8 @@ type ProductPriceTranslations = ReturnType<typeof useTranslations<'product.price
 /** Same min/max as `buildTierDisplayRows` in product-tier-prices — current tier only. */
 function resolveCurrentTierItemRange(price: ProductPrice, quantity?: number): TierItemRange | null {
   const tiers = price.tierValues;
-  if (!tiers || tiers.length === 0) {
+  // A single "1+" row is a basic price, not a tier schedule. The tier table uses the same cutoff.
+  if (!tiers || tiers.length <= 1) {
     return null;
   }
 

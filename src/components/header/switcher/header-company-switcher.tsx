@@ -109,7 +109,11 @@ export function CompanySwitcher() {
       if (success) {
         router.refresh();
       } else {
-        setFetchError('Failed to switch company');
+        toast({
+          title: t('errorSwitching'),
+          description: t('errorSwitchingDescription'),
+          variant: 'destructive',
+        });
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to switch company';

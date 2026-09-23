@@ -466,4 +466,21 @@ describe('ProductPriceComponent qty-aware Your Price label', () => {
     expect(normalizedText(screen.getByTestId('product-price-labels'))).toContain('yourPrice');
     expect(screen.queryByTestId('product-price-tier-caption')).not.toBeInTheDocument();
   });
+
+  it('keeps the plain yourPrice label when there is only a single tier', () => {
+    render(
+      <ProductPriceComponent
+        price={buildPrice({
+          tierValues: [{ id: 't1', minQuantity: 1, price: 289.71 }],
+          discountPercentage: 0,
+          quantity: { quantity: 1 },
+        })}
+        quantity={1}
+      />,
+    );
+
+    expect(normalizedText(screen.getByTestId('product-price-labels'))).toContain('yourPrice');
+    expect(normalizedText(screen.getByTestId('product-price-labels'))).not.toContain('items 1+');
+    expect(screen.queryByTestId('product-price-tier-caption')).not.toBeInTheDocument();
+  });
 });

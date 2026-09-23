@@ -51,7 +51,7 @@ export interface ProductUSP {
 export interface ProductVariantAttribute {
   key: string;
   name?: string | LocalizedString;
-  values: { key: string; name?: string | LocalizedString; selected: boolean }[];
+  values: { key: string; name?: string | LocalizedString; unit?: string; selected: boolean }[];
 }
 
 /** Emporix product-template attribute `type` values. */

@@ -7,14 +7,16 @@
   "Languages": {
     "label": "Sprachen",
     "en": "English",
-    "de": "Deutsch"
+    "de": "Deutsch",
+    "switchFailed": "Die Sprache konnte nicht geändert werden. Es wurde nichts geändert. Bitte versuche es erneut."
   },
   "Currencies": {
-    "label": "Währungen"
+    "label": "Währungen",
+    "switchFailed": "Die Währung konnte nicht geändert werden. Es wurde nichts geändert. Bitte versuche es erneut."
   },
   "Regions": {
     "label": "Site",
-    "switchFailed": "Der Standortwechsel ist fehlgeschlagen. Bitte versuche es erneut.",
+    "switchFailed": "Der Standortwechsel ist fehlgeschlagen. Es wurde nichts geändert. Bitte versuche es erneut.",
     "currencyFallback": "Währung von {from} auf {to} umgestellt — einige Artikel in deinem Warenkorb sind nicht in {from} bepreist.",
     "currencyFallbackCoupons": "Währung von {from} auf {to} umgestellt — entferne zuerst Coupon {codes}, wenn du {from} benötigst.",
     "currencySwitchCartBlocked": "Währung nicht von {fromCurrency} auf {toCurrency} gewechselt — einige Artikel in deinem Warenkorb sind nicht in {toCurrency} bepreist.",
@@ -25,7 +27,7 @@
     "errorLoading": "Unternehmen konnten nicht geladen werden",
     "errorLoadingDescription": "Bitte versuchen Sie es später erneut.",
     "errorSwitching": "Unternehmenswechsel fehlgeschlagen",
-    "errorSwitchingDescription": "Bitte versuchen Sie es erneut."
+    "errorSwitchingDescription": "Das Unternehmen wurde nicht geändert. Bitte versuchen Sie es erneut."
   },
   "hello": {
     "world": "Hallo Welt",

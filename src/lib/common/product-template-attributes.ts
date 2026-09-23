@@ -74,7 +74,10 @@ export function isPlaceholderAttributeLabel(name: LocalizedString | string | und
 
 /**
  * Localized label for a variant / template attribute key.
- * Prefers a real localized name (not a key echo), then template labels, else '-'.
+ * Prefers a real localized name, then a name that only repeats the key
+ * (`Width`, `Max-Operating-Pressure`, `a-number-attribute-9`).
+ * Returns '-' only when no localized name exists.
+ * A hyphen or underscore inside a present name is storefront copy, not a reason to hide it.
  * Never uses missing i18n paths that would render as `filters.mixins…`.
  */
 export function resolveVariantAttributeLabel(
@@ -84,16 +87,43 @@ export function resolveVariantAttributeLabel(
   l10n: (value: LocalizedString | string) => string,
 ): string {
   const candidates = [name, labels?.[key]];
+  let keyEcho: string | undefined;
   for (const candidate of candidates) {
-    if (isPlaceholderAttributeLabel(candidate, key)) {
+    if (candidate == null) {
       continue;
     }
-    const localized = l10n(candidate as LocalizedString | string).trim();
-    if (localized.length > 0 && localized !== L10N_MISSING_LABEL && localized !== key) {
-      return localized;
+    const localized = l10n(candidate).trim();
+    if (localized.length === 0 || localized === L10N_MISSING_LABEL) {
+      continue;
     }
+    // Remember a name that only repeats the key, then keep looking for a distinct label.
+    if (isPlaceholderAttributeLabel(candidate, key)) {
+      keyEcho ??= localized;
+      continue;
+    }
+    return localized;
   }
-  return L10N_MISSING_LABEL;
+  return keyEcho ?? L10N_MISSING_LABEL;
+}
+
+/**
+ * Localized variant-value label (`value.name`, e.g. qualifier `ghz` → "1 GHz").
+ * Returns undefined when the name is missing or only repeats the value key, so callers
+ * can fall back to the formatted key.
+ */
+export function resolveVariantAttributeValueLabel(
+  valueKey: string,
+  name: LocalizedString | string | undefined,
+  l10n: (value: LocalizedString | string) => string,
+): string | undefined {
+  if (name == null || isPlaceholderAttributeLabel(name, valueKey)) {
+    return undefined;
+  }
+  const localized = l10n(name).trim();
+  if (localized.length === 0 || localized === L10N_MISSING_LABEL || localized === valueKey) {
+    return undefined;
+  }
+  return localized;
 }
 
 /**

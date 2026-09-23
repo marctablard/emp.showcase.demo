@@ -117,6 +117,7 @@ function mapDynamicVariantAttribute(
 
   const name = normalizeLocalizedLeaf(attribute.name);
   const valueName = normalizeLocalizedLeaf(attribute.value?.name);
+  const unit = typeof attribute.value?.unit === 'string' ? attribute.value.unit.trim() : '';
   return {
     key,
     ...(name ? { name } : {}),
@@ -124,6 +125,7 @@ function mapDynamicVariantAttribute(
       {
         key: valueKey,
         ...(valueName ? { name: valueName } : {}),
+        ...(unit ? { unit } : {}),
         selected: true,
       },
     ],
@@ -340,8 +342,10 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
         .map((value) => {
           // Product Service may return numeric/boolean value keys (e.g. width: 15).
           const valueKey = String(value.key);
+          const valueName = normalizeLocalizedLeaf(value.name);
           return {
             key: valueKey,
+            ...(valueName ? { name: valueName } : {}),
             selected: source.productType === 'VARIANT' ? selectedKey === valueKey : false,
           };
         })

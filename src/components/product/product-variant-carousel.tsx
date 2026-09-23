@@ -10,7 +10,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useL10n } from '@/hooks/useL10n';
 import { useRouter } from '@/i18n/navigation';
-import { formatTemplateAttributeValue } from '@/lib/common/product-template-attributes';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
+import {
+  formatTemplateAttributeValue,
+  resolveVariantAttributeValueLabel,
+} from '@/lib/common/product-template-attributes';
 import {
   type VariantAttributeDisplayPair,
   type VariantAttributeFilters,
@@ -128,7 +132,7 @@ export function ProductVariantCarousel({
   const t = useTranslations('product');
   const tCarousel = useTranslations('common.UI.Carousel');
   const locale = useLocale();
-  const { l10nOrEmpty } = useL10n();
+  const { l10n, l10nOrEmpty } = useL10n();
   const router = useRouter();
   const viewportRef = useRef<HTMLDivElement>(null);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
@@ -155,7 +159,7 @@ export function ProductVariantCarousel({
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [variants.length]);
 
   const slidesPerPage = resolveSlidesPerPage(viewportWidth);
   const pageCount = resolvePageCount(variants.length, slidesPerPage);
@@ -169,14 +173,11 @@ export function ProductVariantCarousel({
     setIsNavigating(false);
   }
   const page = Math.min(userPage ?? selectedPage, maxPage);
+  const showEmptySelection = variants.length === 0 && !showListLoading;
 
   useEffect(() => {
     selectedCardRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [currentProductId, page, variants]);
-
-  if (variants.length === 0 && !showListLoading) {
-    return null;
-  }
 
   const getPrice = (variantId: string): ProductPrice | undefined =>
     prices.find((price) => price.productId === variantId);
@@ -221,104 +222,116 @@ export function ProductVariantCarousel({
           <span className="text-base text-text-on-disabled">{t('variants.count', { count: variants.length })}</span>
         </div>
         <div className="flex items-center gap-6">
-          <Button
-            type="button"
-            variant="carouselControl"
-            size="icon"
-            className={VARIANT_CAROUSEL_PAGER_CLASS_NAME}
-            disabled={!canScrollPrev}
-            title={tCarousel('prev')}
-            data-testid="product-variant-carousel-prev"
-            onClick={() => goToPage(safePage - 1)}
-          >
-            <ChevronLeft aria-label="Previous slide" />
-          </Button>
-          <Button
-            type="button"
-            variant="carouselControl"
-            size="icon"
-            className={VARIANT_CAROUSEL_PAGER_CLASS_NAME}
-            disabled={!canScrollNext}
-            title={tCarousel('next')}
-            data-testid="product-variant-carousel-next"
-            onClick={() => goToPage(safePage + 1)}
-          >
-            <ChevronRight aria-label="Next slide" />
-          </Button>
+          {variants.length > 0 ? (
+            <>
+              <Button
+                type="button"
+                variant="carouselControl"
+                size="icon"
+                className={VARIANT_CAROUSEL_PAGER_CLASS_NAME}
+                disabled={!canScrollPrev}
+                title={tCarousel('prev')}
+                data-testid="product-variant-carousel-prev"
+                onClick={() => goToPage(safePage - 1)}
+              >
+                <ChevronLeft aria-label="Previous slide" />
+              </Button>
+              <Button
+                type="button"
+                variant="carouselControl"
+                size="icon"
+                className={VARIANT_CAROUSEL_PAGER_CLASS_NAME}
+                disabled={!canScrollNext}
+                title={tCarousel('next')}
+                data-testid="product-variant-carousel-next"
+                onClick={() => goToPage(safePage + 1)}
+              >
+                <ChevronRight aria-label="Next slide" />
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
 
-      <div ref={viewportRef} className="min-w-0 w-full overflow-hidden" data-testid="product-variant-carousel-viewport">
+      {showEmptySelection ? (
+        <p className="text-base text-text-placeholders" data-testid="product-variant-carousel-empty">
+          {t('variants.noMatchingSellableVariants')}
+        </p>
+      ) : (
         <div
-          className="flex gap-4 transition-transform duration-300 ease-out"
-          style={{ transform: `translate3d(-${translateXPx}px, 0, 0)` }}
-          data-testid="product-variant-carousel-track"
-          data-page={safePage}
+          ref={viewportRef}
+          className="min-w-0 w-full overflow-hidden"
+          data-testid="product-variant-carousel-viewport"
         >
-          {variants.map((variant) => {
-            const isSelected = variant.id === currentProductId;
-            const isDisabled = variant.sellable === false;
-            const displayPairs = orderDisplayPairs(
-              getUnselectedVariantAttributePairs(variant, selectedFilters),
-              attributeOrder,
-            );
-            const price = getPrice(variant.id);
-            const netAmount = resolveNetUnitPrice(price);
-            const image = variant.images?.[0] ?? variant.primaryImage;
+          <div
+            className="flex gap-4 transition-transform duration-300 ease-out"
+            style={{ transform: `translate3d(-${translateXPx}px, 0, 0)` }}
+            data-testid="product-variant-carousel-track"
+            data-page={safePage}
+          >
+            {variants.map((variant) => {
+              const isSelected = variant.id === currentProductId;
+              const isDisabled = variant.sellable === false;
+              const displayPairs = orderDisplayPairs(
+                getUnselectedVariantAttributePairs(variant, selectedFilters),
+                attributeOrder,
+              );
+              const price = getPrice(variant.id);
+              const netAmount = resolveNetUnitPrice(price);
+              const image = variant.images?.[0] ?? variant.primaryImage;
+              const imageSrc = resolveProductImageSrc(image?.url);
+              const namedAlt = image?.altText ? l10nOrEmpty(image.altText) : '';
+              const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? t('noImage') : namedAlt || l10nOrEmpty(variant.name);
 
-            return (
-              <button
-                key={variant.id}
-                ref={isSelected ? selectedCardRef : undefined}
-                type="button"
-                disabled={isDisabled}
-                aria-disabled={isDisabled || undefined}
-                className={cn(
-                  'group box-border flex h-[228px] w-[161px] min-w-[161px] shrink-0 flex-col overflow-hidden rounded-sm border-2 p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
-                  isSelected ? 'border-border-secondary' : 'border-border-primary',
-                  isDisabled ? 'cursor-not-allowed bg-surface-disabled text-text-disabled' : 'cursor-pointer',
-                )}
-                data-testid="product-variant-carousel-card"
-                data-variant-selected={isSelected ? 'true' : 'false'}
-                onClick={() => openVariant(variant)}
-              >
-                <div className="flex h-[112px] w-full items-center justify-center bg-surface-image-background p-4">
-                  {image?.url ? (
+              return (
+                <button
+                  key={variant.id}
+                  ref={isSelected ? selectedCardRef : undefined}
+                  type="button"
+                  disabled={isDisabled}
+                  aria-disabled={isDisabled || undefined}
+                  className={cn(
+                    'group box-border flex h-[228px] w-[161px] min-w-[161px] shrink-0 flex-col overflow-hidden rounded-sm border-2 p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
+                    isSelected ? 'border-border-secondary' : 'border-border-primary',
+                    isDisabled ? 'cursor-not-allowed bg-surface-disabled text-text-disabled' : 'cursor-pointer',
+                  )}
+                  data-testid="product-variant-carousel-card"
+                  data-variant-selected={isSelected ? 'true' : 'false'}
+                  onClick={() => openVariant(variant)}
+                >
+                  <div className="flex h-[112px] w-full items-center justify-center bg-surface-image-background p-4">
                     <div className="relative size-full">
                       <Image
-                        src={image.url}
-                        alt={
-                          image.altText
-                            ? l10nOrEmpty(image.altText) || l10nOrEmpty(variant.name)
-                            : l10nOrEmpty(variant.name)
-                        }
+                        src={imageSrc}
+                        alt={imageAlt}
                         fill
                         className="object-contain object-center"
                         sizes={`${VARIANT_CARD_INNER_WIDTH_PX}px`}
                       />
                     </div>
-                  ) : (
-                    <span className="text-sm text-text-on-disabled">{t('noImage')}</span>
-                  )}
-                </div>
-                <div className="flex h-[112px] w-full flex-col gap-2 px-2 py-1 text-base text-text-body">
-                  <div className="flex flex-col">
-                    {displayPairs.map((pair) => (
-                      <ProductVariantCarouselValue
-                        key={pair.key}
-                        value={formatTemplateAttributeValue(pair.value, attributeTypes?.[pair.key], locale)}
-                      />
-                    ))}
                   </div>
-                  <span className="font-bold">
-                    {netAmount == null ? t('price.notAvailable') : formatCurrency(netAmount, price?.currency)}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+                  <div className="flex h-[112px] w-full flex-col gap-2 px-2 py-1 text-base text-text-body">
+                    <div className="flex flex-col">
+                      {displayPairs.map((pair) => (
+                        <ProductVariantCarouselValue
+                          key={pair.key}
+                          value={
+                            resolveVariantAttributeValueLabel(pair.value, pair.valueName, l10n) ??
+                            formatTemplateAttributeValue(pair.value, attributeTypes?.[pair.key], locale)
+                          }
+                        />
+                      ))}
+                    </div>
+                    <span className="font-bold">
+                      {netAmount == null ? t('price.notAvailable') : formatCurrency(netAmount, price?.currency)}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {pageCount > 1 ? (
         <div

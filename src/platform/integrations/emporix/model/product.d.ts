@@ -105,8 +105,8 @@ export interface EmporixProduct {
    * Dynamic trees use `ownVariantAttributes` / `inheritedVariantAttributes` / `variants` instead.
    */
   variantAttributes?: {
-    /** Value keys may be string, number, or boolean from Product Service. */
-    [key: string]: Array<{ key: string | number | boolean }>;
+    /** Value keys may be string, number, or boolean from Product Service. `name` is the localized value label. */
+    [key: string]: Array<{ key: string | number | boolean; name?: EmporixLocalizedString | string }>;
   };
   /** Structural sellable flag on DYNAMIC_VARIANT nodes (not inherited). */
   sellable?: boolean;

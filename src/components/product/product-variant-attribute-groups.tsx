@@ -5,7 +5,11 @@ import { useLocale, useTranslations } from 'next-intl';
 import { H6 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { useL10n } from '@/hooks/useL10n';
-import { formatTemplateAttributeValue, resolveVariantAttributeLabel } from '@/lib/common/product-template-attributes';
+import {
+  formatTemplateAttributeValue,
+  resolveVariantAttributeLabel,
+  resolveVariantAttributeValueLabel,
+} from '@/lib/common/product-template-attributes';
 import {
   type ProductVariantAttributeGroup,
   type VariantAttributeFilters,
@@ -18,14 +22,16 @@ import type { ProductTemplateAttributeType } from '@/platform/services/model/pro
 /** Max chips shown per attribute before Show more (Figma Speed row density). */
 const VISIBLE_CHIP_LIMIT = 6;
 
-export type VariantAttributeChipState = 'selected' | 'soft' | 'inactive';
+export type VariantAttributeChipState = 'selected' | 'soft' | 'both' | 'inactive';
 
 export interface ProductVariantAttributeGroupsProps {
   groups: ProductVariantAttributeGroup[];
   /** Shopper chip-filter selection (black border). Several values on one axis are OR. */
   selectedValues?: VariantAttributeFilters;
-  /** Opened variant values (thin blue border). */
+  /** Opened variant values (blue background). */
   productValues?: Record<string, string>;
+  /** Values with no sellable member under the other selected axes. Selected values stay enabled. */
+  disabledValues?: Record<string, readonly string[]>;
   /** Localized names from Product Templates `attributes[].name`. */
   attributeLabels?: Record<string, LocalizedString>;
   /** Types from Product Templates `attributes[].type` for locale-aware value formatting. */
@@ -41,24 +47,45 @@ function resolveChipState(
   selectedValues: VariantAttributeFilters | undefined,
   productValues: Record<string, string> | undefined,
 ): VariantAttributeChipState {
-  if (variantFilterValues(selectedValues?.[attributeKey]).includes(value)) {
+  const selected = variantFilterValues(selectedValues?.[attributeKey]).includes(value);
+  const current = productValues?.[attributeKey] === value;
+  if (selected && current) {
+    return 'both';
+  }
+  if (selected) {
     return 'selected';
   }
-  if (productValues?.[attributeKey] === value) {
+  if (current) {
     return 'soft';
   }
   return 'inactive';
 }
 
-function chipStateClassName(state: VariantAttributeChipState): string {
+function chipStateClassName(state: VariantAttributeChipState, disabled: boolean): string {
+  if (disabled) {
+    return 'cursor-not-allowed border border-border-disabled bg-surface-disabled text-text-disabled';
+  }
   switch (state) {
+    case 'both':
+      return 'cursor-pointer border-2 border-dashed border-border-secondary bg-surface-information text-text-body outline-2 outline-dashed outline-offset-2 outline-border-black';
     case 'selected':
-      return 'cursor-pointer border-2 border-border-black text-text-body';
+      return 'cursor-pointer border-4 border-border-black text-text-body';
     case 'soft':
-      return 'cursor-pointer border border-border-secondary text-text-body';
+      return 'cursor-pointer border-2 border-border-secondary bg-surface-information text-text-body';
     default:
       return 'cursor-pointer border border-border-primary text-text-body';
   }
+}
+
+function orderValuesWithCurrentFirst(values: string[], currentValue: string | undefined): string[] {
+  if (!currentValue) {
+    return values;
+  }
+  const index = values.indexOf(currentValue);
+  if (index <= 0) {
+    return values;
+  }
+  return [currentValue, ...values.slice(0, index), ...values.slice(index + 1)];
 }
 
 interface VariantAttributeChipProps {
@@ -66,6 +93,7 @@ interface VariantAttributeChipProps {
   rawValue: string;
   displayValue: string;
   state: VariantAttributeChipState;
+  disabled?: boolean;
   onSelect?: (attributeKey: string, value: string) => void;
 }
 
@@ -74,20 +102,29 @@ function VariantAttributeChip({
   rawValue,
   displayValue,
   state,
+  disabled = false,
   onSelect,
 }: Readonly<VariantAttributeChipProps>): JSX.Element {
+  const isCurrent = state === 'soft' || state === 'both';
+  const isSelected = state === 'selected' || state === 'both';
   return (
     <button
       type="button"
+      disabled={disabled}
       className={cn(
         'rounded-sm px-2 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
-        chipStateClassName(state),
+        chipStateClassName(state, disabled),
       )}
       data-testid="product-variant-attribute-chip"
       data-chip-state={state}
-      aria-pressed={state === 'selected'}
-      aria-current={state === 'soft' ? 'true' : undefined}
-      onClick={() => onSelect?.(attributeKey, rawValue)}
+      aria-pressed={isSelected}
+      aria-current={isCurrent ? 'true' : undefined}
+      onClick={() => {
+        if (disabled) {
+          return;
+        }
+        onSelect?.(attributeKey, rawValue);
+      }}
     >
       {displayValue}
     </button>
@@ -96,12 +133,14 @@ function VariantAttributeChip({
 
 /**
  * Figma Variant Selection (`12799:113082`) — interactive chips grouped by attribute.
- * Every value stays clickable. Black border = shopper filter; thin blue border = opened variant.
+ * Black border = shopper filter. Blue background = opened variant. Both = dashed blue and black.
+ * A value with no sellable match under the other axes is disabled.
  */
 export function ProductVariantAttributeGroups({
   groups,
   selectedValues,
   productValues,
+  disabledValues,
   attributeLabels,
   attributeTypes,
   onSelect,
@@ -121,9 +160,12 @@ export function ProductVariantAttributeGroups({
     <div className={cn('flex flex-col items-start gap-4', className)} data-testid="product-variant-attribute-groups">
       {groups.map((group, groupIndex) => {
         const expanded = expandedKeys[group.key] === true;
-        const hasOverflow = group.values.length > VISIBLE_CHIP_LIMIT;
-        const visibleValues = expanded || !hasOverflow ? group.values : group.values.slice(0, VISIBLE_CHIP_LIMIT);
+        const orderedValues = orderValuesWithCurrentFirst(group.values, productValues?.[group.key]);
+        const hasOverflow = orderedValues.length > VISIBLE_CHIP_LIMIT;
+        const visibleValues = expanded || !hasOverflow ? orderedValues : orderedValues.slice(0, VISIBLE_CHIP_LIMIT);
         const label = resolveVariantAttributeLabel(group.key, group.name, attributeLabels, l10n);
+        const heading = group.unit ? `${label} (${group.unit})` : label;
+        const disabledForGroup = disabledValues?.[group.key] ?? [];
 
         return (
           <Fragment key={group.key}>
@@ -131,12 +173,14 @@ export function ProductVariantAttributeGroups({
             <div className="flex w-full flex-col gap-3">
               {/* Figma 12799:113082 Desktop/heading/h6 — pin desktop tokens; H6 text-2xl is mobile 12/12 below 1024px (COP-4811). */}
               <H6 className="text-[length:var(--desktop-font-size-heading-h6)] leading-[var(--desktop-line-height-heading-h6)]">
-                {label}
+                {heading}
               </H6>
               <div className="flex flex-wrap items-center gap-3">
                 {visibleValues.map((value) => {
                   const rawValue = typeof value === 'string' ? value : String(value);
-                  const displayValue = formatTemplateAttributeValue(rawValue, attributeTypes?.[group.key], locale);
+                  const namedValue = resolveVariantAttributeValueLabel(rawValue, group.valueNames?.[rawValue], l10n);
+                  const displayValue =
+                    namedValue ?? formatTemplateAttributeValue(rawValue, attributeTypes?.[group.key], locale);
                   const state = resolveChipState(group.key, rawValue, selectedValues, productValues);
 
                   return (
@@ -146,6 +190,7 @@ export function ProductVariantAttributeGroups({
                       rawValue={rawValue}
                       displayValue={displayValue}
                       state={state}
+                      disabled={disabledForGroup.includes(rawValue)}
                       onSelect={onSelect}
                     />
                   );

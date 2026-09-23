@@ -61,7 +61,7 @@ describe('ProductVariantAttributeGroups', () => {
     expect(screen.getByText('100')).toBeInTheDocument();
   });
 
-  it('keeps every chip clickable and marks the opened variant with a thin blue border', () => {
+  it('keeps chips clickable and marks the opened variant with a blue background', () => {
     render(
       <ProductVariantAttributeGroups
         groups={[
@@ -79,21 +79,21 @@ describe('ProductVariantAttributeGroups', () => {
     const inactive = screen.getByText('100 Ah');
 
     expect(selectedRed).toHaveAttribute('data-chip-state', 'selected');
-    expect(selectedRed).toHaveClass('border-2', 'border-border-black');
+    expect(selectedRed).toHaveClass('border-4', 'border-border-black');
     expect(selectedRed).not.toBeDisabled();
     expect(selectedBlue).toHaveAttribute('data-chip-state', 'selected');
     expect(selectedBlue).not.toBeDisabled();
 
     expect(current).toHaveAttribute('data-chip-state', 'soft');
     expect(current).toHaveAttribute('aria-current', 'true');
-    expect(current).toHaveClass('border', 'border-border-secondary');
-    expect(current).not.toHaveClass('border-2');
+    expect(current).toHaveClass('border-2', 'border-border-secondary', 'bg-surface-information');
+    expect(current).not.toHaveClass('border-4');
 
     expect(inactive).toHaveAttribute('data-chip-state', 'inactive');
     expect(inactive).not.toBeDisabled();
   });
 
-  it('lets the black filter border win when the opened value is also selected', () => {
+  it('uses a dashed blue and black border when the opened value is also selected', () => {
     render(
       <ProductVariantAttributeGroups
         groups={[{ key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] }]}
@@ -102,7 +102,11 @@ describe('ProductVariantAttributeGroups', () => {
       />,
     );
 
-    expect(screen.getByText('12 Ah')).toHaveAttribute('data-chip-state', 'selected');
+    const currentSelected = screen.getByText('12 Ah');
+    expect(currentSelected).toHaveAttribute('data-chip-state', 'both');
+    expect(currentSelected).toHaveAttribute('aria-pressed', 'true');
+    expect(currentSelected).toHaveAttribute('aria-current', 'true');
+    expect(currentSelected).toHaveClass('border-dashed', 'border-border-secondary', 'outline-border-black');
     expect(screen.getByText('60 Ah')).toHaveAttribute('data-chip-state', 'inactive');
     expect(screen.queryByTestId('product-variant-attribute-chip-tooltip')).not.toBeInTheDocument();
   });
@@ -195,5 +199,74 @@ describe('ProductVariantAttributeGroups', () => {
       formatDate('2026-08-27T12:00:00.000Z', 'en-US'),
     );
     expect(screen.getByTestId('product-variant-attribute-chip')).toHaveAttribute('data-chip-state', 'selected');
+  });
+
+  it('shows a localized value name instead of the qualifier key', () => {
+    render(
+      <ProductVariantAttributeGroups
+        groups={[
+          {
+            key: 'frequency',
+            name: { en: 'Frequency' },
+            values: ['ghz', '800'],
+            valueNames: { ghz: { en: '1 GHz' }, '800': { en: '800 mHz' } },
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('1 GHz')).toBeInTheDocument();
+    expect(screen.getByText('800 mHz')).toBeInTheDocument();
+    expect(screen.queryByText('ghz')).not.toBeInTheDocument();
+  });
+
+  it('keeps the opened value as the first chip when it would otherwise be hidden', () => {
+    const values = ['10 Ah', '20 Ah', '40 Ah', '50 Ah', '60 Ah', '70 Ah', '30 Ah'];
+
+    render(
+      <ProductVariantAttributeGroups
+        groups={[{ key: 'capacity', name: 'Capacity', values }]}
+        productValues={{ capacity: '30 Ah' }}
+      />,
+    );
+
+    const chips = screen.getAllByTestId('product-variant-attribute-chip');
+    expect(chips[0]).toHaveTextContent('30 Ah');
+    expect(chips).toHaveLength(6);
+    expect(screen.queryByText('70 Ah')).not.toBeInTheDocument();
+  });
+
+  it('disables values that have no sellable match and keeps a selected value enabled', () => {
+    const onSelect = jest.fn();
+    render(
+      <ProductVariantAttributeGroups
+        groups={[{ key: 'color', name: 'Color', values: ['Red', 'Blue'] }]}
+        selectedValues={{ color: ['Red'] }}
+        disabledValues={{ color: ['Blue'] }}
+        onSelect={onSelect}
+      />,
+    );
+
+    const blue = screen.getByText('Blue');
+    expect(blue).toBeDisabled();
+    expect(blue).toHaveClass('bg-surface-disabled');
+    fireEvent.click(blue);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.getByText('Red')).not.toBeDisabled();
+  });
+
+  it('shows a key-echo attribute name instead of a dash', () => {
+    render(<ProductVariantAttributeGroups groups={[{ key: 'Width', name: { en: 'Width' }, values: ['40'] }]} />);
+
+    expect(screen.getByRole('heading', { name: 'Width' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '-' })).not.toBeInTheDocument();
+  });
+
+  it('appends a shared measurement unit beside the attribute name', () => {
+    render(
+      <ProductVariantAttributeGroups groups={[{ key: 'Width', name: { en: 'Width' }, values: ['40'], unit: 'cm' }]} />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Width (cm)' })).toBeInTheDocument();
   });
 });

@@ -7,14 +7,16 @@
   "Languages": {
     "label": "Languages",
     "en": "English",
-    "de": "German"
+    "de": "German",
+    "switchFailed": "Unable to change language. Nothing was changed. Please try again."
   },
   "Currencies": {
-    "label": "Währungen"
+    "label": "Währungen",
+    "switchFailed": "Unable to change currency. Nothing was changed. Please try again."
   },
   "Regions": {
     "label": "Site",
-    "switchFailed": "Unable to switch site. Please try again.",
+    "switchFailed": "Unable to switch site. Nothing was changed. Please try again.",
     "currencyFallback": "Currency switched from {from} to {to} — your cart has items that are not priced in {from}.",
     "currencyFallbackCoupons": "Currency switched from {from} to {to} — remove coupon {codes} first if you need {from}.",
     "currencySwitchCartBlocked": "Currency not switched from {fromCurrency} to {toCurrency} — your cart has items that are not priced in {toCurrency}.",
@@ -25,7 +27,7 @@
     "errorLoading": "Unable to load companies",
     "errorLoadingDescription": "Please try again later.",
     "errorSwitching": "Failed to switch company",
-    "errorSwitchingDescription": "Please try again."
+    "errorSwitchingDescription": "The company was not changed. Please try again."
   },
   "hello": {
     "world": "Hello World",
