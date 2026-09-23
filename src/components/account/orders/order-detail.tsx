@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SummaryCard, SummaryField } from '@/components/ui/summary-card';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { TruncatedText } from '@/components/ui/truncated-text';
 import { useOrder } from '@/hooks/order/useOrder';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { isOrderAccessDeniedError } from '@/lib/client/orders';
@@ -85,19 +86,23 @@ function OrderAppliedPromoList({ discounts }: { readonly discounts: OrderDiscoun
     return null;
   }
   return (
-    <ul className="flex w-full flex-col gap-3 rounded-md border border-border-success bg-surface-success px-4 py-2">
+    <ul className="flex w-full min-w-0 flex-col gap-3 rounded-md border border-border-success bg-surface-success px-4 py-2">
       {visible.map((discount, index) => (
         <li
           key={`${discount.code}-${index}`}
-          className="flex w-full flex-col gap-0.5"
+          className="flex w-full min-w-0 flex-col gap-0.5"
           data-testid={`order-appliedPromo-${discount.code}`}
         >
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1">
             <BadgePercent className="size-[18px] shrink-0 text-icon-success" aria-hidden />
-            <p className="min-w-0 flex-1 text-sm leading-5 text-text-body">{discount.code}</p>
+            <TruncatedText text={discount.code} className="text-sm leading-5 text-text-body" />
           </div>
-          <div className="flex items-start justify-between gap-2 text-sm leading-5 text-text-body">
-            {discount.description ? <p className="min-w-0 font-normal">{discount.description}</p> : <span />}
+          <div className="flex min-w-0 items-center justify-between gap-2 text-sm leading-5 text-text-body">
+            {discount.description ? (
+              <TruncatedText text={discount.description} className="font-normal text-sm leading-5 text-text-body" />
+            ) : (
+              <span />
+            )}
             <p
               className="shrink-0 text-right text-sm font-normal leading-5"
               data-testid={`order-appliedPromoAmount-${discount.code}`}
@@ -630,7 +635,7 @@ export function OrderDetail({
 
       {/* Detail cards: Order Overview, Shipping, Payment — 3 cols from lg so cards fill width (no empty 4th track). */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+        <div className="min-w-0 p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
           <SummaryCard
             heading={tOrder('orderOverview')}
             className="shadow-none rounded-md p-4 h-full gap-4"
