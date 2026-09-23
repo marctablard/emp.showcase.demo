@@ -15,6 +15,7 @@ import {
   resolveTemplateAttributeLabel,
   resolveVariantAttributeLabel,
 } from '@/lib/common/product-template-attributes';
+import { L10N_MISSING_LABEL } from '@/lib/l10n';
 import { formatCurrency } from '@/lib/utils';
 import type { LocalizedString } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
@@ -90,6 +91,7 @@ type FlyOutAttributeOptions = {
   isBold?: boolean;
   keyword?: string;
   locale?: string;
+  variantAttributes?: Product['variantAttributes'];
   templateAttributeLabels?: Product['templateAttributeLabels'];
   templateAttributeTypes?: Product['templateAttributeTypes'];
   l10n?: (value: LocalizedString | string) => string;
@@ -102,13 +104,14 @@ function resolveFlyOutAttributeLabel(
   options?: FlyOutAttributeOptions,
 ): string {
   if (attributeType === 'productVariantAttributes' && options?.l10n) {
-    return resolveVariantAttributeLabel(key, undefined, options.templateAttributeLabels, options.l10n);
+    const attributeName = options.variantAttributes?.find((attribute) => attribute.key === key)?.name;
+    return resolveVariantAttributeLabel(key, attributeName, options.templateAttributeLabels, options.l10n);
   }
   if (attributeType === 'productTemplateAttributes' && options?.l10n) {
     return resolveTemplateAttributeLabel(key, options.templateAttributeLabels, options.l10n);
   }
   return t(dk<ProductAttributeKey>(`filters.mixins.${attributeType}.${key}`), {
-    defaultValue: formatAttributeKey(key),
+    defaultValue: L10N_MISSING_LABEL,
   });
 }
 
@@ -247,6 +250,7 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
                       maxItems: Math.min(maxTotalAttributes, variantCount),
                       keyword,
                       locale,
+                      variantAttributes: product.variantAttributes,
                       templateAttributeLabels: product.templateAttributeLabels,
                       templateAttributeTypes: product.templateAttributeTypes,
                       l10n,

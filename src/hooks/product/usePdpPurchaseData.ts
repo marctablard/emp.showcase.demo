@@ -24,13 +24,35 @@ function hasPurchasePriceSemantics(price: ProductPrice): boolean {
   return typeof price.tax?.netValue === 'number' || price.includesTax === false;
 }
 
+function embeddedPriceMatchesQuantity(embedded: ProductPrice, quantity: number): boolean {
+  const embeddedQuantity = embedded.quantity?.quantity;
+  return typeof embeddedQuantity === 'number' && embeddedQuantity === quantity;
+}
+
+function canReuseEmbeddedPurchasePrice(
+  embedded: ProductPrice | undefined,
+  quantity: number,
+  session: Session,
+  site: Site | null | undefined,
+): embedded is ProductPrice {
+  if (!embedded?.currency) {
+    return false;
+  }
+  return (
+    hasPurchasePriceSemantics(embedded) &&
+    isProductPriceDisplayableForPurchase(embedded.currency, session, site) &&
+    embeddedPriceMatchesQuantity(embedded, quantity)
+  );
+}
+
 /**
- * Keeps PDP price + availability aligned with the current shop/session context.
+ * Keeps PDP price + availability aligned with the current shop/session context and quantity.
  */
 export function usePdpPurchaseData(
   product: Product | null | undefined,
   session: Session | null | undefined,
   site: Site | null | undefined,
+  quantity: number = 1,
 ): UsePdpPurchaseDataResult {
   const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
   const [availability, setAvailability] = useState<StockAvailability | undefined>(product?.availability);
@@ -53,16 +75,12 @@ export function usePdpPurchaseData(
       }
 
       const embedded = product.price;
-      if (
-        embedded?.currency &&
-        hasPurchasePriceSemantics(embedded) &&
-        isProductPriceDisplayableForPurchase(embedded.currency, session, site)
-      ) {
+      if (canReuseEmbeddedPurchasePrice(embedded, quantity, session, site)) {
         setPrice(embedded);
         return;
       }
 
-      const nextPrice = await fetchProductPrice(product.id, undefined, undefined, session.currency);
+      const nextPrice = await fetchProductPrice(product.id, quantity, undefined, session.currency);
       if (cancelled || syncGeneration !== priceSyncGenerationRef.current) {
         return;
       }
@@ -87,7 +105,7 @@ export function usePdpPurchaseData(
       cancelled = true;
       cancelStart();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on product id and embedded price fields, not product object identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on product id, quantity, and embedded price fields, not product object identity
   }, [
     product?.id,
     product?.price?.id,
@@ -95,6 +113,8 @@ export function usePdpPurchaseData(
     product?.price?.amount,
     product?.price?.includesTax,
     product?.price?.tax?.netValue,
+    product?.price?.quantity?.quantity,
+    quantity,
     session,
     site,
   ]);

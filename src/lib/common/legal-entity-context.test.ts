@@ -1,4 +1,6 @@
 import {
+  firstAssignedLegalEntityId,
+  readContextLegalEntityId,
   resolveClientSelectedLegalEntityId,
   resolveLegalEntityIdFromSessionAndCustomer,
   resolvePermittedSelectedLegalEntityId,
@@ -21,6 +23,32 @@ describe('resolveLegalEntityIdFromSessionAndCustomer', () => {
 
   it('returns undefined when neither side has id', () => {
     expect(resolveLegalEntityIdFromSessionAndCustomer(undefined, null)).toBeUndefined();
+  });
+});
+
+describe('firstAssignedLegalEntityId', () => {
+  it('returns the first entity that has both an id and a name', () => {
+    expect(
+      firstAssignedLegalEntityId([
+        { id: '  ', name: 'Missing' },
+        { id: ' le-1 ', name: ' The LA La Ride ' },
+        { id: 'le-2', name: 'Darina Company LTD' },
+      ]),
+    ).toBe('le-1');
+  });
+
+  it('returns undefined when nothing is displayable', () => {
+    expect(firstAssignedLegalEntityId(undefined)).toBeUndefined();
+    expect(firstAssignedLegalEntityId([{ id: 'le-1', name: '  ' }])).toBeUndefined();
+  });
+});
+
+describe('readContextLegalEntityId', () => {
+  it('reads a string or a session-context attribute value', () => {
+    expect(readContextLegalEntityId('  le-1  ')).toBe('le-1');
+    expect(readContextLegalEntityId({ key: 'legalEntityId', value: 'le-2' })).toBe('le-2');
+    expect(readContextLegalEntityId({ value: '   ' })).toBeUndefined();
+    expect(readContextLegalEntityId(undefined)).toBeUndefined();
   });
 });
 

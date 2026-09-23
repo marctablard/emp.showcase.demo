@@ -342,11 +342,16 @@ describe('SegmentFilterService', () => {
       const result = await createService().filterProductIdsInScope(['p1', 'p2', 'p3'], 'main', SEGMENTS);
 
       expect([...result].sort()).toEqual(['p1', 'p2']);
-      expect(productApi.searchProducts).toHaveBeenCalledTimes(1);
-      expect(productApi.searchProducts).toHaveBeenCalledWith({
+      expect(productApi.searchProducts).toHaveBeenCalledTimes(2);
+      expect(productApi.searchProducts).toHaveBeenNthCalledWith(1, {
         page: 0,
         size: 2,
         criteria: { id: '(p2,p3)', categoryIds: '(B)' },
+      });
+      expect(productApi.searchProducts).toHaveBeenNthCalledWith(2, {
+        page: 0,
+        size: 1,
+        criteria: { id: '(p3)' },
       });
       // Membership never needs the descendant expansion.
       expect(categoryFilterExpansion.expandCategoryIdsForProductSearch).not.toHaveBeenCalled();
@@ -362,14 +367,36 @@ describe('SegmentFilterService', () => {
       expect(productApi.searchProducts).not.toHaveBeenCalled();
     });
 
-    it('returns an empty set without calling the product API when both scopes are empty', async () => {
+    it('returns an empty set when both scopes are empty and products carry no active customerSegmentIds', async () => {
       customerSegmentService.getSegmentItems.mockResolvedValue([]);
       customerSegmentService.getCategoryTrees.mockResolvedValue([]);
 
       const result = await createService().filterProductIdsInScope(['p1', 'p2'], 'main', SEGMENTS);
 
       expect(result.size).toBe(0);
-      expect(productApi.searchProducts).not.toHaveBeenCalled();
+      expect(productApi.searchProducts).toHaveBeenCalledWith({
+        page: 0,
+        size: 2,
+        criteria: { id: '(p1,p2)' },
+      });
+    });
+
+    it('keeps a product whose customerSegmentIds intersect the active segments when category search misses it', async () => {
+      customerSegmentService.getSegmentItems.mockResolvedValue([]);
+      customerSegmentService.getCategoryTrees.mockResolvedValue([]);
+      productApi.searchProducts.mockResolvedValue({
+        items: [
+          { id: 'dyn-1', customerSegmentIds: ['s2', 'other'] },
+          { id: 'dyn-2', customerSegmentIds: ['foreign'] },
+        ],
+        page: 0,
+        size: 2,
+        total: 2,
+      });
+
+      const result = await createService().filterProductIdsInScope(['dyn-1', 'dyn-2'], 'main', SEGMENTS);
+
+      expect([...result]).toEqual(['dyn-1']);
     });
 
     it('ignores unassigned tree nodes (parent path only) for the category search', async () => {
@@ -379,7 +406,11 @@ describe('SegmentFilterService', () => {
       const result = await createService().filterProductIdsInScope(['p1'], 'main', SEGMENTS);
 
       expect(result.size).toBe(0);
-      expect(productApi.searchProducts).not.toHaveBeenCalled();
+      expect(productApi.searchProducts).toHaveBeenCalledWith({
+        page: 0,
+        size: 1,
+        criteria: { id: '(p1)' },
+      });
     });
 
     it('does not widen membership through grafted product-assigned categories', async () => {
@@ -395,7 +426,11 @@ describe('SegmentFilterService', () => {
 
       expect([...result]).toEqual(['tile-1']);
       // No assigned category → no `categoryIds:(…)` search; the graft never feeds membership.
-      expect(productApi.searchProducts).not.toHaveBeenCalled();
+      expect(productApi.searchProducts).toHaveBeenCalledWith({
+        page: 0,
+        size: 1,
+        criteria: { id: '(tile-2)' },
+      });
       expect(categoryApi.getCategoriesByReferenceId).not.toHaveBeenCalled();
     });
 
@@ -427,7 +462,11 @@ describe('SegmentFilterService', () => {
       const result = await createService().filterProductIdsInScope(['mine', 'foreign'], 'main', SEGMENTS);
 
       expect([...result]).toEqual(['mine']);
-      expect(productApi.searchProducts).not.toHaveBeenCalled();
+      expect(productApi.searchProducts).toHaveBeenCalledWith({
+        page: 0,
+        size: 1,
+        criteria: { id: '(foreign)' },
+      });
     });
   });
 });

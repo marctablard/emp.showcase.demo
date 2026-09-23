@@ -42,12 +42,14 @@ export interface ProductService {
   getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined>;
 
   /**
-   * Retrieves a list of variant products for a specified parent product.
-   * @param parentId The ID of the parent product.
+   * Retrieves variant-family products for an opened product id.
+   * For classic contracts this resolves the parent family; for dynamic contracts this resolves
+   * the root variants map family.
+   * @param openedId The currently opened product ID.
    * @param options Optional fetch options for including additional data.
    * @returns A list of variant products.
    */
-  getVariantProducts(parentId: string, options?: ProductFetchOptions): Promise<Product[]>;
+  getVariantProducts(openedId: string, options?: ProductFetchOptions): Promise<Product[]>;
 
   /**
    * Retrieves a paginated list of products.

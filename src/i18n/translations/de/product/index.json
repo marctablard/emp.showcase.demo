@@ -44,11 +44,13 @@
   "more": "Mehr Produktfunktionen",
   "showMore": "Mehr anzeigen…",
   "showLess": "Weniger anzeigen",
+  "clearAllFilters": "Alle Filter löschen",
   "technicalInformation": "Technische Informationen",
   "otherVariants": "Andere Varianten",
   "variants": {
     "sellableVariants": "verkäufliche Variante",
-    "count": "({count, plural, one {# Variante} other {# Varianten}})"
+    "count": "({count, plural, one {# Variante} other {# Varianten}})",
+    "noMatchingSellableVariants": "Es gibt keine verkäuflichen Varianten, die zu Ihrer Attributauswahl passen."
   },
   "shipping": {
     "deliveryDetails": "Lieferdetails",
@@ -65,6 +67,10 @@
   },
   "price": {
     "yourPrice": "Ihr Preis",
+    "yourPriceItemsRange": "Ihr Preis (Artikel {min} - {max})",
+    "yourPriceItemsFrom": "Ihr Preis (Artikel {min}+)",
+    "amountForItemsRange": "{amount} für Artikel {min} - {max}",
+    "amountForItemsFrom": "{amount} für Artikel {min}+",
     "listPrice": "Listenpreis",
     "including": "inkl",
     "discount": "Rabatt",
@@ -148,6 +154,7 @@
   "compareTooltipMasterProduct": "Hauptprodukt kann nicht verglichen werden. Bitte wählen Sie eine bestimmte Variante.",
   "cartTooltipMasterProduct": "Hauptprodukt kann nicht in den Warenkorb gelegt werden. Bitte wählen Sie eine bestimmte Variante.",
   "wishlistTooltipMasterProduct": "Hauptprodukt kann nicht zur Wunschliste hinzugefügt werden. Bitte wählen Sie eine bestimmte Variante.",
+  "cartTooltipNotSellable": "Dieses Produkt ist nicht verkäuflich und kann nicht in den Warenkorb gelegt werden.",
   "cartTooltipNotPurchasable": "Dieses Produkt ist nicht zum Kauf verfügbar.",
   "cartTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht in den Warenkorb gelegt werden.",
   "wishlistTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht zur Wunschliste hinzugefügt werden.",

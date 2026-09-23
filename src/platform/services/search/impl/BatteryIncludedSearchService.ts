@@ -883,9 +883,10 @@ class BatteryIncludedSearchService implements SearchService {
       return undefined;
     }
 
-    // COP-4822 AC4: Emporix membership is the source of truth (category-assigned + directly
-    // assigned products). The BI `_product_siteAware.segmentIds` field is not a reliable PDP
-    // gate — a direct URL must 404 when the product is outside the customer's segments.
+    // COP-4822 AC4: Emporix membership is the source of truth (category assignment, direct
+    // segment items, and product.customerSegmentIds). The BI `_product_siteAware.segmentIds`
+    // field is not a reliable PDP gate — a direct URL must 404 when the product is outside
+    // the customer's segments.
     if (options?.segmentIds !== undefined) {
       const inScope = await this.productService.isInSegmentScope(id, {
         segmentIds: options.segmentIds,

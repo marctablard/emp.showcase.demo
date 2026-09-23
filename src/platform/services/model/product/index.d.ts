@@ -51,7 +51,7 @@ export interface ProductUSP {
 export interface ProductVariantAttribute {
   key: string;
   name?: string | LocalizedString;
-  values: { key: string; name?: string | LocalizedString; selected: boolean }[];
+  values: { key: string; name?: string | LocalizedString; unit?: string; selected: boolean }[];
 }
 
 /** Emporix product-template attribute `type` values. */
@@ -70,6 +70,11 @@ export interface Product {
   isParentVariant?: boolean;
   variantCount?: number;
   parentVariantId?: string;
+  productType?: 'BASIC' | 'VARIANT' | 'PARENT_VARIANT' | 'DYNAMIC_VARIANT';
+  sellable?: boolean;
+  /** Direct parent at index 0, root at the last index. Empty on root-level products. */
+  parentVariantPath?: string[];
+  dynamicVariantType?: string;
   primaryCategory?: Category;
   categories?: Category[];
   labels?: ProductLabel[];

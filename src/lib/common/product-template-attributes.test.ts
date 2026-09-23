@@ -78,10 +78,35 @@ describe('resolveVariantAttributeLabel', () => {
     ).toBe('A Very Long Attribute Name To Test Wrapping');
   });
 
-  it('returns missing label when only the key is available', () => {
-    expect(resolveVariantAttributeLabel('a-number-attribute-9', { en: 'a-number-attribute-9' }, undefined, l10n)).toBe(
-      L10N_MISSING_LABEL,
+  it('shows a localized name that contains hyphens or underscores', () => {
+    expect(resolveVariantAttributeLabel('a-number-attribute-9', { en: 'Number-Attribute' }, undefined, l10n)).toBe(
+      'Number-Attribute',
     );
+    expect(resolveVariantAttributeLabel('a-number-attribute-9', { en: 'Num_Attribute' }, undefined, l10n)).toBe(
+      'Num_Attribute',
+    );
+    expect(
+      resolveVariantAttributeLabel('Max-Operating-Pressure', { en: 'Max-Operating-Pressure' }, undefined, l10n),
+    ).toBe('Max-Operating-Pressure');
+    expect(resolveVariantAttributeLabel('threadSize', { en: 'Thread-Size / Pitch' }, undefined, l10n)).toBe(
+      'Thread-Size / Pitch',
+    );
+  });
+
+  it('shows a key-echo name, including a generated key, when that is the only label', () => {
+    expect(resolveVariantAttributeLabel('Width', { en: 'Width' }, undefined, l10n)).toBe('Width');
+    expect(resolveVariantAttributeLabel('a-number-attribute-9', { en: 'a-number-attribute-9' }, undefined, l10n)).toBe(
+      'a-number-attribute-9',
+    );
+    expect(resolveVariantAttributeLabel('colorFinish', { en: 'colorFinish' }, undefined, l10n)).toBe('colorFinish');
+  });
+
+  it('prefers a localized display name over a camelCase key', () => {
+    expect(resolveVariantAttributeLabel('colorFinish', { en: 'Color' }, undefined, l10n)).toBe('Color');
+  });
+
+  it('returns missing label when name is absent', () => {
+    expect(resolveVariantAttributeLabel('colorFinish', undefined, undefined, l10n)).toBe(L10N_MISSING_LABEL);
   });
 });
 

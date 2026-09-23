@@ -3,6 +3,7 @@ import { compareByPosition, walkCategoryTree } from '@/lib/category/category-tre
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import type { EmporixCategory } from '@/platform/integrations/emporix/model/category';
+import type { EmporixProduct } from '@/platform/integrations/emporix/model/product';
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
 import { buildProductCategoryIdsCriteriaValue } from '@/platform/integrations/emporix/product/buildProductCatalogScopeQ';
 import type { CategoryService } from '@/platform/services/category/CategoryService';
@@ -243,11 +244,12 @@ class SegmentFilterService {
 
   /**
    * Engine-agnostic membership check (Emporix PDP, variants on both engines).
-   * An id is in scope when it is directly assigned, or when one Product Service search
+   * An id is in scope when it is directly assigned, when one Product Service search
    * `q=id:(remaining) categoryIds:(assignedCategoryIds)` returns it (Emporix resolves subcategories
-   * of `categoryIds` inside the search, so assigned ids are passed unexpanded).
-   * Empty input, empty `segmentIds` or empty scopes → empty set without further upstream calls
-   * (fail closed).
+   * of `categoryIds` inside the search, so assigned ids are passed unexpanded), or when the
+   * product's own `customerSegmentIds` intersect the active segments. That last case covers
+   * product-level assignment, including DYNAMIC_VARIANT nodes category search does not return.
+   * Empty input or empty `segmentIds` → empty set without further upstream calls (fail closed).
    */
   async filterProductIdsInScope(
     productIds: string[],
@@ -270,7 +272,12 @@ class SegmentFilterService {
     const remaining = candidates.filter((id) => !inScope.has(id));
     const categoryIdsValue = buildProductCategoryIdsCriteriaValue(categoryScope.assignedCategoryIds);
 
-    if (remaining.length === 0 || !categoryIdsValue) {
+    if (remaining.length === 0) {
+      return inScope;
+    }
+
+    if (!categoryIdsValue) {
+      await this.includeProductsAssignedBySegmentField(remaining, new Set(activeSegmentIds), inScope);
       return inScope;
     }
 
@@ -286,11 +293,50 @@ class SegmentFilterService {
       }
     }
 
+    await this.includeProductsAssignedBySegmentField(
+      remaining.filter((id) => !inScope.has(id)),
+      new Set(activeSegmentIds),
+      inScope,
+    );
+
     this.logger.debug(
       { siteCode, candidates: candidates.length, inScope: inScope.size },
       'Resolved segment scope membership for product ids',
     );
     return inScope;
+  }
+
+  /**
+   * Product-level `customerSegmentIds` assignment. Category search misses some DYNAMIC_VARIANT
+   * nodes that Battery Included still lists for the same segment.
+   */
+  private async includeProductsAssignedBySegmentField(
+    productIds: string[],
+    activeSegmentIds: ReadonlySet<string>,
+    inScope: Set<string>,
+  ): Promise<void> {
+    if (productIds.length === 0) {
+      return;
+    }
+
+    const response = await this.productApi.searchProducts({
+      page: 0,
+      size: productIds.length,
+      criteria: { id: `(${productIds.join(',')})` },
+    });
+    const requested = new Set(productIds);
+    for (const item of response.items ?? []) {
+      const product = item as EmporixProduct;
+      if (!product.id || !requested.has(product.id)) {
+        continue;
+      }
+      const assignedToActiveSegment = (product.customerSegmentIds ?? []).some((segmentId) =>
+        activeSegmentIds.has(segmentId),
+      );
+      if (assignedToActiveSegment) {
+        inScope.add(product.id);
+      }
+    }
   }
 
   private async collectCategoryScope(siteCode: string): Promise<CollectedCategoryScope> {

@@ -3,8 +3,10 @@ import {
   collectVariantAttributeGroups,
   collectVariantAttributeKeys,
   getCompatibleAttributeValues,
+  getCompatibleAttributeValuesForFilters,
   getFirstVariantAttributeGroupFromChildren,
   getSelectedVariantAttributeValues,
+  getUnselectedVariantAttributePairs,
   getVariantAttributeDisplayPairs,
   isVariantFamilyProduct,
   sortKeysByTemplateAttributeOrder,
@@ -39,6 +41,39 @@ describe('collectVariantAttributeGroups', () => {
     const variants = [buildVariant('v1', [{ key: 'width', value: '20', name: 'Width' }])];
 
     expect(collectVariantAttributeGroups(parent, variants)).toEqual([{ key: 'width', name: 'Width', values: ['20'] }]);
+  });
+
+  it('keeps a shared value unit beside the attribute', () => {
+    const parent: Product = {
+      id: 'parent',
+      name: 'Parent',
+      description: '',
+      purchasable: false,
+    };
+    const variant: Product = {
+      id: 'v1',
+      name: 'v1',
+      description: '',
+      purchasable: true,
+      variantAttributeValues: { Width: '40' },
+      variantAttributes: [
+        {
+          key: 'Width',
+          name: { en: 'Width' },
+          values: [{ key: '40', name: { en: '40' }, unit: 'cm', selected: true }],
+        },
+      ],
+    };
+
+    expect(collectVariantAttributeGroups(parent, [variant])).toEqual([
+      {
+        key: 'Width',
+        name: { en: 'Width' },
+        values: ['40'],
+        valueNames: { '40': { en: '40' } },
+        unit: 'cm',
+      },
+    ]);
   });
 
   it('collects unique selected values from variants ordered by parent attributes', () => {
@@ -499,6 +534,46 @@ describe('isVariantFamilyProduct', () => {
       }),
     ).toBe(false);
   });
+
+  it('treats DYNAMIC_VARIANT as a family without classic parent flags', () => {
+    expect(
+      isVariantFamilyProduct({
+        id: 'dyn-root',
+        name: 'Dynamic root',
+        description: '',
+        purchasable: false,
+        productType: 'DYNAMIC_VARIANT',
+        sellable: false,
+        parentVariantPath: [],
+      }),
+    ).toBe(true);
+  });
+});
+
+describe('getUnselectedVariantAttributePairs', () => {
+  it('omits axes the shopper already selected and keeps the remaining pairs', () => {
+    const variant = buildVariant('leaf', [
+      { key: 'width', value: '15', name: 'Width' },
+      { key: 'height', value: 'Short', name: 'Height' },
+      { key: 'frequency', value: '50Hz', name: 'Frequency' },
+    ]);
+
+    expect(getUnselectedVariantAttributePairs(variant, { width: '15' })).toEqual([
+      { key: 'height', name: 'Height', value: 'Short' },
+      { key: 'frequency', name: 'Frequency', value: '50Hz' },
+    ]);
+  });
+
+  it('keeps an axis on the card when several values of that axis are selected', () => {
+    const variant = buildVariant('leaf', [
+      { key: 'color', value: 'Red', name: 'Color' },
+      { key: 'height', value: '30', name: 'Height' },
+    ]);
+
+    expect(getUnselectedVariantAttributePairs(variant, { color: ['Red', 'Blue'], height: ['30'] })).toEqual([
+      { key: 'color', name: 'Color', value: 'Red' },
+    ]);
+  });
 });
 
 describe('getCompatibleAttributeValues', () => {
@@ -527,5 +602,17 @@ describe('getCompatibleAttributeValues', () => {
     expect(
       [...getCompatibleAttributeValues(variants, { capacity: '60 Ah', voltage: '12 V' }, 'voltage')].sort(),
     ).toEqual(['12 V']);
+  });
+
+  it('treats several values on one axis as OR when judging another axis', () => {
+    expect(
+      [
+        ...getCompatibleAttributeValuesForFilters(
+          variants,
+          { capacity: ['12 Ah', '60 Ah'], voltage: '24 V' },
+          'capacity',
+        ),
+      ].sort(),
+    ).toEqual(['12 Ah']);
   });
 });

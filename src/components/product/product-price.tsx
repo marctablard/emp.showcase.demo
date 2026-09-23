@@ -11,6 +11,71 @@ import type { ProductPrice } from '@/platform/services/model/price';
 interface ProductPriceProps {
   price: ProductPrice | null;
   isAddToCartBar?: boolean;
+  /** Current PDP quantity — selects the active tier range on the Your Price label. */
+  quantity?: number;
+}
+
+interface TierItemRange {
+  min: number;
+  max: number | null;
+}
+
+type ProductPriceTranslations = ReturnType<typeof useTranslations<'product.price'>>;
+
+/** Same min/max as `buildTierDisplayRows` in product-tier-prices — current tier only. */
+function resolveCurrentTierItemRange(price: ProductPrice, quantity?: number): TierItemRange | null {
+  const tiers = price.tierValues;
+  // A single "1+" row is a basic price, not a tier schedule. The tier table uses the same cutoff.
+  if (!tiers || tiers.length <= 1) {
+    return null;
+  }
+
+  const activeQuantity =
+    typeof quantity === 'number' && Number.isFinite(quantity) ? quantity : price.quantity?.quantity;
+  if (typeof activeQuantity !== 'number' || !Number.isFinite(activeQuantity)) {
+    return null;
+  }
+
+  const sorted = [...tiers].sort((a, b) => a.minQuantity - b.minQuantity);
+  for (let index = 0; index < sorted.length; index += 1) {
+    const tier = sorted[index];
+    const nextMin = sorted[index + 1]?.minQuantity;
+    const isActive = activeQuantity >= tier.minQuantity && (nextMin == null || activeQuantity < nextMin);
+    if (!isActive) {
+      continue;
+    }
+    const min = Math.max(tier.minQuantity, 1);
+    const max = nextMin == null ? null : Math.max(nextMin - 1, min);
+    return { min, max };
+  }
+
+  return null;
+}
+
+function resolveYourPriceLabel(t: ProductPriceTranslations, range: TierItemRange | null): string {
+  if (range == null) {
+    return t('yourPrice');
+  }
+  if (range.max == null) {
+    return t('yourPriceItemsFrom', { min: range.min });
+  }
+  return t('yourPriceItemsRange', { min: range.min, max: range.max });
+}
+
+function resolveForItemsCaption(
+  t: ProductPriceTranslations,
+  amount: number,
+  currency: string,
+  range: TierItemRange | null,
+): string | null {
+  if (range == null) {
+    return null;
+  }
+  const formattedAmount = formatCurrency(amount, currency);
+  if (range.max == null) {
+    return t('amountForItemsFrom', { amount: formattedAmount, min: range.min });
+  }
+  return t('amountForItemsRange', { amount: formattedAmount, min: range.min, max: range.max });
 }
 
 /** Figma Discount Info / gross column width (`12830:188985` / `12830:188992`). */
@@ -122,12 +187,14 @@ function AddToCartBarPrice({
   priceFragment,
   taxSmallPrintText,
   syncReady,
+  yourPriceLabel,
   t,
 }: Readonly<{
   price: ProductPrice;
   priceFragment: React.ReactNode;
   taxSmallPrintText: string | null;
   syncReady: boolean;
+  yourPriceLabel: string;
   t: ReturnType<typeof useTranslations<'product.price'>>;
 }>): React.ReactElement {
   const hasDiscount = price.discountPercentage > 0;
@@ -147,7 +214,7 @@ function AddToCartBarPrice({
     >
       <div className="flex shrink-0 flex-col items-start" data-testid="product-price-current-column">
         <div className="flex items-center gap-1" data-testid="product-price-labels">
-          <span className="shrink-0 text-sm font-bold">{t('yourPrice')}</span>
+          <span className="shrink-0 text-sm font-bold">{yourPriceLabel}</span>
           {hasDiscount ? (
             <>
               <span className="shrink-0 text-sm">, {t('including')}</span>
@@ -179,7 +246,7 @@ function AddToCartBarPrice({
   );
 }
 
-export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<ProductPriceProps>) {
+export function ProductPriceComponent({ price, isAddToCartBar, quantity }: Readonly<ProductPriceProps>) {
   const t = useTranslations('product.price');
   const { ready: syncReady } = useGlobalSyncReady();
 
@@ -198,6 +265,9 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
   const parts = formatCurrencyToParts(displayAmount, price.currency);
   const priceFragment = buildStyledCurrencyParts(parts, t('notAvailable'), partSizes);
   const taxSmallPrintText = resolveTaxSmallPrintText(price, t);
+  const currentTierRange = resolveCurrentTierItemRange(price, quantity);
+  const yourPriceLabel = resolveYourPriceLabel(t, currentTierRange);
+  const forItemsCaption = resolveForItemsCaption(t, displayAmount, price.currency, currentTierRange);
 
   if (isAddToCartBar) {
     return (
@@ -206,6 +276,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
         priceFragment={priceFragment}
         taxSmallPrintText={taxSmallPrintText}
         syncReady={syncReady}
+        yourPriceLabel={yourPriceLabel}
         t={t}
       />
     );
@@ -216,7 +287,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
 
   const discountInfo = (
     <div className={cn('flex items-center gap-1', showListPrice && PRICE_LEFT_COLUMN_CLASS)}>
-      <span className="shrink-0 text-sm font-bold">{t('yourPrice')}</span>
+      <span className="shrink-0 text-sm font-bold">{yourPriceLabel}</span>
       {hasDiscount && (
         <>
           <span className="shrink-0 text-sm">, {t('including')}</span>
@@ -261,6 +332,11 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
           {currentPriceFigure}
           {listPriceAmount}
         </div>
+        {forItemsCaption ? (
+          <div className="text-sm text-text-body" data-testid="product-price-tier-caption">
+            {forItemsCaption}
+          </div>
+        ) : null}
       </div>
 
       {taxSmallPrintText ? <div className="text-sm mb-2 text-text-on-disabled">{taxSmallPrintText}</div> : null}

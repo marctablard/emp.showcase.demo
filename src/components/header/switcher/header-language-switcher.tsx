@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Languages } from 'lucide-react';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { Spinner } from '@/components/ui/spinner';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useSite } from '@/hooks/site/useSite';
 import { type LanguageKey, dk } from '@/i18n/dynamic-key';
 import { usePathname, useRouter } from '@/i18n/navigation';
@@ -61,12 +62,24 @@ export function LanguageSwitcher() {
     // language. Failures are logged but never block navigation — the SSR
     // layout self-heals unsupported locales on next request.
     try {
-      await updateSessionLanguage(newLocale);
+      const updated = await updateSessionLanguage(newLocale);
+      if (!updated) {
+        notify({
+          title: t('switchFailed'),
+          type: ToastType.Error,
+        });
+        return;
+      }
     } catch (err) {
       getLogger().error(
         { err, locale: newLocale, site: site.code },
         'updateSessionLanguage failed during language switch',
       );
+      notify({
+        title: t('switchFailed'),
+        type: ToastType.Error,
+      });
+      return;
     }
     const sanitizedSearch = stripLocalizedBreadcrumbFilter(globalThis.location.search);
     const isBrowsePath = pathname.endsWith('/browse');

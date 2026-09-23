@@ -46,8 +46,8 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
         return;
       }
 
-      const parentId = product.parentVariantId || product.id;
-      if (!parentId) {
+      const openedProductId = product.id;
+      if (!openedProductId) {
         setValues(targetAttribute.values || []);
         return;
       }
@@ -56,11 +56,11 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
       setError(null);
 
       try {
-        const variantsCacheKey = `${parentId}:${clientDedupeScope}`;
-        // Check store cache before making a network call (keyed by parent + mode/customer scope)
+        const variantsCacheKey = `${openedProductId}:${clientDedupeScope}`;
+        // Check store cache before making a network call (keyed by opened product + mode/customer scope)
         let variants = getVariants(variantsCacheKey);
         if (!variants) {
-          variants = await fetchProductVariants(parentId, clientDedupeScope);
+          variants = await fetchProductVariants(openedProductId, clientDedupeScope);
           setVariants(variantsCacheKey, variants);
         }
 

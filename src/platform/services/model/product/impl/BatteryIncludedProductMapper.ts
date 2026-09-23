@@ -599,6 +599,10 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     // W1: Synthesize minimal variant-attribute structures from _product.mixins.productVariantAttributes
     // Chips are intentionally single-value per attribute for BI in this iteration;
     // PARENT_VARIANT hits without mixins.productVariantAttributes produce empty variantAttributes by design.
+    // DYNAMIC_VARIANT uses own/inherited tree attributes — do not invent classic array-of-keys axes.
+    if (rootProduct.productType === 'DYNAMIC_VARIANT') {
+      return undefined;
+    }
     if (rootProduct.variantAttributes) {
       return rootProduct.variantAttributes as EmporixProduct['variantAttributes'];
     }

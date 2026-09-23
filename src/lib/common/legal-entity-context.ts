@@ -22,6 +22,40 @@ function trimmedLegalEntityId(value: string | undefined): string {
 }
 
 /**
+ * First legal entity the header company list would show (`id` and `name` both set).
+ * Login persists this id onto the session and customer token when the session has none.
+ */
+export function firstAssignedLegalEntityId(
+  legalEntities: ReadonlyArray<{ id?: string; name?: string }> | undefined,
+): string | undefined {
+  if (!legalEntities) {
+    return undefined;
+  }
+  for (const entity of legalEntities) {
+    const id = trimmedLegalEntityId(entity?.id);
+    const name = trimmedLegalEntityId(entity?.name);
+    if (id && name) {
+      return id;
+    }
+  }
+  return undefined;
+}
+
+/** Session-context `legalEntityId`, whether stored as a string or `{ value }`. */
+export function readContextLegalEntityId(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return trimmedLegalEntityId(value) || undefined;
+  }
+  if (value && typeof value === 'object' && 'value' in value) {
+    const nested = (value as { value?: unknown }).value;
+    if (typeof nested === 'string') {
+      return trimmedLegalEntityId(nested) || undefined;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Selected legal entity for User Management access/display.
  * Session (company switcher) wins when it is in `getCompanies()`. Otherwise
  * recover from the customer-token claim, then profile `legalEntityId`, if that

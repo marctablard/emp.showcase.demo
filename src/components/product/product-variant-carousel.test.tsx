@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { PRODUCT_NO_IMAGE_SRC } from '@/lib/common/product-image';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
 import { ProductVariantCarousel, resolvePageCount, resolveSlidesPerPage } from './product-variant-carousel';
@@ -81,9 +82,9 @@ jest.mock('@/components/ui/tooltip', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: { alt: string }) => {
+  default: (props: { alt: string; src?: string }) => {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img alt={props.alt} />;
+    return <img alt={props.alt} src={props.src} />;
   },
 }));
 
@@ -132,15 +133,23 @@ function buildVariants(count: number): Product[] {
 }
 
 describe('resolveSlidesPerPage / resolvePageCount', () => {
-  it('fits five 157px cards in an 876px viewport', () => {
+  it('fits five 161px cards in an 876px viewport', () => {
     expect(resolveSlidesPerPage(876)).toBe(5);
     expect(resolvePageCount(9, 5)).toBe(2);
   });
 });
 
 describe('ProductVariantCarousel', () => {
+  const scrollIntoView = jest.fn();
+
   beforeEach(() => {
     push.mockClear();
+    scrollIntoView.mockReset();
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
   });
 
   it('renders sellable variants with attribute values and net prices', () => {
@@ -258,5 +267,150 @@ describe('ProductVariantCarousel', () => {
 
     fireEvent.click(screen.getAllByTestId('product-variant-carousel-card')[1]);
     expect(push).toHaveBeenCalledWith('/product/v2');
+    expect(screen.getByTestId('product-variant-list-loading')).toBeInTheDocument();
+  });
+
+  it('clears navigation loading when the opened product id changes', () => {
+    const variants = [buildVariant('v1', '12 Ah'), buildVariant('v2', '60 Ah')];
+    const prices = [buildPrice('v1', 290.9), buildPrice('v2', 900)];
+    const { rerender } = render(
+      <ProductVariantCarousel
+        variants={variants}
+        prices={prices}
+        currentProductId="v1"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByTestId('product-variant-carousel-card')[1]);
+    expect(screen.getByTestId('product-variant-list-loading')).toBeInTheDocument();
+
+    rerender(
+      <ProductVariantCarousel
+        variants={variants}
+        prices={prices}
+        currentProductId="v2"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    expect(screen.queryByTestId('product-variant-list-loading')).not.toBeInTheDocument();
+  });
+
+  it('omits chip-selected axes from card call-outs and keeps differentiating values', () => {
+    const variants: Product[] = [
+      {
+        ...buildVariant('v1', '12 Ah'),
+        variantAttributes: [
+          { key: 'capacity', name: 'Capacity', values: [{ key: '12 Ah', selected: true }] },
+          { key: 'voltage', name: 'Voltage', values: [{ key: '12 V', selected: true }] },
+        ],
+      },
+      {
+        ...buildVariant('v2', '12 Ah'),
+        variantAttributes: [
+          { key: 'capacity', name: 'Capacity', values: [{ key: '12 Ah', selected: true }] },
+          { key: 'voltage', name: 'Voltage', values: [{ key: '24 V', selected: true }] },
+        ],
+      },
+    ];
+
+    render(
+      <ProductVariantCarousel
+        variants={variants}
+        prices={[buildPrice('v1', 10), buildPrice('v2', 20)]}
+        currentProductId="v1"
+        attributeOrder={['capacity', 'voltage']}
+        selectedFilters={{ capacity: '12 Ah' }}
+      />,
+    );
+
+    expect(screen.queryByText('12 Ah')).not.toBeInTheDocument();
+    expect(screen.getAllByText('12 V').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('24 V').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('pages to the selected card and scrolls it into view', () => {
+    render(
+      <ProductVariantCarousel
+        variants={buildVariants(9)}
+        prices={buildVariants(9).map((variant, index) => buildPrice(variant.id, 100 + index))}
+        currentProductId="v9"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    const selected = screen
+      .getAllByTestId('product-variant-carousel-card')
+      .find((card) => card.getAttribute('data-variant-selected') === 'true');
+    expect(selected).toBeDefined();
+    expect(screen.getByTestId('product-variant-carousel-track')).toHaveAttribute('data-page', '1');
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('renders a disabled non-sellable card that does not navigate', () => {
+    const disabled: Product = { ...buildVariant('v-off', '10'), sellable: false };
+
+    render(
+      <ProductVariantCarousel
+        variants={[buildVariant('v1', '12 Ah'), disabled]}
+        prices={[buildPrice('v1', 10), buildPrice('v-off', 20)]}
+        currentProductId="v-off"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    const cards = screen.getAllByTestId('product-variant-carousel-card');
+    expect(cards[1]).toBeDisabled();
+    expect(cards[1]).toHaveAttribute('aria-disabled', 'true');
+    expect(cards[1]).toHaveAttribute('data-variant-selected', 'true');
+    fireEvent.click(cards[1]);
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('product-variant-list-loading')).not.toBeInTheDocument();
+  });
+
+  it('shows the list loader above Sellable variants when isLoading is set', () => {
+    render(
+      <ProductVariantCarousel
+        variants={[buildVariant('v1', '12 Ah')]}
+        prices={[buildPrice('v1', 10)]}
+        currentProductId="v1"
+        attributeOrder={['capacity']}
+        isLoading
+      />,
+    );
+
+    const loading = screen.getByTestId('product-variant-list-loading');
+    expect(loading).toBeInTheDocument();
+    expect(loading.tagName).toBe('OUTPUT');
+    expect(screen.getByText('variants.sellableVariants')).toBeInTheDocument();
+    expect(screen.getByTestId('product-variant-carousel-card')).toBeInTheDocument();
+    expect(screen.getByTestId('product-variant-carousel-prev')).toBeInTheDocument();
+    expect(screen.getByTestId('product-variant-carousel-next')).toBeInTheDocument();
+  });
+
+  it('keeps the panel and explains when no sellable variants match', () => {
+    render(<ProductVariantCarousel variants={[]} prices={[]} currentProductId="v1" attributeOrder={['capacity']} />);
+
+    expect(screen.getByTestId('product-variant-carousel')).toBeInTheDocument();
+    expect(screen.getByText('variants.sellableVariants')).toBeInTheDocument();
+    expect(screen.getByTestId('product-variant-carousel-empty')).toHaveTextContent(
+      'variants.noMatchingSellableVariants',
+    );
+    expect(screen.queryByTestId('product-variant-carousel-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('product-variant-carousel-prev')).not.toBeInTheDocument();
+  });
+
+  it('uses the shared product image placeholder when a variant has no image', () => {
+    render(
+      <ProductVariantCarousel
+        variants={[buildVariant('v1', '12 Ah')]}
+        prices={[buildPrice('v1', 10)]}
+        currentProductId="v1"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: 'noImage' })).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
   });
 });

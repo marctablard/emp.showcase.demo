@@ -426,9 +426,10 @@ describe('ProductTile', () => {
       />,
     );
 
-    expect(screen.getByTestId('product-tile-variant-label-chip')).toHaveTextContent('-');
+    expect(screen.getByTestId('product-tile-variant-label-chip')).toHaveTextContent(
+      'a-very-long-attribute-name-to-test-wrapping',
+    );
     expect(screen.queryByText('First option')).not.toBeInTheDocument();
-    expect(screen.queryByText('a-very-long-attribute-name-to-test-wrapping')).not.toBeInTheDocument();
     expect(screen.queryByText(/filters.mixins.productVariantAttributes/)).not.toBeInTheDocument();
   });
 

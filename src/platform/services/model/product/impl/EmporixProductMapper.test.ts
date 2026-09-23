@@ -394,5 +394,138 @@ describe('EmporixProductMapper', () => {
         },
       ]);
     });
+
+    it('10. PARENT_VARIANT stays isParentVariant and not purchasable; DYNAMIC_VARIANT is not a classic parent', () => {
+      const parent = mapper.mapToService({
+        id: 'parent-1',
+        code: 'parent-1',
+        productType: 'PARENT_VARIANT',
+        variantAttributes: {
+          width: [{ key: 15 }],
+        },
+      } as any);
+
+      expect(parent.isParentVariant).toBe(true);
+      expect(parent.purchasable).toBe(false);
+      expect(parent.productType).toBe('PARENT_VARIANT');
+
+      const dynamic = mapper.mapToService({
+        id: 'dyn-root',
+        code: 'dyn-root',
+        productType: 'DYNAMIC_VARIANT',
+        sellable: false,
+        parentVariantPath: [],
+      } as any);
+
+      expect(dynamic.isParentVariant).toBe(false);
+      expect(dynamic.purchasable).toBe(false);
+      expect(dynamic.productType).toBe('DYNAMIC_VARIANT');
+      expect(dynamic.sellable).toBe(false);
+      expect(dynamic.parentVariantPath).toEqual([]);
+    });
+
+    it('11. maps DYNAMIC_VARIANT tree attributes with names and selected qualifier (Width / Height / Frequency)', () => {
+      const input = {
+        id: 'dyn-leaf',
+        code: 'dyn-leaf',
+        productType: 'DYNAMIC_VARIANT',
+        sellable: true,
+        parentVariantPath: ['dyn-l1', 'dyn-root'],
+        inheritedVariantAttributes: {
+          width: {
+            name: { en: 'Width' },
+            value: { type: 'NUMBER', qualifier: 15, name: { en: '15' } },
+          },
+          height: {
+            name: { en: 'Height' },
+            value: { type: 'STRING', qualifier: 'Short', name: { en: 'Short' } },
+          },
+        },
+        ownVariantAttributes: {
+          frequency: {
+            name: { en: 'Frequency' },
+            value: { type: 'STRING', qualifier: '50Hz', name: { en: '50 Hz' } },
+          },
+        },
+        mixins: { productVariantAttributes: { width: 'stale', extra: 'x' } },
+      } as any;
+
+      const result = mapper.mapToService(input);
+      expect(result.productType).toBe('DYNAMIC_VARIANT');
+      expect(result.sellable).toBe(true);
+      expect(result.parentVariantPath).toEqual(['dyn-l1', 'dyn-root']);
+      expect(result.purchasable).toBe(true);
+      expect(result.isParentVariant).toBe(false);
+      expect(result.variantAttributes).toEqual([
+        {
+          key: 'width',
+          name: { en: 'Width' },
+          values: [{ key: '15', name: { en: '15' }, selected: true }],
+        },
+        {
+          key: 'height',
+          name: { en: 'Height' },
+          values: [{ key: 'Short', name: { en: 'Short' }, selected: true }],
+        },
+        {
+          key: 'frequency',
+          name: { en: 'Frequency' },
+          values: [{ key: '50Hz', name: { en: '50 Hz' }, selected: true }],
+        },
+      ]);
+      expect(result.variantAttributeValues).toEqual({ width: '15', height: 'Short', frequency: '50Hz' });
+    });
+
+    it('12. DYNAMIC_VARIANT purchasable is true only when sellable is true', () => {
+      expect(
+        mapper.mapToService({
+          id: 'dyn-1',
+          code: 'dyn-1',
+          productType: 'DYNAMIC_VARIANT',
+          sellable: false,
+        } as any).purchasable,
+      ).toBe(false);
+
+      expect(
+        mapper.mapToService({
+          id: 'dyn-2',
+          code: 'dyn-2',
+          productType: 'DYNAMIC_VARIANT',
+        } as any).purchasable,
+      ).toBe(false);
+
+      expect(
+        mapper.mapToService({
+          id: 'dyn-3',
+          code: 'dyn-3',
+          productType: 'DYNAMIC_VARIANT',
+          sellable: true,
+        } as any).purchasable,
+      ).toBe(true);
+    });
+
+    it('13. classic PARENT_VARIANT does not enter the dynamic attribute branch', () => {
+      const result = mapper.mapToService({
+        id: 'parent-1',
+        code: 'parent-1',
+        productType: 'PARENT_VARIANT',
+        variantAttributes: {
+          width: [{ key: 15 }],
+        },
+        ownVariantAttributes: {
+          frequency: {
+            name: { en: 'Frequency' },
+            value: { qualifier: '50Hz', name: { en: '50 Hz' } },
+          },
+        },
+      } as any);
+
+      expect(result.variantAttributes).toEqual([
+        {
+          key: 'width',
+          values: [{ key: '15', selected: false }],
+        },
+      ]);
+    });
   });
 });

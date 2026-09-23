@@ -27,6 +27,7 @@ import {
   orderedTemplateAttributeEntries,
   resolveTemplateAttributeLabel,
   resolveVariantAttributeLabel,
+  resolveVariantAttributeValueLabel,
 } from '@/lib/common/product-template-attributes';
 import {
   PARENT_VARIANT_LABEL_BADGE_LIMIT,
@@ -162,11 +163,9 @@ function ProductTilePairChip({
   l10n: TileL10n;
 }>) {
   const label = resolveVariantAttributeLabel(pair.key, pair.name, product.templateAttributeLabels, l10n);
-  const displayValue = formatTemplateAttributeValue(
-    pair.value,
-    product.templateAttributeTypes?.[pair.key],
-    locale ?? 'en',
-  );
+  const displayValue =
+    resolveVariantAttributeValueLabel(pair.value, pair.valueName, l10n) ??
+    formatTemplateAttributeValue(pair.value, product.templateAttributeTypes?.[pair.key], locale ?? 'en');
   const isColorAttribute = pair.key === 'color' || pair.key === 'farbe';
 
   if (isColorAttribute) {

@@ -12,6 +12,7 @@ export default function TopBarSwitcher({
   options,
   current,
   label,
+  unselectedLabel,
   onSelected,
   icon,
   disabled,
@@ -22,19 +23,26 @@ export default function TopBarSwitcher({
   }[];
   current: string;
   label: string;
+  /**
+   * Shown on the trigger when `current` is empty. Callers that omit this keep the
+   * previous behaviour: no current value renders nothing.
+   */
+  unselectedLabel?: string;
   onSelected?: (code: string) => void;
   icon?: React.ReactNode;
 }) {
-  if (!options || options.length === 0 || !current) {
+  if (!options || options.length === 0 || (!current && !unselectedLabel)) {
     return null;
   }
 
-  // Single option: render static label without dropdown
-  if (options.length === 1) {
+  const currentName = options.find((option) => option.code === current)?.name;
+
+  // Single selected option: render static label without dropdown
+  if (options.length === 1 && currentName) {
     return (
       <span className="flex items-baseline gap-1.5 h-auto">
         <span className="flex self-center">{icon}</span>
-        <span className="text-sm">{options[0].name}</span>
+        <span className="text-sm">{currentName}</span>
       </span>
     );
   }
@@ -50,7 +58,7 @@ export default function TopBarSwitcher({
         disabled={disabled}
       >
         <span className="flex self-center">{icon}</span>
-        <span className="text-sm">{options.find((option) => option.code == current)?.name}</span>
+        <span className="text-sm">{currentName ?? unselectedLabel}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {options.map((option) => (

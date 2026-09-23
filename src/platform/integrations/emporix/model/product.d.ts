@@ -53,6 +53,29 @@ export interface EmporixProductTemplateDefinition {
 export type EmporixProductTemplate = EmporixProductTemplateRef &
   Partial<Pick<EmporixProductTemplateDefinition, 'name' | 'attributes' | 'metadata'>>;
 
+/** Accumulated / own / inherited attribute value on a DYNAMIC_VARIANT node. */
+export type EmporixDynamicVariantValue = {
+  type?: 'STRING' | 'NUMBER' | 'DECIMAL' | 'BOOLEAN';
+  qualifier?: string | number | boolean;
+  name?: EmporixLocalizedString | string;
+  unit?: string;
+};
+
+export type EmporixDynamicVariantAttribute = {
+  name?: EmporixLocalizedString | string;
+  value?: EmporixDynamicVariantValue;
+};
+
+/** Entry in a DYNAMIC_VARIANT root `variants` map (keyed by product id). */
+export type EmporixDynamicVariantEntry = {
+  code?: string;
+  name?: EmporixLocalizedString | string;
+  parentVariantId?: string;
+  sellable?: boolean;
+  dynamicVariantType?: string;
+  variantAttributes?: Record<string, EmporixDynamicVariantAttribute>;
+};
+
 export interface EmporixProduct {
   id?: string;
   yrn?: string;
@@ -60,7 +83,7 @@ export interface EmporixProduct {
   name: string | EmporixLocalizedString;
   description?: string | EmporixLocalizedString;
   media?: EmporixMedia[];
-  productType?: 'BASIC' | 'VARIANT' | 'PARENT_VARIANT';
+  productType?: 'BASIC' | 'VARIANT' | 'PARENT_VARIANT' | 'DYNAMIC_VARIANT';
   parentVariantId?: string;
   parentVariant?: EmporixProduct;
   brandId?: string;
@@ -77,10 +100,28 @@ export interface EmporixProduct {
    * Expanded responses include `attributes[].name` (localized label maps).
    */
   template?: EmporixProductTemplate;
+  /**
+   * Classic PARENT_VARIANT / VARIANT axes: map of dimension → array of `{ key }`.
+   * Dynamic trees use `ownVariantAttributes` / `inheritedVariantAttributes` / `variants` instead.
+   */
   variantAttributes?: {
-    /** Value keys may be string, number, or boolean from Product Service. */
-    [key: string]: Array<{ key: string | number | boolean }>;
+    /** Value keys may be string, number, or boolean from Product Service. `name` is the localized value label. */
+    [key: string]: Array<{ key: string | number | boolean; name?: EmporixLocalizedString | string }>;
   };
+  /** Structural sellable flag on DYNAMIC_VARIANT nodes (not inherited). */
+  sellable?: boolean;
+  dynamicVariantType?: string;
+  /** Direct parent at index 0, root at the last index. Empty on root-level products. */
+  parentVariantPath?: string[];
+  ownVariantAttributes?: Record<string, EmporixDynamicVariantAttribute>;
+  inheritedVariantAttributes?: Record<string, EmporixDynamicVariantAttribute>;
+  /** Denormalized storefront map on a DYNAMIC_VARIANT root (or a payload that has one). */
+  variants?: Record<string, EmporixDynamicVariantEntry>;
   /** Catalog / navigation root category ids (Product Service). */
   categoryIds?: string[];
+  /**
+   * Product-level segment assignment. Distinct from segment-item PRODUCT rows and from
+   * category assignment. DYNAMIC_VARIANT nodes often carry this when category search misses them.
+   */
+  customerSegmentIds?: string[];
 }

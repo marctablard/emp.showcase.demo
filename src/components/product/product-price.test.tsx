@@ -19,6 +19,18 @@ jest.mock('next-intl', () => ({
     if (key === 'excludingTax' && values?.taxRate != null) {
       return `excl. ${values.taxRate}% VAT`;
     }
+    if (key === 'yourPriceItemsRange' && values?.min != null && values?.max != null) {
+      return `Your price (items ${values.min} - ${values.max})`;
+    }
+    if (key === 'yourPriceItemsFrom' && values?.min != null) {
+      return `Your price (items ${values.min}+)`;
+    }
+    if (key === 'amountForItemsRange' && values?.amount != null && values.min != null && values.max != null) {
+      return `${values.amount} for items ${values.min} - ${values.max}`;
+    }
+    if (key === 'amountForItemsFrom' && values?.amount != null && values.min != null) {
+      return `${values.amount} for items ${values.min}+`;
+    }
     return key;
   },
 }));
@@ -337,5 +349,138 @@ describe('ProductPriceComponent discount wording and list price', () => {
     expect(normalizedText(screen.getByTestId('product-price'))).toContain(
       normalizeWhitespace(formatCurrency(459.99, 'EUR')),
     );
+  });
+});
+
+describe('ProductPriceComponent qty-aware Your Price label', () => {
+  const volumeTiers = [
+    { id: 't1', minQuantity: 1, price: 150 },
+    { id: 't2', minQuantity: 10, price: 100 },
+    { id: 't3', minQuantity: 30, price: 98 },
+  ];
+
+  it('exposes qty-aware your-price keys in en and de', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const en = require('@/i18n/translations/en/product/index.json') as {
+      price: {
+        yourPriceItemsRange: string;
+        yourPriceItemsFrom: string;
+        amountForItemsRange: string;
+        amountForItemsFrom: string;
+      };
+    };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const de = require('@/i18n/translations/de/product/index.json') as {
+      price: {
+        yourPriceItemsRange: string;
+        yourPriceItemsFrom: string;
+        amountForItemsRange: string;
+        amountForItemsFrom: string;
+      };
+    };
+    expect(en.price.yourPriceItemsRange).toBe('Your price (items {min} - {max})');
+    expect(en.price.yourPriceItemsFrom).toBe('Your price (items {min}+)');
+    expect(en.price.amountForItemsFrom).toBe('{amount} for items {min}+');
+    expect(de.price.yourPriceItemsRange).toBe('Ihr Preis (Artikel {min} - {max})');
+    expect(de.price.yourPriceItemsFrom).toBe('Ihr Preis (Artikel {min}+)');
+    expect(de.price.amountForItemsFrom).toBe('{amount} für Artikel {min}+');
+  });
+
+  it('labels the current closed tier as Your price (items min - max) and keeps net-first amount', () => {
+    const price = buildPrice({
+      amount: 150,
+      originalAmount: 150,
+      discountPercentage: 0,
+      quantity: { quantity: 5 },
+      tax: {
+        taxCode: 'STANDARD',
+        taxRate: 19,
+        netValue: 150,
+        grossValue: 178.5,
+        amount: 28.5,
+        currency: 'EUR',
+      },
+      tierValues: volumeTiers,
+    });
+    render(<ProductPriceComponent price={price} quantity={5} />);
+
+    const labels = normalizedText(screen.getByTestId('product-price-labels'));
+    expect(labels).toContain('Your price (items 1 - 9)');
+    expectLargeFigure(150);
+    expect(normalizedText(screen.getByTestId('product-price-tier-caption'))).toContain('for items 1 - 9');
+  });
+
+  it('labels the last tier as Your price (items min+) and captions the fetched net amount', () => {
+    const price = buildPrice({
+      amount: 88.2,
+      originalAmount: 98,
+      discountPercentage: 10,
+      quantity: { quantity: 30 },
+      tax: {
+        taxCode: 'STANDARD',
+        taxRate: 19,
+        netValue: 88.2,
+        grossValue: 105,
+        amount: 16.8,
+        currency: 'EUR',
+      },
+      tierValues: volumeTiers,
+    });
+    render(<ProductPriceComponent price={price} quantity={30} />);
+
+    expect(normalizedText(screen.getByTestId('product-price-labels'))).toContain('Your price (items 30+)');
+    expectLargeFigure(88.2);
+    expect(screen.getByText('-10%')).toBeInTheDocument();
+    expect(normalizedText(screen.getByTestId('product-price-tier-caption'))).toContain('for items 30+');
+  });
+
+  it('uses discountPercentage from match-prices and does not strike through Your Price net/gross', () => {
+    const price = buildPrice({
+      amount: 88.2,
+      originalAmount: 88.2,
+      discountPercentage: 10,
+      quantity: { quantity: 30 },
+      tax: {
+        taxCode: 'STANDARD',
+        taxRate: 19,
+        netValue: 88.2,
+        grossValue: 105,
+        amount: 16.8,
+        currency: 'EUR',
+      },
+      tierValues: volumeTiers,
+    });
+    render(<ProductPriceComponent price={price} quantity={30} />);
+
+    const root = screen.getByTestId('product-price');
+    expect(screen.getByText('-10%')).toBeInTheDocument();
+    expect(root.querySelector('.line-through')).toBeNull();
+    expectLargeFigure(88.2);
+    expect(normalizedText(root)).toContain(normalizeWhitespace(formatCurrency(105, 'EUR')));
+    expect(normalizedText(root)).toContain('gross');
+  });
+
+  it('keeps the plain yourPrice label when match-prices returns no tier rows', () => {
+    render(<ProductPriceComponent price={buildPrice({ tierValues: [], discountPercentage: 0 })} />);
+
+    expect(normalizedText(screen.getByTestId('product-price-labels'))).toContain('yourPrice');
+    expect(screen.queryByTestId('product-price-tier-caption')).not.toBeInTheDocument();
+  });
+
+  it('keeps the plain yourPrice label when there is only a single tier', () => {
+    render(
+      <ProductPriceComponent
+        price={buildPrice({
+          tierValues: [{ id: 't1', minQuantity: 1, price: 289.71 }],
+          discountPercentage: 0,
+          quantity: { quantity: 1 },
+        })}
+        quantity={1}
+      />,
+    );
+
+    expect(normalizedText(screen.getByTestId('product-price-labels'))).toContain('yourPrice');
+    expect(normalizedText(screen.getByTestId('product-price-labels'))).not.toContain('items 1+');
+    expect(screen.queryByTestId('product-price-tier-caption')).not.toBeInTheDocument();
   });
 });

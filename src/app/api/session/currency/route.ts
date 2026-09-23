@@ -18,7 +18,9 @@ const RECOVERABLE_CART_ERROR_CODES = new Set<CartCurrencyUpdateErrorCode>([
   CART_CURRENCY_UPDATE_ERROR_CODE.STALE_CART_ID,
 ]);
 
-type CartCurrencyReconcile = { cart: Cart | null } | { conflict: NextResponse };
+type CartCurrencyReconcile = { cart: Cart | null; currencyBefore?: string } | { conflict: NextResponse };
+
+type RepricedCart = { cart: Cart | null; currencyBeforeReprice?: string };
 
 type ForbiddenCartRelease = { action: 'cleared' } | { action: 'rebound'; cartId: string } | { action: 'blocked' };
 
@@ -106,7 +108,10 @@ async function reconcileCartCurrency(
   const couponCodes = cartCouponCodesForCurrencyConflict(cart.discounts);
   try {
     await cartService.updateCurrency(cartId, currency);
-    return { cart: (await cartService.getCartById(cartId)) ?? (await cartService.getCart()) };
+    return {
+      cart: (await cartService.getCartById(cartId)) ?? (await cartService.getCart()),
+      currencyBefore: cart.currency,
+    };
   } catch (cartError) {
     if (!isCartCurrencyUpdateError(cartError)) {
       throw cartError;
@@ -161,6 +166,98 @@ function withCurrencyCookie(response: NextResponse, currency: string): NextRespo
   return response;
 }
 
+function readRequestedCurrency(data: unknown): string {
+  if (!data || typeof data !== 'object' || !('currency' in data)) {
+    return '';
+  }
+  const currency = data.currency;
+  return typeof currency === 'string' ? currency.trim() : '';
+}
+
+async function repriceCartToCurrency(
+  cartService: CartService,
+  sessionService: SessionService,
+  logger: LoggerService,
+  cart: Cart | null,
+  currency: string,
+): Promise<RepricedCart | { conflict: NextResponse }> {
+  if (!cart || cart.currency === currency) {
+    return { cart };
+  }
+  const reconciled = await reconcileCartCurrency(cartService, sessionService, logger, cart, currency);
+  if ('conflict' in reconciled) {
+    return reconciled;
+  }
+  return { cart: reconciled.cart, currencyBeforeReprice: reconciled.currencyBefore };
+}
+
+function cartCurrencyToRestore(cart: Cart | null, currencyBefore: string | undefined): string | undefined {
+  if (!cart?.id || !currencyBefore || !cart.currency || cart.currency === currencyBefore) {
+    return undefined;
+  }
+  return currencyBefore;
+}
+
+async function rollCartBackToCurrency(
+  cartService: CartService,
+  logger: LoggerService,
+  cartId: string,
+  restoreCurrency: string,
+  failedCurrency: string,
+): Promise<void> {
+  try {
+    await cartService.updateCurrency(cartId, restoreCurrency);
+    logger.warn(
+      { cartId, restoreCurrency, currency: failedCurrency },
+      'Rolled cart currency back after session currency update failed',
+    );
+  } catch (rollbackError) {
+    logger.error(
+      {
+        err: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+        cartId,
+        restoreCurrency,
+        currency: failedCurrency,
+      },
+      'Failed to roll cart currency back after session currency update failed',
+    );
+  }
+}
+
+async function commitSessionCurrency(
+  sessionService: SessionService,
+  cartService: CartService,
+  logger: LoggerService,
+  finalCurrency: string,
+  cart: Cart | null,
+  currencyBeforeReprice: string | undefined,
+): Promise<void> {
+  try {
+    await sessionService.setCurrency(finalCurrency);
+  } catch (sessionError) {
+    // Restore the cart currency from before this request's reprice, not the session currency.
+    // Those can already differ when reconciliation starts.
+    const restoreCurrency = cartCurrencyToRestore(cart, currencyBeforeReprice);
+    if (restoreCurrency && cart?.id) {
+      await rollCartBackToCurrency(cartService, logger, cart.id, restoreCurrency, finalCurrency);
+    }
+    throw sessionError;
+  }
+}
+
+function logCurrencyUpdateFailure(error: unknown): void {
+  const logger = server.get<LoggerService>('LoggerService');
+  logger.error(
+    {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      path: '/api/session/currency',
+      method: 'PUT',
+    },
+    'Error updating session currency',
+  );
+}
+
 /**
  * PUT /api/session/currency
  * Update session currency
@@ -175,39 +272,37 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Session not found' }, { status: 401 });
     }
 
-    const data = await request.json();
-    const currency = typeof data?.currency === 'string' ? data.currency.trim() : '';
-
+    const currency = readRequestedCurrency(await request.json());
     if (!currency) {
       return NextResponse.json({ error: 'Currency is required' }, { status: 400 });
     }
 
-    let updatedCart = await cartService.getCart();
-    if (updatedCart && updatedCart.currency !== currency) {
-      const reconciled = await reconcileCartCurrency(cartService, sessionService, logger, updatedCart, currency);
-      if ('conflict' in reconciled) {
-        return reconciled.conflict;
-      }
-      updatedCart = reconciled.cart;
+    const repriced = await repriceCartToCurrency(
+      cartService,
+      sessionService,
+      logger,
+      await cartService.getCart(),
+      currency,
+    );
+    if ('conflict' in repriced) {
+      return repriced.conflict;
     }
 
-    const finalCurrency = updatedCart?.currency || currency;
-    await sessionService.setCurrency(finalCurrency);
+    const finalCurrency = repriced.cart?.currency || currency;
+    await commitSessionCurrency(
+      sessionService,
+      cartService,
+      logger,
+      finalCurrency,
+      repriced.cart,
+      repriced.currencyBeforeReprice,
+    );
     return withCurrencyCookie(
-      NextResponse.json({ success: true, currency: finalCurrency, cart: updatedCart ?? null }),
+      NextResponse.json({ success: true, currency: finalCurrency, cart: repriced.cart ?? null }),
       finalCurrency,
     );
   } catch (error) {
-    const logger = server.get<LoggerService>('LoggerService');
-    logger.error(
-      {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        path: '/api/session/currency',
-        method: 'PUT',
-      },
-      'Error updating session currency',
-    );
+    logCurrencyUpdateFailure(error);
     return NextResponse.json({ error: 'Failed to update session currency' }, { status: 500 });
   }
 }

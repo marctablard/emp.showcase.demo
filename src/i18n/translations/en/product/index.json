@@ -26,11 +26,13 @@
   "more": "More product features",
   "showMore": "Show more…",
   "showLess": "Show less",
+  "clearAllFilters": "Clear all filters",
   "technicalInformation": "Technical Information",
   "otherVariants": "Other variants",
   "variants": {
     "sellableVariants": "Sellable variants",
-    "count": "({count, plural, one {# variant} other {# variants}})"
+    "count": "({count, plural, one {# variant} other {# variants}})",
+    "noMatchingSellableVariants": "There are no sellable variants matching your attribute selection."
   },
   "addToCartResult": {
     "successTitle": "Added to Cart",
@@ -65,6 +67,10 @@
   },
   "price": {
     "yourPrice": "Your Price",
+    "yourPriceItemsRange": "Your price (items {min} - {max})",
+    "yourPriceItemsFrom": "Your price (items {min}+)",
+    "amountForItemsRange": "{amount} for items {min} - {max}",
+    "amountForItemsFrom": "{amount} for items {min}+",
     "listPrice": "List price",
     "including": "incl",
     "discount": "Discount",
@@ -148,6 +154,7 @@
   "compareTooltipMasterProduct": "Master product cannot be compared. Please select a specific variant.",
   "cartTooltipMasterProduct": "Master product cannot be added to cart. Please select a specific variant.",
   "wishlistTooltipMasterProduct": "Master product cannot be added to wishlist. Please select a specific variant.",
+  "cartTooltipNotSellable": "This product is not sellable and cannot be put to cart.",
   "cartTooltipNotPurchasable": "This product is not available for purchase.",
   "cartTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to cart.",
   "wishlistTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to the wishlist.",

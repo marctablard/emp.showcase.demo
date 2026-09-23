@@ -79,7 +79,7 @@ describe('fetchProductVariants', () => {
     jest.resetModules();
   });
 
-  it('dedupes concurrent fetches for the same parentId', async () => {
+  it('dedupes concurrent fetches for the same opened product id', async () => {
     let resolveResponse!: (r: Response) => void;
     const pending = new Promise<Response>((resolve) => {
       resolveResponse = resolve;
@@ -126,5 +126,29 @@ describe('fetchProductVariants', () => {
 
     expect(allMode).toEqual([{ id: 'v-all' }]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('requests the opened product id path (classic parent id still hits the same route)', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ variants: [{ id: 'v1' }] }),
+    } as Response);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { fetchProductVariants: fetchVariants } = await import('@/lib/client/products');
+
+    await fetchVariants('parent-1', 'assigned:main:c-1');
+    await fetchVariants('opened-child-1', 'assigned:main:c-1');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/products/parent-1/variants?site=main',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/products/opened-child-1/variants?site=main',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
   });
 });

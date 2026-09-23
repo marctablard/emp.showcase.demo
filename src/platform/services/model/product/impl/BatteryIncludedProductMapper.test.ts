@@ -1448,4 +1448,99 @@ describe('BatteryIncludedProductMapper', () => {
     expect(result.products[0]?.price).toMatchObject({ amount: 110, currency: 'EUR' });
     expect(result.products[1]?.price).toMatchObject({ amount: 40, originalAmount: 50, currency: 'EUR' });
   });
+
+  it('does not synthesize classic variantAttributes from mixins for DYNAMIC_VARIANT', () => {
+    const result = mapper.mapToService({
+      _product: {
+        id: 'dyn-mixin-only',
+        code: 'dyn-mixin-only',
+        productType: 'DYNAMIC_VARIANT',
+        sellable: false,
+        parentVariantPath: [],
+        mixins: {
+          productVariantAttributes: {
+            width: '15',
+            height: 'Short',
+            frequency: '50Hz',
+          },
+        },
+      },
+      _product_i18n: {
+        name: 'Dynamic Mixin Product',
+      },
+    });
+
+    expect(result.productType).toBe('DYNAMIC_VARIANT');
+    expect(result.sellable).toBe(false);
+    expect(result.parentVariantPath).toEqual([]);
+    expect(result.isParentVariant).toBe(false);
+    expect(result.purchasable).toBe(false);
+    expect(result.variantAttributes).toEqual([]);
+    expect(result.variantAttributeValues).toEqual({
+      width: '15',
+      height: 'Short',
+      frequency: '50Hz',
+    });
+  });
+
+  it('maps DYNAMIC_VARIANT Width / Height / Frequency from tree attributes without mixin synthesis', () => {
+    const result = mapper.mapToService({
+      _product: {
+        id: '6a4260610e319b17b667d5c2',
+        code: '6a4260610e319b17b667d5c2',
+        productType: 'DYNAMIC_VARIANT',
+        sellable: true,
+        parentVariantPath: ['dyn-l1', 'dyn-root'],
+        inheritedVariantAttributes: {
+          width: {
+            name: { en: 'Width' },
+            value: { type: 'NUMBER', qualifier: 15, name: { en: '15' } },
+          },
+          height: {
+            name: { en: 'Height' },
+            value: { type: 'STRING', qualifier: 'Short', name: { en: 'Short' } },
+          },
+        },
+        ownVariantAttributes: {
+          frequency: {
+            name: { en: 'Frequency' },
+            value: { type: 'STRING', qualifier: '50Hz', name: { en: '50 Hz' } },
+          },
+        },
+        mixins: {
+          productVariantAttributes: {
+            width: 'should-not-synthesize-classic-axes',
+          },
+        },
+      },
+      _product_i18n: {
+        name: 'MD Frequency Product',
+      },
+    });
+
+    expect(result.productType).toBe('DYNAMIC_VARIANT');
+    expect(result.sellable).toBe(true);
+    expect(result.purchasable).toBe(true);
+    expect(result.isParentVariant).toBe(false);
+    expect(result.variantAttributes).toEqual([
+      {
+        key: 'width',
+        name: { en: 'Width' },
+        values: [{ key: '15', name: { en: '15' }, selected: true }],
+      },
+      {
+        key: 'height',
+        name: { en: 'Height' },
+        values: [{ key: 'Short', name: { en: 'Short' }, selected: true }],
+      },
+      {
+        key: 'frequency',
+        name: { en: 'Frequency' },
+        values: [{ key: '50Hz', name: { en: '50 Hz' }, selected: true }],
+      },
+    ]);
+    expect(result.variantAttributeValues).toEqual({
+      width: 'should-not-synthesize-classic-axes',
+    });
+  });
 });

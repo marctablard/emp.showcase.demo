@@ -6,8 +6,11 @@ export const PARENT_VARIANT_LABEL_BADGE_LIMIT = 6;
 /** Child / sellable variant tiles: value + label pairs. */
 export const VARIANT_ATTRIBUTE_PAIR_BADGE_LIMIT = 3;
 
-/** Parent, child, or any product that already carries variant-family data. */
+/** Parent, child, DYNAMIC_VARIANT tree, or any product that already carries variant-family data. */
 export function isVariantFamilyProduct(product: Product): boolean {
+  if (product.productType === 'DYNAMIC_VARIANT') {
+    return true;
+  }
   if (product.isParentVariant || Boolean(product.parentVariantId)) {
     return true;
   }
@@ -24,6 +27,10 @@ export interface ProductVariantAttributeGroup {
   key: string;
   name?: ProductVariantAttribute['name'];
   values: string[];
+  /** Localized labels for value keys (`ghz` → `{ en: "1 GHz" }`). */
+  valueNames?: Record<string, NonNullable<ProductVariantAttribute['values'][number]['name']>>;
+  /** Shared measurement unit for the axis (`cm`), shown beside the attribute name. */
+  unit?: string;
 }
 
 /**
@@ -45,6 +52,27 @@ export function normalizeVariantAttributeValueKey(key: unknown): string | undefi
 
 function hasAttributeValue(value: string | undefined): boolean {
   return value !== undefined && value !== '';
+}
+
+/** One axis: a single value, or several values combined with OR. */
+export type VariantAttributeFilterValue = string | readonly string[];
+
+/** Shopper chip filters. Within one key, values are OR; across keys, AND. */
+export type VariantAttributeFilters = Record<string, VariantAttributeFilterValue>;
+
+export function variantFilterValues(raw: VariantAttributeFilterValue | undefined): string[] {
+  if (typeof raw === 'string') {
+    return hasAttributeValue(raw) ? [raw] : [];
+  }
+  if (!raw) {
+    return [];
+  }
+  return raw.filter((value) => hasAttributeValue(value));
+}
+
+/** Card call-outs drop an axis only when the shopper pinned it to exactly one value. */
+export function isSingleVariantFilterValue(raw: VariantAttributeFilterValue | undefined): boolean {
+  return variantFilterValues(raw).length === 1;
 }
 
 /**
@@ -127,21 +155,59 @@ export interface VariantAttributeDisplayPair {
   key: string;
   name?: ProductVariantAttribute['name'];
   value: string;
+  /** Localized label for `value` when Product Service sent `value.name`. */
+  valueName?: NonNullable<ProductVariantAttribute['values'][number]['name']>;
+}
+
+/**
+ * Card call-outs: pairs the shopper has not pinned to a single value.
+ * One selected value hides that axis. Several OR values on the same axis stay visible
+ * so cards can still be told apart.
+ */
+export function getUnselectedVariantAttributePairs(
+  product: Product,
+  selectedAttributes: VariantAttributeFilters = {},
+): VariantAttributeDisplayPair[] {
+  return getVariantAttributeDisplayPairs(product).filter(
+    (pair) => !isSingleVariantFilterValue(selectedAttributes[pair.key]),
+  );
 }
 
 /** Selected value/label pairs for a sellable variant, ordered by `templateAttributeOrder`. */
 export function getVariantAttributeDisplayPairs(product: Product): VariantAttributeDisplayPair[] {
   const selected = getSelectedVariantAttributeValues(product);
   const nameByKey = new Map<string, ProductVariantAttribute['name']>();
-  product.variantAttributes?.forEach((attribute) => rememberAttributeName(nameByKey, attribute));
+  const valueNameByKey = new Map<string, NonNullable<ProductVariantAttribute['values'][number]['name']>>();
+  product.variantAttributes?.forEach((attribute) => {
+    rememberAttributeName(nameByKey, attribute);
+    const selectedKey = selected[attribute.key];
+    attribute.values?.forEach((value) => {
+      const valueKey = normalizeVariantAttributeValueKey(value.key);
+      if (valueKey === undefined || value.name == null) {
+        return;
+      }
+      if (selectedKey !== undefined && valueKey !== selectedKey) {
+        return;
+      }
+      const current = valueNameByKey.get(attribute.key);
+      if (current != null && !isPlaceholderAttributeLabel(current, valueKey)) {
+        return;
+      }
+      valueNameByKey.set(attribute.key, value.name);
+    });
+  });
 
   return sortKeysByTemplateAttributeOrder(Object.keys(selected), product.templateAttributeOrder)
     .filter((key) => hasAttributeValue(selected[key]))
-    .map((key) => ({
-      key,
-      name: nameByKey.get(key),
-      value: selected[key],
-    }));
+    .map((key) => {
+      const valueName = valueNameByKey.get(key);
+      return {
+        key,
+        name: nameByKey.get(key),
+        value: selected[key],
+        ...(valueName ? { valueName } : {}),
+      };
+    });
 }
 
 /**
@@ -151,6 +217,44 @@ export function getVariantAttributeDisplayPairs(product: Product): VariantAttrib
 export function collectVariantAttributeGroups(product: Product, variants: Product[]): ProductVariantAttributeGroup[] {
   const valuesByKey = new Map<string, Set<string>>();
   const nameByKey = new Map<string, ProductVariantAttribute['name']>();
+  const valueNamesByKey = new Map<
+    string,
+    Map<string, NonNullable<ProductVariantAttribute['values'][number]['name']>>
+  >();
+  const unitByKey = new Map<string, string | null>();
+
+  const rememberUnit = (attributeKey: string, unit: string | undefined): void => {
+    const trimmed = unit?.trim() ?? '';
+    if (!trimmed) {
+      return;
+    }
+    const current = unitByKey.get(attributeKey);
+    if (current === null || current === trimmed) {
+      return;
+    }
+    unitByKey.set(attributeKey, current === undefined ? trimmed : null);
+  };
+
+  const rememberValueName = (
+    attributeKey: string,
+    rawKey: unknown,
+    name: ProductVariantAttribute['values'][number]['name'] | undefined,
+  ): void => {
+    const valueKey = normalizeVariantAttributeValueKey(rawKey);
+    if (valueKey === undefined || name == null) {
+      return;
+    }
+    let byValue = valueNamesByKey.get(attributeKey);
+    if (!byValue) {
+      byValue = new Map();
+      valueNamesByKey.set(attributeKey, byValue);
+    }
+    const current = byValue.get(valueKey);
+    if (current != null && !isPlaceholderAttributeLabel(current, valueKey)) {
+      return;
+    }
+    byValue.set(valueKey, name);
+  };
 
   const addValue = (attributeKey: string, rawKey: unknown): void => {
     const valueKey = normalizeVariantAttributeValueKey(rawKey);
@@ -166,7 +270,13 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
   product.variantAttributes?.forEach((attribute) => rememberAttributeName(nameByKey, attribute));
 
   const addVariantSelection = (variant: Product): void => {
-    variant.variantAttributes?.forEach((attribute) => rememberAttributeName(nameByKey, attribute));
+    variant.variantAttributes?.forEach((attribute) => {
+      rememberAttributeName(nameByKey, attribute);
+      attribute.values?.forEach((value) => {
+        rememberValueName(attribute.key, value.key, value.name);
+        rememberUnit(attribute.key, value.unit);
+      });
+    });
     const mixinKeys = new Set<string>();
     Object.entries(variant.variantAttributeValues ?? {}).forEach(([key, value]) => {
       addValue(key, value);
@@ -201,6 +311,7 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
     product.variantAttributes?.forEach((attribute) => {
       attribute.values?.forEach((value) => {
         addValue(attribute.key, value.key);
+        rememberUnit(attribute.key, value.unit);
       });
     });
   }
@@ -223,10 +334,14 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
     if (values.length === 0) {
       return;
     }
+    const valueNames = valueNamesByKey.get(key);
+    const unit = unitByKey.get(key);
     groups.push({
       key,
       name: nameByKey.get(key),
       values,
+      ...(valueNames && valueNames.size > 0 ? { valueNames: Object.fromEntries(valueNames) } : {}),
+      ...(typeof unit === 'string' ? { unit } : {}),
     });
   });
 
@@ -234,10 +349,14 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
     if (seen.has(key) || values.size === 0) {
       return;
     }
+    const valueNames = valueNamesByKey.get(key);
+    const unit = unitByKey.get(key);
     groups.push({
       key,
       name: nameByKey.get(key),
       values: [...values],
+      ...(valueNames && valueNames.size > 0 ? { valueNames: Object.fromEntries(valueNames) } : {}),
+      ...(typeof unit === 'string' ? { unit } : {}),
     });
   });
 
@@ -295,6 +414,38 @@ export function getCompatibleAttributeValues(
     const matchesOtherAxes = Object.entries(selectedAttributes).every(
       ([key, value]) => key === attributeKey || values[key] === value,
     );
+    if (matchesOtherAxes && hasAttributeValue(values[attributeKey])) {
+      compatible.add(values[attributeKey]);
+    }
+  });
+
+  return compatible;
+}
+
+/**
+ * Values for `attributeKey` that exist on at least one member matching the other axes.
+ * Several selected values on one axis are OR. The axis under test is ignored so each of its
+ * values is judged against the rest of the filter.
+ */
+export function getCompatibleAttributeValuesForFilters(
+  variants: Product[],
+  selectedAttributes: VariantAttributeFilters,
+  attributeKey: string,
+): Set<string> {
+  const compatible = new Set<string>();
+
+  variants.forEach((variant) => {
+    const values = getSelectedVariantAttributeValues(variant);
+    const matchesOtherAxes = Object.entries(selectedAttributes).every(([key, raw]) => {
+      if (key === attributeKey) {
+        return true;
+      }
+      const selected = variantFilterValues(raw);
+      if (selected.length === 0) {
+        return true;
+      }
+      return values[key] !== undefined && selected.includes(values[key]);
+    });
     if (matchesOtherAxes && hasAttributeValue(values[attributeKey])) {
       compatible.add(values[attributeKey]);
     }

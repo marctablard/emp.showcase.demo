@@ -9,6 +9,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import type { CartAppliedDiscount } from '@/platform/services/model/cart/cart';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { TruncatedText } from '../ui/truncated-text';
 
 const PROMO_CODE_MAX_LENGTH = 150;
 
@@ -34,13 +35,13 @@ function AppliedPromoChip({
   const isFreeShipping = isFreeShippingPromo(discount);
   return (
     <div
-      className={cn('flex w-full flex-col gap-0.5', removingThis && 'cursor-progress opacity-60')}
+      className={cn('flex w-full min-w-0 flex-col gap-0.5', removingThis && 'cursor-progress opacity-60')}
       data-testid={`checkout-appliedPromo-${discount.code}`}
       aria-busy={removingThis || undefined}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex min-w-0 items-center gap-1">
         <BadgePercent className="size-[18px] shrink-0 text-icon-success" aria-hidden />
-        <p className="min-w-0 flex-1 text-sm leading-5 text-text-body">{discount.code}</p>
+        <TruncatedText text={discount.code} className="text-sm leading-5 text-text-body" />
         <button
           type="button"
           className={cn(
@@ -55,8 +56,12 @@ function AppliedPromoChip({
           <X className="size-[18px]" aria-hidden />
         </button>
       </div>
-      <div className="flex items-start justify-between gap-2 text-sm leading-5 text-text-body">
-        {discount.name ? <p className="min-w-0 font-normal">{discount.name}</p> : <span />}
+      <div className="flex min-w-0 items-center justify-between gap-2 text-sm leading-5 text-text-body">
+        {discount.name ? (
+          <TruncatedText text={discount.name} className="font-normal text-sm leading-5 text-text-body" />
+        ) : (
+          <span />
+        )}
         <p
           className="shrink-0 text-right text-sm font-normal leading-5"
           data-testid={`checkout-appliedPromoAmount-${discount.code}`}
@@ -138,7 +143,7 @@ export function CheckoutPromoCodeBox() {
       </div>
 
       {visibleDiscounts.length > 0 ? (
-        <div className="flex w-full flex-col gap-3 rounded-md border border-border-success bg-surface-success px-4 py-2">
+        <div className="flex w-full min-w-0 flex-col gap-3 rounded-md border border-border-success bg-surface-success px-4 py-2">
           {visibleDiscounts.map((discount) => (
             <AppliedPromoChip
               key={`${discount.code}-${discount.discountIndex}`}
