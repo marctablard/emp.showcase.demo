@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { tierValuesMatchPriceCurrency } from '@/components/product/product-tier-prices';
 import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
@@ -41,7 +42,8 @@ function canReuseEmbeddedPurchasePrice(
   return (
     hasPurchasePriceSemantics(embedded) &&
     isProductPriceDisplayableForPurchase(embedded.currency, session, site) &&
-    embeddedPriceMatchesQuantity(embedded, quantity)
+    embeddedPriceMatchesQuantity(embedded, quantity) &&
+    tierValuesMatchPriceCurrency(embedded)
   );
 }
 
@@ -75,6 +77,8 @@ export function usePdpPurchaseData(
       }
 
       const embedded = product.price;
+      // Quantity must match, and tiers must be in the price currency. An embedded
+      // catalog price with empty or foreign-currency tiers is what hid the tier table.
       if (canReuseEmbeddedPurchasePrice(embedded, quantity, session, site)) {
         setPrice(embedded);
         return;
@@ -114,6 +118,8 @@ export function usePdpPurchaseData(
     product?.price?.includesTax,
     product?.price?.tax?.netValue,
     product?.price?.quantity?.quantity,
+    product?.price?.originalAmount,
+    product?.price?.tierValues,
     quantity,
     session,
     site,

@@ -27,24 +27,6 @@ export interface ProductVariantSelectorProps {
   className?: string;
 }
 
-/** Classic parent, or last `parentVariantPath` entry for dynamic — never guess a missing root. */
-function resolveVariantClearAllDestination(product: Product, family: Product[]): string | undefined {
-  if (product.productType === 'DYNAMIC_VARIANT') {
-    const openedRoot = product.parentVariantPath?.at(-1);
-    if (openedRoot) {
-      return openedRoot;
-    }
-    for (const member of family) {
-      const memberRoot = member.parentVariantPath?.at(-1);
-      if (memberRoot) {
-        return memberRoot;
-      }
-    }
-    return undefined;
-  }
-  return product.parentVariantId;
-}
-
 function navigateToProduct(router: { push: (href: string) => void }, productId: string): void {
   startTransition(() => {
     router.push(`/product/${productId}`);
@@ -257,13 +239,6 @@ export default function ProductVariantSelector({ product, className }: ProductVa
 
   const handleClearAllFilters = (): void => {
     setFilterSelection({});
-    const destination = resolveVariantClearAllDestination(product, familyVariants);
-    if (!destination || destination === product.id) {
-      setIsListLoading(false);
-      return;
-    }
-    setIsListLoading(true);
-    navigateToProduct(router, destination);
   };
 
   const handleVariantSelect = (variantId: string): void => {
@@ -316,6 +291,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
         currentProductId={product.id}
         attributeOrder={attributeOrder}
         attributeTypes={product.templateAttributeTypes}
+        attributeLabels={product.templateAttributeLabels}
         selectedFilters={filterSelection}
         isLoading={isListLoading}
         onVariantSelect={handleVariantSelect}

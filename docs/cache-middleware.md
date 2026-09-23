@@ -40,7 +40,7 @@ export const cacheRules: CacheRule[] = [
   {
     url: '/product/(.*)',
     cache: {
-      revalidate: 3600,
+      revalidate: 0,
       tags: ['product-$1'],
     },
   },
@@ -75,9 +75,9 @@ export const cacheRules: CacheRule[] = [
 
 ### Authenticated requests bypass
 
-Responses for logged-in customers can be personalised (customer-segment scoped catalog, PDP, search suggestions — see [Search Service — Customer segments & products mode](./search-service.md#customer-segments--products-mode-cop-4822), COP-4822). A cache rule such as `/product/(.*)` would otherwise override route-level headers and mark them `public`.
+Responses for logged-in customers can be personalised (customer-segment scoped catalog, PDP, search suggestions — see [Search Service — Customer segments & products mode](./search-service.md#customer-segments--products-mode-cop-4822), COP-4822). A rule with a positive `revalidate` would otherwise override route-level headers and mark them `public`.
 
-`hasAuthSession(req)` in `src/caching/cache-middleware.ts` therefore checks `NextRequest.cookies` for the Auth.js v5 default session cookie name (`src/auth/auth.config.ts` sets no custom name). A cookie matches only when its name is exactly `authjs.session-token`, the HTTPS form `__Secure-authjs.session-token`, or a numeric chunk of either (`authjs.session-token.0`, `__Secure-authjs.session-token.1`, …) via `isAuthJsSessionCookieName`. Names that merely contain that fragment (for example `xauthjs.session-token` or `authjs.session-token-old`) are ignored so anonymous traffic stays cacheable. When a match is present and a rule matches:
+`hasAuthSession(req)` in `src/caching/cache-middleware.ts` therefore checks `NextRequest.cookies` for the Auth.js v5 default session cookie name (`src/auth/auth.config.ts` sets no custom name). A cookie matches only when its name is exactly `authjs.session-token`, the HTTPS form `__Secure-authjs.session-token`, or a numeric chunk of either (`authjs.session-token.0`, `__Secure-authjs.session-token.1`, …) via `isAuthJsSessionCookieName`. Names that merely contain that fragment (for example `xauthjs.session-token` or `authjs.session-token-old`) are ignored, so they follow the rule's `revalidate` instead of the authenticated no-store bypass. When a match is present and a rule matches:
 
 - `Cache-Control` is forced to `private, no-store` regardless of the rule's `revalidate`
 - no `X-Cache-Tags` header is emitted
@@ -88,15 +88,19 @@ Anonymous requests are unaffected. Rules that do not match still leave the respo
 
 ### Product pages
 
+The PDP is `force-dynamic`. The matching rule stays in place with `revalidate: 0`, which the middleware turns into `private, no-store` (no `max-age`, no `s-maxage`, no stale-while-revalidate) for anonymous and logged-in requests. Raising `revalidate` turns the public cache back on.
+
 ```ts
 {
   url: '/product/(.*)',
   cache: {
-    revalidate: 3600,
+    revalidate: 0,
     tags: ['product-$1'],
   },
 }
 ```
+
+Anonymous product responses still receive `X-Cache-Tags`. Logged-in requests do not.
 
 ### Product catalog API
 
@@ -123,14 +127,16 @@ The more specific `/api/products/(.*)/price` rule stays `revalidate: 0` (no-stor
 
 This HTTP no-store on catalog JSON is independent of `DEFAULT_CACHE_REVALIDATE` / Emporix Product GET Data Cache.
 
-### Browse API
+### Search API
+
+Listing cards include prices, so `/api/search/(.*)` is `revalidate: 0` (`private, no-store`). The rule remains so the window can be turned back on.
 
 ```ts
 {
-  url: '/api/browse(.*)',
+  url: '/api/search/(.*)',
   cache: {
-    revalidate: 1800,
-    tags: ['browse'],
+    revalidate: 0,
+    tags: ['search'],
   },
 }
 ```

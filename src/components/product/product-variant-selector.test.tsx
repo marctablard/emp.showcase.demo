@@ -442,7 +442,7 @@ describe('ProductVariantSelector', () => {
     expect(screen.queryByTestId('product-variant-list-loading')).not.toBeInTheDocument();
   });
 
-  it('clears local filters and navigates to the classic parent when it is not the opened product', async () => {
+  it('clears selected chips without leaving the opened product', async () => {
     fetchProductVariantsMock.mockResolvedValue([
       buildProduct({
         id: 'v-12',
@@ -480,7 +480,11 @@ describe('ProductVariantSelector', () => {
     await waitFor(() => {
       expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-selected', '{}');
     });
-    expect(push).toHaveBeenCalledWith('/product/parent-1');
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
+      'data-product-values',
+      JSON.stringify({ capacity: '12 Ah' }),
+    );
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('does not router.push the current id when classic parent is already open', async () => {
@@ -513,7 +517,7 @@ describe('ProductVariantSelector', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('clears dynamic filters to parentVariantPath.at(-1) when that root is not the opened product', async () => {
+  it('clears dynamic filters without navigating to the variant root', async () => {
     fetchProductVariantsMock.mockResolvedValue([
       buildProduct({
         id: 'leaf-1',
@@ -541,7 +545,12 @@ describe('ProductVariantSelector', () => {
     });
 
     fireEvent.click(screen.getByTestId('product-variant-clearAllFilters'));
-    expect(push).toHaveBeenCalledWith('/product/root-1');
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-selected', '{}');
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
+      'data-product-values',
+      JSON.stringify({ capacity: '12 Ah' }),
+    );
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('does not guess a dynamic root id when parentVariantPath is empty', async () => {
@@ -575,7 +584,7 @@ describe('ProductVariantSelector', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('uses a hydrated member parentVariantPath.at(-1) when the opened dynamic product has no path', async () => {
+  it('keeps the opened dynamic product when a hydrated member has a parent path', async () => {
     fetchProductVariantsMock.mockResolvedValue([
       buildProduct({
         id: 'leaf-2',
@@ -605,7 +614,9 @@ describe('ProductVariantSelector', () => {
     });
 
     fireEvent.click(screen.getByTestId('product-variant-clearAllFilters'));
-    expect(push).toHaveBeenCalledWith('/product/root-2');
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-selected', '{}');
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-product-values', '{}');
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('always shows the sellable list when no chips are selected', async () => {

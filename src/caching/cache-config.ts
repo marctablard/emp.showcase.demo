@@ -32,9 +32,11 @@ export const DEFAULT_CACHE_REVALIDATE = parseInt(process.env.NEXT_PUBLIC_CACHE_D
  */
 export const cacheRules: CacheRule[] = [
   {
+    // revalidate 0 → private, no-store. The PDP is force-dynamic; a public max-age
+    // kept the previous document (and its price) after a deploy.
     url: '/product/(.*)',
     cache: {
-      revalidate: 3600,
+      revalidate: 0,
       tags: ['product-$1'],
     },
   },
@@ -53,9 +55,10 @@ export const cacheRules: CacheRule[] = [
     },
   },
   {
+    // Listing cards carry prices. Keep the rule so it can be turned back on.
     url: '/api/search/(.*)',
     cache: {
-      revalidate: 1800,
+      revalidate: 0,
       tags: ['search'],
     },
   },

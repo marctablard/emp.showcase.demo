@@ -11,7 +11,7 @@
  * against the current stub. They are the contract: the layout has to mount
  * `<html lang>` + `<body>` and replicate the production provider chain
  *   AuthSessionProvider → SiteProvider → NextIntlClientProvider → StoreProvider
- * (plus `SiteThemeStyle`, `CsrfProvider`, `SiteSessionAligner`, `CurrencyUrlAligner`), while
+ * (plus `SiteThemeStyle`, `CsrfProvider`, `SiteSessionAligner`, `CurrencyUrlAligner`, `CurrencyCookieAligner`), while
  * deliberately EXCLUDING the editor-irrelevant chrome (`CmsBridgeScript`,
  * `Toaster`, `Notification`, dialog slot — plan §3 lower list).
  *
@@ -106,6 +106,10 @@ jest.mock('@/providers/CurrencyUrlAligner', () => ({
   __esModule: true,
   CurrencyUrlAligner: () => <div data-provider="CurrencyUrlAligner" />,
 }));
+jest.mock('@/providers/CurrencyCookieAligner', () => ({
+  __esModule: true,
+  CurrencyCookieAligner: () => <div data-provider="CurrencyCookieAligner" />,
+}));
 jest.mock('@/components/csrf/CsrfProvider', () => ({
   __esModule: true,
   CsrfProvider: () => <div data-provider="CsrfProvider" />,
@@ -192,6 +196,7 @@ describe('PreviewLocaleLayout', () => {
     expect(store).toContainElement(container.querySelector('[data-provider="CsrfProvider"]') as HTMLElement);
     expect(store).toContainElement(container.querySelector('[data-provider="SiteSessionAligner"]') as HTMLElement);
     expect(store).toContainElement(container.querySelector('[data-provider="CurrencyUrlAligner"]') as HTMLElement);
+    expect(store).toContainElement(container.querySelector('[data-provider="CurrencyCookieAligner"]') as HTMLElement);
 
     // Per-site theme is wired (sibling of the auth provider inside body)
     expect(container.querySelector('[data-provider="SiteThemeStyle"]')).not.toBeNull();

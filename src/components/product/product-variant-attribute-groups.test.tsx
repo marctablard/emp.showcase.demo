@@ -93,7 +93,7 @@ describe('ProductVariantAttributeGroups', () => {
     expect(inactive).not.toBeDisabled();
   });
 
-  it('uses a dashed blue and black border when the opened value is also selected', () => {
+  it('uses a black border and the current background when the opened value is also selected', () => {
     render(
       <ProductVariantAttributeGroups
         groups={[{ key: 'capacity', name: 'Capacity', values: ['12 Ah', '60 Ah'] }]}
@@ -106,7 +106,8 @@ describe('ProductVariantAttributeGroups', () => {
     expect(currentSelected).toHaveAttribute('data-chip-state', 'both');
     expect(currentSelected).toHaveAttribute('aria-pressed', 'true');
     expect(currentSelected).toHaveAttribute('aria-current', 'true');
-    expect(currentSelected).toHaveClass('border-dashed', 'border-border-secondary', 'outline-border-black');
+    expect(currentSelected).toHaveClass('border-4', 'border-border-black', 'bg-surface-information');
+    expect(currentSelected).not.toHaveClass('border-dashed', 'outline-dashed');
     expect(screen.getByText('60 Ah')).toHaveAttribute('data-chip-state', 'inactive');
     expect(screen.queryByTestId('product-variant-attribute-chip-tooltip')).not.toBeInTheDocument();
   });

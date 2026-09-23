@@ -110,6 +110,52 @@ async function _alignSessionSite(currentSession: Session, urlSiteCode: string): 
 }
 
 /**
+ * A `next-currency` cookie that the current site does not list is copied onto the
+ * anonymous session at token issue. Drop that currency back to the site default
+ * so prices and tier rows are matched in a currency the shop actually sells.
+ */
+async function _alignUnsupportedSessionCurrency(currentSession: Session): Promise<Session | null | undefined> {
+  if (!currentSession.siteCode || !currentSession.currency) {
+    return currentSession;
+  }
+
+  const logger = getLogger();
+  try {
+    const siteService = ssr.get<SiteService>('SiteService');
+    const site = await siteService.getSite(currentSession.siteCode);
+    if (!site || isCurrencySupportedOnSite(site, currentSession.currency)) {
+      return currentSession;
+    }
+    const fallback = site.defaultCurrency?.id || site.defaultCurrency?.code;
+    if (!fallback || fallback === currentSession.currency) {
+      return currentSession;
+    }
+    logger.info(
+      {
+        event: 'ssr_session_currency_align',
+        siteCode: currentSession.siteCode,
+        fromCurrency: currentSession.currency,
+        toCurrency: fallback,
+      },
+      'SSR resetting session currency that the site does not list',
+    );
+    await getSessionService().setCurrency(fallback);
+    const refreshed = await getSessionService().getCurrent();
+    return refreshed || { ...currentSession, currency: fallback };
+  } catch (error) {
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        siteCode: currentSession.siteCode,
+        currency: currentSession.currency,
+      },
+      'SSR session currency align failed — returning the current session',
+    );
+    return currentSession;
+  }
+}
+
+/**
  * Fetches the current session and aligns it with the URL-derived `siteCode` when the
  * two disagree (see `_alignSessionSite` for rationale). Returns the possibly-updated
  * session. Cached per-request (same request → same value).
@@ -119,7 +165,11 @@ const _getSessionForSite = cache(async (urlSiteCode: string): Promise<Session | 
   if (!session) {
     return session;
   }
-  return _alignSessionSite(session, urlSiteCode);
+  const siteAligned = await _alignSessionSite(session, urlSiteCode);
+  if (!siteAligned) {
+    return siteAligned;
+  }
+  return _alignUnsupportedSessionCurrency(siteAligned);
 });
 
 const _setSessionLanguage = cache(async (language: string): Promise<void> => {

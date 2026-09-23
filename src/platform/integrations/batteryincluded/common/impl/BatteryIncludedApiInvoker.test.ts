@@ -70,6 +70,7 @@ describe('BatteryIncludedApiInvoker', () => {
             'Content-Type': 'application/json',
             'X-BI-API-KEY': 'test-api-key',
           },
+          cache: 'no-store',
         },
       );
     });
@@ -91,6 +92,7 @@ describe('BatteryIncludedApiInvoker', () => {
           headers: {
             'X-BI-API-KEY': 'test-api-key',
           },
+          cache: 'no-store',
         },
       );
     });

@@ -164,9 +164,17 @@ describe('ProductVariantCarousel', () => {
 
     expect(screen.getByText('variants.sellableVariants')).toBeInTheDocument();
     expect(screen.getByText('(2 variants)')).toBeInTheDocument();
-    expect(screen.getAllByText('12 Ah').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('60 Ah').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByTestId('product-variant-carousel-value').map((node) => node.textContent)).toEqual(
+      expect.arrayContaining(['12 Ah', '60 Ah']),
+    );
+    expect(screen.getAllByTestId('product-variant-carousel-value-tooltip').map((node) => node.textContent)).toEqual(
+      expect.arrayContaining(['Capacity: 12 Ah', 'Capacity: 60 Ah']),
+    );
     expect(screen.getAllByTestId('product-variant-carousel-card')[0]).toHaveAttribute('data-variant-selected', 'true');
+    for (const price of screen.getAllByTestId('product-variant-carousel-price')) {
+      expect(price).toHaveClass('shrink-0');
+      expect(price.previousElementSibling).toHaveClass('flex-1');
+    }
   });
 
   it('pages with arrows and dots when variants overflow the viewport', () => {
@@ -226,7 +234,23 @@ describe('ProductVariantCarousel', () => {
     expect(screen.queryByText('0')).not.toBeInTheDocument();
   });
 
-  it('exposes truncated attribute values in a tooltip', () => {
+  it('shows the attribute value and the full name in the hover tooltip', () => {
+    render(
+      <ProductVariantCarousel
+        variants={[buildVariant('v1', '12 Ah')]}
+        prices={[buildPrice('v1', 10)]}
+        currentProductId="v1"
+        attributeOrder={['capacity']}
+      />,
+    );
+
+    const value = screen.getByTestId('product-variant-carousel-value');
+    expect(value).toHaveTextContent('12 Ah');
+    expect(value).not.toHaveTextContent('Capacity');
+    expect(screen.getByTestId('product-variant-carousel-value-tooltip')).toHaveTextContent('Capacity: 12 Ah');
+  });
+
+  it('keeps a value-only row when the attribute has no label', () => {
     const variant: Product = {
       id: 'v-long',
       name: 'v-long',
@@ -247,9 +271,8 @@ describe('ProductVariantCarousel', () => {
     );
 
     const value = screen.getByTestId('product-variant-carousel-value');
-    expect(value).toHaveClass('truncate');
-    expect(value).toHaveClass('group-focus-visible:whitespace-normal');
-    expect(screen.getByTestId('product-variant-carousel-card')).toHaveClass('group');
+    expect(value).toHaveTextContent('First option with a relatively long name');
+    expect(value).not.toHaveTextContent(':');
     expect(screen.getByTestId('product-variant-carousel-value-tooltip')).toHaveTextContent(
       'First option with a relatively long name',
     );
@@ -328,6 +351,9 @@ describe('ProductVariantCarousel', () => {
     expect(screen.queryByText('12 Ah')).not.toBeInTheDocument();
     expect(screen.getAllByText('12 V').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('24 V').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByTestId('product-variant-carousel-value-tooltip').map((node) => node.textContent)).toEqual(
+      expect.arrayContaining(['Voltage: 12 V', 'Voltage: 24 V']),
+    );
   });
 
   it('pages to the selected card and scrolls it into view', () => {

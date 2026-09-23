@@ -78,8 +78,13 @@ function resolveForItemsCaption(
   return t('amountForItemsRange', { amount: formattedAmount, min: range.min, max: range.max });
 }
 
-/** Figma Discount Info / gross column width (`12830:188985` / `12830:188992`). */
-const PRICE_LEFT_COLUMN_CLASS = 'w-[200px] shrink-0';
+/**
+ * Figma Discount Info column is 200px at the default 16px root (`12830:188985`).
+ * That width is rem-based and may grow (`max-content`) because the label type is `0.75rem`.
+ * A fixed `200px` box lets "Discount" paint over "List price" as soon as the root font
+ * (or the phrase) is wider than 200px — overflow stays visible.
+ */
+const PRICE_LABEL_GRID_CLASS = 'grid-cols-[minmax(12.5rem,max-content)_auto]';
 
 interface CurrencyPartSizeClasses {
   integer: string;
@@ -285,36 +290,6 @@ export function ProductPriceComponent({ price, isAddToCartBar, quantity }: Reado
   const hasDiscount = price.discountPercentage > 0;
   const showListPrice = price.originalAmount != null && price.originalAmount > price.amount;
 
-  const discountInfo = (
-    <div className={cn('flex items-center gap-1', showListPrice && PRICE_LEFT_COLUMN_CLASS)}>
-      <span className="shrink-0 text-sm font-bold">{yourPriceLabel}</span>
-      {hasDiscount && (
-        <>
-          <span className="shrink-0 text-sm">, {t('including')}</span>
-          <Badge variant="sale" rounded="none" fontWeight="bold" className="shrink-0 rounded-sm px-1 py-0">
-            -{Math.round(price.discountPercentage)}%
-          </Badge>
-          <span className="text-sm">{t('discount')}</span>
-        </>
-      )}
-    </div>
-  );
-
-  const currentPriceFigure = (
-    <div
-      className={cn('font-bold font-headlines shrink-0 text-text-headings', showListPrice && PRICE_LEFT_COLUMN_CLASS)}
-    >
-      {priceFragment}
-    </div>
-  );
-
-  const listPriceAmount =
-    showListPrice && price.originalAmount != null ? (
-      <div className="line-through whitespace-nowrap text-lg text-text-on-disabled">
-        {formatCurrency(price.originalAmount, price.currency)}
-      </div>
-    ) : null;
-
   return (
     <div
       className={cn('flex flex-col gap-0 transition-opacity', !syncReady && 'opacity-60')}
@@ -322,22 +297,40 @@ export function ProductPriceComponent({ price, isAddToCartBar, quantity }: Reado
       data-product-currency={price.currency}
       aria-busy={!syncReady || undefined}
     >
-      <div className="flex flex-col items-start w-full">
-        <div className="flex items-center gap-2 w-full" data-testid="product-price-labels">
-          {discountInfo}
-          {showListPrice && <span className="text-sm font-bold flex-1 min-w-0">{t('listPrice')}</span>}
+      <div
+        className={cn('grid w-full items-end gap-x-2', showListPrice && PRICE_LABEL_GRID_CLASS)}
+        data-testid="product-price-labels"
+      >
+        <div className="flex items-center gap-1 whitespace-nowrap">
+          <span className="shrink-0 text-sm font-bold">{yourPriceLabel}</span>
+          {hasDiscount ? (
+            <>
+              <span className="shrink-0 text-sm">, {t('including')}</span>
+              <Badge variant="sale" rounded="none" fontWeight="bold" className="shrink-0 rounded-sm px-1 py-0">
+                -{Math.round(price.discountPercentage)}%
+              </Badge>
+              <span className="shrink-0 text-sm">{t('discount')}</span>
+            </>
+          ) : null}
         </div>
-
-        <div className="flex items-end gap-2 w-full" data-testid="product-price-amounts">
-          {currentPriceFigure}
-          {listPriceAmount}
+        {showListPrice ? <span className="whitespace-nowrap text-sm font-bold">{t('listPrice')}</span> : null}
+        <div
+          className="whitespace-nowrap font-bold font-headlines text-text-headings"
+          data-testid="product-price-amounts"
+        >
+          {priceFragment}
         </div>
-        {forItemsCaption ? (
-          <div className="text-sm text-text-body" data-testid="product-price-tier-caption">
-            {forItemsCaption}
+        {showListPrice && price.originalAmount != null ? (
+          <div className="line-through whitespace-nowrap text-lg text-text-on-disabled">
+            {formatCurrency(price.originalAmount, price.currency)}
           </div>
         ) : null}
       </div>
+      {forItemsCaption ? (
+        <div className="text-sm text-text-body" data-testid="product-price-tier-caption">
+          {forItemsCaption}
+        </div>
+      ) : null}
 
       {taxSmallPrintText ? <div className="text-sm mb-2 text-text-on-disabled">{taxSmallPrintText}</div> : null}
 

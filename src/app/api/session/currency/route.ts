@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { cartCouponCodesForCurrencyConflict } from '@/lib/common/applied-promo-display';
-import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
+import { writeCurrencyCookie } from '@/lib/common/currency-cookie';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import {
@@ -155,14 +155,7 @@ function withCurrencyCookie(response: NextResponse, currency: string): NextRespo
   // `EmporixTokenManagerServer.resolveSessionParams` can seed the next
   // anonymous session context after logout / token expiry with the same
   // preference (symmetric with NEXT_PUBLIC_SITE_COOKIE).
-  response.cookies.set({
-    name: CURRENCY_COOKIE_NAME,
-    value: currency,
-    maxAge: 365 * 24 * 60 * 60,
-    httpOnly: false,
-    sameSite: 'lax',
-    path: '/',
-  });
+  writeCurrencyCookie(response, currency);
   return response;
 }
 
