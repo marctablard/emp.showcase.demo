@@ -87,12 +87,25 @@ function provenMemberIdsFor(
 }
 
 function variantFamilyOptions(options: ProductFetchOptions, productId: string): ProvenMemberOptions {
-  const provenMemberIds = provenMemberIdsFor(options, productId);
-  return {
+  const scope: ProvenMemberOptions = {
     segmentIds: options.segmentIds,
     siteCode: options.siteCode,
-    ...(provenMemberIds ? { provenMemberIds } : {}),
   };
+  const provenMemberIds = provenMemberIdsFor(options, productId);
+  if (provenMemberIds) {
+    scope.provenMemberIds = provenMemberIds;
+  }
+  return scope;
+}
+
+function enrichmentOptionsFor(
+  options: ProductFetchOptions | undefined,
+  productId: string,
+): ProductFetchOptions | undefined {
+  if (options?.segmentIds === undefined) {
+    return options;
+  }
+  return optionsWithProvenMember(options, productId);
 }
 
 /**
@@ -130,9 +143,7 @@ class EmporixProductService implements ProductService {
     const mappedProduct = this.productMapper.mapToService(product);
 
     // The opened id is already in scope. Reuse that so variant enrichment does not look it up again.
-    const enrichmentOptions =
-      options?.segmentIds !== undefined ? optionsWithProvenMember(options, product.id) : options;
-    const [enhancedProduct] = await this.addAdditionalData([mappedProduct], enrichmentOptions);
+    const [enhancedProduct] = await this.addAdditionalData([mappedProduct], enrichmentOptionsFor(options, product.id));
 
     return enhancedProduct;
   }
