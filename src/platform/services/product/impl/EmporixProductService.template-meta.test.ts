@@ -93,6 +93,36 @@ describe('EmporixProductService template meta enrichment', () => {
       expect(mapToService).not.toHaveBeenCalled();
     });
 
+    it('getProductById reuses the opened-id membership when loading the variant family', async () => {
+      const filterProductIdsInScope = jest.fn().mockImplementation(async (ids: string[]) => new Set(ids));
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [
+          { id: 'p1', productType: 'PARENT_VARIANT' },
+          { id: 'v1', parentVariantId: 'p1' },
+        ],
+      });
+      const service = createService({
+        searchProducts,
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent,
+        getProduct: jest.fn().mockResolvedValue({ id: 'p1', code: 'p1', productType: 'PARENT_VARIANT' }),
+      });
+      mapToService.mockImplementation((product: { id: string }) => ({
+        id: product.id,
+        name: { en: product.id },
+        description: {},
+        purchasable: true,
+        template: { id: 'tmpl-1' },
+      }));
+
+      await service.getProductById('p1', { segmentIds: ['s1'], variants: true });
+
+      expect(filterProductIdsInScope).toHaveBeenCalledTimes(2);
+      expect(filterProductIdsInScope).toHaveBeenNthCalledWith(1, ['p1'], 'main', ['s1']);
+      expect(filterProductIdsInScope).toHaveBeenNthCalledWith(2, ['v1'], 'main', ['s1']);
+    });
+
     it('getProductById returns the mapped product when it is in scope', async () => {
       const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['p1']));
       const service = createService({

@@ -68,6 +68,33 @@ function toVariantEnrichmentOptions(options?: ProductFetchOptions): ProductFetch
   return { ...options, variants: false };
 }
 
+/** Ids this service has already proven in segment scope. Never read from the client request. */
+type ProvenMemberOptions = ProductFetchOptions & { provenMemberIds?: readonly string[] };
+
+function optionsWithProvenMember(options: ProductFetchOptions, productId: string): ProvenMemberOptions {
+  return { ...options, provenMemberIds: [productId] };
+}
+
+function provenMemberIdsFor(
+  options: ProductFetchOptions | undefined,
+  productId: string,
+): readonly string[] | undefined {
+  const proven = (options as ProvenMemberOptions | undefined)?.provenMemberIds;
+  if (!proven?.includes(productId)) {
+    return undefined;
+  }
+  return proven;
+}
+
+function variantFamilyOptions(options: ProductFetchOptions, productId: string): ProvenMemberOptions {
+  const provenMemberIds = provenMemberIdsFor(options, productId);
+  return {
+    segmentIds: options.segmentIds,
+    siteCode: options.siteCode,
+    ...(provenMemberIds ? { provenMemberIds } : {}),
+  };
+}
+
 /**
  * Implementation of ProductService for Emporix product data.
  * Maps between Emporix API product format and internal Product model.
@@ -102,8 +129,10 @@ class EmporixProductService implements ProductService {
     // Map the base product
     const mappedProduct = this.productMapper.mapToService(product);
 
-    // Add additional data
-    const [enhancedProduct] = await this.addAdditionalData([mappedProduct], options);
+    // The opened id is already in scope. Reuse that so variant enrichment does not look it up again.
+    const enrichmentOptions =
+      options?.segmentIds !== undefined ? optionsWithProvenMember(options, product.id) : options;
+    const [enhancedProduct] = await this.addAdditionalData([mappedProduct], enrichmentOptions);
 
     return enhancedProduct;
   }
@@ -189,6 +218,10 @@ class EmporixProductService implements ProductService {
   ): Promise<Set<string> | undefined> {
     if (options?.segmentIds === undefined || !openedKey) {
       return undefined;
+    }
+    const provenMemberIds = provenMemberIdsFor(options, openedKey);
+    if (provenMemberIds) {
+      return new Set(provenMemberIds);
     }
     return this.filterIdsInSegmentScope([openedKey], options.segmentIds, options.siteCode);
   }
@@ -879,11 +912,7 @@ class EmporixProductService implements ProductService {
       // Forward ONLY the segment scope (`segmentIds` + effective `siteCode`): passing the full options
       // would re-enter variant/price enrichment per variant.
       options?.variants
-        ? Promise.all(
-            productIdList.map((id) =>
-              this.getVariantProducts(id, { segmentIds: options.segmentIds, siteCode: options.siteCode }),
-            ),
-          )
+        ? Promise.all(productIdList.map((id) => this.getVariantProducts(id, variantFamilyOptions(options, id))))
         : Promise.resolve<Product[][]>([]),
     ]);
 
