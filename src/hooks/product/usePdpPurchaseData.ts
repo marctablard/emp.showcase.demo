@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { tierValuesMatchPriceCurrency } from '@/components/product/product-tier-prices';
 import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
@@ -9,6 +8,7 @@ import {
   isProductPriceDisplayableForPurchase,
   isPurchaseShopContextReady,
 } from '@/lib/common/product-price-site-context';
+import { tierValuesMatchPriceCurrency } from '@/lib/common/tier-price-currency';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { StockAvailability } from '@/platform/services/model/common';
 import type { Site } from '@/platform/services/model/common/site';

@@ -4,6 +4,14 @@ import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
 /** Same lifetime as the site and locale preference cookies. */
 export const CURRENCY_PREFERENCE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
+/** Attributes shared by every `next-currency` write (`NextResponse` and `cookies()`). */
+export const CURRENCY_COOKIE_OPTIONS = {
+  maxAge: CURRENCY_PREFERENCE_MAX_AGE_SECONDS,
+  httpOnly: false,
+  sameSite: 'lax' as const,
+  path: '/',
+};
+
 export function normalizeCurrencyCode(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim().toUpperCase();
   return trimmed || undefined;
@@ -21,10 +29,7 @@ export function writeCurrencyCookie(response: NextResponse, currency: string): v
   response.cookies.set({
     name: CURRENCY_COOKIE_NAME,
     value: canonical,
-    maxAge: CURRENCY_PREFERENCE_MAX_AGE_SECONDS,
-    httpOnly: false,
-    sameSite: 'lax',
-    path: '/',
+    ...CURRENCY_COOKIE_OPTIONS,
   });
 }
 

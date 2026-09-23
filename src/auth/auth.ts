@@ -4,7 +4,7 @@ import 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { cookies, headers } from 'next/headers';
 import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
-import { CURRENCY_PREFERENCE_MAX_AGE_SECONDS, normalizeCurrencyCode } from '@/lib/common/currency-cookie';
+import { CURRENCY_COOKIE_OPTIONS, normalizeCurrencyCode } from '@/lib/common/currency-cookie';
 import { getBaseUrlFromHeaders } from '@/lib/server/url-utils';
 import server from '@/platform/server';
 import type { CustomerNamingService } from '@/platform/services/customer/CustomerNamingService';
@@ -73,12 +73,7 @@ async function rememberLoginCurrency(currency: string | undefined): Promise<void
   }
   try {
     const cookieStore = await cookies();
-    cookieStore.set(CURRENCY_COOKIE_NAME, canonical, {
-      maxAge: CURRENCY_PREFERENCE_MAX_AGE_SECONDS,
-      httpOnly: false,
-      sameSite: 'lax',
-      path: '/',
-    });
+    cookieStore.set(CURRENCY_COOKIE_NAME, canonical, CURRENCY_COOKIE_OPTIONS);
   } catch (error) {
     server.get<LoggerService>('LoggerService').warn({ err: error }, 'Failed to persist next-currency after login');
   }

@@ -97,15 +97,24 @@ describe('BatteryIncludedApiInvoker', () => {
       );
     });
 
-    it('should return the fetch response', async () => {
-      // Mock fetch response
+    it('keeps an explicit cache mode and otherwise defaults to no-store', async () => {
       const mockResponse = { status: 200, json: jest.fn() };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      // Call the method
+      await apiInvoker.apiFetch('/browse', { cache: 'force-cache' });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://api.batteryincluded.com/browse',
+        expect.objectContaining({ cache: 'force-cache' }),
+      );
+    });
+
+    it('should return the fetch response', async () => {
+      const mockResponse = { status: 200, json: jest.fn() };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
       const result = await apiInvoker.apiFetch('test-url');
 
-      // Check result
       expect(result).toBe(mockResponse);
     });
 

@@ -44,7 +44,7 @@ class BatteryIncludedApiInvoker {
     const fullUrl = `${this.config.baseUrl}${url}`;
     const requestOptions = {
       ...options,
-      cache: 'no-store' as const,
+      cache: options.cache ?? 'no-store',
       headers,
     };
 

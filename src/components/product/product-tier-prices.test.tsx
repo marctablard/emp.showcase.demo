@@ -4,10 +4,11 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import { tierValuesMatchPriceCurrency } from '@/lib/common/tier-price-currency';
 import { formatCurrency } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
 import { PRICE_MODEL_TYPE } from '@/platform/services/model/price/price-model-type';
-import { ProductTierPrices, tierValuesMatchPriceCurrency } from './product-tier-prices';
+import { ProductTierPrices } from './product-tier-prices';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
