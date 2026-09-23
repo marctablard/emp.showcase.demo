@@ -162,6 +162,7 @@ describe('EmporixAuthService', () => {
       currency: 'EUR',
       targetLocation: 'DE',
     });
+    delete loginSessionContext.context;
 
     container = new Container();
 
@@ -173,6 +174,7 @@ describe('EmporixAuthService', () => {
       login: jest.fn(),
       logout: jest.fn(),
       signup: jest.fn(),
+      getCustomerProfile: jest.fn().mockResolvedValue({}),
     };
 
     mockAddressMapper = {
@@ -1310,6 +1312,63 @@ describe('EmporixAuthService', () => {
       // value so `getCanonicalSiteCode()` on the client handles the redirect.
       expect(result.sessionId).toBe('customer-session-id');
       expect(result.siteCode).toBe('main');
+    });
+  });
+
+  describe('login - assigned legal entity', () => {
+    it('applies the first assigned legal entity before binding the customer cart', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(oldServiceSession);
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCustomerApi.getCustomerProfile.mockResolvedValue({
+        b2b: {
+          legalEntities: [
+            { id: '  le-first  ', name: '  The LA La Ride  ' },
+            { id: 'le-second', name: 'Darina Company LTD' },
+            { id: 'le-nameless', name: '   ' },
+          ],
+        },
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSessionService.setLegalEntity.mockResolvedValue({ tokenRefreshSucceeded: true, tokenLooksLikeJwt: true });
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.setLegalEntity).toHaveBeenCalledWith('le-first');
+      expect(mockSessionService.setLegalEntity.mock.invocationCallOrder[0]).toBeLessThan(
+        mockCartService.getCart.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('keeps a legal entity already present on the login session', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(oldServiceSession);
+      mockCustomerApi.login.mockResolvedValue({
+        ...loginSessionContext,
+        context: { legalEntityId: { key: 'legalEntityId', value: 'le-existing' } },
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+
+      await authService.login(credentials);
+
+      expect(mockCustomerApi.getCustomerProfile).not.toHaveBeenCalled();
+      expect(mockSessionService.setLegalEntity).not.toHaveBeenCalled();
+    });
+
+    it('still completes login when applying the legal entity fails', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(oldServiceSession);
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCustomerApi.getCustomerProfile.mockResolvedValue({
+        b2b: { legalEntities: [{ id: 'le-first', name: 'The LA La Ride' }] },
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSessionService.setLegalEntity.mockRejectedValue(new Error('token refresh failed'));
+
+      const result = await authService.login(credentials);
+
+      expect(result.customerId).toBe('customer-123');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ legalEntityId: 'le-first', customerId: 'customer-123' }),
+        'Failed to apply assigned legal entity after login',
+      );
     });
   });
 

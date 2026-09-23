@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { inject } from 'inversify';
+import { firstAssignedLegalEntityId, readContextLegalEntityId } from '@/lib/common/legal-entity-context';
 import {
   getPublicDefaultCurrency,
   getPublicDefaultLanguage,
@@ -114,6 +115,10 @@ export class EmporixAuthService implements AuthService {
       preferredRegion,
       preferredLoginCurrency,
     });
+    // Category and segment item calls 400 for a multi-company customer until the
+    // session and token carry a legal entity. Persist the company the header
+    // would display before the cart is bound to that company.
+    await this.applyAssignedLegalEntityAfterLogin(session);
     const binding = await this.bindCustomerCartAfterLogin(session, targetSiteCode, settled.finalCurrency);
     const merge = await this.resolveLoginCartMerge({
       anonymousCartId,
@@ -225,6 +230,40 @@ export class EmporixAuthService implements AuthService {
       );
     }
     return { finalCurrency: preferredLoginCurrency, finalCountry };
+  }
+
+  /**
+   * Writes the customer's first assigned legal entity onto the session context
+   * and refreshes the customer token with that id. Skips when login already
+   * carried a legal entity. A failure is logged and does not fail login; the
+   * header retries the same company before displaying it.
+   */
+  private async applyAssignedLegalEntityAfterLogin(session: EmporixSessionContext): Promise<void> {
+    if (readContextLegalEntityId(session.context?.legalEntityId)) {
+      return;
+    }
+    let legalEntityId: string | undefined;
+    try {
+      const profile = await this.emporixCustomerApi.getCustomerProfile();
+      legalEntityId = firstAssignedLegalEntityId(profile?.b2b?.legalEntities);
+    } catch (error) {
+      this.logger.error(
+        { err: error instanceof Error ? error : String(error), customerId: session.customerId },
+        'Failed to read assigned legal entities after login',
+      );
+      return;
+    }
+    if (!legalEntityId) {
+      return;
+    }
+    try {
+      await this.sessionService.setLegalEntity(legalEntityId);
+    } catch (error) {
+      this.logger.error(
+        { err: error instanceof Error ? error : String(error), customerId: session.customerId, legalEntityId },
+        'Failed to apply assigned legal entity after login',
+      );
+    }
   }
 
   private async bindCustomerCartAfterLogin(

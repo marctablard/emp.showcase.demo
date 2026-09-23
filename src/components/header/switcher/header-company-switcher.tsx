@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Building2 } from 'lucide-react';
@@ -24,7 +24,9 @@ export function CompanySwitcher() {
   // Read out of `session` once: optional-chained member expressions in a dependency array
   // cannot be tracked as stable dependencies.
   const customerId = session?.customerId;
-  const legalEntityId = session?.legalEntityId;
+  const legalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
+  const [applyFailed, setApplyFailed] = useState(false);
+  const applyStartedForCustomer = useRef<string | null>(null);
 
   // Without a customer there is nothing to show and nothing in flight. Derived during render
   // rather than reset from an effect, so no cascading render is needed to clear stale values.
@@ -37,6 +39,7 @@ export function CompanySwitcher() {
   const [prevCustomerId, setPrevCustomerId] = useState(customerId);
   if (prevCustomerId !== customerId) {
     setPrevCustomerId(customerId);
+    setApplyFailed(false);
     if (customerId) {
       setFetchLoading(true);
       setFetchError(null);
@@ -46,6 +49,7 @@ export function CompanySwitcher() {
   // Kicked off inline so every state write happens after an await rather than synchronously in
   // the effect body. `ignore` drops the result of a request whose customer is no longer current.
   useEffect(() => {
+    applyStartedForCustomer.current = null;
     if (!customerId) {
       return;
     }
@@ -89,19 +93,45 @@ export function CompanySwitcher() {
   }, [customerId]);
 
   const currentCompany = useMemo(() => {
-    if (!companies || companies.length === 0) {
+    if (!legalEntityId || companies.length === 0) {
       return undefined;
     }
-
-    if (legalEntityId) {
-      const matchedCompany = companies.find((company) => company.id === legalEntityId);
-      if (matchedCompany) {
-        return matchedCompany;
-      }
-    }
-
-    return companies[0];
+    return companies.find((company) => company.id === legalEntityId);
   }, [companies, legalEntityId]);
+
+  // The name in the header is the session company. When login did not write one,
+  // persist the first assigned company (same id the list is built from) before showing it.
+  useEffect(() => {
+    if (!customerId || loading || sessionLoading || error || legalEntityId || applyFailed) {
+      return;
+    }
+    const targetId = companies[0]?.id;
+    if (!targetId || applyStartedForCustomer.current === customerId) {
+      return;
+    }
+    applyStartedForCustomer.current = customerId;
+
+    void (async () => {
+      try {
+        const success = await setCompany(targetId);
+        if (success) {
+          router.refresh();
+          return;
+        }
+      } catch {
+        // Fall through to the failure toast. The company name stays hidden until the write succeeds.
+      }
+      applyStartedForCustomer.current = null;
+      setApplyFailed(true);
+      toast({
+        title: t('errorSwitching'),
+        description: t('errorSwitchingDescription'),
+        variant: 'destructive',
+      });
+    })();
+    // setCompany/toast/t are stable enough; the customer ref guards a second write.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applyFailed, companies, customerId, error, legalEntityId, loading, router, sessionLoading]);
 
   const switchCompany = async (companyId: string) => {
     try {
@@ -126,7 +156,9 @@ export function CompanySwitcher() {
     }
   };
 
-  if (loading || sessionLoading) {
+  const awaitingAssignedCompany = companies.length > 0 && !legalEntityId && !applyFailed;
+
+  if (loading || sessionLoading || awaitingAssignedCompany) {
     return (
       <>
         <hr className="w-px h-6 bg-surface-page" />
@@ -143,7 +175,7 @@ export function CompanySwitcher() {
     return null;
   }
 
-  if (!currentCompany) {
+  if (!currentCompany && !applyFailed && !legalEntityId) {
     return null;
   }
 
@@ -163,8 +195,9 @@ export function CompanySwitcher() {
       <hr className="w-px h-6 bg-surface-page" />
       <TopBarSwitcher
         options={options}
-        current={currentCompany.id}
+        current={currentCompany?.id ?? ''}
         label={t('label')}
+        unselectedLabel={t('label')}
         onSelected={switchCompany}
         icon={icon}
       />
