@@ -61,11 +61,10 @@ class EmporixCurrencyApi implements IEmporixCurrencyApi {
   async getExchangeRates(): Promise<EmporixExchangeRate[]> {
     const response = await this.apiClient.authenticatedFetch(
       `/currency/${this.config.tenant}/exchanges`,
-      { method: 'GET' },
+      { method: 'GET', cache: 'no-store' },
       'public',
       undefined,
       createCurrencyMetrics('/currency/{tenant}/exchanges'),
-      DEFAULT_CACHE_REVALIDATE,
     );
 
     if (!response.ok) {
@@ -78,11 +77,10 @@ class EmporixCurrencyApi implements IEmporixCurrencyApi {
   async getExchangeRate(sourceCurrency: string, targetCurrency: string): Promise<EmporixExchangeRate | null> {
     const response = await this.apiClient.authenticatedFetch(
       `/currency/${this.config.tenant}/exchanges?sourceCurrency=${sourceCurrency}&targetCurrency=${targetCurrency}`,
-      { method: 'GET' },
+      { method: 'GET', cache: 'no-store' },
       'public',
       undefined,
       createCurrencyMetrics('/currency/{tenant}/exchanges'),
-      DEFAULT_CACHE_REVALIDATE,
     );
 
     if (!response.ok) {

@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { mapCartCurrencyPutError } from '@/lib/common/cart-api-error-mapping';
+import { writeCurrencyCookie } from '@/lib/common/currency-cookie';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -40,7 +41,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       await sessionService.setCurrency(updatedCart.currency);
     }
 
-    return NextResponse.json(updatedCart);
+    const response = NextResponse.json(updatedCart);
+    writeCurrencyCookie(response, updatedCart.currency);
+    return response;
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     const mappedError = mapCartCurrencyPutError(error);

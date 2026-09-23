@@ -2,7 +2,9 @@ import NextAuth from 'next-auth';
 import type { User } from 'next-auth';
 import 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
+import { CURRENCY_COOKIE_OPTIONS, normalizeCurrencyCode } from '@/lib/common/currency-cookie';
 import { getBaseUrlFromHeaders } from '@/lib/server/url-utils';
 import server from '@/platform/server';
 import type { CustomerNamingService } from '@/platform/services/customer/CustomerNamingService';
@@ -30,6 +32,7 @@ const enrichedProviders = config.providers.map((provider) => {
         if (!session) {
           return null;
         }
+        await rememberLoginCurrency(session.currency);
 
         try {
           const customerService = server.get<CustomerService>('CustomerService');
@@ -58,6 +61,24 @@ const enrichedProviders = config.providers.map((provider) => {
     return provider;
   }
 });
+/**
+ * Login updates the Emporix session currency without going through the session
+ * routes that write `next-currency`. Persist it here so logout does not re-seed
+ * the next anonymous token from a stale cookie.
+ */
+async function rememberLoginCurrency(currency: string | undefined): Promise<void> {
+  const canonical = normalizeCurrencyCode(currency);
+  if (!canonical) {
+    return;
+  }
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(CURRENCY_COOKIE_NAME, canonical, CURRENCY_COOKIE_OPTIONS);
+  } catch (error) {
+    server.get<LoggerService>('LoggerService').warn({ err: error }, 'Failed to persist next-currency after login');
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...config,
   providers: enrichedProviders,
@@ -81,6 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!session) {
             return false;
           }
+          await rememberLoginCurrency(session.currency);
           // This can be customized to include the customers SSO-User-Id in the Customer Backend and check against that
           return !!session.customerId;
         } catch (error) {

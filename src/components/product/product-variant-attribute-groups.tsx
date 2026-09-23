@@ -67,7 +67,7 @@ function chipStateClassName(state: VariantAttributeChipState, disabled: boolean)
   }
   switch (state) {
     case 'both':
-      return 'cursor-pointer border-2 border-dashed border-border-secondary bg-surface-information text-text-body outline-2 outline-dashed outline-offset-2 outline-border-black';
+      return 'cursor-pointer border-4 border-border-black bg-surface-information text-text-body';
     case 'selected':
       return 'cursor-pointer border-4 border-border-black text-text-body';
     case 'soft':
@@ -133,7 +133,7 @@ function VariantAttributeChip({
 
 /**
  * Figma Variant Selection (`12799:113082`) — interactive chips grouped by attribute.
- * Black border = shopper filter. Blue background = opened variant. Both = dashed blue and black.
+ * Black border = shopper filter. Blue background = opened variant. Both = black border on the blue background.
  * A value with no sellable match under the other axes is disabled.
  */
 export function ProductVariantAttributeGroups({

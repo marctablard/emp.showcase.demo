@@ -8,6 +8,7 @@ import {
   isProductPriceDisplayableForPurchase,
   isPurchaseShopContextReady,
 } from '@/lib/common/product-price-site-context';
+import { tierValuesMatchPriceCurrency } from '@/lib/common/tier-price-currency';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { StockAvailability } from '@/platform/services/model/common';
 import type { Site } from '@/platform/services/model/common/site';
@@ -41,7 +42,8 @@ function canReuseEmbeddedPurchasePrice(
   return (
     hasPurchasePriceSemantics(embedded) &&
     isProductPriceDisplayableForPurchase(embedded.currency, session, site) &&
-    embeddedPriceMatchesQuantity(embedded, quantity)
+    embeddedPriceMatchesQuantity(embedded, quantity) &&
+    tierValuesMatchPriceCurrency(embedded)
   );
 }
 
@@ -75,6 +77,8 @@ export function usePdpPurchaseData(
       }
 
       const embedded = product.price;
+      // Quantity must match, and tiers must be in the price currency. An embedded
+      // catalog price with empty or foreign-currency tiers is what hid the tier table.
       if (canReuseEmbeddedPurchasePrice(embedded, quantity, session, site)) {
         setPrice(embedded);
         return;
@@ -114,6 +118,8 @@ export function usePdpPurchaseData(
     product?.price?.includesTax,
     product?.price?.tax?.netValue,
     product?.price?.quantity?.quantity,
+    product?.price?.originalAmount,
+    product?.price?.tierValues,
     quantity,
     session,
     site,

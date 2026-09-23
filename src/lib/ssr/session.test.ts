@@ -27,6 +27,7 @@ describe('getSessionForSite SSR align', () => {
   const sessionService = {
     getCurrent: jest.fn(),
     setSite: jest.fn(),
+    setCurrency: jest.fn(),
   };
 
   const siteService = {
@@ -42,6 +43,7 @@ describe('getSessionForSite SSR align', () => {
   beforeEach(() => {
     sessionService.getCurrent.mockReset();
     sessionService.setSite.mockReset();
+    sessionService.setCurrency.mockReset();
     siteService.getSite.mockReset();
     logger.info.mockReset();
     logger.warn.mockReset();
@@ -53,6 +55,7 @@ describe('getSessionForSite SSR align', () => {
     mockedSsr.default.get.mockImplementation((id: string) => mockedSsr.default.__services.get(id));
     sessionService.getCurrent.mockResolvedValue(originalSession);
     sessionService.setSite.mockResolvedValue(undefined);
+    sessionService.setCurrency.mockResolvedValue(undefined);
   });
 
   it('preserves session currency when the target site lists it', async () => {
@@ -92,5 +95,27 @@ describe('getSessionForSite SSR align', () => {
 
     expect(sessionService.setSite).not.toHaveBeenCalled();
     expect(result).toEqual(originalSession);
+  });
+
+  it('resets a session currency the current site does not list', async () => {
+    sessionService.getCurrent.mockReset();
+    sessionService.getCurrent
+      .mockResolvedValueOnce({ ...originalSession, siteCode: 'main', currency: 'GBP' })
+      .mockResolvedValue({ ...originalSession, siteCode: 'main', currency: 'EUR' });
+    siteService.getSite.mockResolvedValue({
+      code: 'main',
+      defaultCurrency: { id: 'EUR', code: 'EUR' },
+      currencies: [{ id: 'EUR', code: 'EUR' }],
+    });
+
+    let result: Awaited<ReturnType<typeof getSessionForSite>> | undefined;
+    await jest.isolateModulesAsync(async () => {
+      const { getSessionForSite: loadSessionForSite } = await import('./session');
+      result = await loadSessionForSite('main');
+    });
+
+    expect(sessionService.setSite).not.toHaveBeenCalled();
+    expect(sessionService.setCurrency).toHaveBeenCalledWith('EUR');
+    expect(result?.currency).toBe('EUR');
   });
 });

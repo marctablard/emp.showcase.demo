@@ -201,7 +201,7 @@ The freeze breaker is **not** that cookie. `src/i18n/routing.ts` sets `localeDet
 
 Language for external links is the **path locale** (`/de/...`), not a query param.
 
-Currency is owned by the Emporix session + cart (header switcher, `next-currency` cookie). The storefront does **not** inject the site default onto every URL.
+Currency is owned by the Emporix session + cart (header switcher, `next-currency` cookie). The storefront does **not** inject the site default onto every URL. The session is the source of truth while it exists: `GET /api/session` rewrites `next-currency` when the cookie is missing or disagrees, and `CurrencyCookieAligner` calls that GET on page load so a cookie that survived logout cannot re-seed the next anonymous token. A currency the current site does not list is reset to the site default during SSR (`_alignUnsupportedSessionCurrency`); an allowed shopper currency is left as-is.
 
 Inbound `?currency=USD` (share or external link) is handled by `CurrencyUrlAligner` after site/session alignment:
 

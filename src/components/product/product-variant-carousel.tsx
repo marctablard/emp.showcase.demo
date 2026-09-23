@@ -13,6 +13,7 @@ import { useRouter } from '@/i18n/navigation';
 import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import {
   formatTemplateAttributeValue,
+  resolveVariantAttributeLabel,
   resolveVariantAttributeValueLabel,
 } from '@/lib/common/product-template-attributes';
 import {
@@ -20,7 +21,9 @@ import {
   type VariantAttributeFilters,
   getUnselectedVariantAttributePairs,
 } from '@/lib/common/product-variant-attributes';
+import { L10N_MISSING_LABEL } from '@/lib/l10n';
 import { cn, formatCurrency } from '@/lib/utils';
+import type { LocalizedString } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product, ProductTemplateAttributeType } from '@/platform/services/model/product';
 
@@ -40,6 +43,8 @@ export interface ProductVariantCarouselProps {
   currentProductId: string;
   attributeOrder: string[];
   attributeTypes?: Record<string, ProductTemplateAttributeType>;
+  /** Localized names from Product Templates `attributes[].name`. */
+  attributeLabels?: Record<string, LocalizedString>;
   /** Chip axes the shopper already selected — a single pinned value is omitted from card call-outs. */
   selectedFilters?: VariantAttributeFilters;
   /** Filter or navigation in flight — skeleton above the Sellable variants heading. */
@@ -69,12 +74,13 @@ export function resolveSlidesPerPage(viewportWidthPx: number): number {
   );
 }
 
-function ProductVariantCarouselValue({ value }: Readonly<{ value: string }>) {
+function ProductVariantCarouselValue({ label, value }: Readonly<{ label: string; value: string }>) {
+  const full = label ? `${label}: ${value}` : value;
+
   return (
     <Tooltip delayDuration={200}>
       <TooltipTrigger asChild>
-        {/* Span (not a button): the card is already a button. Keyboard users see the
-            full value via group-focus-visible unwrap on the card. */}
+        {/* Span (not a button): the card is already a button. */}
         <span
           className="block min-w-0 truncate group-focus-visible:overflow-visible group-focus-visible:whitespace-normal"
           data-testid="product-variant-carousel-value"
@@ -82,7 +88,7 @@ function ProductVariantCarouselValue({ value }: Readonly<{ value: string }>) {
           {value}
         </span>
       </TooltipTrigger>
-      <TooltipContent data-testid="product-variant-carousel-value-tooltip">{value}</TooltipContent>
+      <TooltipContent data-testid="product-variant-carousel-value-tooltip">{full}</TooltipContent>
     </Tooltip>
   );
 }
@@ -124,6 +130,7 @@ export function ProductVariantCarousel({
   currentProductId,
   attributeOrder,
   attributeTypes,
+  attributeLabels,
   selectedFilters = {},
   isLoading = false,
   onVariantSelect,
@@ -291,7 +298,7 @@ export function ProductVariantCarousel({
                   disabled={isDisabled}
                   aria-disabled={isDisabled || undefined}
                   className={cn(
-                    'group box-border flex h-[228px] w-[161px] min-w-[161px] shrink-0 flex-col overflow-hidden rounded-sm border-2 p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
+                    'group box-border flex h-[228px] w-[161px] min-w-[161px] shrink-0 flex-col overflow-hidden rounded-sm border-2 p-0 text-left outline-none focus-visible:overflow-visible focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
                     isSelected ? 'border-border-secondary' : 'border-border-primary',
                     isDisabled ? 'cursor-not-allowed bg-surface-disabled text-text-disabled' : 'cursor-pointer',
                   )}
@@ -310,19 +317,18 @@ export function ProductVariantCarousel({
                       />
                     </div>
                   </div>
-                  <div className="flex h-[112px] w-full flex-col gap-2 px-2 py-1 text-base text-text-body">
-                    <div className="flex flex-col">
-                      {displayPairs.map((pair) => (
-                        <ProductVariantCarouselValue
-                          key={pair.key}
-                          value={
-                            resolveVariantAttributeValueLabel(pair.value, pair.valueName, l10n) ??
-                            formatTemplateAttributeValue(pair.value, attributeTypes?.[pair.key], locale)
-                          }
-                        />
-                      ))}
+                  <div className="flex h-[112px] w-full min-w-0 flex-col gap-2 px-2 py-1 text-base text-text-body">
+                    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden group-focus-visible:overflow-visible">
+                      {displayPairs.map((pair) => {
+                        const displayValue =
+                          resolveVariantAttributeValueLabel(pair.value, pair.valueName, l10n) ??
+                          formatTemplateAttributeValue(pair.value, attributeTypes?.[pair.key], locale);
+                        const resolvedLabel = resolveVariantAttributeLabel(pair.key, pair.name, attributeLabels, l10n);
+                        const label = resolvedLabel === L10N_MISSING_LABEL ? '' : resolvedLabel;
+                        return <ProductVariantCarouselValue key={pair.key} label={label} value={displayValue} />;
+                      })}
                     </div>
-                    <span className="font-bold">
+                    <span className="shrink-0 font-bold" data-testid="product-variant-carousel-price">
                       {netAmount == null ? t('price.notAvailable') : formatCurrency(netAmount, price?.currency)}
                     </span>
                   </div>

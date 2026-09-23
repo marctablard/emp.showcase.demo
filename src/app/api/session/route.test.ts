@@ -1,5 +1,6 @@
+import { NextRequest } from 'next/server';
 import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
-import { PATCH } from './route';
+import { GET, PATCH } from './route';
 
 /**
  * Route-level tests for `PATCH /api/session`. Focus: the `next-currency`
@@ -161,5 +162,29 @@ describe('PATCH /api/session', () => {
     expect(response.status).toBe(400);
     expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
     expect(response.cookies.get('NEXT_SITE')).toBeUndefined();
+  });
+
+  it('GET rewrites next-currency when it disagrees with the session', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', currency: 'EUR', siteCode: 'main' });
+    const request = new NextRequest('https://example.com/api/session', {
+      headers: { cookie: `${CURRENCY_COOKIE_NAME}=USD` },
+    });
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(response.cookies.get(CURRENCY_COOKIE_NAME)?.value).toBe('EUR');
+  });
+
+  it('GET leaves next-currency alone when it already matches the session', async () => {
+    sessionService.getCurrent.mockResolvedValue({ id: 's1', currency: 'EUR', siteCode: 'main' });
+    const request = new NextRequest('https://example.com/api/session', {
+      headers: { cookie: `${CURRENCY_COOKIE_NAME}=EUR` },
+    });
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
   });
 });

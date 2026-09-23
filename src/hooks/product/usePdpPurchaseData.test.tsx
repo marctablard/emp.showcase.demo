@@ -55,13 +55,17 @@ function matchedPrice(productId: string): ProductPrice {
     id: `price-${productId}`,
     productId,
     amount: 10,
+    originalAmount: 10,
     currency: 'USD',
     discountValue: 0,
     discountPercentage: 0,
     totalValue: 10,
     quantity: { quantity: 1 },
     includesTax: false,
-    tierValues: [],
+    tierValues: [
+      { id: 't1', minQuantity: 1, price: 10 },
+      { id: 't2', minQuantity: 10, price: 8 },
+    ],
   };
 }
 
@@ -190,5 +194,39 @@ describe('usePdpPurchaseData', () => {
     expect(fetchProductPriceMock).toHaveBeenCalledWith('p-1', 30, undefined, 'USD');
     expect(result.current.price).toEqual(qty30Fetched);
     expect(result.current.price).not.toEqual(qty1Embedded);
+  });
+
+  test('re-fetches when the embedded price has no tiers', async () => {
+    const embedded = {
+      ...catalogProduct('p-1'),
+      price: { ...matchedPrice('p-1'), tierValues: [] },
+    };
+
+    renderHook(() => usePdpPurchaseData(embedded, session, site));
+
+    await waitFor(() => {
+      expect(fetchProductPriceMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  test('re-fetches when embedded tier amounts do not match the price currency', async () => {
+    const embedded = {
+      ...catalogProduct('p-1'),
+      price: {
+        ...matchedPrice('p-1'),
+        originalAmount: 886.9,
+        amount: 886.9,
+        tierValues: [
+          { id: 't1', minQuantity: 1, price: 1000 },
+          { id: 't2', minQuantity: 10, price: 900 },
+        ],
+      },
+    };
+
+    renderHook(() => usePdpPurchaseData(embedded, session, site));
+
+    await waitFor(() => {
+      expect(fetchProductPriceMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

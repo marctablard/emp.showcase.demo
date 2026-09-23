@@ -184,16 +184,19 @@ describe('ProductPriceComponent discount wording and list price', () => {
     expect(screen.getByText('discount')).toBeInTheDocument();
   });
 
-  it('aligns list price under a ~200px left column with body/l strikethrough and Ubuntu h4 gross', () => {
+  it('keeps list price in a growing rem column so the discount phrase cannot cover it', () => {
     const price = buildPrice({ discountPercentage: 25, originalAmount: 459.99, amount: 372.59 });
     render(<ProductPriceComponent price={price} />);
 
     const labels = screen.getByTestId('product-price-labels');
     const amounts = screen.getByTestId('product-price-amounts');
-    expect(labels.firstElementChild).toHaveClass('w-[200px]');
-    expect(amounts.firstElementChild).toHaveClass('w-[200px]', 'font-headlines');
+    // 12.5rem is the Figma 200px column at a 16px root, and it scales with the label type.
+    expect(labels).toHaveClass('grid-cols-[minmax(12.5rem,max-content)_auto]');
+    expect(labels.firstElementChild).not.toHaveClass('w-[200px]');
+    expect(amounts).toHaveClass('font-headlines');
+    expect(amounts).not.toHaveClass('w-[200px]');
     expect(document.getElementById('price')).toHaveClass('font-headlines', 'text-4xl');
-    expect(amounts.querySelector('.line-through')).toHaveClass('text-lg');
+    expect(labels.querySelector('.line-through')).toHaveClass('text-lg');
   });
 
   it('uses 4px radius token and bold weight on the discount badge', () => {

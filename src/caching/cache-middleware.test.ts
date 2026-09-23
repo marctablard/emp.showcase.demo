@@ -3,6 +3,7 @@ import { applyCacheDirectives, isAuthJsSessionCookieName } from './cache-middlew
 
 const ENABLED_ENV = 'NEXT_CACHE_MIDDLEWARE_ENABLED';
 const PRODUCT_PATH = '/product/abc';
+const SEARCH_PATH = '/api/search';
 const SUGGESTIONS_PATH = '/api/search/suggestions';
 const PRIVATE_NO_STORE = 'private, no-store';
 
@@ -54,12 +55,10 @@ describe('applyCacheDirectives', () => {
     }
   });
 
-  it('sets the public directive and cache tags for an anonymous product request', () => {
+  it('sets private, no-store and cache tags for an anonymous product request', () => {
     const response = apply(PRODUCT_PATH);
 
-    expect(response.headers.get('Cache-Control')).toBe(
-      'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
-    );
+    expect(response.headers.get('Cache-Control')).toBe(PRIVATE_NO_STORE);
     expect(response.headers.get('X-Cache-Tags')).toBe('product-abc');
   });
 
@@ -81,18 +80,24 @@ describe('applyCacheDirectives', () => {
     'authjs.session-token-old=abc',
     'xauthjs.session-token=abc',
     'authjs.session-token.abc=1',
-  ])('keeps the public directive for a look-alike cookie name (%s)', (cookieHeader) => {
+  ])('still treats a look-alike cookie name as anonymous (%s)', (cookieHeader) => {
     const response = apply(SUGGESTIONS_PATH, cookieHeader);
 
-    expect(response.headers.get('Cache-Control')).toMatch(/^public, /);
+    expect(response.headers.get('Cache-Control')).toBe(PRIVATE_NO_STORE);
+    expect(response.headers.get('X-Cache-Tags')).toBe('search');
   });
 
-  it('keeps the public directive when only unrelated cookies are present', () => {
+  it('sets private, no-store and search tags for the primary search endpoint', () => {
+    const response = apply(SEARCH_PATH);
+
+    expect(response.headers.get('Cache-Control')).toBe(PRIVATE_NO_STORE);
+    expect(response.headers.get('X-Cache-Tags')).toBe('search');
+  });
+
+  it('sets private, no-store and search tags when only unrelated cookies are present', () => {
     const response = apply(SUGGESTIONS_PATH, 'currency=EUR; other=1');
 
-    expect(response.headers.get('Cache-Control')).toBe(
-      'public, max-age=1800, s-maxage=1800, stale-while-revalidate=3600',
-    );
+    expect(response.headers.get('Cache-Control')).toBe(PRIVATE_NO_STORE);
     expect(response.headers.get('X-Cache-Tags')).toBe('search');
   });
 

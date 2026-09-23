@@ -21,13 +21,22 @@ describe('cacheRules', () => {
     expect(ruleFor(PRODUCT_CATALOG_URL)?.cache?.revalidate).toBe(0);
   });
 
-  it('leaves /product/(.*) HTML cache rule unchanged', () => {
+  it('sets /product/(.*) to revalidate 0 so the middleware emits private, no-store', () => {
     expect(ruleFor(PRODUCT_HTML_URL)).toEqual({
       url: PRODUCT_HTML_URL,
       cache: {
-        revalidate: 3600,
+        revalidate: 0,
         tags: ['product-$1'],
       },
     });
+  });
+
+  it('sets /api/search and its subpaths to revalidate 0 so listing prices are not publicly cached', () => {
+    const pattern = '/api/search(?:/.*)?';
+    expect(ruleFor(pattern)?.cache?.revalidate).toBe(0);
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test('/api/search')).toBe(true);
+    expect(regex.test('/api/search/suggestions')).toBe(true);
+    expect(regex.test('/api/searching')).toBe(false);
   });
 });

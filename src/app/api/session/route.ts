@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
+import { syncCurrencyCookie, writeCurrencyCookie } from '@/lib/common/currency-cookie';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Session } from '@/platform/services/model/session/session';
@@ -8,12 +9,14 @@ import type { SessionService } from '@/platform/services/session/SessionService'
 
 const PREFERENCE_COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 
-/** GET /api/session — returns the current session. */
-export async function GET() {
+/** GET /api/session — returns the current session and rewrites `next-currency` when it disagrees. */
+export async function GET(request: NextRequest) {
   try {
     const sessionService = server.get<SessionService>('SessionService');
     const session = await sessionService.getCurrent();
-    return NextResponse.json(session);
+    const response = NextResponse.json(session);
+    syncCurrencyCookie(response, session?.currency, request.cookies.get(CURRENCY_COOKIE_NAME)?.value);
+    return response;
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     logger.error(
@@ -111,7 +114,7 @@ function applySessionPreferenceCookies(
     // Site-only PATCH (preserve-if-supported) omits `currency` from the body.
     // Still persist canonical session currency so `next-currency` matches after the switch.
     if (updatedSession?.currency) {
-      setPublicPreferenceCookie(response, CURRENCY_COOKIE_NAME, updatedSession.currency);
+      writeCurrencyCookie(response, updatedSession.currency);
     }
   }
 
@@ -120,7 +123,7 @@ function applySessionPreferenceCookies(
     // can seed the next anonymous session context (e.g. after logout / token expiry)
     // with the shopper's choice. Prefer the canonical post-PATCH value from the
     // combined path; fall back to the requested value for the legacy per-field path.
-    setPublicPreferenceCookie(response, CURRENCY_COOKIE_NAME, updatedSession?.currency || fields.currency);
+    writeCurrencyCookie(response, updatedSession?.currency || fields.currency);
   }
 }
 
