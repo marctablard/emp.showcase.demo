@@ -111,6 +111,16 @@ describe('cart & checkout — summary column beside the list from lg (1280), 444
     });
   }
 
+  it('aligns the cart price header with the five-column row', () => {
+    const row = 'sm:grid-cols-[120px_minmax(0,1fr)_auto_1.5rem_auto]';
+    expect(read('src/components/cart/cart-item.tsx')).toContain(row);
+    const header = read('src/components/cart/cart-itemlist.tsx');
+    expect(header).toContain(row);
+    expect(header).toContain('sm:col-start-5');
+    expect(header).not.toContain('sm:grid-cols-[120px_2fr_1fr_1fr]');
+    expect(header).not.toContain('md:grid-cols-[120px_3fr_1fr_1fr]');
+  });
+
   for (const rel of ['src/components/cart/cart-summary.tsx', 'src/components/checkout/checkout-summary.tsx']) {
     it(`${path.basename(rel)} pins the summary only at lg`, () => {
       const src = read(rel);

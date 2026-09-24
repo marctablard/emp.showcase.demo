@@ -59,7 +59,7 @@ function visibleCouponCode(code: string): string {
   return `${code.slice(0, COUPON_CODE_VISIBLE_LENGTH)}…`;
 }
 
-function CouponCodeLabel({ code }: { code: string }) {
+function CouponCodeLabel({ code, productId }: Readonly<{ code: string; productId: string }>) {
   const visible = visibleCouponCode(code);
   const className = 'order-3 shrink-0 text-sm leading-5 whitespace-nowrap text-text-body sm:order-none';
   if (visible === code) {
@@ -68,7 +68,14 @@ function CouponCodeLabel({ code }: { code: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className={className}>{visible}</span>
+        <button
+          type="button"
+          className={cn(className, 'cursor-default border-0 bg-transparent p-0 font-[inherit]')}
+          aria-label={code}
+          data-testid={`cart-item-couponCode-${productId}-${code}`}
+        >
+          {visible}
+        </button>
       </TooltipTrigger>
       <TooltipContent className="break-all">{code}</TooltipContent>
     </Tooltip>
@@ -80,12 +87,13 @@ function CartItemPriceColumn({
   grossLabel,
   priceChange,
   onOpenPriceChange,
-}: {
+}: Readonly<{
   item: CartItem;
   grossLabel: string;
   priceChange: CartItemPriceChange | null;
   onOpenPriceChange: () => void;
-}) {
+}>) {
+  const t = useTranslations('cart');
   const netAmount = resolveCartItemNetAmount(item);
   const grossAmount = resolveCartItemGrossAmount(item);
   const coupons = lineCouponSavings(item);
@@ -116,7 +124,7 @@ function CartItemPriceColumn({
           data-testid={`cart-item-coupon-${productId}-${coupon.code}`}
         >
           <BadgePercent className="order-2 size-[18px] shrink-0 text-icon-neutral sm:order-none" aria-hidden />
-          <CouponCodeLabel code={coupon.code} />
+          <CouponCodeLabel code={coupon.code} productId={productId} />
           <span
             className="order-1 shrink-0 rounded-sm bg-surface-success px-2 py-1 text-sm font-bold leading-5 whitespace-nowrap text-text-body sm:order-none"
             data-testid={`cart-item-couponAmount-${productId}-${coupon.code}`}
@@ -128,14 +136,20 @@ function CartItemPriceColumn({
       <div className={cn('relative font-bold sm:text-end', showOriginalNet && 'text-text-error')}>
         {formatCurrency(netAmount, item.price.currency)}
         {priceChange && (
-          <div className="cursor-pointer" onClick={onOpenPriceChange}>
+          <button
+            type="button"
+            className="cursor-pointer border-0 bg-transparent p-0"
+            onClick={onOpenPriceChange}
+            aria-label={t('priceChange.title')}
+            data-testid={`cart-item-priceChange-${productId}`}
+          >
             <UINotification
               icon={Coins}
               iconSize={18}
               className="absolute right-[52px] bottom-[-58px]"
               animate="pulse"
             />
-          </div>
+          </button>
         )}
       </div>
       {grossAmount !== undefined && (

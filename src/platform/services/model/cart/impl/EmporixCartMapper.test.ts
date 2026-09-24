@@ -834,4 +834,93 @@ describe('EmporixCartMapper', () => {
     expect(mapped.items[0]?.originalNet).toBeUndefined();
     expect(mapped.items[0]?.couponDiscounts).toBeUndefined();
   });
+
+  it('prefers product discounts over fee-inclusive total discounts', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      discountedPrice: {
+        ...line.calculatedPrice.price,
+        appliedDiscounts: [{ id: 'LS10PTOTAL', value: 35, discountType: 'PERCENT', origin: 'INTERNAL' }],
+      },
+      totalDiscount: {
+        calculationType: 'ApplyDiscountBeforeTax',
+        value: 35.375,
+        appliedDiscounts: [{ id: 'LS10PTOTAL', value: 35.375, discountType: 'PERCENT', origin: 'INTERNAL' }],
+      },
+    };
+
+    const mapped = mapper.mapToService(source);
+
+    expect(mapped.items[0]?.couponDiscounts).toEqual([
+      { code: 'LS10PTOTAL', amount: 35, currency: 'EUR', type: 'PERCENT' },
+    ]);
+  });
+
+  it('reads a line coupon from price.appliedDiscounts when the product list is empty', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      price: {
+        ...line.calculatedPrice.price,
+        appliedDiscounts: [{ id: 'LINEONLY', value: 4, discountType: 'ABSOLUTE', origin: 'INTERNAL' }],
+      },
+      totalDiscount: undefined,
+    };
+
+    expect(mapper.mapToService(source).items[0]?.couponDiscounts).toEqual([
+      { code: 'LINEONLY', amount: 4, currency: 'EUR', type: 'ABSOLUTE' },
+    ]);
+  });
+
+  it('reads a line coupon from finalPrice.appliedDiscounts when earlier lists are empty', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      finalPrice: {
+        ...line.calculatedPrice.finalPrice,
+        appliedDiscounts: [{ id: 'FINALONLY', value: 2.5, discountType: 'ABSOLUTE', origin: 'INTERNAL' }],
+      },
+      totalDiscount: undefined,
+    };
+
+    expect(mapper.mapToService(source).items[0]?.couponDiscounts).toEqual([
+      { code: 'FINALONLY', amount: 2.5, currency: 'EUR', type: 'ABSOLUTE' },
+    ]);
+  });
+
+  it('skips a free-shipping-only list and uses the next product coupon', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      discountedPrice: {
+        ...line.calculatedPrice.price,
+        appliedDiscounts: [{ id: 'SHIPFREE', value: 4.95, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' }],
+      },
+      price: {
+        ...line.calculatedPrice.price,
+        appliedDiscounts: [{ id: 'SAVE10', value: 10, discountType: 'ABSOLUTE', origin: 'INTERNAL' }],
+      },
+    };
+
+    expect(mapper.mapToService(source).items[0]?.couponDiscounts).toEqual([
+      { code: 'SAVE10', amount: 10, currency: 'EUR', type: 'ABSOLUTE' },
+    ]);
+  });
 });

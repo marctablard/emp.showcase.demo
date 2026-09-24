@@ -166,6 +166,22 @@ describe('CartItemRow empty thumbnail', () => {
   });
 });
 
+function currencyText(amount: number, currency = 'EUR'): string {
+  return formatCurrency(amount, currency).replace(/\s+/g, ' ');
+}
+
+function matchesCurrency(amount: number, currency = 'EUR') {
+  const expected = formatCurrency(amount, currency).replace(/[\s\u00a0\u202f]+/g, '');
+  return (_content: string, element: Element | null) =>
+    (element?.textContent ?? '').replace(/[\s\u00a0\u202f]+/g, '') === expected;
+}
+
+function spanIncludesCurrency(amount: number, currency = 'EUR') {
+  const expected = formatCurrency(amount, currency).replace(/[\s\u00a0\u202f]+/g, '');
+  return (_content: string, element: Element | null) =>
+    element?.tagName === 'SPAN' && (element.textContent ?? '').replace(/[\s\u00a0\u202f]+/g, '').includes(expected);
+}
+
 describe('CartItemRow line coupons', () => {
   beforeAll(() => {
     class ResizeObserverMock {
@@ -197,17 +213,15 @@ describe('CartItemRow line coupons', () => {
       />,
     );
 
-    expect(screen.getByTestId('cart-item-originalNet-prod-1')).toHaveTextContent(formatCurrency(4750.95, 'EUR'));
+    expect(screen.getByTestId('cart-item-originalNet-prod-1')).toHaveTextContent(currencyText(4750.95));
     expect(screen.getByTestId('cart-item-coupon-prod-1-10POFF')).toHaveTextContent('10POFF');
-    expect(screen.getByTestId('cart-item-couponAmount-prod-1-10POFF')).toHaveTextContent(formatCurrency(-475.1, 'EUR'));
-    expect(screen.getByTestId('cart-item-couponAmount-prod-1-VKTEST-PROMO01')).toHaveTextContent(
-      formatCurrency(-6.8, 'EUR'),
-    );
+    expect(screen.getByTestId('cart-item-couponAmount-prod-1-10POFF')).toHaveTextContent(currencyText(-475.1));
+    expect(screen.getByTestId('cart-item-couponAmount-prod-1-VKTEST-PROMO01')).toHaveTextContent(currencyText(-6.8));
     expect(screen.queryByText('E2E-FREE_SHIPPING-E7902DA5')).not.toBeInTheDocument();
-    const discountedNet = screen.getByText(formatCurrency(4269.05, 'EUR'));
+    const discountedNet = screen.getByText(matchesCurrency(4269.05));
     expect(discountedNet).toHaveClass('text-text-error');
     expect(screen.getByTestId('cart-item-coupon-prod-1-10POFF').querySelector('svg')).toHaveClass('text-icon-neutral');
-    expect(screen.getByText(new RegExp(formatCurrency(5080.17, 'EUR')))).toBeInTheDocument();
+    expect(screen.getByText(spanIncludesCurrency(5080.17))).toBeInTheDocument();
     expect(
       document.querySelector('.sm\\:grid-cols-\\[120px_minmax\\(0\\,1fr\\)_auto_1\\.5rem_auto\\]'),
     ).toBeInTheDocument();
@@ -232,10 +246,10 @@ describe('CartItemRow line coupons', () => {
     const row = screen.getByTestId(`cart-item-coupon-prod-1-${code}`);
     expect(row).toHaveClass('flex-nowrap', 'justify-start', 'sm:justify-end');
     expect(screen.getByTestId(`cart-item-couponAmount-prod-1-${code}`)).toHaveClass('order-1', 'sm:order-none');
-    expect(row).toHaveTextContent(`VKTEST-PROMO01-E…${formatCurrency(-6.8, 'EUR')}`);
+    expect(row.textContent?.replace(/\s+/g, ' ')).toContain(`VKTEST-PROMO01-E…${currencyText(-6.8)}`);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 
-    fireEvent.focus(screen.getByText('VKTEST-PROMO01-E…'));
+    fireEvent.focus(screen.getByTestId(`cart-item-couponCode-prod-1-${code}`));
 
     await waitFor(() => {
       expect(screen.getByRole('tooltip')).toHaveTextContent(code);
@@ -254,7 +268,7 @@ describe('CartItemRow line coupons', () => {
 
     expect(screen.queryByTestId('cart-item-originalNet-prod-1')).not.toBeInTheDocument();
     expect(screen.queryByTestId(/cart-item-coupon-/)).not.toBeInTheDocument();
-    const net = screen.getByText(formatCurrency(100, 'EUR'));
+    const net = screen.getByText(matchesCurrency(100));
     expect(net).toBeInTheDocument();
     expect(net).not.toHaveClass('text-text-error');
   });

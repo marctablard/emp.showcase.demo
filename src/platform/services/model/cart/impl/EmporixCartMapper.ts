@@ -31,28 +31,42 @@ function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: '
   };
 }
 
-/** Goods coupons on one line. Free-shipping and zero-value rows stay off the product price. */
+function isDisplayableProductCoupon(
+  discount: EmporixCalculatedAppliedDiscount,
+): discount is EmporixCalculatedAppliedDiscount & { id: string } {
+  return (
+    discount.discountType !== 'FREE_SHIPPING' &&
+    typeof discount.id === 'string' &&
+    discount.id.length > 0 &&
+    discount.value > 0.005
+  );
+}
+
+/**
+ * Goods coupons on one line. Prefer the product price (`discountedPrice`) over
+ * `totalDiscount`, which also includes fee savings. `price` and `finalPrice` cover
+ * payloads that omit `discountedPrice`. The first list that still has a product
+ * coupon wins so overlapping rows are not added twice. Free-shipping and
+ * zero-value rows stay off the product price.
+ */
 function mapLineCouponDiscounts(
   item: EmporixCartItem,
   currency: string,
 ): NonNullable<ServiceCartItem['couponDiscounts']> {
-  return firstAppliedDiscountList(
-    item.calculatedPrice?.totalDiscount?.appliedDiscounts,
+  const sources = [
     item.calculatedPrice?.discountedPrice?.appliedDiscounts,
-  )
-    .filter(
-      (discount) =>
-        discount.discountType !== 'FREE_SHIPPING' &&
-        typeof discount.id === 'string' &&
-        discount.id.length > 0 &&
-        discount.value > 0.005,
-    )
-    .map((discount) => ({
-      code: discount.id as string,
-      amount: discount.value,
-      currency,
-      type: discount.discountType,
-    }));
+    item.calculatedPrice?.price?.appliedDiscounts,
+    item.calculatedPrice?.finalPrice?.appliedDiscounts,
+    item.calculatedPrice?.totalDiscount?.appliedDiscounts,
+  ];
+  const productCoupons =
+    sources.map((list) => (list ?? []).filter(isDisplayableProductCoupon)).find((list) => list.length > 0) ?? [];
+  return productCoupons.map((discount) => ({
+    code: discount.id,
+    amount: discount.value,
+    currency,
+    type: discount.discountType,
+  }));
 }
 
 /**
