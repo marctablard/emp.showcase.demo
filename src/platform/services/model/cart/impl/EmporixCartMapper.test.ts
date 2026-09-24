@@ -973,4 +973,81 @@ describe('EmporixCartMapper', () => {
       { code: 'SAVE10', amount: 10, currency: 'EUR', type: 'ABSOLUTE' },
     ]);
   });
+
+  it('drops external adjustments and shows after-tax coupon savings as net', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      price: {
+        ...line.calculatedPrice.price,
+        netValue: 294.118,
+        grossValue: 350,
+        taxRate: 19,
+      },
+      discountedPrice: {
+        ...line.calculatedPrice.price,
+        netValue: 220.588,
+        grossValue: 262.5,
+        taxRate: 19,
+        appliedDiscounts: [
+          { id: 'LS10PTOTAL', value: 35, discountType: 'PERCENT', origin: 'INTERNAL' },
+          { id: 'ext-discount-001', value: 52.5, discountType: 'PERCENT', origin: 'INTERNAL' },
+        ],
+      },
+      finalPrice: {
+        ...line.calculatedPrice.finalPrice,
+        netValue: 223.738,
+        grossValue: 265.87,
+      },
+      totalDiscount: {
+        calculationType: 'ApplyDiscountAfterTax',
+        value: 87.875,
+        appliedDiscounts: [
+          { id: 'LS10PTOTAL', value: 35.375, discountType: 'PERCENT', origin: 'INTERNAL' },
+          { id: 'ext-discount-001', value: 52.5, discountType: 'PERCENT', origin: 'EXTERNAL' },
+        ],
+      },
+    };
+
+    const mapped = mapper.mapToService(source);
+
+    expect(mapped.items[0]?.originalNet).toBe(294.118);
+    expect(mapped.items[0]?.couponDiscounts).toEqual([
+      { code: 'LS10PTOTAL', amount: 35 / 1.19, currency: 'EUR', type: 'PERCENT' },
+    ]);
+  });
+
+  it('strikes the goods net when a fee makes the final price higher than the list price', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      price: { ...line.calculatedPrice.price, netValue: 100 },
+      discountedPrice: {
+        ...line.calculatedPrice.price,
+        netValue: 90,
+        appliedDiscounts: [{ id: 'SAVE10', value: 10, discountType: 'ABSOLUTE', origin: 'INTERNAL' }],
+      },
+      finalPrice: { ...line.calculatedPrice.finalPrice, netValue: 110 },
+      totalDiscount: {
+        calculationType: 'ApplyDiscountBeforeTax',
+        value: 10,
+        appliedDiscounts: [{ id: 'SAVE10', value: 10, discountType: 'ABSOLUTE', origin: 'INTERNAL' }],
+      },
+    };
+
+    const mapped = mapper.mapToService(source);
+
+    expect(mapped.items[0]?.originalNet).toBe(100);
+    expect(mapped.items[0]?.couponDiscounts).toEqual([
+      { code: 'SAVE10', amount: 10, currency: 'EUR', type: 'ABSOLUTE' },
+    ]);
+  });
 });

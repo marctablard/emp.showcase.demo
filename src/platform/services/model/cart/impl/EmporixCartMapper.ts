@@ -36,13 +36,31 @@ function isDisplayableProductCoupon(
 ): discount is EmporixCalculatedAppliedDiscount & { id: string } {
   return (
     discount.discountType !== 'FREE_SHIPPING' &&
+    discount.origin !== 'EXTERNAL' &&
     typeof discount.id === 'string' &&
     discount.id.length > 0 &&
     discount.value > 0.005
   );
 }
 
-const NO_EXCLUDED_DISCOUNT_IDS: ReadonlySet<string> = new Set();
+function externalDiscountIds(item: EmporixCartItem): ReadonlySet<string> {
+  const ids = new Set<string>();
+  const lists = [
+    item.calculatedPrice?.discountedPrice?.appliedDiscounts,
+    item.calculatedPrice?.price?.appliedDiscounts,
+    item.calculatedPrice?.finalPrice?.appliedDiscounts,
+    item.calculatedPrice?.totalDiscount?.appliedDiscounts,
+    item.calculatedPrice?.totalFee?.appliedDiscounts,
+  ];
+  for (const list of lists) {
+    for (const discount of list ?? []) {
+      if (discount.origin === 'EXTERNAL' && typeof discount.id === 'string' && discount.id.length > 0) {
+        ids.add(discount.id);
+      }
+    }
+  }
+  return ids;
+}
 
 function feeDiscountIds(item: EmporixCartItem): ReadonlySet<string> {
   const ids = new Set<string>();
@@ -61,6 +79,26 @@ function isGoodsCoupon(
   return isDisplayableProductCoupon(discount) && !excludedIds.has(discount.id);
 }
 
+function lineTaxRate(item: EmporixCartItem): number | undefined {
+  return (
+    item.calculatedPrice?.discountedPrice?.taxRate ??
+    item.calculatedPrice?.price?.taxRate ??
+    item.calculatedPrice?.finalPrice?.taxRate
+  );
+}
+
+/** After-tax `appliedDiscounts.value` is gross. The product row shows the net saving. */
+function netCouponAmount(value: number, item: EmporixCartItem): number {
+  const taxRate = lineTaxRate(item);
+  if (item.calculatedPrice?.totalDiscount?.calculationType !== 'ApplyDiscountAfterTax') {
+    return value;
+  }
+  if (typeof taxRate !== 'number' || taxRate <= 0) {
+    return value;
+  }
+  return value / (1 + taxRate / 100);
+}
+
 function displayableCoupons(
   list: EmporixCalculatedAppliedDiscount[] | undefined,
   excludedIds: ReadonlySet<string>,
@@ -71,27 +109,32 @@ function displayableCoupons(
 /**
  * Goods coupons on one line. Prefer `discountedPrice`, then `price`, then `finalPrice`.
  * `totalDiscount` is only a fallback and is fee-inclusive, so rows that also appear on
- * `totalFee` stay off the product price. The first list that still has a product
- * coupon wins so overlapping rows are not added twice. Free-shipping and zero-value
- * rows stay off the product price.
+ * `totalFee` stay off the product price. External price adjustments are not coupons.
+ * The first list that still has a product coupon wins so overlapping rows are not added
+ * twice. Free-shipping and zero-value rows stay off the product price.
  */
 function mapLineCouponDiscounts(
   item: EmporixCartItem,
   currency: string,
 ): NonNullable<ServiceCartItem['couponDiscounts']> {
+  const externalIds = externalDiscountIds(item);
   const goodsSources = [
     item.calculatedPrice?.discountedPrice?.appliedDiscounts,
     item.calculatedPrice?.price?.appliedDiscounts,
     item.calculatedPrice?.finalPrice?.appliedDiscounts,
   ];
   const goodsCoupons = goodsSources
-    .map((list) => displayableCoupons(list, NO_EXCLUDED_DISCOUNT_IDS))
+    .map((list) => displayableCoupons(list, externalIds))
     .find((list) => list.length > 0);
+  const fallbackIds = new Set<string>(externalIds);
+  for (const id of feeDiscountIds(item)) {
+    fallbackIds.add(id);
+  }
   const productCoupons =
-    goodsCoupons ?? displayableCoupons(item.calculatedPrice?.totalDiscount?.appliedDiscounts, feeDiscountIds(item));
+    goodsCoupons ?? displayableCoupons(item.calculatedPrice?.totalDiscount?.appliedDiscounts, fallbackIds);
   return productCoupons.map((discount) => ({
     code: discount.id,
-    amount: discount.value,
+    amount: netCouponAmount(discount.value, item),
     currency,
     type: discount.discountType,
   }));
@@ -530,8 +573,11 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     }
     const lineCoupons = mapLineCouponDiscounts(emporixCartItem, emporixCart.currency);
     const listNet = emporixCartItem.calculatedPrice?.price?.netValue;
-    const finalNet = emporixCartItem.calculatedPrice?.finalPrice?.netValue;
-    const goodsDiscounted = typeof listNet === 'number' && typeof finalNet === 'number' && listNet - finalNet >= 0.005;
+    const discountedNet = emporixCartItem.calculatedPrice?.discountedPrice?.netValue;
+    const comparedNet =
+      typeof discountedNet === 'number' ? discountedNet : emporixCartItem.calculatedPrice?.finalPrice?.netValue;
+    const goodsDiscounted =
+      typeof listNet === 'number' && typeof comparedNet === 'number' && listNet - comparedNet >= 0.005;
     return {
       id: emporixCartItem.id,
       quantity: emporixCartItem.quantity,
