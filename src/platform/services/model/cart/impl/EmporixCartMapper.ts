@@ -591,7 +591,10 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     const listNet = emporixCartItem.calculatedPrice?.price?.netValue;
     const comparedNet = goodsNetAfterDiscounts(emporixCartItem);
     const goodsDiscounted =
-      typeof listNet === 'number' && typeof comparedNet === 'number' && listNet - comparedNet >= 0.005;
+      lineCoupons.length > 0 &&
+      typeof listNet === 'number' &&
+      typeof comparedNet === 'number' &&
+      listNet - comparedNet >= 0.005;
     return {
       id: emporixCartItem.id,
       quantity: emporixCartItem.quantity,

@@ -1067,4 +1067,27 @@ describe('EmporixCartMapper', () => {
 
     expect(mapper.mapToService(source).items[0]?.originalNet).toBeUndefined();
   });
+
+  it('does not strike the goods price for an external-only adjustment', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      price: { ...line.calculatedPrice.price, netValue: 100 },
+      discountedPrice: {
+        ...line.calculatedPrice.price,
+        netValue: 80,
+        appliedDiscounts: [{ id: 'ext-discount-001', value: 20, discountType: 'ABSOLUTE', origin: 'EXTERNAL' }],
+      },
+      finalPrice: { ...line.calculatedPrice.finalPrice, netValue: 80 },
+    };
+
+    const mapped = mapper.mapToService(source);
+
+    expect(mapped.items[0]?.couponDiscounts).toBeUndefined();
+    expect(mapped.items[0]?.originalNet).toBeUndefined();
+  });
 });
