@@ -96,27 +96,27 @@ describe('hero (Figma startpage masters + behavior spec 813:35983)', () => {
   });
 });
 
-describe('cart & checkout — fixed summary column 340@md/444@lg with 24px gutter', () => {
+describe('cart & checkout — summary column beside the list from lg (1280), 444px with 24px gutter', () => {
   for (const rel of [
     'src/components/cart/cart-overview.tsx',
     'src/components/cart/cart-action.tsx',
     'src/components/checkout/checkout.tsx',
   ]) {
-    it(`${path.basename(rel)} uses the asymmetric two-column template`, () => {
+    it(`${path.basename(rel)} keeps a single column until lg`, () => {
       const src = read(rel);
-      expect(src).toContain('md:grid-cols-[minmax(0,1fr)_340px]');
       expect(src).toContain('lg:grid-cols-[minmax(0,1fr)_444px]');
+      expect(src).not.toContain('md:grid-cols-[minmax(0,1fr)_340px]');
       expect(src).not.toContain('md:gap-8');
       expect(src).not.toContain('gap-8');
     });
   }
 
   for (const rel of ['src/components/cart/cart-summary.tsx', 'src/components/checkout/checkout-summary.tsx']) {
-    it(`${path.basename(rel)} has no dead 438px cap and pins the fixed state to the column width`, () => {
+    it(`${path.basename(rel)} pins the summary only at lg`, () => {
       const src = read(rel);
       expect(src).not.toContain('md:max-w-[438px]');
-      expect(src).toContain('md:w-[340px]');
-      expect(src).toContain('lg:w-[444px]');
+      expect(src).not.toContain('md:w-[340px]');
+      expect(src).toContain('lg:fixed lg:w-[444px]');
     });
   }
 });

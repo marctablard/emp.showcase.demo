@@ -49,12 +49,24 @@ export interface Cart {
   freeShipping?: boolean;
 }
 
+/** Coupon saving on one cart line. Amount is net. Free-shipping rows with no goods value are omitted. */
+export interface CartItemCouponDiscount {
+  code: string;
+  amount: number;
+  currency: string;
+  type?: CartAppliedDiscountType;
+}
+
 export interface CartItem {
   id: string;
   quantity: number;
   price: Price;
   product?: Partial<Product>;
   tax?: Tax;
+  /** Pre-coupon line net (`calculatedPrice.price.netValue`) when a coupon lowered the line. */
+  originalNet?: number;
+  /** Goods coupons applied to this line, with each coupon's net saving. */
+  couponDiscounts?: CartItemCouponDiscount[];
 }
 
 export interface CartItemPriceChange {

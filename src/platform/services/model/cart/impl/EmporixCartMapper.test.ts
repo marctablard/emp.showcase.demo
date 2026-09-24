@@ -785,4 +785,53 @@ describe('EmporixCartMapper', () => {
     expect(mapped.shippingCosts?.tax?.amount).toBe(1.54);
     expect(mapped.shippingCosts?.tax?.taxRate).toBe(7.7);
   });
+
+  it('maps each line coupon saving and the pre-coupon net', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      price: {
+        netValue: 4750.95,
+        grossValue: 5653.63,
+        taxValue: 902.68,
+        taxCode: 'STANDARD',
+        taxRate: 19,
+      },
+      finalPrice: {
+        netValue: 4269.05,
+        grossValue: 5080.17,
+        taxValue: 811.12,
+        taxCode: 'STANDARD',
+        taxRate: 19,
+      },
+      totalDiscount: {
+        calculationType: 'ApplyDiscountBeforeTax',
+        value: 481.9,
+        appliedDiscounts: [
+          { id: 'VKTEST-PROMO01', value: 6.8, discountType: 'ABSOLUTE', origin: 'INTERNAL' },
+          { id: '10POFF', value: 475.1, discountType: 'PERCENT', origin: 'INTERNAL' },
+          { id: 'E2E-FREE_SHIPPING-E7902DA5', value: 0, discountType: 'FREE_SHIPPING', origin: 'INTERNAL' },
+        ],
+      },
+    } as EmporixCart['items'][number]['calculatedPrice'];
+
+    const mapped = mapper.mapToService(source);
+
+    expect(mapped.items[0]?.originalNet).toBe(4750.95);
+    expect(mapped.items[0]?.tax?.netValue).toBe(4269.05);
+    expect(mapped.items[0]?.couponDiscounts).toEqual([
+      { code: 'VKTEST-PROMO01', amount: 6.8, currency: 'EUR', type: 'ABSOLUTE' },
+      { code: '10POFF', amount: 475.1, currency: 'EUR', type: 'PERCENT' },
+    ]);
+  });
+
+  it('leaves line coupons unset when the line price is unchanged', () => {
+    const mapped = mapper.mapToService(showcaseDevCart());
+
+    expect(mapped.items[0]?.originalNet).toBeUndefined();
+    expect(mapped.items[0]?.couponDiscounts).toBeUndefined();
+  });
 });

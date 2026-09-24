@@ -34,8 +34,8 @@ export function CartSummary({ cart, boundingContent, onRequestQuote }: Readonly<
         <div
           className={cn(
             'flex flex-col gap-4',
-            isFixed ? 'fixed md:w-[340px] lg:w-[444px]' : '',
-            isFixedToTop ? 'top-[112px]' : 'bottom-[40px]',
+            isFixed ? 'lg:fixed lg:w-[444px]' : '',
+            isFixedToTop ? 'lg:top-[112px]' : 'lg:bottom-[40px]',
           )}
           ref={fixedContainer}
         >

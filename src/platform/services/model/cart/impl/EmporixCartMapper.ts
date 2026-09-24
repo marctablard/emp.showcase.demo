@@ -31,6 +31,30 @@ function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: '
   };
 }
 
+/** Goods coupons on one line. Free-shipping and zero-value rows stay off the product price. */
+function mapLineCouponDiscounts(
+  item: EmporixCartItem,
+  currency: string,
+): NonNullable<ServiceCartItem['couponDiscounts']> {
+  return firstAppliedDiscountList(
+    item.calculatedPrice?.totalDiscount?.appliedDiscounts,
+    item.calculatedPrice?.discountedPrice?.appliedDiscounts,
+  )
+    .filter(
+      (discount) =>
+        discount.discountType !== 'FREE_SHIPPING' &&
+        typeof discount.id === 'string' &&
+        discount.id.length > 0 &&
+        discount.value > 0.005,
+    )
+    .map((discount) => ({
+      code: discount.id as string,
+      amount: discount.value,
+      currency,
+      type: discount.discountType,
+    }));
+}
+
 /**
  * Prefer the first non-empty list. Cart/line `totalDiscount.appliedDiscounts` already
  * aggregate overlapping component rows (shipping / discountedPrice); concatenating them
@@ -462,6 +486,10 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     } else {
       tax = undefined;
     }
+    const lineCoupons = mapLineCouponDiscounts(emporixCartItem, emporixCart.currency);
+    const listNet = emporixCartItem.calculatedPrice?.price?.netValue;
+    const finalNet = emporixCartItem.calculatedPrice?.finalPrice?.netValue;
+    const goodsDiscounted = typeof listNet === 'number' && typeof finalNet === 'number' && listNet - finalNet >= 0.005;
     return {
       id: emporixCartItem.id,
       quantity: emporixCartItem.quantity,
@@ -469,6 +497,8 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
         amount: emporixCartItem.calculatedPrice?.finalPrice.grossValue || 0,
         currency: emporixCart.currency,
       },
+      ...(goodsDiscounted ? { originalNet: listNet } : {}),
+      ...(lineCoupons.length > 0 ? { couponDiscounts: lineCoupons } : {}),
       product: emporixCartItem.product
         ? {
             id: emporixCartItem.product.id,

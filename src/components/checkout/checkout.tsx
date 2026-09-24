@@ -150,7 +150,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
           <div className="flex gap-3 align-end mb-8">
             <H1 variant="h3">{t('title')}</H1>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_444px] gap-4 md:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_444px] gap-4 lg:gap-6">
             <div className="min-w-0" ref={leftContent}>
               {!customer && <ContactData />}
               <CheckoutShipping initialEdit={false} />

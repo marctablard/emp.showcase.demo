@@ -13,6 +13,12 @@ export const useElementScroll = (
 
   useEffect(() => {
     const scrollHandler = () => {
+      if (window.innerWidth < breakpoints.lg) {
+        setIsFixed(false);
+        setIsFixedToTop(false);
+        setIsContainerBottom(false);
+        return;
+      }
       const containerHeight = Math.round(
         fixedContainer?.current?.getBoundingClientRect().height
           ? fixedContainer?.current?.getBoundingClientRect().height
@@ -41,7 +47,7 @@ export const useElementScroll = (
         contentHeight &&
         containerHeight <= contentHeight &&
         windowHeight - containerHeight > 0 &&
-        window.innerWidth >= breakpoints.md
+        window.innerWidth >= breakpoints.lg
       ) {
         if (containerBottom && contentBottom && containerBottom < contentBottom) {
           if (containerTop && containerTop <= topPosition) {
@@ -70,9 +76,12 @@ export const useElementScroll = (
       }
     };
     window.addEventListener('scroll', scrollHandler);
+    window.addEventListener('resize', scrollHandler);
+    scrollHandler();
 
     return () => {
       window.removeEventListener('scroll', scrollHandler);
+      window.removeEventListener('resize', scrollHandler);
     };
   }, [fixedContainer, boundingContent, topPosition]);
 
