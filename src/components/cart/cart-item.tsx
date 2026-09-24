@@ -99,7 +99,9 @@ function CartItemPriceColumn({
   const coupons = lineCouponSavings(item);
   const productId = item.product?.id ?? item.id;
   const originalNet = item.originalNet;
-  const showOriginalNet = typeof originalNet === 'number' && originalNet - netAmount >= 0.005;
+  const struckNet = typeof originalNet === 'number' ? originalNet : undefined;
+  // A fee can lift the payable net above the pre-coupon goods price. Still strike that goods price.
+  const netIsReduced = struckNet !== undefined && struckNet - netAmount >= 0.005;
 
   return (
     <div
@@ -107,14 +109,14 @@ function CartItemPriceColumn({
         'col-start-2 row-start-2 flex flex-col gap-1 ps-4 sm:col-start-5 sm:row-start-1 sm:row-end-3 sm:items-end sm:ps-0',
       )}
     >
-      {!showOriginalNet && item.price.originalAmount && item.price.originalAmount !== item.price.amount && (
+      {struckNet === undefined && item.price.originalAmount && item.price.originalAmount !== item.price.amount && (
         <p className="line-through text-text-error sm:text-end">
           {formatCurrency(item.price.originalAmount, item.price.currency)}
         </p>
       )}
-      {showOriginalNet && typeof originalNet === 'number' && (
+      {struckNet !== undefined && (
         <p className="line-through text-text-headings sm:text-end" data-testid={`cart-item-originalNet-${productId}`}>
-          {formatCurrency(originalNet, item.price.currency)}
+          {formatCurrency(struckNet, item.price.currency)}
         </p>
       )}
       {coupons.map((coupon) => (
@@ -133,7 +135,7 @@ function CartItemPriceColumn({
           </span>
         </div>
       ))}
-      <div className={cn('relative font-bold sm:text-end', showOriginalNet && 'text-text-error')}>
+      <div className={cn('relative font-bold sm:text-end', netIsReduced && 'text-text-error')}>
         {formatCurrency(netAmount, item.price.currency)}
         {priceChange && (
           <button

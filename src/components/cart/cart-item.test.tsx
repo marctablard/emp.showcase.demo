@@ -272,6 +272,24 @@ describe('CartItemRow line coupons', () => {
     expect(net).toBeInTheDocument();
     expect(net).not.toHaveClass('text-text-error');
   });
+
+  it('strikes the goods net when a fee lifts the payable net above the original price', () => {
+    render(
+      <CartItemRow
+        cart={cart}
+        item={buildItem({
+          tax: { amount: 20, currency: 'EUR', netValue: 110, grossValue: 130 },
+          price: { amount: 130, currency: 'EUR' },
+          originalNet: 100,
+          couponDiscounts: [{ code: 'SAVE10', amount: 10, currency: 'EUR', type: 'ABSOLUTE' }],
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('cart-item-originalNet-prod-1')).toHaveTextContent(currencyText(100));
+    expect(screen.getByTestId('cart-item-coupon-prod-1-SAVE10')).toBeInTheDocument();
+    expect(screen.getByText(matchesCurrency(110))).not.toHaveClass('text-text-error');
+  });
 });
 
 describe('CartItemRow quantity restore', () => {
