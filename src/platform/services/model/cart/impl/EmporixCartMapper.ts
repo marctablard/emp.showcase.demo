@@ -107,6 +107,22 @@ function displayableCoupons(
 }
 
 /**
+ * `finalPrice` includes fees. Without `discountedPrice`, remove `totalFee` so a fee-only
+ * line does not look like a goods discount.
+ */
+function goodsNetAfterDiscounts(item: EmporixCartItem): number | undefined {
+  const discountedNet = item.calculatedPrice?.discountedPrice?.netValue;
+  if (typeof discountedNet === 'number') {
+    return discountedNet;
+  }
+  const finalNet = item.calculatedPrice?.finalPrice?.netValue;
+  if (typeof finalNet !== 'number') {
+    return undefined;
+  }
+  return finalNet - (item.calculatedPrice?.totalFee?.netValue ?? 0);
+}
+
+/**
  * Goods coupons on one line. Prefer `discountedPrice`, then `price`, then `finalPrice`.
  * `totalDiscount` is only a fallback and is fee-inclusive, so rows that also appear on
  * `totalFee` stay off the product price. External price adjustments are not coupons.
@@ -573,9 +589,7 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     }
     const lineCoupons = mapLineCouponDiscounts(emporixCartItem, emporixCart.currency);
     const listNet = emporixCartItem.calculatedPrice?.price?.netValue;
-    const discountedNet = emporixCartItem.calculatedPrice?.discountedPrice?.netValue;
-    const comparedNet =
-      typeof discountedNet === 'number' ? discountedNet : emporixCartItem.calculatedPrice?.finalPrice?.netValue;
+    const comparedNet = goodsNetAfterDiscounts(emporixCartItem);
     const goodsDiscounted =
       typeof listNet === 'number' && typeof comparedNet === 'number' && listNet - comparedNet >= 0.005;
     return {

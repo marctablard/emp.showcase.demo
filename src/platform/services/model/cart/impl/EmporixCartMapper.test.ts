@@ -1050,4 +1050,21 @@ describe('EmporixCartMapper', () => {
       { code: 'SAVE10', amount: 10, currency: 'EUR', type: 'ABSOLUTE' },
     ]);
   });
+
+  it('does not strike the goods price for a fee-only change when discountedPrice is absent', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      price: { ...line.calculatedPrice.price, netValue: 100 },
+      discountedPrice: undefined,
+      totalFee: { ...line.calculatedPrice.price, netValue: 10 },
+      finalPrice: { ...line.calculatedPrice.finalPrice, netValue: 110 },
+    };
+
+    expect(mapper.mapToService(source).items[0]?.originalNet).toBeUndefined();
+  });
 });
