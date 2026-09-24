@@ -42,25 +42,53 @@ function isDisplayableProductCoupon(
   );
 }
 
+const NO_EXCLUDED_DISCOUNT_IDS: ReadonlySet<string> = new Set();
+
+function feeDiscountIds(item: EmporixCartItem): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const discount of item.calculatedPrice?.totalFee?.appliedDiscounts ?? []) {
+    if (typeof discount.id === 'string' && discount.id.length > 0) {
+      ids.add(discount.id);
+    }
+  }
+  return ids;
+}
+
+function isGoodsCoupon(
+  discount: EmporixCalculatedAppliedDiscount,
+  excludedIds: ReadonlySet<string>,
+): discount is EmporixCalculatedAppliedDiscount & { id: string } {
+  return isDisplayableProductCoupon(discount) && !excludedIds.has(discount.id);
+}
+
+function displayableCoupons(
+  list: EmporixCalculatedAppliedDiscount[] | undefined,
+  excludedIds: ReadonlySet<string>,
+): Array<EmporixCalculatedAppliedDiscount & { id: string }> {
+  return (list ?? []).filter((discount) => isGoodsCoupon(discount, excludedIds));
+}
+
 /**
- * Goods coupons on one line. Prefer the product price (`discountedPrice`) over
- * `totalDiscount`, which also includes fee savings. `price` and `finalPrice` cover
- * payloads that omit `discountedPrice`. The first list that still has a product
- * coupon wins so overlapping rows are not added twice. Free-shipping and
- * zero-value rows stay off the product price.
+ * Goods coupons on one line. Prefer `discountedPrice`, then `price`, then `finalPrice`.
+ * `totalDiscount` is only a fallback and is fee-inclusive, so rows that also appear on
+ * `totalFee` stay off the product price. The first list that still has a product
+ * coupon wins so overlapping rows are not added twice. Free-shipping and zero-value
+ * rows stay off the product price.
  */
 function mapLineCouponDiscounts(
   item: EmporixCartItem,
   currency: string,
 ): NonNullable<ServiceCartItem['couponDiscounts']> {
-  const sources = [
+  const goodsSources = [
     item.calculatedPrice?.discountedPrice?.appliedDiscounts,
     item.calculatedPrice?.price?.appliedDiscounts,
     item.calculatedPrice?.finalPrice?.appliedDiscounts,
-    item.calculatedPrice?.totalDiscount?.appliedDiscounts,
   ];
+  const goodsCoupons = goodsSources
+    .map((list) => displayableCoupons(list, NO_EXCLUDED_DISCOUNT_IDS))
+    .find((list) => list.length > 0);
   const productCoupons =
-    sources.map((list) => (list ?? []).filter(isDisplayableProductCoupon)).find((list) => list.length > 0) ?? [];
+    goodsCoupons ?? displayableCoupons(item.calculatedPrice?.totalDiscount?.appliedDiscounts, feeDiscountIds(item));
   return productCoupons.map((discount) => ({
     code: discount.id,
     amount: discount.value,

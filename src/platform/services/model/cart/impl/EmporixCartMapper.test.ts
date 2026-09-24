@@ -923,4 +923,54 @@ describe('EmporixCartMapper', () => {
       { code: 'SAVE10', amount: 10, currency: 'EUR', type: 'ABSOLUTE' },
     ]);
   });
+
+  it('does not show a fee-only totalDiscount coupon on the product row', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    const fee = { id: 'FEE10', value: 1.5, discountType: 'ABSOLUTE' as const, origin: 'INTERNAL' as const };
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      totalFee: {
+        ...line.calculatedPrice.price,
+        appliedDiscounts: [fee],
+      },
+      totalDiscount: {
+        calculationType: 'ApplyDiscountBeforeTax',
+        value: 1.5,
+        appliedDiscounts: [fee],
+      },
+    };
+
+    expect(mapper.mapToService(source).items[0]?.couponDiscounts).toBeUndefined();
+  });
+
+  it('keeps a goods coupon from totalDiscount when a different fee coupon is present', () => {
+    const source = showcaseDevCart();
+    const line = source.items?.[0];
+    if (!line?.calculatedPrice) {
+      throw new Error('fixture item missing');
+    }
+    line.calculatedPrice = {
+      ...line.calculatedPrice,
+      totalFee: {
+        ...line.calculatedPrice.price,
+        appliedDiscounts: [{ id: 'FEE10', value: 1.5, discountType: 'ABSOLUTE', origin: 'INTERNAL' }],
+      },
+      totalDiscount: {
+        calculationType: 'ApplyDiscountBeforeTax',
+        value: 11.5,
+        appliedDiscounts: [
+          { id: 'FEE10', value: 1.5, discountType: 'ABSOLUTE', origin: 'INTERNAL' },
+          { id: 'SAVE10', value: 10, discountType: 'ABSOLUTE', origin: 'INTERNAL' },
+        ],
+      },
+    };
+
+    expect(mapper.mapToService(source).items[0]?.couponDiscounts).toEqual([
+      { code: 'SAVE10', amount: 10, currency: 'EUR', type: 'ABSOLUTE' },
+    ]);
+  });
 });
