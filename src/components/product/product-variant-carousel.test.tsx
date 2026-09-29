@@ -267,6 +267,9 @@ describe('ProductVariantCarousel', () => {
     expect(rows[0]).toHaveClass('truncate');
     expect(rows[0]).toHaveTextContent('15 Medium extra long sleeve');
     expect(rows[0]).not.toHaveTextContent('Size');
+    expect(screen.getByTestId('product-variant-carousel-attributes')).toHaveClass(
+      'group-focus-visible:overflow-visible',
+    );
     expect(screen.getAllByTestId('product-variant-carousel-value-tooltip')).toHaveLength(1);
     const tooltip = screen.getByTestId('product-variant-carousel-value-tooltip');
     expect(tooltip).toHaveTextContent('Size: 15 Medium extra long sleeve');

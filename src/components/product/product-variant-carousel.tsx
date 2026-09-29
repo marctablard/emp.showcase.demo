@@ -95,7 +95,7 @@ function ProductVariantCarouselAttributes({ lines }: Readonly<{ lines: VariantCa
           <TooltipTrigger asChild>
             {/* Span (not a button): the card is already a button. */}
             <span
-              className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
+              className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden group-focus-visible:overflow-visible"
               data-testid="product-variant-carousel-attributes"
             >
               {lines.map((line) => (

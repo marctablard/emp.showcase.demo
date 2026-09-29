@@ -162,7 +162,10 @@ export function CartSummary({ cart, boundingContent, onRequestQuote }: Readonly<
     currency,
     breakdown,
   } = useCartTotal();
-  const hasAppliedCoupons = breakdown?.hasAppliedCoupons === true;
+  // COP-6688: a hidden rollup (TOTAL), an invalid row, or a zero-effect row is not a coupon
+  // the shopper can see. Keep the idle note unless a shopper-facing code is actually listed.
+  const showAppliedCoupons =
+    breakdown?.hasAppliedCoupons === true && shopperFacingCartPromos(cart.discounts).length > 0;
 
   return (
     <div className="mb-6 flex">
@@ -181,7 +184,7 @@ export function CartSummary({ cart, boundingContent, onRequestQuote }: Readonly<
                 <H5>{t('title')}</H5>
               </CardTitle>
             </CardHeader>
-            {hasAppliedCoupons ? (
+            {showAppliedCoupons ? (
               <CartCouponSummary cart={cart} breakdown={breakdown} currency={currency} />
             ) : (
               <CardContent className="bg-surface-page rounded-md p-4">

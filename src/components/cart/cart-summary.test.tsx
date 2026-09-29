@@ -124,6 +124,49 @@ describe('CartSummary', () => {
     expect(screen.queryByText(money(13.14))).not.toBeInTheDocument();
   });
 
+  it('keeps the checkout note when the only discount row is hidden from the shopper', () => {
+    mockUseCartTotal.mockReturnValue({
+      cartTotal: 82.3,
+      goodsGross: 82.29,
+      goodsNet: 69.15,
+      goodsVat: 13.14,
+      shippingCosts: undefined,
+      shippingVat: 0,
+      showShippingVat: false,
+      currency: 'EUR',
+      breakdown: {
+        goodsNet: 69.15,
+        goodsVat: 13.14,
+        shippingFee: undefined,
+        shippingVat: 0,
+        showShippingVat: false,
+        shippingVatLookupFailed: false,
+        feesTotal: 0,
+        total: 82.3,
+        currency: 'EUR',
+        hasAppliedCoupons: true,
+      },
+    });
+
+    render(
+      <CartSummary
+        cart={{
+          ...CART,
+          discounts: [
+            { code: 'TOTAL', discountIndex: 0, amount: 10, currency: 'EUR' },
+            { code: 'OLD', discountIndex: 1, amount: 5, currency: 'EUR', valid: false },
+          ],
+        }}
+        boundingContent={createRef<HTMLDivElement>()}
+        onRequestQuote={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('promoCodeInfo')).toBeInTheDocument();
+    expect(screen.queryByTestId('cart-summary-promoApplied')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cart-appliedPromo-TOTAL')).not.toBeInTheDocument();
+  });
+
   it('matches checkout when a coupon is applied and replaces the enter-at-checkout note', () => {
     expect(enCartTranslations.summary.promoAppliedTitle).toBe('Your order overview already showing discounted price.');
     expect(enCartTranslations.summary.promoAppliedInfo).toContain('checkout page');
