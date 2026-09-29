@@ -74,22 +74,56 @@ export function resolveSlidesPerPage(viewportWidthPx: number): number {
   );
 }
 
-function ProductVariantCarouselValue({ label, value }: Readonly<{ label: string; value: string }>) {
-  const full = label ? `${label}: ${value}` : value;
+type VariantCarouselLine = {
+  key: string;
+  label: string;
+  value: string;
+};
 
+function variantCarouselAttributeLine(label: string, value: string): string {
+  if (label.length === 0) {
+    return value;
+  }
+  return `${label}: ${value}`;
+}
+
+function ProductVariantCarouselAttributes({ lines }: Readonly<{ lines: VariantCarouselLine[] }>) {
   return (
-    <Tooltip delayDuration={200}>
-      <TooltipTrigger asChild>
-        {/* Span (not a button): the card is already a button. */}
-        <span
-          className="block min-w-0 truncate group-focus-visible:overflow-visible group-focus-visible:whitespace-normal"
-          data-testid="product-variant-carousel-value"
-        >
-          {value}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent data-testid="product-variant-carousel-value-tooltip">{full}</TooltipContent>
-    </Tooltip>
+    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden group-focus-visible:overflow-visible">
+      {lines.length === 0 ? null : (
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            {/* Span (not a button): the card is already a button. */}
+            <span
+              className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
+              data-testid="product-variant-carousel-attributes"
+            >
+              {lines.map((line) => (
+                <span
+                  key={line.key}
+                  className="block min-w-0 truncate group-focus-visible:overflow-visible group-focus-visible:whitespace-normal"
+                  data-testid="product-variant-carousel-value"
+                >
+                  {line.value}
+                </span>
+              ))}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent
+            data-testid="product-variant-carousel-value-tooltip"
+            className="text-left text-wrap whitespace-normal"
+          >
+            <span className="flex min-w-0 flex-col">
+              {lines.map((line) => (
+                <span key={line.key} className="whitespace-normal break-words">
+                  {variantCarouselAttributeLine(line.label, line.value)}
+                </span>
+              ))}
+            </span>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
   );
 }
 
@@ -318,16 +352,19 @@ export function ProductVariantCarousel({
                     </div>
                   </div>
                   <div className="flex h-[112px] w-full min-w-0 flex-col gap-2 px-2 py-1 text-base text-text-body">
-                    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden group-focus-visible:overflow-visible">
-                      {displayPairs.map((pair) => {
+                    <ProductVariantCarouselAttributes
+                      lines={displayPairs.map((pair) => {
                         const displayValue =
                           resolveVariantAttributeValueLabel(pair.value, pair.valueName, l10n) ??
                           formatTemplateAttributeValue(pair.value, attributeTypes?.[pair.key], locale);
                         const resolvedLabel = resolveVariantAttributeLabel(pair.key, pair.name, attributeLabels, l10n);
-                        const label = resolvedLabel === L10N_MISSING_LABEL ? '' : resolvedLabel;
-                        return <ProductVariantCarouselValue key={pair.key} label={label} value={displayValue} />;
+                        return {
+                          key: pair.key,
+                          label: resolvedLabel === L10N_MISSING_LABEL ? '' : resolvedLabel,
+                          value: displayValue,
+                        };
                       })}
-                    </div>
+                    />
                     <span className="shrink-0 font-bold" data-testid="product-variant-carousel-price">
                       {netAmount == null ? t('price.notAvailable') : formatCurrency(netAmount, price?.currency)}
                     </span>

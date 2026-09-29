@@ -237,6 +237,43 @@ describe('ProductVariantCarousel', () => {
     expect(screen.queryByText('0')).not.toBeInTheDocument();
   });
 
+  it('shows every full attribute pair in one tooltip for the row group', () => {
+    const variant: Product = {
+      id: 'v-multi',
+      name: 'v-multi',
+      description: '',
+      purchasable: true,
+      variantAttributes: [
+        {
+          key: 'size',
+          name: 'Size',
+          values: [{ key: '15 Medium extra long sleeve', selected: true }],
+        },
+        { key: 'color', name: 'Color', values: [{ key: 'Navy', selected: true }] },
+      ],
+    };
+
+    render(
+      <ProductVariantCarousel
+        variants={[variant]}
+        prices={[buildPrice('v-multi', 120)]}
+        currentProductId="v-multi"
+        attributeOrder={['size', 'color']}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('product-variant-carousel-value');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveClass('truncate');
+    expect(rows[0]).toHaveTextContent('15 Medium extra long sleeve');
+    expect(rows[0]).not.toHaveTextContent('Size');
+    expect(screen.getAllByTestId('product-variant-carousel-value-tooltip')).toHaveLength(1);
+    const tooltip = screen.getByTestId('product-variant-carousel-value-tooltip');
+    expect(tooltip).toHaveTextContent('Size: 15 Medium extra long sleeve');
+    expect(tooltip).toHaveTextContent('Color: Navy');
+    expect(tooltip.textContent).not.toContain('…');
+  });
+
   it('shows the attribute value and the full name in the hover tooltip', () => {
     render(
       <ProductVariantCarousel
