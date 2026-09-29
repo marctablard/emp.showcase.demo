@@ -37,6 +37,8 @@
     "untilFreeShipping": " € bis gratis Versand",
     "freeShippingOn": "Gratisversand bei Bestellungen über 400.00 €!",
     "promoCodeInfo": "Promo Codes können im Checkout-Prozess eingegeben werden.",
+    "promoAppliedTitle": "Ihre Bestellübersicht zeigt bereits den rabattierten Preis.",
+    "promoAppliedInfo": "Promo-Codes wurden bereits im Checkout hinzugefügt. Sie können Promo-Codes auf der Checkout-Seite hinzufügen oder entfernen.",
     "goToCheckout": "Zur Kasse",
     "calculatedAtCheckout": "im Checkout ermittelt",
     "dataTransmittedSecure": "Ihre Daten werden verschlüsselt und sicher transportiert"

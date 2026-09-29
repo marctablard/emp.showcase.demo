@@ -35,6 +35,8 @@
     "shippingVat": "Shipping VAT",
     "untilFreeShipping": " until free shipping",
     "promoCodeInfo": "Promo Codes can be entered in the checkout process.",
+    "promoAppliedTitle": "Your order overview already showing discounted price.",
+    "promoAppliedInfo": "Coupons already added by you, during the checkout process. You can add or remove the coupons from checkout page.",
     "freeShippingOn": "Free shipping on orders over 400.00 €!",
     "goToCheckout": "Go to Checkout",
     "calculatedAtCheckout": "Calculated at checkout",
