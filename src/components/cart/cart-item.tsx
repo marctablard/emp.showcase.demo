@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { BadgePercent, Coins, Loader2, Minus, Package, Plus, Trash2 } from 'lucide-react';
@@ -46,36 +46,49 @@ function resolveCartItemGrossAmount(item: CartItem): number | undefined {
   return typeof gross === 'number' && gross > 0 ? gross : undefined;
 }
 
-const COUPON_CODE_VISIBLE_LENGTH = 16;
-
 function lineCouponSavings(item: CartItem) {
   return (item.couponDiscounts ?? []).filter((coupon) => coupon.type !== 'FREE_SHIPPING' && coupon.amount > 0.005);
 }
 
-function visibleCouponCode(code: string): string {
-  if (code.length <= COUPON_CODE_VISIBLE_LENGTH) {
-    return code;
-  }
-  return `${code.slice(0, COUPON_CODE_VISIBLE_LENGTH)}…`;
-}
-
 function CouponCodeLabel({ code, productId }: Readonly<{ code: string; productId: string }>) {
-  const visible = visibleCouponCode(code);
-  const className = 'order-3 shrink-0 text-sm leading-5 whitespace-nowrap text-text-body sm:order-none';
-  if (visible === code) {
-    return <span className={className}>{code}</span>;
-  }
+  const ref = useRef<HTMLSpanElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+    const update = () => {
+      setOverflowing(element.scrollWidth > element.clientWidth);
+    };
+    if (typeof ResizeObserver === 'undefined') {
+      const frame = requestAnimationFrame(update);
+      return () => cancelAnimationFrame(frame);
+    }
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    const frame = requestAnimationFrame(update);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [code]);
+
+  const className = 'order-3 min-w-0 truncate text-sm leading-5 text-text-body sm:order-none';
   return (
-    <Tooltip>
+    <Tooltip open={overflowing ? open : false} onOpenChange={setOpen}>
       <TooltipTrigger asChild>
-        <button
-          type="button"
-          className={cn(className, 'cursor-default border-0 bg-transparent p-0 font-[inherit]')}
-          aria-label={code}
-          data-testid={`cart-item-couponCode-${productId}-${code}`}
+        <span
+          ref={ref}
+          className={cn(className, overflowing && 'cursor-default')}
+          tabIndex={overflowing ? 0 : undefined}
+          aria-label={overflowing ? code : undefined}
+          data-testid={overflowing ? `cart-item-couponCode-${productId}-${code}` : undefined}
         >
-          {visible}
-        </button>
+          {code}
+        </span>
       </TooltipTrigger>
       <TooltipContent className="break-all">{code}</TooltipContent>
     </Tooltip>
@@ -106,7 +119,7 @@ function CartItemPriceColumn({
   return (
     <div
       className={cn(
-        'col-start-2 row-start-2 flex flex-col gap-1 ps-4 sm:col-start-5 sm:row-start-1 sm:row-end-3 sm:items-end sm:ps-0',
+        'col-start-2 row-start-2 flex min-w-0 flex-col gap-1 ps-4 sm:col-start-5 sm:row-start-1 sm:row-end-3 sm:items-end sm:ps-0',
       )}
     >
       {struckNet === undefined && item.price.originalAmount && item.price.originalAmount !== item.price.amount && (
@@ -122,7 +135,7 @@ function CartItemPriceColumn({
       {coupons.map((coupon) => (
         <div
           key={coupon.code}
-          className="flex flex-nowrap items-center justify-start gap-2 whitespace-nowrap sm:justify-end"
+          className="flex min-w-0 max-w-full flex-nowrap items-center justify-start gap-2 whitespace-nowrap sm:justify-end"
           data-testid={`cart-item-coupon-${productId}-${coupon.code}`}
         >
           <BadgePercent className="order-2 size-[18px] shrink-0 text-icon-neutral sm:order-none" aria-hidden />

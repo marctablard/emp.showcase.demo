@@ -185,7 +185,16 @@ function spanIncludesCurrency(amount: number, currency = 'EUR') {
 describe('CartItemRow line coupons', () => {
   beforeAll(() => {
     class ResizeObserverMock {
-      observe(): void {}
+      private readonly callback: ResizeObserverCallback;
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+      }
+
+      observe(target: Element): void {
+        this.callback([{ target } as ResizeObserverEntry], this);
+      }
+
       unobserve(): void {}
       disconnect(): void {}
     }
@@ -228,32 +237,47 @@ describe('CartItemRow line coupons', () => {
     expect(document.querySelector('.sm\\:col-start-3')).toHaveTextContent('cart.qty: 1');
   });
 
-  it('keeps the icon, code, and amount on one line and truncates a long code', async () => {
+  it('keeps the icon, code, and amount on one line and truncates a code that does not fit', async () => {
     const code = 'VKTEST-PROMO01-EXTRA';
+    const scrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+    const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 240 });
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 80 });
 
-    render(
-      <CartItemRow
-        cart={cart}
-        item={buildItem({
-          tax: { amount: 1, currency: 'EUR', netValue: 10, grossValue: 11.9 },
-          price: { amount: 11.9, currency: 'EUR' },
-          originalNet: 20,
-          couponDiscounts: [{ code, amount: 6.8, currency: 'EUR', type: 'ABSOLUTE' }],
-        })}
-      />,
-    );
+    try {
+      render(
+        <CartItemRow
+          cart={cart}
+          item={buildItem({
+            tax: { amount: 1, currency: 'EUR', netValue: 10, grossValue: 11.9 },
+            price: { amount: 11.9, currency: 'EUR' },
+            originalNet: 20,
+            couponDiscounts: [{ code, amount: 6.8, currency: 'EUR', type: 'ABSOLUTE' }],
+          })}
+        />,
+      );
 
-    const row = screen.getByTestId(`cart-item-coupon-prod-1-${code}`);
-    expect(row).toHaveClass('flex-nowrap', 'justify-start', 'sm:justify-end');
-    expect(screen.getByTestId(`cart-item-couponAmount-prod-1-${code}`)).toHaveClass('order-1', 'sm:order-none');
-    expect(row.textContent?.replace(/\s+/g, ' ')).toContain(`VKTEST-PROMO01-E…${currencyText(-6.8)}`);
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+      const row = screen.getByTestId(`cart-item-coupon-prod-1-${code}`);
+      expect(row).toHaveClass('min-w-0', 'flex-nowrap', 'justify-start', 'sm:justify-end');
+      expect(screen.getByTestId(`cart-item-couponAmount-prod-1-${code}`)).toHaveClass('order-1', 'sm:order-none');
+      const label = screen.getByTestId(`cart-item-couponCode-prod-1-${code}`);
+      expect(label).toHaveClass('min-w-0', 'truncate');
+      expect(label).toHaveTextContent(code);
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 
-    fireEvent.focus(screen.getByTestId(`cart-item-couponCode-prod-1-${code}`));
+      fireEvent.focus(label);
 
-    await waitFor(() => {
-      expect(screen.getByRole('tooltip')).toHaveTextContent(code);
-    });
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toHaveTextContent(code);
+      });
+    } finally {
+      if (scrollWidth) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollWidth', scrollWidth);
+      }
+      if (clientWidth) {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', clientWidth);
+      }
+    }
   });
 
   it('keeps a plain net and gross when the line has no coupon', () => {

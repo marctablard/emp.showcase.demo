@@ -154,11 +154,19 @@ export const useElementScroll = (
     };
     window.addEventListener('scroll', scrollHandler);
     window.addEventListener('resize', scrollHandler);
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(scrollHandler);
+    if (fixedContainer.current) {
+      observer?.observe(fixedContainer.current);
+    }
+    if (boundingContent.current) {
+      observer?.observe(boundingContent.current);
+    }
     scrollHandler();
 
     return () => {
       window.removeEventListener('scroll', scrollHandler);
       window.removeEventListener('resize', scrollHandler);
+      observer?.disconnect();
     };
   }, [fixedContainer, boundingContent, topPosition]);
 
