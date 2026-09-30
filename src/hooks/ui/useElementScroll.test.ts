@@ -31,6 +31,12 @@ describe('resolveScrollPin', () => {
     expect(resolveScrollPin(pinned, measurement({ windowHeight: 180, containerHeight: 200 }), 112)).toEqual(cleared);
   });
 
+  it('clears a fixed summary that would extend past the viewport below the top offset', () => {
+    expect(
+      resolveScrollPin(pinned, measurement({ windowHeight: 900, containerHeight: 850, contentHeight: 1200 }), 112),
+    ).toEqual(cleared);
+  });
+
   it('pins when the summary has scrolled above the offset and the list still extends below', () => {
     expect(
       resolveScrollPin(

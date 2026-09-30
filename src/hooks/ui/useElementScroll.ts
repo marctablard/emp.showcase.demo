@@ -55,12 +55,14 @@ function measureScrollPin(
   };
 }
 
-function canPinSummary(measurement: ScrollPinMeasurement): boolean {
+function canPinSummary(measurement: ScrollPinMeasurement, topPosition: number): boolean {
+  // A top pin starts at topPosition, so the summary must fit in the space below that offset.
+  const fitsBelowPin = measurement.windowHeight - topPosition - measurement.containerHeight > 0;
   return Boolean(
     measurement.containerHeight &&
     measurement.contentHeight &&
     measurement.containerHeight <= measurement.contentHeight &&
-    measurement.windowHeight - measurement.containerHeight > 0 &&
+    fitsBelowPin &&
     measurement.width >= breakpoints.lg,
   );
 }
@@ -112,7 +114,7 @@ export function resolveScrollPin(
   measurement: ScrollPinMeasurement,
   topPosition: number,
 ): ScrollPinState {
-  if (!canPinSummary(measurement)) {
+  if (!canPinSummary(measurement, topPosition)) {
     return CLEARED_SCROLL_PIN;
   }
   const aboveContent = Boolean(
