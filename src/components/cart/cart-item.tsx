@@ -51,7 +51,7 @@ function lineCouponSavings(item: CartItem) {
 }
 
 function CouponCodeLabel({ code, productId }: Readonly<{ code: string; productId: string }>) {
-  const ref = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLButtonElement>(null);
   const [overflowing, setOverflowing] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -80,15 +80,16 @@ function CouponCodeLabel({ code, productId }: Readonly<{ code: string; productId
   return (
     <Tooltip open={overflowing ? open : false} onOpenChange={setOpen}>
       <TooltipTrigger asChild>
-        <span
+        <button
           ref={ref}
-          className={cn(className, overflowing && 'cursor-default')}
-          tabIndex={overflowing ? 0 : undefined}
+          type="button"
+          className={cn(className, 'cursor-default border-0 bg-transparent p-0 text-start font-[inherit]')}
+          tabIndex={overflowing ? undefined : -1}
           aria-label={overflowing ? code : undefined}
           data-testid={overflowing ? `cart-item-couponCode-${productId}-${code}` : undefined}
         >
           {code}
-        </span>
+        </button>
       </TooltipTrigger>
       <TooltipContent className="break-all">{code}</TooltipContent>
     </Tooltip>
