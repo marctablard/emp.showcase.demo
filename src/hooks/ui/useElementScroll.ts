@@ -84,6 +84,11 @@ function pinAboveContent(
       measurement.containerTop,
     );
   }
+  // A bottom-fixed summary is measured from its viewport box, so its top stays below the
+  // pin offset after the shopper scrolls back up. Drop that pin and return to document flow.
+  if (state.isFixed && !state.isFixedToTop) {
+    return CLEARED_SCROLL_PIN;
+  }
   return releaseWhenContentPasses(state, measurement.contentTop, measurement.containerTop);
 }
 

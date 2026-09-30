@@ -52,4 +52,20 @@ describe('resolveScrollPin', () => {
       isContainerBottom: false,
     });
   });
+
+  it('releases a bottom pin when the fixed box is still below the offset and the list extends past it', () => {
+    const bottomPinned = { isFixed: true, isFixedToTop: false, isContainerBottom: true };
+    expect(
+      resolveScrollPin(
+        bottomPinned,
+        measurement({
+          containerTop: 660,
+          containerBottom: 884,
+          contentTop: 180,
+          contentBottom: 1400,
+        }),
+        112,
+      ),
+    ).toEqual(cleared);
+  });
 });
