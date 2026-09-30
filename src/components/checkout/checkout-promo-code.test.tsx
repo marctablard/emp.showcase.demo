@@ -70,7 +70,13 @@ describe('CheckoutPromoCodeBox', () => {
     expect(input).toHaveClass('bg-surface-primary');
     const applyButton = screen.getByTestId('checkout-applyPromo');
     expect(applyButton).toBeDisabled();
-    expect(applyButton).toHaveClass('font-headlines', 'tracking-[var(--desktop-spacing-action-button)]', 'w-[91px]');
+    expect(applyButton).toHaveClass(
+      'font-headlines',
+      'tracking-[var(--desktop-spacing-action-button)]',
+      'min-w-[91px]',
+      'w-auto',
+      'px-3',
+    );
     expect(screen.queryByTestId('checkout-promoInfo')).not.toBeInTheDocument();
     expect(screen.queryByText('promoCodeBestPrice')).not.toBeInTheDocument();
     expect(screen.queryByText('promoCodeOnePerProduct')).not.toBeInTheDocument();

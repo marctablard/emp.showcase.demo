@@ -91,7 +91,7 @@
     "valueOfGoods": "Warenwert",
     "netValueOfGoods": "Netto-Warenwert",
     "promoCode": "Promo Code",
-    "apply": "Anwenden",
+    "apply": "Einlösen",
     "promoCodeError": "Dies ist kein aktiver Promo-Code. Bitte überprüfen Sie Ihre Eingabe.",
     "promoCodeNotEligible": "Dieser Promo-Code ist für Ihr Konto nicht verfügbar.",
     "promoCodeNotApplicable": "Dieser Promo-Code kann nicht auf Ihren aktuellen Warenkorb angewendet werden. Bitte prüfen Sie die Bedingungen, z. B. einen Mindestbestellwert.",

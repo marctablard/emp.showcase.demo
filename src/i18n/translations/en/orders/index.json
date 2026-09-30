@@ -61,6 +61,7 @@
   "tryAgain": "Try Again",
   "orderActions": "Order Actions",
   "cancelOrder": "Cancel Order",
+  "cancelOrderConfirm": "Cancel Order",
   "cancelOrderConfirmTitle": "Cancel this order?",
   "cancelOrderConfirmDescription": "Are you sure you want to cancel this order? This action cannot be undone.",
   "keepOrder": "Keep order",

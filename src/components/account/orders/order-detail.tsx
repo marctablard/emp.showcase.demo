@@ -726,7 +726,7 @@ export function OrderDetail({
         title={tOrder('cancelOrderConfirmTitle')}
         description={tOrder('cancelOrderConfirmDescription')}
         cancelLabel={tOrder('keepOrder')}
-        confirmLabel={tOrder('cancelOrder')}
+        confirmLabel={tOrder('cancelOrderConfirm')}
         onCancel={handleDismissCancelDialog}
         onConfirm={() => void handleConfirmCancelOrder()}
         pending={isCancelling}

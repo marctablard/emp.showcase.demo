@@ -100,7 +100,7 @@ export function CheckoutPromoCodeBox() {
             apply().catch(() => undefined);
           }}
         >
-          {/* Figma 4452:97361 Field–Button: 306×48 + 91×48 with 1px overlap → 396×48. */}
+          {/* Figma 4452:97361 is 91px for "Apply". German "Einlösen" is wider, so the control grows from that minimum. */}
           <div className="h-12 min-w-0 grow basis-[306px]">
             <Input
               id="checkout-promo-code"
@@ -125,7 +125,7 @@ export function CheckoutPromoCodeBox() {
             type="submit"
             variant="input"
             className={cn(
-              '-ml-px h-12 w-[91px] shrink-0 font-headlines tracking-[var(--desktop-spacing-action-button)]',
+              '-ml-px h-12 w-auto min-w-[91px] shrink-0 px-3 font-headlines tracking-[var(--desktop-spacing-action-button)]',
               applying && 'cursor-progress',
             )}
             data-testid="checkout-applyPromo"
