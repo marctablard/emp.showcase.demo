@@ -299,7 +299,7 @@ describe('OrderDetail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /cancelOrder/ }));
     const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'cancelOrder' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'cancelOrderConfirm' }));
 
     await waitFor(() => expect(cancelOrderMock).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -319,7 +319,7 @@ describe('OrderDetail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /cancelOrder/ }));
     const dialog = screen.getByRole('dialog');
-    const confirmButton = within(dialog).getByRole('button', { name: 'cancelOrder' });
+    const confirmButton = within(dialog).getByRole('button', { name: 'cancelOrderConfirm' });
 
     fireEvent.click(confirmButton);
     fireEvent.click(confirmButton);

@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { notify } from '@/components/ui/toast-notification';
 import { PRODUCT_NO_IMAGE_SRC } from '@/lib/common/product-image';
+import { formatCurrency } from '@/lib/utils';
 import type { Cart, CartItem } from '@/platform/services/model/cart/cart.d';
 import { CartMutationCancelledError } from '@/stores/cart-store';
 import { CartItemRow } from './cart-item';
@@ -162,6 +163,156 @@ describe('CartItemRow empty thumbnail', () => {
 
     expect(screen.getByRole('img', { name: 'Widget' })).toHaveAttribute('src', 'https://cdn.example.com/widget.jpg');
     expect(screen.queryByRole('img', { name: 'product.noImage' })).not.toBeInTheDocument();
+  });
+});
+
+function currencyText(amount: number, currency = 'EUR'): string {
+  return formatCurrency(amount, currency).replace(/\s+/g, ' ');
+}
+
+function matchesCurrency(amount: number, currency = 'EUR') {
+  const expected = formatCurrency(amount, currency).replace(/[\s\u00a0\u202f]+/g, '');
+  return (_content: string, element: Element | null) =>
+    (element?.textContent ?? '').replace(/[\s\u00a0\u202f]+/g, '') === expected;
+}
+
+function spanIncludesCurrency(amount: number, currency = 'EUR') {
+  const expected = formatCurrency(amount, currency).replace(/[\s\u00a0\u202f]+/g, '');
+  return (_content: string, element: Element | null) =>
+    element?.tagName === 'SPAN' && (element.textContent ?? '').replace(/[\s\u00a0\u202f]+/g, '').includes(expected);
+}
+
+describe('CartItemRow line coupons', () => {
+  beforeAll(() => {
+    class ResizeObserverMock {
+      private readonly callback: ResizeObserverCallback;
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+      }
+
+      observe(target: Element): void {
+        this.callback([{ target } as ResizeObserverEntry], this);
+      }
+
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    Object.defineProperty(window, 'ResizeObserver', {
+      writable: true,
+      configurable: true,
+      value: ResizeObserverMock,
+    });
+  });
+
+  it('shows the struck original net and each coupon saving', () => {
+    render(
+      <CartItemRow
+        cart={cart}
+        item={buildItem({
+          tax: { amount: 811.12, currency: 'EUR', netValue: 4269.05, grossValue: 5080.17 },
+          price: { amount: 5080.17, currency: 'EUR' },
+          originalNet: 4750.95,
+          couponDiscounts: [
+            { code: 'VKTEST-PROMO01', amount: 6.8, currency: 'EUR', type: 'ABSOLUTE' },
+            { code: '10POFF', amount: 475.1, currency: 'EUR', type: 'PERCENT' },
+            { code: 'E2E-FREE_SHIPPING-E7902DA5', amount: 0, currency: 'EUR', type: 'FREE_SHIPPING' },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('cart-item-originalNet-prod-1')).toHaveTextContent(currencyText(4750.95));
+    expect(screen.getByTestId('cart-item-coupon-prod-1-10POFF')).toHaveTextContent('10POFF');
+    expect(screen.getByTestId('cart-item-couponAmount-prod-1-10POFF')).toHaveTextContent(currencyText(-475.1));
+    expect(screen.getByTestId('cart-item-couponAmount-prod-1-VKTEST-PROMO01')).toHaveTextContent(currencyText(-6.8));
+    expect(screen.queryByText('E2E-FREE_SHIPPING-E7902DA5')).not.toBeInTheDocument();
+    const discountedNet = screen.getByText(matchesCurrency(4269.05));
+    expect(discountedNet).toHaveClass('text-text-error');
+    expect(screen.getByTestId('cart-item-coupon-prod-1-10POFF').querySelector('svg')).toHaveClass('text-icon-neutral');
+    expect(screen.getByText(spanIncludesCurrency(5080.17))).toBeInTheDocument();
+    expect(
+      document.querySelector('.sm\\:grid-cols-\\[120px_minmax\\(0\\,1fr\\)_auto_1\\.5rem_auto\\]'),
+    ).toBeInTheDocument();
+    expect(document.querySelector('.sm\\:col-start-3')).toHaveTextContent('cart.qty: 1');
+  });
+
+  it('keeps the icon, code, and amount on one line and truncates a code that does not fit', async () => {
+    const code = 'VKTEST-PROMO01-EXTRA';
+    const scrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+    const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 240 });
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 80 });
+
+    try {
+      render(
+        <CartItemRow
+          cart={cart}
+          item={buildItem({
+            tax: { amount: 1, currency: 'EUR', netValue: 10, grossValue: 11.9 },
+            price: { amount: 11.9, currency: 'EUR' },
+            originalNet: 20,
+            couponDiscounts: [{ code, amount: 6.8, currency: 'EUR', type: 'ABSOLUTE' }],
+          })}
+        />,
+      );
+
+      const row = screen.getByTestId(`cart-item-coupon-prod-1-${code}`);
+      expect(row).toHaveClass('min-w-0', 'flex-nowrap', 'justify-start', 'sm:justify-end');
+      expect(screen.getByTestId(`cart-item-couponAmount-prod-1-${code}`)).toHaveClass('order-1', 'sm:order-none');
+      const label = screen.getByTestId(`cart-item-couponCode-prod-1-${code}`);
+      expect(label).toHaveClass('min-w-0', 'truncate');
+      expect(label).toHaveTextContent(code);
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+      fireEvent.focus(label);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toHaveTextContent(code);
+      });
+    } finally {
+      if (scrollWidth) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollWidth', scrollWidth);
+      }
+      if (clientWidth) {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', clientWidth);
+      }
+    }
+  });
+
+  it('keeps a plain net and gross when the line has no coupon', () => {
+    render(
+      <CartItemRow
+        cart={cart}
+        item={buildItem({
+          tax: { amount: 19, currency: 'EUR', netValue: 100, grossValue: 119 },
+        })}
+      />,
+    );
+
+    expect(screen.queryByTestId('cart-item-originalNet-prod-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId(/cart-item-coupon-/)).not.toBeInTheDocument();
+    const net = screen.getByText(matchesCurrency(100));
+    expect(net).toBeInTheDocument();
+    expect(net).not.toHaveClass('text-text-error');
+  });
+
+  it('strikes the goods net when a fee lifts the payable net above the original price', () => {
+    render(
+      <CartItemRow
+        cart={cart}
+        item={buildItem({
+          tax: { amount: 20, currency: 'EUR', netValue: 110, grossValue: 130 },
+          price: { amount: 130, currency: 'EUR' },
+          originalNet: 100,
+          couponDiscounts: [{ code: 'SAVE10', amount: 10, currency: 'EUR', type: 'ABSOLUTE' }],
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('cart-item-originalNet-prod-1')).toHaveTextContent(currencyText(100));
+    expect(screen.getByTestId('cart-item-coupon-prod-1-SAVE10')).toBeInTheDocument();
+    expect(screen.getByText(matchesCurrency(110))).not.toHaveClass('text-text-error');
   });
 });
 

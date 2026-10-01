@@ -1,6 +1,9 @@
 'use client';
 
-import { buildCheckoutOrderSummaryFromCart } from '@/lib/common/checkout-order-summary';
+import {
+  type CheckoutOrderSummaryBreakdown,
+  buildCheckoutOrderSummaryFromCart,
+} from '@/lib/common/checkout-order-summary';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { useSelectedShippingMethod } from '../checkout/useSelectedShippingMethod';
 import { useSession } from '../session/useSession';
@@ -24,6 +27,8 @@ interface UseCartTotal {
   shippingVat: number;
   showShippingVat: boolean;
   currency: string;
+  /** Same coupon breakdown checkout uses, so the cart summary can mirror it. */
+  breakdown: CheckoutOrderSummaryBreakdown;
 }
 
 function displayGoodsGross(
@@ -77,5 +82,6 @@ export const useCartTotal = (): UseCartTotal => {
     shippingVat,
     showShippingVat,
     currency,
+    breakdown,
   };
 };

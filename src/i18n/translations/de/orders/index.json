@@ -55,7 +55,7 @@
   "shippingFee": "Versandgebühr",
   "shippingVat": "Versand-MwSt.",
   "totalValue": "Gesamtwert",
-  "keepOrder": "Bestellung behalten",
+  "keepOrder": "Behalten",
   "cancelOrderConfirmTitle": "Bestellung stornieren?",
   "cancelOrderConfirmDescription": "Möchten Sie diese Bestellung wirklich stornieren? Diese Aktion kann nicht rückgängig gemacht werden.",
   "search": {
@@ -96,6 +96,7 @@
   },
   "orderActions": "Bestellaktionen",
   "cancelOrder": "Bestellung stornieren",
+  "cancelOrderConfirm": "Stornieren",
   "cancelOrderFailed": "Bestellung konnte nicht storniert werden",
   "cancelOrderNotAllowed": "Diese Bestellung kann in ihrem aktuellen Status nicht abgelehnt werden.",
   "cancelOrderFailedUnknown": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",

@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Coins, Loader2, Minus, Package, Plus, Trash2 } from 'lucide-react';
+import { BadgePercent, Coins, Loader2, Minus, Package, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { UINotification } from '@/components/ui/molecules/ui-notification';
 import { ToastType, notify } from '@/components/ui/toast-notification';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCart } from '@/hooks/cart/useCart';
 import { useSyncedState } from '@/hooks/common/use-synced-state';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
@@ -45,6 +46,138 @@ function resolveCartItemGrossAmount(item: CartItem): number | undefined {
   return typeof gross === 'number' && gross > 0 ? gross : undefined;
 }
 
+function lineCouponSavings(item: CartItem) {
+  return (item.couponDiscounts ?? []).filter((coupon) => coupon.type !== 'FREE_SHIPPING' && coupon.amount > 0.005);
+}
+
+function CouponCodeLabel({ code, productId }: Readonly<{ code: string; productId: string }>) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+    const update = () => {
+      setOverflowing(element.scrollWidth > element.clientWidth);
+    };
+    if (typeof ResizeObserver === 'undefined') {
+      const frame = requestAnimationFrame(update);
+      return () => cancelAnimationFrame(frame);
+    }
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    const frame = requestAnimationFrame(update);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [code]);
+
+  const className = 'order-3 min-w-0 truncate text-sm leading-5 text-text-body sm:order-none';
+  return (
+    <Tooltip open={overflowing ? open : false} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <button
+          ref={ref}
+          type="button"
+          className={cn(className, 'cursor-default border-0 bg-transparent p-0 text-start font-[inherit]')}
+          tabIndex={overflowing ? undefined : -1}
+          aria-label={overflowing ? code : undefined}
+          data-testid={overflowing ? `cart-item-couponCode-${productId}-${code}` : undefined}
+        >
+          {code}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="break-all">{code}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function CartItemPriceColumn({
+  item,
+  grossLabel,
+  priceChange,
+  onOpenPriceChange,
+}: Readonly<{
+  item: CartItem;
+  grossLabel: string;
+  priceChange: CartItemPriceChange | null;
+  onOpenPriceChange: () => void;
+}>) {
+  const t = useTranslations('cart');
+  const netAmount = resolveCartItemNetAmount(item);
+  const grossAmount = resolveCartItemGrossAmount(item);
+  const coupons = lineCouponSavings(item);
+  const productId = item.product?.id ?? item.id;
+  const originalNet = item.originalNet;
+  const struckNet = typeof originalNet === 'number' ? originalNet : undefined;
+  // A fee can lift the payable net above the pre-coupon goods price. Still strike that goods price.
+  const netIsReduced = struckNet !== undefined && struckNet - netAmount >= 0.005;
+
+  return (
+    <div
+      className={cn(
+        'col-start-2 row-start-2 flex min-w-0 flex-col gap-1 ps-4 sm:col-start-5 sm:row-start-1 sm:row-end-3 sm:items-end sm:ps-0',
+      )}
+    >
+      {struckNet === undefined && item.price.originalAmount && item.price.originalAmount !== item.price.amount && (
+        <p className="line-through text-text-error sm:text-end">
+          {formatCurrency(item.price.originalAmount, item.price.currency)}
+        </p>
+      )}
+      {struckNet !== undefined && (
+        <p className="line-through text-text-headings sm:text-end" data-testid={`cart-item-originalNet-${productId}`}>
+          {formatCurrency(struckNet, item.price.currency)}
+        </p>
+      )}
+      {coupons.map((coupon) => (
+        <div
+          key={coupon.code}
+          className="flex min-w-0 max-w-full flex-nowrap items-center justify-start gap-2 whitespace-nowrap sm:justify-end"
+          data-testid={`cart-item-coupon-${productId}-${coupon.code}`}
+        >
+          <BadgePercent className="order-2 size-[18px] shrink-0 text-icon-neutral sm:order-none" aria-hidden />
+          <CouponCodeLabel code={coupon.code} productId={productId} />
+          <span
+            className="order-1 shrink-0 rounded-sm bg-surface-success px-2 py-1 text-sm font-bold leading-5 whitespace-nowrap text-text-body sm:order-none"
+            data-testid={`cart-item-couponAmount-${productId}-${coupon.code}`}
+          >
+            {formatCurrency(-Math.abs(coupon.amount), coupon.currency)}
+          </span>
+        </div>
+      ))}
+      <div className={cn('relative font-bold sm:text-end', netIsReduced && 'text-text-error')}>
+        {formatCurrency(netAmount, item.price.currency)}
+        {priceChange && (
+          <button
+            type="button"
+            className="cursor-pointer border-0 bg-transparent p-0"
+            onClick={onOpenPriceChange}
+            aria-label={t('priceChange.title')}
+            data-testid={`cart-item-priceChange-${productId}`}
+          >
+            <UINotification
+              icon={Coins}
+              iconSize={18}
+              className="absolute right-[52px] bottom-[-58px]"
+              animate="pulse"
+            />
+          </button>
+        )}
+      </div>
+      {grossAmount !== undefined && (
+        <span className="text-sm text-text-on-disabled sm:text-end">
+          {grossLabel}
+          {formatCurrency(grossAmount, item.price.currency)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function CartItemRow({ cart, item, showQty }: CartItemProps) {
   const { l10n } = useL10n();
   const t = useTranslations('cart');
@@ -63,7 +196,6 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
   const [showPriceChangeModal, setShowPriceChangeModal] = useState(false);
   const { availability } = useAvailability(item.product?.id);
   const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
-  const itemGrossAmount = resolveCartItemGrossAmount(item);
 
   // Handler for cart notifications
   const handleCartNotification = useCallback(
@@ -178,10 +310,14 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
 
   const imageSrc = resolveProductImageSrc(item.product?.images?.[0]?.url);
   const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : l10n(item.product?.name || 'Product');
+  const brandName = l10n(item.product?.brand?.name || '');
+  const widestQuantity = cart.items.reduce((max, line) => Math.max(max, line.quantity), item.quantity);
+  const qtyLabel = `${t('qty')}: ${item.quantity}`;
+  const widestQtyLabel = `${t('qty')}: ${widestQuantity}`;
 
   return (
     <div className="py-6 first:border-none border-t border-border-primary sm:first:border-solid">
-      <div className="grid grid-cols-[1fr_2fr] sm:grid-cols-[120px_2fr_1fr_1fr] md:grid-cols-[120px_3fr_1fr_1fr]">
+      <div className="grid grid-cols-[1fr_2fr] sm:grid-cols-[120px_minmax(0,1fr)_auto_1.5rem_auto]">
         <div className="col-start-1 row-start-2 sm:row-start-1 row-end-3">
           <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background sm:h-[78px] sm:w-[120px]">
             <Image
@@ -193,106 +329,106 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
             />
           </div>
         </div>
-        <div className="col-start-1 col-end-3 row-start-1 sm:col-start-2 flex flex-col gap-1 mb-4 sm:mb-0 sm:mx-4">
-          <p className="text-sm sm:text-base">{l10n(item.product?.brand?.name || '')}</p>
-          <UiLink
-            type="Link"
-            variant="textNoUnderline"
-            className="font-bold text-base font-headlines cursor-pointer text-text-headings"
-            href={`/product/${item.product?.id}`}
+        <div className="contents sm:col-start-2 sm:col-end-3 sm:row-start-1 sm:row-end-3 sm:mx-4 sm:flex sm:flex-col sm:gap-1">
+          <div className="col-start-1 col-end-3 row-start-1 mb-4 flex flex-col gap-1 sm:mb-0">
+            {brandName ? <p className="text-sm sm:text-base">{brandName}</p> : null}
+            <UiLink
+              type="Link"
+              variant="textNoUnderline"
+              className="font-bold text-base font-headlines cursor-pointer text-text-headings"
+              href={`/product/${item.product?.id}`}
+            >
+              {l10n(item.product?.name || 'Product')}
+            </UiLink>
+          </div>
+          <div
+            className={cn(
+              'row-start-3 col-start-2 mx-4 flex flex-col gap-2 pt-2 sm:mx-0 sm:pt-0',
+              !isStrike && showQty && '-mt-4 sm:mt-0',
+            )}
           >
-            {l10n(item.product?.name || 'Product')}
-          </UiLink>
-        </div>
-        <div
-          className={cn(
-            'row-start-3 col-start-2 sm:col-end-2 flex flex-col gap-2 sm:row-start-2 mx-4 pt-2',
-            !isStrike && showQty && '-mt-4 sm:-mt-0',
-          )}
-        >
-          {!showQty ? (
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
-              <p className="text-sm sm:border-r border-border-primary sm:pr-4">
-                {t('itemNumber')}: {item.product?.id}
-              </p>
-              <p className="text-sm sm:pl-4">
-                {t('qty')}: {item.quantity}
-              </p>
-            </div>
-          ) : (
             <p className="text-sm">
               {t('itemNumber')}: {item.product?.id}
             </p>
-          )}
-          <div className="flex items-center gap-1">
-            {availability ? (
-              availability.availableQuantity >= item.quantity ? (
-                // Fully available
+            {!showQty && <p className="text-sm sm:hidden">{qtyLabel}</p>}
+            <div className="flex items-center gap-1">
+              {availability ? (
+                availability.availableQuantity >= item.quantity ? (
+                  // Fully available
+                  <>
+                    <div className="text-icon-success">
+                      <Package className="h-4 w-4" />
+                    </div>
+                    <p className="text-sm text-text-success">{t('available')}</p>
+                  </>
+                ) : availability.availableQuantity > 0 ? (
+                  // Partially available
+                  <>
+                    <div className="text-icon-warning">
+                      <Package className="h-4 w-4" />
+                    </div>
+                    <p className="text-sm text-text-warning">
+                      {t('substitution.availableDescription', {
+                        available: availability.availableQuantity,
+                        total: item.quantity,
+                      })}
+                    </p>
+                  </>
+                ) : availability.availableInDays ? (
+                  // Available in X days
+                  <>
+                    <div className="text-icon-warning">
+                      <Package className="h-4 w-4" />
+                    </div>
+                    <p className="text-sm text-text-warning">
+                      {t('substitution.availableInDays', { days: availability.availableInDays })}
+                    </p>
+                  </>
+                ) : (
+                  // Not available
+                  <>
+                    <div className="text-icon-error">
+                      <Package className="h-4 w-4" />
+                    </div>
+                    <p className="text-sm text-text-error">
+                      {t('substitution.availableDescription', { available: 0, total: item.quantity })}
+                    </p>
+                  </>
+                )
+              ) : (
+                // Loading or no availability data
                 <>
                   <div className="text-icon-success">
                     <Package className="h-4 w-4" />
                   </div>
                   <p className="text-sm text-text-success">{t('available')}</p>
                 </>
-              ) : availability.availableQuantity > 0 ? (
-                // Partially available
-                <>
-                  <div className="text-icon-warning">
-                    <Package className="h-4 w-4" />
-                  </div>
-                  <p className="text-sm text-text-warning">
-                    {t('substitution.availableDescription', {
-                      available: availability.availableQuantity,
-                      total: item.quantity,
-                    })}
-                  </p>
-                </>
-              ) : availability.availableInDays ? (
-                // Available in X days
-                <>
-                  <div className="text-icon-warning">
-                    <Package className="h-4 w-4" />
-                  </div>
-                  <p className="text-sm text-text-warning">
-                    {t('substitution.availableInDays', { days: availability.availableInDays })}
-                  </p>
-                </>
-              ) : (
-                // Not available
-                <>
-                  <div className="text-icon-error">
-                    <Package className="h-4 w-4" />
-                  </div>
-                  <p className="text-sm text-text-error">
-                    {t('substitution.availableDescription', { available: 0, total: item.quantity })}
-                  </p>
-                </>
-              )
-            ) : (
-              // Loading or no availability data
-              <>
-                <div className="text-icon-success">
-                  <Package className="h-4 w-4" />
-                </div>
-                <p className="text-sm text-text-success">{t('available')}</p>
-              </>
+              )}
+            </div>
+            {showQty && (
+              <Button
+                variant="link"
+                size="small"
+                className="normal-case text-sm tracking-normal p-0 justify-start gap-2"
+                onClick={handleAddToWishlist}
+                disabled={!item.product?.id || isAddingToWishlist}
+                aria-busy={isAddingToWishlist || undefined}
+                data-testid={`cart-item-add-to-wishlist-${item.product?.id}`}
+              >
+                {isAddingToWishlist && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                {t('addToWishlist')}
+              </Button>
             )}
           </div>
-          {showQty && (
-            <Button
-              variant="link"
-              size="small"
-              className="normal-case text-sm tracking-normal p-0 justify-start gap-2"
-              onClick={handleAddToWishlist}
-              disabled={!item.product?.id || isAddingToWishlist}
-              aria-busy={isAddingToWishlist || undefined}
-              data-testid={`cart-item-add-to-wishlist-${item.product?.id}`}
-            >
-              {isAddingToWishlist && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-              {t('addToWishlist')}
-            </Button>
-          )}
         </div>
+        {!showQty && (
+          <p className="hidden text-sm sm:col-start-3 sm:row-start-1 sm:grid">
+            <span className="invisible col-start-1 row-start-1 whitespace-nowrap" aria-hidden>
+              {widestQtyLabel}
+            </span>
+            <span className="col-start-1 row-start-1 whitespace-nowrap">{qtyLabel}</span>
+          </p>
+        )}
         {showQty && (
           <div className="col-start-2 row-start-4 sm:col-start-3 sm:col-end-3 sm:row-start-1 md:col-start-3 flex gap-4 ml-4 mt-4 sm:ml-0 sm:mt-0">
             <div className="w-full flex">
@@ -353,32 +489,12 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
             </div>
           </div>
         )}
-        <div className="col-start-2 row-start-2 sm:col-start-4 sm:row-start-1 sm:row-end-3 md:col-start-4 flex flex-col gap-1 ps-4 sm:ps-0">
-          {item.price.originalAmount && item.price.originalAmount !== item.price.amount && (
-            <p className="line-through sm:text-end text-text-error">
-              {formatCurrency(item.price.originalAmount, item.price.currency)}
-            </p>
-          )}
-          <div className="font-bold sm:text-end relative">
-            {formatCurrency(resolveCartItemNetAmount(item), item.price.currency)}
-            {priceChange && (
-              <div className="cursor-pointer" onClick={() => setShowPriceChangeModal(true)}>
-                <UINotification
-                  icon={Coins}
-                  iconSize={18}
-                  className="bottom-[-58px] right-[52px] absolute"
-                  animate="pulse"
-                />
-              </div>
-            )}
-          </div>
-          {itemGrossAmount !== undefined && (
-            <span className="text-sm text-text-on-disabled sm:text-end">
-              {t('gross')}
-              {formatCurrency(itemGrossAmount, item.price.currency)}
-            </span>
-          )}
-        </div>
+        <CartItemPriceColumn
+          item={item}
+          grossLabel={t('gross')}
+          priceChange={priceChange}
+          onOpenPriceChange={() => setShowPriceChangeModal(true)}
+        />
       </div>
 
       {/* Modals */}
