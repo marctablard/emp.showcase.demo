@@ -1,6 +1,6 @@
 {
   "name": "emporix-showcase",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "private": true,
   "packageManager": "npm@11.10.0",
   "engines": {

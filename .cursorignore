@@ -8,3 +8,5 @@ src/lib/validation/form-schemas.test.ts
 resources/emporix/oauth.yml
 # sonar-secrets: auto-added after secret detection
 resources/emporix/customer-tenant-manager.yml
+# sonar-secrets: auto-added after secret detection
+src/i18n/translations/de.json
