@@ -1,0 +1,9 @@
+/*
+ * Default site theme — intentionally empty.
+ *
+ * A site without an explicit `public/themes/<site-code>.css` resolves to
+ * this file via `resolveThemeForSite()`. It carries NO `:root` overrides so
+ * the neutral storefront look defined in `src/app/styles/mapped.css` stays
+ * authoritative. Keep this file empty: adding tokens here would leak into
+ * every un-themed site and defeat the per-site isolation guarantee.
+ */

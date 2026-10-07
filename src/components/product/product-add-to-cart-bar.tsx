@@ -1,6 +1,8 @@
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { FlipHorizontal2, Pin, Share2 } from 'lucide-react';
+import { useComparisonToggle } from '@/hooks/comparison/useComparisonToggle';
+import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useL10n } from '@/hooks/useL10n';
 import { cn } from '@/lib/utils';
@@ -27,48 +29,98 @@ export default function ProductAddToCartBar({
   const { product } = useProduct(initialProduct);
   const locale = useLocale();
   const t = useTranslations('product');
-  const { l10n } = useL10n(locale);
+  const { l10n, l10nOrEmpty } = useL10n(locale);
+  const { isInComparison, toggle: toggleComparison } = useComparisonToggle();
+  const { disabled: compareDisabled } = useValidateAddToComparison(product);
+  const compareActive = Boolean(product && isInComparison(product.id));
+
+  const handleCompareClick = (): void => {
+    if (!product) return;
+    toggleComparison(product.id, l10n(product.name));
+  };
+
+  // Only treat as shown when we have a non-empty URL — same gate as <Image> src.
+  // Array length alone is not enough (empty string / whitespace URLs still left-flush the name).
+  const thumbnailUrl = product?.images?.[0]?.url?.trim() || product?.primaryImage?.url?.trim() || '';
+  const showThumbnail = Boolean(thumbnailUrl);
+  const thumbnailAltSource = product?.images?.[0] ?? product?.primaryImage;
+  let productImageAlt: string | undefined;
+  if (product) {
+    const fallbackAlt = l10nOrEmpty(product.name) || t('primaryImageAltUnlabeled', { id: product.id });
+    productImageAlt = thumbnailAltSource?.altText
+      ? l10nOrEmpty(thumbnailAltSource.altText) || fallbackAlt
+      : fallbackAlt;
+  }
+
   return (
-    <div className={cn('fixed top-0 left-0 right-0 mt-20 pt-4 z-50 max-w-6xl mx-auto hidden md:block', className)}>
-      <div className="bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex justify-between mx-4 md:mx-9 h-16">
-        {product && (
-          <div className="flex items-center gap-6">
-            {product.images && product.images.length > 0 && (
-              <div className="w-30 h-16 bg-surface-image-background p-2">
-                <Image
-                  src={product.images[0].url}
-                  alt={product.images[0].altText ? l10n(product.images[0].altText) : `Product image`}
-                  width="120"
-                  height="64"
-                  className="object-center w-full h-auto"
-                />
-              </div>
-            )}
-            <div className="text-text-on-action font-headlines font-bold">{l10n(product.name)}</div>
+    <div
+      data-pdp-sticky-overlay
+      data-testid="product-add-to-cart-bar"
+      className={cn('fixed top-0 left-0 right-0 mt-20 pt-4 z-50 max-w-6xl mx-auto hidden md:block', className)}
+    >
+      {/* Figma 2504:75394 — fixed 56px strip (h-14); thumbnail 120×56 with inset; title Desktop/heading/h5.
+          Three in-flow flex siblings: image | middle (name + price) | actions.
+          Middle: name min-w-0 flex-1 (may shrink/clamp); price shrink-0/w-max (always visible).
+          Never put `@container` on the price — it collapses to 0 width under overflow-hidden. */}
+      <div className="bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex items-center mx-4 md:mx-9 h-14 pr-6">
+        {showThumbnail ? (
+          <div
+            className="w-30 h-14 shrink-0 bg-surface-image-background p-1.5"
+            data-testid="product-add-to-cart-bar-image"
+          >
+            <Image
+              src={thumbnailUrl}
+              alt={productImageAlt ?? ''}
+              width={120}
+              height={56}
+              className="object-contain object-center w-full h-full"
+            />
           </div>
-        )}
-        <div className="flex p-1 pr-6">
-          <div className="flex">
-            <div className="flex gap-10">
-              <div className="text-text-on-action">
-                {price && <ProductPriceComponent price={price} isAddToCartBar />}
-              </div>
-              {product && (
-                <div className="px-6">
-                  <ProductAddToCartButton
-                    product={product}
-                    price={price}
-                    className="h-14 bg-surface-page text-text-action hover:bg-surface-page hover:text-text-action-hover"
-                    availability={availability}
-                    availabilityLoading={availabilityLoading}
-                  />
-                </div>
-              )}
+        ) : null}
+
+        {product ? (
+          <div
+            className={cn('flex min-w-0 flex-1 items-center gap-6 overflow-hidden', showThumbnail ? 'ml-6' : 'pl-6')}
+            data-testid="product-add-to-cart-bar-middle"
+          >
+            <div
+              className="min-w-0 flex-1 line-clamp-2 text-3xl text-text-on-action font-headlines font-bold"
+              data-testid="product-add-to-cart-bar-name"
+            >
+              {l10n(product.name)}
+            </div>
+            {/* Sibling of name — intrinsic width; never flex-1 / min-w-0 / @container. */}
+            <div className="w-max shrink-0 text-text-on-action" data-testid="product-add-to-cart-bar-price">
+              {price ? <ProductPriceComponent price={price} isAddToCartBar /> : null}
             </div>
           </div>
+        ) : null}
 
-          <div className="flex justify-center gap-2">
-            <Button size="icon" variant="primary" aria-label={t('compare')} className="border-surface-page">
+        {/* Figma CTA Group `2504:75425` — button ↔ toolbar gap 24px; ml-10 ≈ Figma Price↔CTA gap-40.
+            In normal flex flow after middle (shrink-0) — not absolute/right overlay. */}
+        <div className="ml-10 flex shrink-0 items-center gap-6 p-1" data-testid="product-add-to-cart-bar-actions">
+          {product ? (
+            <ProductAddToCartButton
+              product={product}
+              price={price}
+              className="h-12 bg-surface-page text-text-action hover:bg-surface-page hover:text-text-action-hover"
+              availability={availability}
+              availabilityLoading={availabilityLoading}
+            />
+          ) : null}
+          <div className="flex items-center justify-center gap-2">
+            {/* On the blue bar the filled state is the white one, so "in comparison" reads as
+                pressed here the same way the primary variant does on the tile. */}
+            <Button
+              size="icon"
+              variant={compareActive ? 'secondary' : 'primary'}
+              aria-label={t('compare')}
+              aria-pressed={compareActive}
+              disabled={compareDisabled}
+              onClick={handleCompareClick}
+              data-testid="product-add-to-cart-bar-compare"
+              className="border-surface-page"
+            >
               <FlipHorizontal2 />
             </Button>
             <Button size="icon" variant="primary" aria-label={t('addToWishlist')} className="border-surface-page">

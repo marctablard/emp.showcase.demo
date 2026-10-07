@@ -64,7 +64,12 @@ export interface EmporixShipping {
   zoneId: string;
   methodName: string;
   amount: number;
+  /** Official Approval/Checkout schema field. */
   shippingTaxCode?: string;
+  /** Alias seen on some approval payloads. */
+  taxCode?: string;
+  /** Shipping VAT percent when the payload includes it (e.g. quote overlay). */
+  taxRate?: number;
 }
 
 /**

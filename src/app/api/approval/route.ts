@@ -22,9 +22,15 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query') || undefined;
 
     const approvalService = server.get<ApprovalService>('ApprovalService');
-    const approvals = await approvalService.getApprovals(pageNumber, pageSize, sort, query);
+    const { items: approvals, totalCount } = await approvalService.getApprovals(pageNumber, pageSize, sort, query);
 
-    return NextResponse.json(approvals);
+    if (totalCount === undefined) {
+      return NextResponse.json(approvals);
+    }
+
+    return NextResponse.json(approvals, {
+      headers: { 'x-total-count': String(totalCount) },
+    });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     logger.error(

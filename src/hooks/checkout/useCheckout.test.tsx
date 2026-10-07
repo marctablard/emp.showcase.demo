@@ -1,5 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
-import { useCheckout } from './useCheckout';
+import { checkout } from '@/lib/client/checkout';
+import type { CheckoutAddress } from '@/platform/services/model/checkout';
+import type { ShippingMethod } from '@/platform/services/model/shipping';
+import { checkoutAddressToCartShipping, hasCheckoutShippingDestination, useCheckout } from './useCheckout';
 
 const mockUseCheckoutStore = jest.fn();
 const mockUseCart = jest.fn();
@@ -51,6 +54,7 @@ type ShippingAddress = {
 type CheckoutCart = {
   id: string;
   totalPrice: { amount: number; currency: string };
+  subTotalPrice?: { amount: number; currency: string };
 } | null;
 
 type SelectedMethod = {
@@ -79,15 +83,29 @@ const buildCheckoutStoreValue = (overrides: {
   reset: jest.fn(),
 });
 
-const buildCartValue = (cart: CheckoutCart) => ({
+const buildCartValue = (
+  cart: CheckoutCart,
+  updateShippingInfo: jest.Mock = jest.fn(),
+  updateShippingMethod: jest.Mock = jest.fn(),
+) => ({
   cart,
   loading: false,
-  updateShippingInfo: jest.fn(),
+  updateShippingInfo,
+  updateShippingMethod,
   clearCart: jest.fn(),
 });
 
+const buildCheckoutAddress = (type: 'SHIPPING' | 'BILLING', country: string, zipCode: string): CheckoutAddress => ({
+  contactName: 'Test Buyer',
+  street: 'Bahnhofstrasse',
+  zipCode,
+  city: country === 'CH' ? 'Zug' : 'Berlin',
+  country,
+  type,
+});
+
 const buildShippingMethodsValue = (overrides: {
-  methods: Array<{ id: string; name?: string; cost?: { amount: number } }>;
+  methods: Array<{ id: string; name?: string; zoneId?: string; cost?: { amount: number; currency?: string } }>;
   clearShippingMethods: jest.Mock;
   fetchShippingMethods: jest.Mock;
 }) => ({
@@ -117,7 +135,7 @@ describe('useCheckout', () => {
     mockUseCustomer.mockReturnValue({ customer: null });
     mockUseSite.mockReturnValue({ paymentModes: [], site: null });
     mockUseAddresses.mockReturnValue({ addresses: [] });
-    mockUseShopSession.mockReturnValue({ session: null });
+    mockUseShopSession.mockReturnValue({ session: null, setCountry: jest.fn() });
   });
 
   it('clears previous methods and selected method before fetching when country changes', () => {
@@ -135,7 +153,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -157,7 +175,7 @@ describe('useCheckout', () => {
     );
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -191,7 +209,7 @@ describe('useCheckout', () => {
     mockUseCart.mockReturnValue(buildCartValue(CART));
     mockUseShippingMethods.mockReturnValue(
       buildShippingMethodsValue({
-        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
         clearShippingMethods,
         fetchShippingMethods,
       }),
@@ -213,11 +231,11 @@ describe('useCheckout', () => {
     expect(setShippingMethod).not.toHaveBeenCalled();
   });
 
-  it('auto-selects the only available shipping method after a fresh fetch', () => {
+  it('does not auto-select a shipping method after a fresh fetch', () => {
     const clearShippingMethods = jest.fn();
     const fetchShippingMethods = jest.fn().mockResolvedValue(undefined);
     const setShippingMethod = jest.fn();
-    const freshMethod = { id: 'ch-express', name: 'CH Express', cost: { amount: 9 } };
+    const freshMethod = { id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } };
 
     mockUseCheckoutStore.mockReturnValue(
       buildCheckoutStoreValue({
@@ -237,9 +255,521 @@ describe('useCheckout', () => {
 
     renderHook(() => useCheckout());
 
-    const callArgs = setShippingMethod.mock.calls
+    const autoSelected = setShippingMethod.mock.calls
       .map(([payload]) => payload)
       .filter((payload) => payload && payload.methodId === freshMethod.id);
-    expect(callArgs.length).toBeGreaterThanOrEqual(1);
+    expect(autoSelected).toHaveLength(0);
+  });
+
+  it('clears a selected method that is no longer in the findSite list', () => {
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'other-method', name: 'Other', cost: { amount: 3, currency: 'EUR' } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    renderHook(() => useCheckout());
+
+    expect(setShippingMethod).toHaveBeenCalledWith(null);
+  });
+
+  it('calls updateShippingInfo when the shipping-address country changes', () => {
+    const updateShippingInfo = jest.fn();
+    const setCountry = jest.fn();
+    const clearShippingMethods = jest.fn();
+    const fetchShippingMethods = jest.fn().mockResolvedValue(undefined);
+    const setShippingMethod = jest.fn();
+    mockUseShopSession.mockReturnValue({ session: { country: 'DE' }, setCountry });
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: DE_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
+        clearShippingMethods,
+        fetchShippingMethods,
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+
+    act(() => {
+      result.current.submitShippingAddress(buildCheckoutAddress('SHIPPING', 'CH', '6300'));
+    });
+
+    expect(updateShippingInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+      }),
+    );
+    expect(setCountry).toHaveBeenCalledWith('CH');
+  });
+
+  it('normalizes shipping-address country before setCountry', () => {
+    const setCountry = jest.fn();
+    mockUseShopSession.mockReturnValue({ session: { country: 'DE' }, setCountry });
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: DE_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+
+    act(() => {
+      result.current.submitShippingAddress(buildCheckoutAddress('SHIPPING', ' ch ', '6300'));
+    });
+
+    expect(setCountry).toHaveBeenCalledWith('CH');
+  });
+
+  it('does not call setCountry when only country casing differs', () => {
+    const setCountry = jest.fn();
+    mockUseShopSession.mockReturnValue({ session: { country: 'CH' }, setCountry });
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: DE_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+    setCountry.mockClear();
+
+    act(() => {
+      result.current.submitShippingAddress(buildCheckoutAddress('SHIPPING', 'ch', '6300'));
+    });
+
+    expect(setCountry).not.toHaveBeenCalled();
+  });
+
+  it('does not call updateShippingInfo when submitBillingAddress is used', () => {
+    const updateShippingInfo = jest.fn();
+    const clearShippingMethods = jest.fn();
+    const fetchShippingMethods = jest.fn().mockResolvedValue(undefined);
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
+        clearShippingMethods,
+        fetchShippingMethods,
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+    updateShippingInfo.mockClear();
+
+    act(() => {
+      result.current.submitBillingAddress(buildCheckoutAddress('BILLING', 'DE', '10115'));
+    });
+
+    expect(updateShippingInfo).not.toHaveBeenCalled();
+  });
+
+  it('applies leftover persisted ship-to onto a new cart as a first selection', () => {
+    const updateShippingInfo = jest.fn().mockResolvedValue(undefined);
+    const setCountry = jest.fn();
+    mockUseShopSession.mockReturnValue({ session: { country: 'DE' }, setCountry });
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    renderHook(() => useCheckout());
+
+    expect(updateShippingInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+      }),
+    );
+    expect(setCountry).toHaveBeenCalledWith('CH');
+  });
+
+  it('does not re-write leftover ship-to for the same cart after it was already applied', () => {
+    const updateShippingInfo = jest.fn().mockResolvedValue(undefined);
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+    updateShippingInfo.mockClear();
+
+    act(() => {
+      result.current.submitShippingAddress(buildCheckoutAddress('SHIPPING', 'CH', '6300'));
+    });
+
+    expect(updateShippingInfo).not.toHaveBeenCalled();
+  });
+
+  it('re-applies leftover ship-to when the cart id changes', () => {
+    const updateShippingInfo = jest.fn().mockResolvedValue(undefined);
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { rerender } = renderHook(() => useCheckout());
+    expect(updateShippingInfo).toHaveBeenCalledTimes(1);
+
+    mockUseCart.mockReturnValue(buildCartValue({ ...CART, id: 'cart-2' }, updateShippingInfo));
+    rerender();
+
+    expect(updateShippingInfo).toHaveBeenCalledTimes(2);
+    expect(updateShippingInfo).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+      }),
+    );
+  });
+
+  it('hasCheckoutShippingDestination requires both country and zip', () => {
+    expect(hasCheckoutShippingDestination({ country: 'CH', zipCode: '6300' })).toBe(true);
+    expect(hasCheckoutShippingDestination({ country: 'CH', zipCode: '' })).toBe(false);
+    expect(hasCheckoutShippingDestination({ country: '', zipCode: '6300' })).toBe(false);
+    expect(hasCheckoutShippingDestination(null)).toBe(false);
+  });
+
+  it('applyShippingDestinationToCart writes country+zip even when checkout already has that address', async () => {
+    const updateShippingInfo = jest.fn().mockResolvedValue(undefined);
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+
+    await act(async () => {
+      await result.current.applyShippingDestinationToCart(buildCheckoutAddress('SHIPPING', 'CH', '6300'));
+    });
+
+    expect(updateShippingInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+      }),
+    );
+  });
+
+  it('checkoutAddressToCartShipping trims zip and uppercases country', () => {
+    expect(
+      checkoutAddressToCartShipping({
+        type: 'SHIPPING',
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
+        country: ' ch ',
+        zipCode: ' 6300 ',
+        city: 'Zug',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+        city: 'Zug',
+      }),
+    );
+    expect(
+      checkoutAddressToCartShipping({
+        type: 'SHIPPING',
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
+        city: 'Zug',
+        country: '   ',
+        zipCode: '   ',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        country: undefined,
+        zipCode: undefined,
+      }),
+    );
+  });
+
+  it('applyShippingDestinationToCart no-ops without country and zip', async () => {
+    const updateShippingInfo = jest.fn();
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9, currency: 'EUR' } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+    updateShippingInfo.mockClear();
+
+    await act(async () => {
+      await result.current.applyShippingDestinationToCart(buildCheckoutAddress('SHIPPING', '', ''));
+    });
+
+    expect(updateShippingInfo).not.toHaveBeenCalled();
+  });
+
+  it('stores a newly selected shipping method without persisting it on the cart', () => {
+    const updateShippingMethod = jest.fn();
+    const setShippingMethod = jest.fn();
+    const selected: ShippingMethod = {
+      id: 'new-shipping-7',
+      name: 'New Shipping 7%',
+      zoneId: 'zone-de',
+      cost: { amount: 20, currency: 'EUR' },
+    };
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: DE_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, jest.fn(), updateShippingMethod));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [
+          { id: 'de-standard', name: 'DE Standard', zoneId: 'zone-de', cost: { amount: 5, currency: 'EUR' } },
+          selected,
+        ],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+
+    act(() => {
+      result.current.submitShippingMethod(selected);
+    });
+
+    expect(setShippingMethod).toHaveBeenCalledWith({
+      methodId: 'new-shipping-7',
+      zoneId: 'zone-de',
+      methodName: 'New Shipping 7%',
+      amount: 20,
+      taxCode: undefined,
+    });
+    expect(updateShippingMethod).not.toHaveBeenCalled();
+  });
+
+  it('does not persist when the same shipping method is submitted again', () => {
+    const updateShippingMethod = jest.fn();
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: DE_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, jest.fn(), updateShippingMethod));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'de-standard', name: 'DE Standard', zoneId: 'zone-de', cost: { amount: 5, currency: 'EUR' } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+    updateShippingMethod.mockClear();
+    setShippingMethod.mockClear();
+
+    act(() => {
+      result.current.submitShippingMethod({
+        id: 'de-standard',
+        name: 'DE Standard',
+        zoneId: 'zone-de',
+        cost: { amount: 5, currency: 'EUR' },
+      });
+    });
+
+    expect(setShippingMethod).not.toHaveBeenCalled();
+    expect(updateShippingMethod).not.toHaveBeenCalled();
+  });
+
+  it('does not refetch shipping methods when only the cart total changes', () => {
+    const clearShippingMethods = jest.fn();
+    const fetchShippingMethods = jest.fn().mockResolvedValue(undefined);
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: DE_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(
+      buildCartValue({
+        id: 'cart-1',
+        totalPrice: { amount: 100, currency: 'EUR' },
+        subTotalPrice: { amount: 100, currency: 'EUR' },
+      }),
+    );
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
+        clearShippingMethods,
+        fetchShippingMethods,
+      }),
+    );
+
+    const { rerender } = renderHook(() => useCheckout());
+    expect(fetchShippingMethods).toHaveBeenCalledTimes(1);
+    clearShippingMethods.mockClear();
+    fetchShippingMethods.mockClear();
+
+    mockUseCart.mockReturnValue(
+      buildCartValue({
+        id: 'cart-1',
+        totalPrice: { amount: 120, currency: 'EUR' },
+        subTotalPrice: { amount: 100, currency: 'EUR' },
+      }),
+    );
+
+    act(() => {
+      rerender();
+    });
+
+    expect(fetchShippingMethods).not.toHaveBeenCalled();
+    expect(clearShippingMethods).not.toHaveBeenCalled();
+  });
+
+  it('keeps leftover addresses after a sequential order checkout', async () => {
+    const reset = jest.fn();
+    const shipping = buildCheckoutAddress('SHIPPING', 'CH', '6300');
+    const billing = buildCheckoutAddress('BILLING', 'CH', '6300');
+    mockUseCheckoutStore.mockReturnValue({
+      ...buildCheckoutStoreValue({
+        shippingAddress: shipping,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+      billingAddress: billing,
+      paymentMethod: { id: 'invoice', code: 'invoice', active: true, provider: 'invoice' },
+      reset,
+    });
+    mockUseCart.mockReturnValue(buildCartValue(CART));
+    mockUseCustomer.mockReturnValue({ customer: { id: 'c1' } });
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5, currency: 'EUR' } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn(),
+      }),
+    );
+    (checkout as jest.Mock).mockResolvedValue({ orderId: 'ord-1' });
+
+    const { result } = renderHook(() => useCheckout());
+    await act(async () => {
+      await result.current.processCheckout();
+    });
+
+    expect(reset).toHaveBeenCalledWith({ keepAddresses: true });
   });
 });

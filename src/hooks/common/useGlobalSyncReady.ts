@@ -10,12 +10,7 @@ import { CartStoreContext, SessionStoreContext, SiteStoreContext } from '@/provi
  * skeletons / tooltips per phase. Checked in the order listed: the first applicable reason wins.
  */
 export type SyncNotReadyReason =
-  | 'session-mutation'
-  | 'session-loading'
-  | 'site-loading'
-  | 'site-mismatch'
-  | 'cart-loading'
-  | 'cart-mismatch';
+  'session-mutation' | 'session-loading' | 'site-loading' | 'site-mismatch' | 'cart-loading' | 'cart-mismatch';
 
 export interface GlobalSyncReady {
   ready: boolean;
@@ -47,7 +42,7 @@ export function useGlobalSyncReady(): GlobalSyncReady {
     useShallow((s) => ({
       loading: s.loading,
       sessionSiteCode: s.session?.siteCode ?? null,
-      mutationInFlight: s.isMutationInFlight(),
+      mutationInFlight: s.mutationInFlight,
     })),
   );
 

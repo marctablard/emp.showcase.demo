@@ -1,18 +1,33 @@
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
+  CART_DISCOUNT_REASON,
+  CART_SITE_MISMATCH_MESSAGE,
   CartCurrencyUpdateError,
-  PROMO_CODE_ERROR_CODE,
-  PromoCodeError,
+  type CartDiscountError,
+  type CartDiscountReason,
+  isCartCurrencyUpdateError,
+  isCartDiscountError,
 } from '@/platform/services/cart/errors';
 
 export const CART_API_REASON = {
   NOT_FOUND: 'not_found',
   FORBIDDEN: 'forbidden',
   CONTEXT_MISMATCH: 'context_mismatch',
+  COUPON_CURRENCY_CONFLICT: 'coupon_currency_conflict',
   UNSUPPORTED_CURRENCY: 'unsupported_currency',
-  EMPTY_PROMO_CODE: 'empty_promo_code',
-  INVALID_PROMO_CODE: 'invalid_promo_code',
-  PROMO_CODE_ALREADY_APPLIED: 'promo_code_already_applied',
+  /** Generic coupon rejection whose cause could not be classified. */
+  DISCOUNT_NOT_APPLICABLE: 'discount_not_applicable',
+  /** Code exists and the customer may use it, but the cart fails its restrictions (threshold, currency, …). */
+  COUPON_NOT_APPLICABLE: 'coupon_not_applicable',
+  /** No coupon with this code exists (Coupon Service `resource_not_found`). */
+  COUPON_NOT_FOUND: 'coupon_not_found',
+  /** Code exists but is expired / not redeemable right now. */
+  COUPON_NOT_ACTIVE: 'coupon_not_active',
+  /** Code is already applied to this cart. */
+  COUPON_ALREADY_APPLIED: 'coupon_already_applied',
+  /** Code exists but this customer/segment may not redeem it. */
+  COUPON_NOT_ELIGIBLE: 'coupon_not_eligible',
+  UNAUTHORIZED: 'unauthorized',
   UPSTREAM_FAILURE: 'upstream_failure',
 } as const;
 
@@ -21,6 +36,18 @@ export type CartApiErrorMapping = {
   response: Record<string, string>;
   logContext: Record<string, unknown>;
 };
+
+/** True when a cart-currency client/store error was classified as a coupon/promo conflict. */
+export function isCouponCurrencyConflictClientError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const record = error as { reason?: unknown; code?: unknown };
+  if (record.reason === CART_API_REASON.COUPON_CURRENCY_CONFLICT) {
+    return true;
+  }
+  return record.code === CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT;
+}
 
 export function mapCartGetError(error: unknown): CartApiErrorMapping {
   if (error instanceof CartCurrencyUpdateError) {
@@ -67,7 +94,7 @@ export function mapCartGetError(error: unknown): CartApiErrorMapping {
 }
 
 export function mapCartCurrencyPutError(error: unknown): CartApiErrorMapping {
-  if (error instanceof CartCurrencyUpdateError) {
+  if (isCartCurrencyUpdateError(error)) {
     if (error.code === CART_CURRENCY_UPDATE_ERROR_CODE.CART_NOT_FOUND) {
       return {
         status: 404,
@@ -111,6 +138,22 @@ export function mapCartCurrencyPutError(error: unknown): CartApiErrorMapping {
         },
       };
     }
+
+    if (error.code === CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT) {
+      return {
+        status: 409,
+        response: {
+          error: 'Coupon blocks currency update',
+          reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+          code: CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT,
+        },
+        logContext: {
+          reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+          upstreamStatus: error.upstreamStatus,
+          upstreamBody: error.upstreamBody,
+        },
+      };
+    }
   }
 
   return {
@@ -120,44 +163,78 @@ export function mapCartCurrencyPutError(error: unknown): CartApiErrorMapping {
   };
 }
 
-export function mapPromoCodeError(error: unknown): CartApiErrorMapping {
-  if (error instanceof PromoCodeError) {
-    if (error.code === PROMO_CODE_ERROR_CODE.EMPTY_CODE) {
-      return {
-        status: 400,
-        response: { error: 'Promo code is required', reason: CART_API_REASON.EMPTY_PROMO_CODE },
-        logContext: { reason: CART_API_REASON.EMPTY_PROMO_CODE },
-      };
-    }
+type DiscountRejectionResponse = { error: string; reason: string };
 
-    if (error.code === PROMO_CODE_ERROR_CODE.ALREADY_APPLIED) {
+/** 400 bodies per classified coupon rejection; the shopper copy is chosen client-side from `reason`. */
+const DISCOUNT_REJECTION_RESPONSES: Record<CartDiscountReason, DiscountRejectionResponse> = {
+  [CART_DISCOUNT_REASON.CODE_NOT_FOUND]: { error: 'Coupon code not found', reason: CART_API_REASON.COUPON_NOT_FOUND },
+  [CART_DISCOUNT_REASON.NOT_ACTIVE]: { error: 'Coupon is not active', reason: CART_API_REASON.COUPON_NOT_ACTIVE },
+  [CART_DISCOUNT_REASON.ALREADY_APPLIED]: {
+    error: 'Coupon is already applied',
+    reason: CART_API_REASON.COUPON_ALREADY_APPLIED,
+  },
+  [CART_DISCOUNT_REASON.NOT_ELIGIBLE]: {
+    error: 'Coupon is not available for this customer',
+    reason: CART_API_REASON.COUPON_NOT_ELIGIBLE,
+  },
+  [CART_DISCOUNT_REASON.NOT_APPLICABLE]: {
+    error: 'Coupon does not apply to this cart',
+    reason: CART_API_REASON.COUPON_NOT_APPLICABLE,
+  },
+};
+
+/** Unclassified rejection (validation lookup failed or inconclusive): legacy generic reason. */
+const DEFAULT_DISCOUNT_REJECTION: DiscountRejectionResponse = {
+  error: 'Discount is not applicable',
+  reason: CART_API_REASON.DISCOUNT_NOT_APPLICABLE,
+};
+
+function mapClassifiedDiscountRejection(error: CartDiscountError): CartApiErrorMapping | undefined {
+  if (!error.reason) {
+    return undefined;
+  }
+  const rejection = DISCOUNT_REJECTION_RESPONSES[error.reason];
+  return {
+    status: 400,
+    response: rejection,
+    logContext: {
+      reason: rejection.reason,
+      upstreamStatus: error.upstreamStatus,
+      upstreamBody: error.upstreamBody,
+    },
+  };
+}
+
+function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: string): CartApiErrorMapping {
+  if (isCartDiscountError(error)) {
+    if (error.upstreamStatus === 401) {
       return {
-        status: 409,
-        response: { error: 'Promo code already applied', reason: CART_API_REASON.PROMO_CODE_ALREADY_APPLIED },
+        status: 401,
+        response: { error: 'Authentication required', reason: CART_API_REASON.UNAUTHORIZED },
         logContext: {
-          reason: CART_API_REASON.PROMO_CODE_ALREADY_APPLIED,
+          reason: CART_API_REASON.UNAUTHORIZED,
           upstreamStatus: error.upstreamStatus,
           upstreamBody: error.upstreamBody,
         },
       };
     }
 
-    if (error.code === PROMO_CODE_ERROR_CODE.INVALID) {
+    if (error.upstreamStatus === 403 || error.message === CART_SITE_MISMATCH_MESSAGE) {
       return {
-        status: 400,
-        response: { error: 'Invalid promo code', reason: CART_API_REASON.INVALID_PROMO_CODE },
+        status: 403,
+        response: { error: 'Cart context is forbidden', reason: CART_API_REASON.FORBIDDEN },
         logContext: {
-          reason: CART_API_REASON.INVALID_PROMO_CODE,
+          reason: CART_API_REASON.FORBIDDEN,
           upstreamStatus: error.upstreamStatus,
           upstreamBody: error.upstreamBody,
         },
       };
     }
 
-    if (error.code === PROMO_CODE_ERROR_CODE.NOT_FOUND) {
+    if (error.upstreamStatus === 404 || error.message === 'Cart not found') {
       return {
         status: 404,
-        response: { error: 'Promo code not found', reason: CART_API_REASON.NOT_FOUND },
+        response: { error: 'Cart not found', reason: CART_API_REASON.NOT_FOUND },
         logContext: {
           reason: CART_API_REASON.NOT_FOUND,
           upstreamStatus: error.upstreamStatus,
@@ -165,11 +242,46 @@ export function mapPromoCodeError(error: unknown): CartApiErrorMapping {
         },
       };
     }
+
+    const classified = mapClassifiedDiscountRejection(error);
+    if (classified) {
+      return classified;
+    }
+
+    if (error.upstreamStatus != null && error.upstreamStatus >= 500) {
+      return {
+        status: 500,
+        response: { error: upstreamFailureMessage, reason: CART_API_REASON.UPSTREAM_FAILURE },
+        logContext: {
+          reason: CART_API_REASON.UPSTREAM_FAILURE,
+          upstreamStatus: error.upstreamStatus,
+          upstreamBody: error.upstreamBody,
+        },
+      };
+    }
+
+    return {
+      status: 400,
+      response: DEFAULT_DISCOUNT_REJECTION,
+      logContext: {
+        reason: DEFAULT_DISCOUNT_REJECTION.reason,
+        upstreamStatus: error.upstreamStatus,
+        upstreamBody: error.upstreamBody,
+      },
+    };
   }
 
   return {
     status: 500,
-    response: { error: 'Failed to update promo code', reason: CART_API_REASON.UPSTREAM_FAILURE },
+    response: { error: upstreamFailureMessage, reason: CART_API_REASON.UPSTREAM_FAILURE },
     logContext: { reason: CART_API_REASON.UPSTREAM_FAILURE },
   };
+}
+
+export function mapCartDiscountApplyError(error: unknown): CartApiErrorMapping {
+  return mapCartDiscountMutationError(error, 'Failed to apply discount');
+}
+
+export function mapCartDiscountRemoveError(error: unknown): CartApiErrorMapping {
+  return mapCartDiscountMutationError(error, 'Failed to remove discount');
 }

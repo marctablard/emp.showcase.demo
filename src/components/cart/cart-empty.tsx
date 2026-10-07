@@ -11,7 +11,7 @@ export function CartEmpty() {
 
   return (
     <div className="max-w-6xl mx-auto mt-8 mb-16">
-      <div className="mx-4 lg:mx-9">
+      <div className="mx-4 md:mx-9">
         <div className="flex flex-col sm:justify-center items-center gap-6">
           <H1>{t('cartEmpty')}</H1>
           <p className="text-lg">{isAuthenticated ? t('cartEmptyTextLoggedIn') : t('cartEmptyText')}</p>

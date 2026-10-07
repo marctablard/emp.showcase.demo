@@ -5,7 +5,9 @@ import { Product } from '../product';
  */
 export interface CategorySuggestion {
   name: string;
+  highlighted?: string;
   count: number;
+  idPath?: string;
 }
 
 /**

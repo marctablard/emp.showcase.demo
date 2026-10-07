@@ -62,10 +62,10 @@ export function setupStoreSynchronization({
   unsubscribers.push(unsubShippingMethodsCache);
 
   // Reset the persisted checkout store (`emp-checkout`, sessionStorage) when the session
-  // site or currency changes. Shipping/billing addresses, payment and shipping method
-  // selections are scoped to a single site+currency context — keeping them across a site
-  // or currency switch can POST legal-entity addresses or shipping methods from the
-  // previous context to Emporix and make the cart calc reject the order.
+  // site or currency changes. A site switch can POST legal-entity addresses from the
+  // previous context, so addresses are dropped. A currency-only change (leftover ship-to
+  // after a sequential order/approval/quote, or the header currency switcher) must keep
+  // previously used addresses — leftover persist still writes destination onto the cart.
   const unsubCheckoutReset = sessionStore.subscribe(
     (state) => ({
       siteCode: state.session?.siteCode ?? '',
@@ -80,7 +80,9 @@ export function setupStoreSynchronization({
       if (!prevSite || !prevCurrency) {
         return;
       }
-      if (prevSite === curr.siteCode && prevCurrency === curr.currency) {
+      const siteChanged = prevSite !== curr.siteCode;
+      const currencyChanged = prevCurrency !== curr.currency;
+      if (!siteChanged && !currencyChanged) {
         return;
       }
       devSyncLog('store-sync: reset checkout store (session site/currency changed)', {
@@ -88,8 +90,9 @@ export function setupStoreSynchronization({
         prevCurrency,
         siteCode: curr.siteCode,
         currency: curr.currency,
+        keepAddresses: !siteChanged,
       });
-      checkoutStore.getState().reset();
+      checkoutStore.getState().reset(siteChanged ? undefined : { keepAddresses: true });
     },
     { equalityFn: shallow },
   );

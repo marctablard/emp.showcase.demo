@@ -23,9 +23,10 @@ PINO supports the following log levels (in order of severity):
 
 ### Server-side Logging
 
-| Variable           | Default (Dev) | Default (Prod) | Description                    |
-| ------------------ | ------------- | -------------- | ------------------------------ |
-| `NEXT_LOG_LEVEL`   | `debug`       | `info`         | Minimum log level for server   |
+| Variable                 | Default (Dev) | Default (Prod) | Description                                                                 |
+| ------------------------ | ------------- | -------------- | --------------------------------------------------------------------------- |
+| `NEXT_LOG_LEVEL`         | `debug`       | `info`         | Minimum log level for server                                                |
+| `NEXT_LOG_OTEL_ENABLED`  | unset (off)   | unset (off)    | Exact `true` enables OTel-aligned Node Pino stdout JSON. Server-only; restart required. |
 
 ### Client-side Logging
 
@@ -42,13 +43,39 @@ NODE_ENV=development
 NEXT_LOG_LEVEL=debug
 NEXT_PUBLIC_LOG_LEVEL=debug
 NEXT_PUBLIC_LOG_ENABLED=true
+# NEXT_LOG_OTEL_ENABLED=true
 
 # Production
 NODE_ENV=production
 NEXT_LOG_LEVEL=info
 NEXT_PUBLIC_LOG_LEVEL=warn
 NEXT_PUBLIC_LOG_ENABLED=true
+# NEXT_LOG_OTEL_ENABLED=true
 ```
+
+### OpenTelemetry-aligned server stdout (opt-in)
+
+Set `NEXT_LOG_OTEL_ENABLED=true` to reshape **Node.js Pino** stdout JSON toward OpenTelemetry log semantic conventions. The flag is private and server-only: exact string `true`, default off, restart required. Do not use a `NEXT_PUBLIC_` prefix.
+
+This toggle does **not** apply to browser Pino (`useLogger`, `getLogger`, `getClientLoggerConfig`) or Edge `edgeLog`. Those surfaces stay unchanged.
+
+OTLP export is out of scope. The flag only reformats the existing stdout line; it does not add an OpenTelemetry Logs SDK or an OTLP exporter.
+
+**Stdout field contract** (flat JSON; extra context keys stay top-level siblings):
+
+| Wire key | Meaning |
+| --- | --- |
+| `timestamp` | ISO 8601 UTC |
+| `severity_text` | `TRACE` / `DEBUG` / `INFO` / `WARN` / `ERROR` / `FATAL` |
+| `severity_number` | OTel bands `1` / `5` / `9` / `13` / `17` / `21` |
+| `body` | Log message (replaces `msg`) |
+| `level` | Numeric Pino level, kept as a sibling |
+| `exception.type` / `exception.message` / `exception.stacktrace` | Mapped from `{ err: Error }` (preferred) or flattened `{ error, stack }` |
+| `trace_id` / `span_id` / `TraceId` / `SpanId` | Absent this release (no empty placeholders) |
+
+Verify the contract on **captured stdout JSON** (process or container logs, or a captured Pino destination). Colorized `pino-pretty` terminal text is not the raw OTel surface.
+
+In development, the existing **single** `pino-pretty` transport stays attached so the terminal remains readable. Pretty output is for humans only; it is not how you confirm `severity_text` or `exception.*`.
 
 ## Usage Examples
 
@@ -71,8 +98,7 @@ export async function GET(request: NextRequest) {
     const logger = server.get<LoggerService>('LoggerService');
     logger.error(
       {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
+        err: error instanceof Error ? error : new Error(String(error)),
         path: request.nextUrl.pathname,
         method: 'GET',
       },
@@ -242,7 +268,7 @@ class MyService {
       this.logger.debug('Operation completed');
     } catch (error) {
       this.logger.error(
-        { error: error instanceof Error ? error.message : String(error) },
+        { err: error instanceof Error ? error : new Error(String(error)) },
         'Operation failed',
       );
       throw error;
@@ -263,7 +289,7 @@ logger.error('Something failed');
 
 // ✅ Good - includes context (context object first, then message)
 logger.error(
-  { userId, error: error.message, endpoint: '/api/users' },
+  { userId, err: error, endpoint: '/api/users' },
   'Failed to fetch user',
 );
 ```
@@ -315,7 +341,7 @@ logger.info({ email, success: true }, 'User login');
 
 ### 4. Structure Error Logging
 
-Include error details in a consistent format:
+Prefer `{ err: Error }` (wrap a non-Error catch value). When `NEXT_LOG_OTEL_ENABLED=true`, the server formatter still maps flattened `{ error, stack }` / `{ error: string }` to `exception.*`, so existing API routes keep working without a mass rewrite.
 
 ```typescript
 try {
@@ -324,8 +350,7 @@ try {
   logger.error(
     {
       operation: 'riskyOperation',
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
+      err: error instanceof Error ? error : new Error(String(error)),
       userId,
     },
     'Operation failed',
@@ -352,7 +377,9 @@ logger.info(
 
 ### Development (pino-pretty + colorized JSON)
 
-In development, logs are formatted for human readability using `pino-pretty`. API debug logs additionally use **ANSI color-coded JSON** for response bodies and headers:
+In development, logs are formatted for human readability using `pino-pretty`. When `NEXT_LOG_OTEL_ENABLED=true`, development still uses that same **single** `pino-pretty` transport (pretty is remapped to `timestamp` / `body`). Do not treat the colorized terminal as proof of the OTel field contract.
+
+API debug logs additionally use **ANSI color-coded JSON** for response bodies and headers:
 
 - **Keys** in **cyan** (`"id"`, `"orders"`, `"total"`)
 - **String values** in **yellow** (`"PENDING"`, `"EUR"`)
@@ -390,10 +417,16 @@ The colorization is implemented by `colorizeJson()` in `src/platform/core/utils/
 
 ### Production (JSON)
 
-In production, logs are output as JSON for log aggregation:
+With the OTel flag **off** (default), logs use Pino’s usual keys for log aggregation:
 
 ```json
 {"level":30,"time":1704729045123,"msg":"Processing request","path":"/api/users","method":"GET"}
+```
+
+With `NEXT_LOG_OTEL_ENABLED=true`, the same kind of line uses the OTel-aligned keys (`timestamp`, `severity_text`, `severity_number`, `body`). Remaining context stays flat. Confirm this on captured stdout JSON, not `pino-pretty`:
+
+```json
+{"level":30,"severity_text":"INFO","severity_number":9,"timestamp":"2024-01-08T16:17:25.123Z","pid":1,"hostname":"app","body":"Processing request","path":"/api/users","method":"GET"}
 ```
 
 ## Browser Log Transmission
@@ -810,10 +843,10 @@ The logger follows PINO's native API where the context object comes first, then 
 
 ```typescript
 // ✅ Correct - context first, message second (PINO native order)
-logger.error({ error: err.message }, 'Operation failed');
+logger.error({ err }, 'Operation failed');
 
 // ❌ Incorrect - message first, context second
-logger.error('Operation failed', { error: err.message });
+logger.error('Operation failed', { err });
 ```
 
 The logger supports both patterns for convenience:
@@ -822,6 +855,7 @@ The logger supports both patterns for convenience:
 
 ## Related Documentation
 
+- [Documentation index](./README.md)
 - [Dependency Injection](./dependency-injection.md)
 - [Layered Architecture](./layered-architecture.md)
 - [Environment Variables](./environment-variables.md)

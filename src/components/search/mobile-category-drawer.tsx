@@ -1,0 +1,211 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { ListFilter, Trash2, X } from 'lucide-react';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
+import { PlpFacetPanel } from '@/components/search/facets';
+import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
+import { PlpProductsModeSwitch } from '@/components/search/list-view/plp-products-mode-switch';
+import { Button } from '@/components/ui/button';
+import { Drawer, DrawerClose, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
+import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
+import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
+import { resolvePlpCategoryTreeFacetContext } from '@/lib/category/plp-category-tree-facet';
+import type { Category } from '@/platform/services/model/category';
+import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
+import type { BatteryIncludedFacet, SearchFilterValue } from '@/platform/services/model/common';
+
+interface MobileCategoryDrawerProps {
+  plpCategoryContext: PlpCategoryContext;
+  navigationRoots?: Category[];
+  selectedCategoryId?: string;
+  locale: string;
+  total: number;
+  facets?: BatteryIncludedFacet[];
+  activeFilters: Record<string, SearchFilterValue>;
+  applyFacet: (facetId: string, value: string | string[]) => void;
+  applyRangeFacet: (facetId: string, min: string, max: string) => void;
+  resetFacet: (facetId: string) => void;
+  resetAllFacets?: () => void;
+  categoryFilterLabelsById?: Record<string, string>;
+  appliedFilterCount?: number;
+}
+
+export function MobileCategoryDrawer({
+  plpCategoryContext,
+  navigationRoots,
+  selectedCategoryId,
+  locale,
+  total,
+  facets,
+  activeFilters,
+  applyFacet,
+  applyRangeFacet,
+  resetFacet,
+  resetAllFacets,
+  categoryFilterLabelsById,
+  appliedFilterCount,
+}: MobileCategoryDrawerProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const tFilter = useTranslations('product.filters');
+  const { mode: productsMode } = useProductsMode();
+  const liveCategoryTreeContext = useMemo(
+    () => resolvePlpCategoryTreeFacetContext(facets, navigationRoots, selectedCategoryId, locale),
+    [facets, navigationRoots, selectedCategoryId, locale],
+  );
+  const useLiveCategoryTree =
+    liveCategoryTreeContext !== undefined &&
+    (selectedCategoryId === undefined || liveCategoryTreeContext.selectedCategoryFound);
+  const resolvedCategoryContext =
+    useLiveCategoryTree && liveCategoryTreeContext ? liveCategoryTreeContext.plpCategoryContext : plpCategoryContext;
+  const staticCounts = useMemo(() => {
+    const out: Record<string, number> = {};
+
+    for (const category of [resolvedCategoryContext.currentCategory, ...resolvedCategoryContext.currentChildren]) {
+      if (!category) {
+        continue;
+      }
+
+      const count = getBatteryIncludedCategoryStaticCount(category);
+      if (typeof count === 'number') {
+        out[category.id] = count;
+      }
+    }
+
+    return out;
+  }, [resolvedCategoryContext.currentCategory, resolvedCategoryContext.currentChildren]);
+  // COP-4822: in `assigned` mode the segment forest carries no BI static count and the public
+  // `/api/categories/{id}/product-count` route is unscoped (site-wide, CDN-cached). Requesting it
+  // would flash wrong numbers until the segment-scoped facet arrives, so only the live
+  // `categoryBreadcrumbs` facet counts are ever shown there (same gate as `PlpListLayout`).
+  const onlyLiveCounts = productsMode === 'assigned';
+  const idsToRequest = useMemo(
+    () =>
+      useLiveCategoryTree || onlyLiveCounts
+        ? []
+        : resolvedCategoryContext.sidebarCountCategoryIds.filter((id) => staticCounts[id] === undefined),
+    [onlyLiveCounts, resolvedCategoryContext.sidebarCountCategoryIds, staticCounts, useLiveCategoryTree],
+  );
+  const { counts, requestCounts } = useCategoryProductCounts();
+
+  useEffect(() => {
+    if (idsToRequest.length > 0) {
+      requestCounts(idsToRequest);
+    }
+  }, [idsToRequest, requestCounts]);
+
+  const categoryCountsById = useMemo(() => {
+    if (useLiveCategoryTree && liveCategoryTreeContext) {
+      return { ...staticCounts, ...liveCategoryTreeContext.categoryCountsById };
+    }
+
+    if (onlyLiveCounts) {
+      return staticCounts;
+    }
+
+    return { ...counts, ...staticCounts };
+  }, [counts, liveCategoryTreeContext, onlyLiveCounts, staticCounts, useLiveCategoryTree]);
+
+  return (
+    <div className="relative shrink-0">
+      <Drawer open={isOpen} onOpenChange={setIsOpen}>
+        <DrawerTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap text-base font-normal normal-case text-text-action outline-none hover:text-text-action-hover focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
+            data-testid="mobile-category-drawer-toggle"
+          >
+            <span className="relative">
+              <ListFilter className="h-5 w-5" aria-hidden="true" />
+              {typeof appliedFilterCount === 'number' && appliedFilterCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-surface-success text-[10px] font-bold leading-[14px] text-center tabular-nums text-text-body"
+                >
+                  {appliedFilterCount}
+                </span>
+              ) : null}
+            </span>
+            <span>{tFilter('filterButton')}</span>
+          </button>
+        </DrawerTrigger>
+        <DrawerContent className="h-[85vh] rounded-t-[8px] border-none shadow-lg [&>div:first-child]:hidden data-[vaul-drawer-direction=bottom]:max-h-[85vh] data-[vaul-drawer-direction=bottom]:rounded-t-[8px]">
+          <div className="flex h-full flex-col overflow-y-auto pb-[90px]">
+            <div className="flex items-center justify-between border-b border-border-primary px-6 py-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-base font-bold text-text-headings">Category</span>
+                {typeof total === 'number' ? (
+                  <span className="text-base font-normal text-text-body">
+                    {tFilter('productCount', { count: total })}
+                  </span>
+                ) : null}
+              </div>
+              <DrawerClose asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8 bg-transparent hover:bg-surface-secondary text-icon-action"
+                  aria-label={tFilter('close')}
+                  data-testid="mobile-category-drawer-close"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </DrawerClose>
+            </div>
+
+            <div className="px-6 py-4">
+              {/* COP-4822 CR-1: the nested tree has no card header, so the ASSIGNED / ALL switch sits above it (the drawer title row is too narrow on phones). */}
+              <PlpProductsModeSwitch className="mb-4" />
+              <PlpCategoryTree
+                plpCategoryContext={resolvedCategoryContext}
+                locale={locale}
+                total={total}
+                categoryCountsById={categoryCountsById}
+                isNested={true}
+              />
+            </div>
+
+            <hr className="border-border-primary" />
+
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-between border-b border-border-primary pb-4">
+                <span className="text-base font-bold text-text-headings">{tFilter('filterButton')}</span>
+                {Object.keys(activeFilters).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetAllFacets}
+                    className="inline-flex items-center gap-2 text-sm font-bold text-text-action underline-offset-4 hover:underline focus-visible:outline-none"
+                  >
+                    <span>{tFilter('clearAllFilters', { defaultValue: 'Clear Filters' })}</span>
+                    <Trash2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-6">
+                <PlpFacetPanel
+                  facets={facets}
+                  activeFilters={activeFilters}
+                  applyFacet={applyFacet}
+                  applyRangeFacet={applyRangeFacet}
+                  resetFacet={resetFacet}
+                  categoryFilterLabelsById={categoryFilterLabelsById}
+                  variant="list"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 pt-0">
+              <DrawerClose asChild>
+                <Button variant="secondary" className="w-full" data-testid="mobile-category-drawer-show-products">
+                  {tFilter('showProducts', { count: total })}
+                </Button>
+              </DrawerClose>
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </div>
+  );
+}

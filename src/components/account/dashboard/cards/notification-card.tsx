@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, ArrowRight, CircleAlert, CircleCheck, MoveRight } from 'lucide-react';
+import { ArrowRight, CircleAlert, CircleCheck, MoveRight, TriangleAlert } from 'lucide-react';
 import { CardTitle } from '@/components/ui/card';
 import { H4 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
@@ -80,9 +80,9 @@ export function NotificationCard({ className, title, items: customItems, ...prop
       case 'info':
         return <CircleAlert className={cn(className, 'text-icon-information')} />;
       case 'warning':
-        return <AlertTriangle className={cn(className, 'text-icon-warning')} />;
+        return <TriangleAlert className={cn(className, 'text-icon-warning')} />;
       case 'danger':
-        return <AlertTriangle className={cn(className, 'text-icon-error')} />;
+        return <TriangleAlert className={cn(className, 'text-icon-error')} />;
       case 'success':
         return <CircleCheck className={cn(className, 'text-icon-success')} />;
       case 'task':

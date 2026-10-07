@@ -7,13 +7,11 @@ import { buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
 import type {
   EmporixAddCartItemRequest,
-  EmporixAppliedDiscount,
   EmporixCart,
   EmporixCartItem,
   EmporixCreateCartRequest,
   EmporixCreatedCart,
   EmporixCreatedCartItem,
-  EmporixDiscountResponse,
   EmporixPaginatedResponse,
   EmporixSearchParams,
   EmporixUpdateCartItemRequest,
@@ -348,6 +346,43 @@ class EmporixCartApi implements IEmporixCartApi {
     }
   }
 
+  async applyDiscount(cartId: string, code: string): Promise<void> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/cart/${this.config.tenant}/carts/${cartId}/discounts`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      },
+      'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/discounts'),
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to apply discount to cart: ${response.status} ${response.statusText} ${errorDetails}`);
+    }
+  }
+
+  async removeDiscount(cartId: string, discountIndex: number): Promise<void> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/cart/${this.config.tenant}/carts/${cartId}/discounts/${discountIndex}`,
+      { method: 'DELETE' },
+      'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/discounts/{discountIndex}'),
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to remove discount from cart: ${response.status} ${response.statusText} ${errorDetails}`);
+    }
+  }
+
   async mergeCarts(sourceCartId: string, targetCartId: string): Promise<void> {
     const response = await this.apiClient.authenticatedFetch(
       `/cart/${this.config.tenant}/carts/${targetCartId}/merge`,
@@ -367,63 +402,6 @@ class EmporixCartApi implements IEmporixCartApi {
     if (!response.ok) {
       const errorDetails = await response.text();
       throw new Error(`Failed to merge carts: ${response.statusText} ${errorDetails}`);
-    }
-  }
-
-  async applyDiscount(cartId: string, code: string): Promise<EmporixAppliedDiscount> {
-    const response = await this.apiClient.authenticatedFetch(
-      `/cart/${this.config.tenant}/carts/${cartId}/discounts`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ code }),
-      },
-      'session',
-      undefined,
-      createCartMetrics('/cart/{tenant}/carts/{cartId}/discounts'),
-    );
-
-    if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Failed to apply discount: ${response.status} ${response.statusText} ${errorDetails}`);
-    }
-
-    return await response.json();
-  }
-
-  async getDiscounts(cartId: string): Promise<EmporixDiscountResponse[]> {
-    const response = await this.apiClient.authenticatedFetch(
-      `/cart/${this.config.tenant}/carts/${cartId}/discounts`,
-      { method: 'GET', headers: { Accept: 'application/json' } },
-      'session',
-      undefined,
-      createCartMetrics('/cart/{tenant}/carts/{cartId}/discounts'),
-    );
-
-    if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Failed to get cart discounts: ${response.statusText} ${errorDetails}`);
-    }
-
-    return await response.json();
-  }
-
-  async removeDiscounts(cartId: string, codes?: string[]): Promise<void> {
-    const query = codes && codes.length > 0 ? `?codes=${codes.map((code) => encodeURIComponent(code)).join(',')}` : '';
-    const response = await this.apiClient.authenticatedFetch(
-      `/cart/${this.config.tenant}/carts/${cartId}/discounts${query}`,
-      { method: 'DELETE' },
-      'session',
-      undefined,
-      createCartMetrics('/cart/{tenant}/carts/{cartId}/discounts'),
-    );
-
-    if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Failed to remove cart discounts: ${response.statusText} ${errorDetails}`);
     }
   }
 }

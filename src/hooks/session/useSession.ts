@@ -18,6 +18,7 @@ import { useCartStore, useSessionStore } from '@/providers/StoreProvider';
 export interface SetCurrencyResult {
   success: boolean;
   cartCurrencyBlocked?: boolean;
+  couponCodes?: string[];
 }
 
 /** Hook for reading and mutating session data. */
@@ -51,7 +52,10 @@ export function useSession() {
         if (success) {
           const { session: updatedSession, hasError } = await fetchSessionWithStatus();
           if (hasError) {
-            return false;
+            // The write already committed — do not fail the mutation or callers
+            // (e.g. CurrencyUrlAligner) will treat this as a rollback signal.
+            getLogger().error({ event: 'session_mutation_refetch_failed' }, 'Session refetch after mutation failed');
+            return success;
           }
           sessionStore.setSession(updatedSession);
           if (afterCommit) {
@@ -103,6 +107,7 @@ export function useSession() {
     let reconciledCart: Cart | null | undefined;
     let cartIncludedInResponse = false;
     let cartCurrencyBlocked = false;
+    let couponCodes: string[] | undefined;
     const success = await runSessionMutation(async () => {
       const result = await updateSessionCurrency(currency);
       if (result.success && 'cart' in result) {
@@ -111,13 +116,18 @@ export function useSession() {
       }
       if (!result.success && result.cartCurrencyBlocked) {
         cartCurrencyBlocked = true;
+        couponCodes = result.couponCodes;
       }
       return result.success;
     });
     if (success && cartIncludedInResponse) {
       cartStore.setCurrentCart(reconciledCart ?? null);
     }
-    return { success, ...(cartCurrencyBlocked ? { cartCurrencyBlocked: true } : {}) };
+    return {
+      success,
+      ...(cartCurrencyBlocked ? { cartCurrencyBlocked: true } : {}),
+      ...(couponCodes?.length ? { couponCodes } : {}),
+    };
   };
 
   const setCountry = async (country: string): Promise<boolean> => {

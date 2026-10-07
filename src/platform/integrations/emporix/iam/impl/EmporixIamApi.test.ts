@@ -1,589 +1,273 @@
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import { Container } from 'inversify';
-import { first } from 'lodash';
-import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
-import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
-import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
-import { EmporixConfig } from '../../config';
-import EmporixCustomerApi from '../../customer/impl/EmporixCustomerApi';
-import { EmporixGroup, EmporixGroupAssignmentRequest, EmporixRole } from '../../model/iam';
-import EmporixOAuthApi from '../../oauth/impl/EmporixOAuthApi';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import type { EmporixConfig } from '../../config';
+import type { EmporixGroupAssignmentRequest } from '../../model/iam';
 import EmporixIamApi from './EmporixIamApi';
 
-// Create a test config implementation
-class TestEmporixConfig implements EmporixConfig {
-  tenant: string = process.env.NEXT_EMPORIX_TEST_TENANT || 'showcasetest';
-  clientId: string = process.env.NEXT_EMPORIX_TEST_CLIENT_ID || '';
-  clientSecret: string = process.env.NEXT_EMPORIX_TEST_CLIENT_SECRET || '';
-  baseUrl: string = 'https://api.emporix.io';
-  serverClientId: string = process.env.NEXT_EMPORIX_TEST_SERVER_CLIENT_ID || '';
-  serverClientSecret: string = process.env.NEXT_EMPORIX_TEST_SERVER_CLIENT_SECRET || '';
-}
-
 describe('EmporixIamApi', () => {
-  // Test users
-  const testUser1 = {
-    username: 'benjamin.blue@alaba.ma',
-    password: 'Test1234',
-  };
-  const testUser2 = {
-    username: 'forrest.gump@alaba.ma',
-    password: 'Test1234',
+  const mockConfig: EmporixConfig = {
+    baseUrl: 'https://api.emporix.io',
+    tenant: 'test-tenant',
+    clientId: 'test-client-id',
+    clientSecret: '',
+    serverClientId: '',
+    serverClientSecret: '',
   };
 
-  let container: Container;
-  let tokenManager: EmporixTestTokenManager;
-  let apiInvoker: EmporixApiInvoker;
-  let oauthApi: EmporixOAuthApi;
-  let customerApi: EmporixCustomerApi;
+  let mockApiClient: jest.Mocked<Pick<EmporixApiInvoker, 'authenticatedFetch'>>;
+  let mockLogger: jest.Mocked<LoggerService>;
   let iamApi: EmporixIamApi;
 
-  let isAuthenticated = false;
-  let testGroupId: string | null = null;
-  let testRoleId: string | null = null;
-  let testUser1Id: string | null = null;
+  const jsonResponse = (
+    body: unknown,
+    init?: { status?: number; ok?: boolean; headers?: Record<string, string> },
+  ): Response => {
+    const response = {
+      ok: init?.ok ?? true,
+      status: init?.status ?? 200,
+      statusText: init?.ok === false ? 'Bad Request' : 'OK',
+      json: jest.fn().mockResolvedValue(body),
+      text: jest.fn().mockResolvedValue(JSON.stringify(body)),
+      headers: new Headers(init?.headers),
+    } as unknown as Response;
+    response.clone = jest.fn(() => response);
+    return response;
+  };
 
-  // Helper function to set up user token
-  async function setupUserToken(username: string, password: string) {
-    try {
-      // Use the customer API to login
-      const sessionContext = await customerApi.login(username, password);
-      isAuthenticated = true;
-      return sessionContext;
-    } catch (error) {
-      console.error(`Authentication failed for ${username}:`, error);
-      isAuthenticated = false;
-      return null;
-    }
-  }
-
-  // Setup container and dependencies
-  beforeAll(() => {
-    // Set up the container with our test config
-    container = new Container();
-    container.bind<EmporixConfig>('EmporixConfig').to(TestEmporixConfig);
-    container.bind<EmporixTestTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager).inSingletonScope();
-    container
-      .bind<EmporixApiInvoker>('EmporixApiInvoker')
-      .toDynamicValue(
-        (ctx) =>
-          new EmporixApiInvoker(
-            ctx.get<EmporixConfig>('EmporixConfig'),
-            ctx.get<EmporixTokenManager>('EmporixTokenManager'),
-          ),
-      )
-      .inSingletonScope();
-    container.bind<EmporixOAuthApi>('EmporixOAuthApi').to(EmporixOAuthApi);
-    container.bind<EmporixCustomerApi>('EmporixCustomerApi').to(EmporixCustomerApi);
-    container.bind<EmporixIamApi>('EmporixIamApi').to(EmporixIamApi);
-
-    // Resolve the dependencies
-    tokenManager = container.get<EmporixTestTokenManager>('EmporixTokenManager');
-    apiInvoker = container.get<EmporixApiInvoker>('EmporixApiInvoker');
-    oauthApi = container.get<EmporixOAuthApi>('EmporixOAuthApi');
-    customerApi = container.get<EmporixCustomerApi>('EmporixCustomerApi');
-    iamApi = container.get<EmporixIamApi>('EmporixIamApi');
+  beforeEach(() => {
+    mockApiClient = {
+      authenticatedFetch: jest.fn().mockResolvedValue(jsonResponse({})),
+    };
+    mockLogger = {
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+    iamApi = new EmporixIamApi(mockApiClient as unknown as EmporixApiInvoker, mockConfig, mockLogger);
   });
 
-  // Authenticate before running tests
-  beforeAll(async () => {
-    const sessionContext = await setupUserToken(testUser1.username, testUser1.password);
-    testUser1Id = sessionContext?.customerId ?? null;
-  }, 10000);
+  describe('getUsers', () => {
+    it('lists CUSTOMER users with expanded groups, paging, and the service token', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(
+        jsonResponse([{ id: 'customer-1', userType: 'CUSTOMER', groups: [{ id: 'group-1' }] }], {
+          headers: { 'x-total-count': '17' },
+        }),
+      );
 
-  // Cleanup: clear tokens after tests
-  afterAll(async () => {
-    await tokenManager.clearTokens();
-  }, 10000);
+      const result = await iamApi.getUsers(2, 25);
 
-  // Test access control operations
-  describe('Access Control operations', () => {
-    let testRoleId: string | null = null;
-    let testAccessControlId: string | null = null;
+      const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      const parsedUrl = new URL(url, 'https://api.emporix.io');
+      expect(parsedUrl.pathname).toBe('/iam/test-tenant/users');
+      expect(parsedUrl.searchParams.get('userType')).toBe('CUSTOMER');
+      expect(parsedUrl.searchParams.get('expand')).toBe('groups');
+      expect(parsedUrl.searchParams.has('extend')).toBe(false);
+      expect(parsedUrl.searchParams.get('pageNumber')).toBe('2');
+      expect(parsedUrl.searchParams.get('pageSize')).toBe('25');
+      expect(options).toEqual({ method: 'GET', headers: { 'X-Total-Count': 'true' } });
+      expect(tokenType).toBe('service');
+      expect(result).toEqual({
+        items: [{ id: 'customer-1', userType: 'CUSTOMER', groups: [{ id: 'group-1' }] }],
+        totalCount: 17,
+      });
+    });
 
-    // First get a role to use for access control tests
-    it('should retrieve a role to use for access control tests', async () => {
-      if (!isAuthenticated) {
-        console.warn('Skipping test due to authentication failure');
-        return;
-      }
+    it('reads users from an { items } wrapper when the body is not a bare array', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(
+        jsonResponse({ items: [{ id: 'customer-2', userType: 'CUSTOMER' }] }, { headers: { 'x-total-count': '1' } }),
+      );
 
-      try {
-        const rolesResponse = await iamApi.getRoles();
-        expect(rolesResponse).toBeDefined();
-        expect(Array.isArray(rolesResponse.items)).toBe(true);
-        expect(rolesResponse.items.length).toBeGreaterThan(0);
+      await expect(iamApi.getUsers()).resolves.toEqual({
+        items: [{ id: 'customer-2', userType: 'CUSTOMER' }],
+        totalCount: 1,
+      });
+    });
 
-        // Get the first role
-        const firstRole = rolesResponse.items[0];
-        expect(firstRole).toBeDefined();
-        expect(firstRole.id).toBeDefined();
+    it('returns an empty list when the body is neither an array nor an items wrapper', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse({ code: 404, message: 'Not Found' }));
 
-        // Save the role ID for later tests
-        testRoleId = firstRole.id!;
-      } catch (error) {
-        console.error('Failed to retrieve roles:', error);
-        throw error;
-      }
-    }, 10000);
-
-    it('should retrieve all access controls', async () => {
-      if (!isAuthenticated || !testRoleId) {
-        console.warn('Skipping test due to authentication failure or missing role ID');
-        return;
-      }
-
-      try {
-        const params = {
-          criteria: {
-            roleId: testRoleId!,
-          },
-        };
-        const accessControlsResponse = await iamApi.getAccessControls(params);
-        expect(accessControlsResponse).toBeDefined();
-        expect(Array.isArray(accessControlsResponse.items)).toBe(true);
-        expect(accessControlsResponse.items.length).toBeGreaterThan(0);
-        testAccessControlId = accessControlsResponse.items[0].id ?? null;
-      } catch (error) {
-        console.error('Failed to retrieve access controls:', error);
-        throw error;
-      }
-    }, 10000);
-
-    it('should retrieve an access control by ID', async () => {
-      if (!isAuthenticated || !testAccessControlId) {
-        console.warn('Skipping test due to authentication failure or missing access control ID');
-        return;
-      }
-
-      try {
-        const accessControl = await iamApi.getAccessControlById(testAccessControlId);
-        expect(accessControl).toBeDefined();
-        expect(accessControl.id).toBe(testAccessControlId);
-      } catch (error) {
-        console.error('Failed to retrieve access control by ID:', error);
-        throw error;
-      }
-    }, 10000);
+      await expect(iamApi.getUsers()).resolves.toEqual({ items: [] });
+    });
   });
 
-  // Test group operations
-  describe('Group operations', () => {
-    it('should create a new group', async () => {
-      if (!isAuthenticated) {
-        console.warn('Skipping test due to authentication failure');
-        return;
-      }
+  describe('getGroups', () => {
+    it('forwards the documented q and userType filters with the default service token', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse([]));
 
-      const testGroup: EmporixGroup = {
-        id: '', // Will be assigned by the API
-        name: {
-          en: 'Test Group',
-          de: 'Test Gruppe',
+      await iamApi.getGroups({ query: 'b2b.legalEntityId:"le-1"', criteria: { userType: 'CUSTOMER' } });
+
+      expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
+      const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      const parsedUrl = new URL(url, 'https://api.emporix.io');
+      expect(parsedUrl.pathname).toBe('/iam/test-tenant/groups');
+      expect(parsedUrl.searchParams.get('q')).toBe('b2b.legalEntityId:"le-1"');
+      expect(parsedUrl.searchParams.get('userType')).toBe('CUSTOMER');
+      expect(options?.method).toBe('GET');
+      expect(options?.headers).toEqual({ 'Accept-Language': '*' });
+      expect(tokenType).toBe('service');
+    });
+
+    it('can be invoked with a session token', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse([]));
+
+      await iamApi.getGroups({ criteria: { userType: 'CUSTOMER' } }, 'session');
+
+      const [, , tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      expect(tokenType).toBe('session');
+    });
+  });
+
+  describe('addUserToGroup', () => {
+    const assignment: EmporixGroupAssignmentRequest = { userId: 'cust-1', userType: 'CUSTOMER' };
+
+    it('uses the default service token', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse({ id: 'asg-1' }, { status: 201 }));
+
+      const result = await iamApi.addUserToGroup('group-1', assignment);
+
+      expect(result).toEqual({ id: 'asg-1' });
+      expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
+      const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      expect(url).toBe('/iam/test-tenant/groups/group-1/users');
+      expect(options?.method).toBe('POST');
+      expect(tokenType).toBe('service');
+      expect(JSON.parse(String(options?.body))).toEqual(assignment);
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        {
+          operation: 'Add user to group',
+          tokenType: 'service',
+          method: 'POST',
+          url: '/iam/test-tenant/groups/group-1/users',
+          groupId: 'group-1',
+          requestHeaders: { 'Content-Type': 'application/json' },
+          requestBody: assignment,
+          responseStatus: 201,
+          responseBody: { id: 'asg-1' },
         },
-        description: {
-          en: 'Group created for testing purposes',
-          de: 'Gruppe für Testzwecke erstellt',
+        'EXTERNAL Add user to group response',
+      );
+    });
+
+    it('can be invoked with a session token', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse({ id: 'asg-1' }, { status: 201 }));
+
+      await iamApi.addUserToGroup('group-1', assignment, 'session');
+
+      const [, , tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      expect(tokenType).toBe('session');
+    });
+
+    it('logs the upstream 404 body without email or authorization data', async () => {
+      const upstreamBody = { status: 404, message: 'Group not found' };
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse(upstreamBody, { ok: false, status: 404 }));
+
+      await expect(iamApi.addUserToGroup('missing-group', assignment, 'service')).rejects.toThrow(
+        /Add user to group failed with upstream status/,
+      );
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        {
+          operation: 'Add user to group',
+          tokenType: 'service',
+          method: 'POST',
+          url: '/iam/test-tenant/groups/missing-group/users',
+          groupId: 'missing-group',
+          requestHeaders: { 'Content-Type': 'application/json' },
+          requestBody: assignment,
+          responseStatus: 404,
+          responseBody: upstreamBody,
         },
-        userType: 'CUSTOMER',
-      };
-
-      try {
-        const createdGroup = await iamApi.createGroup(testGroup);
-        expect(createdGroup).toBeDefined();
-        expect(createdGroup.id).toBeDefined();
-
-        // Save the group ID for later tests
-        if (createdGroup.id) {
-          testGroupId = createdGroup.id;
-        }
-      } catch (error) {
-        console.error('Failed to create group:', error);
-        throw error;
-      }
-    }, 10000);
-
-    it('should retrieve all groups', async () => {
-      if (!isAuthenticated || !testGroupId) {
-        console.warn('Skipping test due to authentication failure or missing group ID');
-        return;
-      }
-
-      try {
-        const groups = await iamApi.getGroups({
-          page: 1,
-          size: 100,
-        });
-        expect(groups).toBeDefined();
-        expect(Array.isArray(groups)).toBe(true);
-        expect(groups.length).toBeGreaterThan(0);
-
-        // Check if our test group is in the list
-        const foundGroup = groups.find((group) => group.id === testGroupId);
-        expect(foundGroup).toBeDefined();
-      } catch (error) {
-        console.error('Failed to retrieve groups:', error);
-        throw error;
-      }
-    }, 10000);
-
-    it('should retrieve a group by ID', async () => {
-      if (!isAuthenticated || !testGroupId) {
-        console.warn('Skipping test due to authentication failure or missing group ID');
-        return;
-      }
-
-      try {
-        const group = await iamApi.getGroupById(testGroupId);
-        expect(group).toBeDefined();
-        expect(group.id).toBe(testGroupId);
-        expect(group.name?.en).toBe('Test Group');
-      } catch (error) {
-        console.error('Failed to retrieve group by ID:', error);
-        throw error;
-      }
-    }, 10000);
-
-    it('should update a group', async () => {
-      if (!isAuthenticated || !testGroupId) {
-        console.warn('Skipping test due to authentication failure or missing group ID');
-        return;
-      }
-
-      try {
-        const updatedGroup: EmporixGroup = {
-          id: testGroupId,
-          name: {
-            en: 'Updated Test Group',
-            de: 'Aktualisierte Test Gruppe',
-          },
-          description: {
-            en: 'Updated description for testing purposes',
-            de: 'Aktualisierte Beschreibung für Testzwecke',
-          },
-          userType: 'CUSTOMER',
-        };
-
-        await iamApi.updateGroup(testGroupId, updatedGroup);
-        const result = await iamApi.getGroupById(testGroupId);
-        expect(result).toBeDefined();
-        expect(result.id).toBe(testGroupId);
-        expect(result.name?.en).toBe('Updated Test Group');
-      } catch (error) {
-        console.error('Failed to update group:', error);
-        throw error;
-      }
-    }, 10000);
+        'EXTERNAL Add user to group response',
+      );
+      expect(JSON.stringify(mockLogger.error.mock.calls[0]?.[0])).not.toContain('Authorization');
+      expect(JSON.stringify(mockLogger.error.mock.calls[0]?.[0])).not.toContain('email');
+      expect(mockLogger.info).not.toHaveBeenCalled();
+    });
   });
 
-  // Test role operations
-  describe('Role operations', () => {
-    it('should retrieve all roles', async () => {
-      if (!isAuthenticated) {
-        console.warn('Skipping test due to authentication failure or missing role ID');
-        return;
-      }
+  describe('removeUserFromGroup', () => {
+    it('DELETEs the assignment URL with the default service token', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse(undefined, { status: 204 }));
 
-      try {
-        const roles = await iamApi.getRoles();
-        expect(roles).toBeDefined();
-        expect(Array.isArray(roles.items)).toBe(true);
-        expect(roles.items.length).toBeGreaterThan(0);
-        const firstRole = roles.items[0];
-        expect(firstRole).toBeDefined();
-        expect(firstRole.id).toBeDefined();
-        if (firstRole.id) {
-          testRoleId = firstRole.id;
-        }
-      } catch (error) {
-        console.error('Failed to retrieve roles:', error);
-        throw error;
-      }
-    }, 10000);
+      await iamApi.removeUserFromGroup('group-1', 'cust-1');
 
-    it('should retrieve a role by ID', async () => {
-      if (!isAuthenticated || !testRoleId) {
-        console.warn('Skipping test due to authentication failure or missing role ID');
-        return;
-      }
+      expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
+      const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      expect(url).toBe('/iam/test-tenant/groups/group-1/users/cust-1');
+      expect(options?.method).toBe('DELETE');
+      expect(tokenType).toBe('service');
+    });
 
-      try {
-        const role = await iamApi.getRoleById(testRoleId);
-        expect(role).toBeDefined();
-        expect(role.id).toBe(testRoleId);
-        expect(role.name).toBeDefined();
-      } catch (error) {
-        console.error('Failed to retrieve role by ID:', error);
-        throw error;
-      }
-    }, 10000);
+    it('can be invoked with a session token', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse(undefined, { status: 204 }));
+
+      await iamApi.removeUserFromGroup('group-1', 'cust-1', 'session');
+
+      const [, , tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      expect(tokenType).toBe('session');
+    });
   });
 
-  // Test user-specific operations
-  describe('User-specific operations', () => {
-    it('should retrieve current user scopes', async () => {
-      if (!isAuthenticated) {
-        console.warn('Skipping test due to authentication failure');
-        return;
-      }
+  describe('getUserGroups', () => {
+    it('uses the default service token so getCustomer() behavior is unchanged', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(
+        jsonResponse([{ id: 'group-1' }], { headers: { 'x-total-count': '1' } }),
+      );
 
-      try {
-        const { userId, scopes } = await iamApi.getUserScopes();
-        expect(scopes).toBeDefined();
-        expect(userId).toBeDefined();
-      } catch (error) {
-        console.error('Failed to retrieve user scopes:', error);
-        throw error;
-      }
-    }, 10000);
+      const result = await iamApi.getUserGroups('cust-1');
 
-    it('should retrieve scopes for benjamin.blue user', async () => {
-      try {
-        // Set up token for benjamin.blue user
-        await setupUserToken(testUser1.username, testUser1.password);
+      expect(result.items).toHaveLength(1);
+      expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
+      const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      expect(url).toBe('/iam/test-tenant/users/cust-1/groups?');
+      expect(options?.method).toBe('GET');
+      expect(options?.headers).toEqual({ 'X-Total-Count': 'true', 'Accept-Language': '*' });
+      expect(tokenType).toBe('service');
+    });
 
-        // Get user scopes
-        const { userId, scopes } = await iamApi.getUserScopes();
+    it('can be invoked with a session token without changing the default', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse([]));
 
-        // Verify the response
-        expect(scopes).toBeDefined();
-        expect(userId).toBeDefined();
-        // Benjamin Blue should have customer scopes but not approver scopes
-        expect(typeof scopes === 'string').toBe(true);
-        expect(scopes.includes('customer')).toBe(true);
-      } catch (error) {
-        console.error('Failed to retrieve benjamin.blue scopes:', error);
-        throw error;
-      }
-    }, 10000);
+      await iamApi.getUserGroups('cust-1', {}, 'session');
 
-    it('should retrieve scopes for forrest.gump user', async () => {
-      try {
-        // Set up token for forrest.gump user
-        const sessionContext = await setupUserToken(testUser2.username, testUser2.password);
-        const testUser2Id = sessionContext?.customerId;
-
-        // Get user scopes
-        const { userId, scopes } = await iamApi.getUserScopes();
-
-        // Verify the response
-        expect(scopes).toBeDefined();
-        expect(userId).toBeDefined();
-
-        // Forrest Gump should have approver scopes
-        expect(typeof scopes === 'string').toBe(true);
-        expect(scopes.includes('customer')).toBe(true);
-        // Note: We're not strictly checking for approver scopes as the exact scope names may vary
-        // but we're logging them for inspection
-      } catch (error) {
-        console.error('Failed to retrieve forrest.gump scopes:', error);
-        throw error;
-      } finally {
-        // Switch back to the original user for subsequent tests
-        await setupUserToken(testUser1.username, testUser1.password);
-      }
-    }, 10000);
-
-    it('should retrieve groups for benjamin.blue user', async () => {
-      try {
-        // Set up token for benjamin.blue user
-        await setupUserToken(testUser1.username, testUser1.password);
-
-        // We need a user ID to get groups
-        if (!testUser1Id) {
-          console.warn('Skipping test due to missing user ID');
-          return;
-        }
-
-        // Get user groups
-        const userGroups = await iamApi.getUserGroups(testUser1Id);
-
-        // Verify the response
-        expect(userGroups).toBeDefined();
-        expect(userGroups.items).toBeDefined();
-        expect(Array.isArray(userGroups.items)).toBe(true);
-
-        // Check if any groups exist
-        if (userGroups.items.length > 0) {
-          // Verify group structure
-          const firstGroup = userGroups.items[0];
-          expect(firstGroup.id).toBeDefined();
-          expect(firstGroup.name).toBeDefined();
-        }
-      } catch (error) {
-        console.error('Failed to retrieve benjamin.blue groups:', error);
-        throw error;
-      }
-    }, 10000);
-
-    it('should retrieve groups for forrest.gump user', async () => {
-      try {
-        // Set up token for forrest.gump user
-        const sessionContext = await setupUserToken(testUser2.username, testUser2.password);
-        const testUser2Id = sessionContext?.customerId;
-
-        // We need a user ID to get groups
-        if (!testUser2Id) {
-          console.warn('Skipping test due to missing user ID');
-          return;
-        }
-
-        // Get user groups
-        const userGroups = await iamApi.getUserGroups(testUser2Id);
-
-        // Verify the response
-        expect(userGroups).toBeDefined();
-        expect(userGroups.items).toBeDefined();
-        expect(Array.isArray(userGroups.items)).toBe(true);
-
-        // Check if any groups exist
-        if (userGroups.items.length > 0) {
-          // Verify group structure
-          const firstGroup = userGroups.items[0];
-          expect(firstGroup.id).toBeDefined();
-          expect(firstGroup.name).toBeDefined();
-        }
-      } catch (error) {
-        console.error('Failed to retrieve forrest.gump groups:', error);
-        throw error;
-      } finally {
-        // Switch back to the original user for subsequent tests
-        await setupUserToken(testUser1.username, testUser1.password);
-      }
-    }, 10000);
-
-    it('should retrieve forrest.gump user access controls', async () => {
-      if (!isAuthenticated) {
-        console.warn('Skipping test due to authentication failure');
-        return;
-      }
-
-      try {
-        // Set up token for forrest.gump user
-        await setupUserToken(testUser2.username, testUser2.password);
-        const accessControls = await iamApi.getUserAccessControls();
-        expect(accessControls).toBeDefined();
-        expect(Array.isArray(accessControls)).toBe(true);
-        // Access controls should have id property
-        if (accessControls.length > 0) {
-          expect(accessControls[0].id).toBeDefined();
-        }
-      } catch (error) {
-        console.error('Failed to retrieve user access controls:', error);
-        throw error;
-      }
-    }, 10000);
-
-    it('should retrieve benjamin.blue access controls', async () => {
-      if (!isAuthenticated) {
-        console.warn('Skipping test due to authentication failure');
-        return;
-      }
-
-      try {
-        // Set up token for benjamin.blue user
-        await setupUserToken(testUser1.username, testUser1.password);
-        const accessControls = await iamApi.getUserAccessControls();
-        expect(accessControls).toBeDefined();
-        expect(Array.isArray(accessControls)).toBe(true);
-        // Access controls should have id property
-        if (accessControls.length > 0) {
-          expect(accessControls[0].id).toBeDefined();
-        }
-      } catch (error) {
-        console.error('Failed to retrieve user access controls:', error);
-        throw error;
-      }
-    }, 10000);
-
-    it('should retrieve a specific users access controls', async () => {
-      if (!isAuthenticated || !testUser1Id) {
-        console.warn('Skipping test due to authentication failure or missing user ID');
-        return;
-      }
-
-      try {
-        const accessControls = await iamApi.getUserAccessControls(testUser1Id);
-        expect(accessControls).toBeDefined();
-        expect(Array.isArray(accessControls)).toBe(true);
-        // Access controls should have id property
-        if (accessControls.length > 0) {
-          expect(accessControls[0].id).toBeDefined();
-        }
-      } catch (error) {
-        console.error('Failed to retrieve a specific user access controls:', error);
-        throw error;
-      }
-    }, 10000);
+      const [, , tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      expect(tokenType).toBe('session');
+    });
   });
 
-  // Test group assignment operations
-  describe('Group assignment operations', () => {
-    it('should create a group assignment', async () => {
-      if (!isAuthenticated || !testGroupId || !testUser1Id) {
-        console.warn('Skipping test due to authentication failure or missing IDs');
-        return;
-      }
+  describe('getGroupUsers', () => {
+    it('uses one group id path, page params only, total-count header, and service token by default', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(
+        jsonResponse([{ id: 'a-1', groupId: 'group-1', userId: 'cust-1', userType: 'CUSTOMER' }], {
+          headers: { 'x-total-count': '1' },
+        }),
+      );
 
-      const groupAssignment: EmporixGroupAssignmentRequest = {
-        userId: testUser1Id,
-        userType: 'CUSTOMER',
-      };
+      const result = await iamApi.getGroupUsers('group-1', { page: 2, size: 25, query: 'must-not-be-used' });
 
-      try {
-        const createdAssignment = await iamApi.addUserToGroup(testGroupId, groupAssignment);
-        expect(createdAssignment).toBeDefined();
-        expect(createdAssignment?.id).toBeDefined();
-      } catch (error) {
-        console.error('Failed to create group assignment:', error);
-        throw error;
-      }
-    }, 10000);
-  });
+      expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
+      const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      const parsedUrl = new URL(url, 'https://api.emporix.io');
+      expect(parsedUrl.pathname).toBe('/iam/test-tenant/groups/group-1/users');
+      expect(parsedUrl.searchParams.get('pageNumber')).toBe('2');
+      expect(parsedUrl.searchParams.get('pageSize')).toBe('25');
+      expect(parsedUrl.searchParams.has('q')).toBe(false);
+      expect(options).toEqual({ method: 'GET', headers: { 'X-Total-Count': 'true' } });
+      expect(tokenType).toBe('service');
+      expect(result.items).toEqual([{ id: 'a-1', groupId: 'group-1', userId: 'cust-1', userType: 'CUSTOMER' }]);
+      expect(result.total).toBe(1);
+    });
 
-  // Cleanup tests
-  describe('Cleanup', () => {
-    it('should delete the group assignment', async () => {
-      if (!isAuthenticated || !testUser1Id || !testGroupId) {
-        console.warn('Skipping cleanup test due to authentication failure or missing assignment ID');
-        return;
-      }
+    it('can be invoked with a session token', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse([]));
 
-      try {
-        await iamApi.removeUserFromGroup(testGroupId, testUser1Id);
-        // Verify deletion by trying to retrieve it (should throw an error)
-        const testGroup = await iamApi.getUserGroups(testUser1Id);
-        expect(testGroup.items).toBeDefined();
-        const foundGroup = testGroup.items.find((group) => group.id === testGroupId);
-        expect(foundGroup).toBeUndefined();
-      } catch (error) {
-        console.error('Failed to delete group assignment:', error);
-        throw error;
-      }
-    }, 10000);
+      await iamApi.getGroupUsers('group-1', { page: 1, size: 60 }, 'session');
 
-    it('should delete the group', async () => {
-      if (!isAuthenticated || !testGroupId) {
-        console.warn('Skipping cleanup test due to authentication failure or missing group ID');
-        return;
-      }
-
-      try {
-        await iamApi.deleteGroup(testGroupId);
-
-        // Verify deletion by trying to retrieve it (should throw an error)
-        try {
-          await iamApi.getGroupById(testGroupId);
-          // If we get here, the group wasn't deleted
-          expect(true).toBe(false); // Force test to fail
-        } catch (error) {
-          // Expected error, group was deleted
-          expect(true).toBe(true);
-        }
-      } catch (error) {
-        console.error('Failed to delete group:', error);
-        throw error;
-      }
-    }, 10000);
+      const [, , tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+      expect(tokenType).toBe('session');
+    });
   });
 });

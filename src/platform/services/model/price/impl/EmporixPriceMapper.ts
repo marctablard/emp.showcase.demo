@@ -1,7 +1,19 @@
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixMatchedPrice, EmporixQuantity } from '@/platform/integrations/emporix/model/price';
 import type { PriceMapper } from '../PriceMapper';
-import type { ProductPrice } from '../price';
+import type { PriceModelType, ProductPrice } from '../price';
+import { PRICE_MODEL_TYPE } from '../price-model-type';
+
+function mapPriceModelType(tierType: unknown): PriceModelType | undefined {
+  if (
+    tierType === PRICE_MODEL_TYPE.BASIC ||
+    tierType === PRICE_MODEL_TYPE.TIERED ||
+    tierType === PRICE_MODEL_TYPE.VOLUME
+  ) {
+    return tierType;
+  }
+  return undefined;
+}
 
 /**
  * Maps between Emporix Price model and Service Price model
@@ -29,6 +41,7 @@ export class EmporixPriceMapper implements PriceMapper {
         unitCode: source.quantity.unitCode,
       },
       includesTax: source.includesTax,
+      priceModelType: mapPriceModelType(source.priceModel.tierDefinition.tierType),
       tax: source.tax
         ? {
             taxCode: source.tax.taxClass,

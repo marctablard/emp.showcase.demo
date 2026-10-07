@@ -67,6 +67,37 @@ describe('useGlobalSyncReady', () => {
     expect(result.current).toEqual({ ready: false, reason: 'session-mutation' });
   });
 
+  it('re-enables after mutation lock release (site-switch finally order)', () => {
+    const { sessionStore, siteStore, cartStore } = createStores();
+
+    act(() => {
+      sessionStore.setState({
+        session: { siteCode: 'us-branch', currency: 'USD' } as never,
+        loading: false,
+      });
+      siteStore.setState({ site: { code: 'us-branch' } as never, loading: false });
+      cartStore.setState({ currentCart: { site: 'us-branch' } as never, loading: false });
+    });
+
+    const { result } = renderHook(() => useGlobalSyncReady(), {
+      wrapper: buildWrapper(sessionStore, siteStore, cartStore),
+    });
+
+    expect(result.current).toEqual({ ready: true });
+
+    act(() => {
+      sessionStore.getState().tryAcquireMutationLock();
+      sessionStore.getState().setLoading(true);
+    });
+    expect(result.current).toEqual({ ready: false, reason: 'session-mutation' });
+
+    act(() => {
+      sessionStore.getState().setLoading(false);
+      sessionStore.getState().releaseMutationLock();
+    });
+    expect(result.current).toEqual({ ready: true });
+  });
+
   it('reports session-loading when the session store is loading', () => {
     const { sessionStore, siteStore, cartStore } = createStores();
 

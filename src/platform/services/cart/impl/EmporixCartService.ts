@@ -1,21 +1,39 @@
 import { inject } from 'inversify';
-import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { removableCartPromoAtIndex, shopperFacingCartPromos } from '@/lib/common/applied-promo-display';
+import { isAnonymousProfileCustomerId, isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
+import type {
+  EmporixCouponApi,
+  EmporixCouponValidationOutcome,
+} from '@/platform/integrations/emporix/coupon/EmporixCouponApi';
+import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixAddCartItemRequest, EmporixUpdateCartItemRequest } from '@/platform/integrations/emporix/model';
 import type { EmporixCart, EmporixCartAddress, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
-import type { CartService, CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
-import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
+import type {
+  CartService,
+  CartShippingAddress,
+  CartShippingMethodSelection,
+  CartStatus,
+  CartStatusDetailCode,
+  ModifyCartItemResult,
+} from '@/platform/services/cart/CartService';
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
+  CART_DISCOUNT_REASON,
+  CART_SITE_MISMATCH_MESSAGE,
   CartCurrencyUpdateError,
-  PROMO_CODE_ERROR_CODE,
-  PromoCodeError,
+  CartDiscountError,
+  type CartDiscountReason,
   extractUpstreamBody,
   extractUpstreamStatus,
+  isCartDiscountError,
+  isCouponRelatedCurrencyFailure,
 } from '@/platform/services/cart/errors';
+import { matchDeliveryWindowForShippingMethod } from '@/platform/services/cart/match-delivery-window';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Session } from '@/platform/services/model/session/session';
@@ -25,7 +43,104 @@ import type { StockService } from '@/platform/services/stock/StockService';
 import type { CartMapper } from '../../model/cart/CartMapper';
 import type { Media, Paginated, PaginationQuery } from '../../model/common';
 import type { SessionService } from '../../session/SessionService';
+import type { ShippingService } from '../../shipping/ShippingService';
 import type { SiteService } from '../../site/SiteService';
+
+/** Coupon Service `details[].type` values that mean "this customer may not use the code". */
+const COUPON_ELIGIBILITY_DETAIL_TYPES: ReadonlySet<string> = new Set([
+  'coupon_segment_customer_not_assigned',
+  'coupon_redemption_forbidden',
+]);
+
+/** Coupon Service `details[].type` values that mean "the code is not redeemable right now". */
+const COUPON_NOT_ACTIVE_DETAIL_TYPES: ReadonlySet<string> = new Set(['coupon_expired']);
+
+/**
+ * Maps a Coupon Service validation outcome onto the shopper-facing reason classes.
+ * Observed on the tenant: `resource_not_found` (404) for unknown codes; `business_error` with
+ * `coupon_segment_customer_not_assigned` (400) / `coupon_redemption_forbidden` (403) for
+ * eligibility, `coupon_expired` (400) for inactive codes and e.g.
+ * `coupon_discount_currency_incorrect` (400) for cart restrictions. The detail types are not
+ * enumerated in the docs, so any other `business_error` on a 403 is still treated as an
+ * eligibility refusal (the customer may not redeem it), while every other `business_error`
+ * (threshold, dates, categories) is "not applicable to this cart", as is a passing validation
+ * (the cart-level check failed for a reason the coupon service does not see).
+ * Anything else — auth/scope failures such as a 401 or a non-business 403 — is inconclusive
+ * and returns `undefined` so the caller keeps the generic copy.
+ */
+/** Cart API OpenAPI documents these apply-discount business rejections as HTTP 500. */
+const DOCUMENTED_COUPON_CURRENCY_REJECTION = /discount currency.+(?:not equal to|is not equal to) cart currency/i;
+const DOCUMENTED_COUPON_ALREADY_EXISTS = /already exists in cart/i;
+
+function couponRejectionText(error: CartDiscountError): string {
+  return `${error.message} ${error.upstreamBody ?? ''}`;
+}
+
+const REGEXP_SPECIAL_CHARS = new Set('.*+?^${}()|[]\\');
+
+function escapeRegExp(value: string): string {
+  return [...value].map((char) => (REGEXP_SPECIAL_CHARS.has(char) ? `\\${char}` : char)).join('');
+}
+
+function rejectionNamesSubmittedCode(text: string, submittedCode: string): boolean {
+  if (!submittedCode) {
+    return false;
+  }
+  return new RegExp(String.raw`\b${escapeRegExp(submittedCode)}\b`, 'i').test(text);
+}
+
+function cartAlreadyHasSubmittedCode(cart: Cart, submittedCode: string): boolean {
+  return (
+    cart.discounts?.some(
+      (discount) => discount.code === submittedCode && discount.code !== 'TOTAL' && discount.valid !== false,
+    ) === true
+  );
+}
+
+function isDocumentedCouponAlreadyAppliedRejection(
+  error: CartDiscountError,
+  submittedCode: string,
+  cart: Cart,
+): boolean {
+  const text = couponRejectionText(error);
+  const namesThisCode = rejectionNamesSubmittedCode(text, submittedCode);
+  const alreadyOnCart = cartAlreadyHasSubmittedCode(cart, submittedCode);
+  if (error.upstreamStatus === 409) {
+    return namesThisCode || alreadyOnCart;
+  }
+  return (
+    error.upstreamStatus === 500 && DOCUMENTED_COUPON_ALREADY_EXISTS.test(text) && (namesThisCode || alreadyOnCart)
+  );
+}
+
+function shouldClassifyCouponRejection(error: CartDiscountError): boolean {
+  if (error.upstreamStatus === 400 || error.upstreamStatus === 409) {
+    return true;
+  }
+  return error.upstreamStatus === 500 && DOCUMENTED_COUPON_CURRENCY_REJECTION.test(couponRejectionText(error));
+}
+
+export function classifyCouponRejection(outcome: EmporixCouponValidationOutcome): CartDiscountReason | undefined {
+  if (outcome.ok) {
+    return CART_DISCOUNT_REASON.NOT_APPLICABLE;
+  }
+  if (outcome.status === 404 || outcome.type === 'resource_not_found') {
+    return CART_DISCOUNT_REASON.CODE_NOT_FOUND;
+  }
+  if (outcome.detailTypes.some((type) => COUPON_ELIGIBILITY_DETAIL_TYPES.has(type))) {
+    return CART_DISCOUNT_REASON.NOT_ELIGIBLE;
+  }
+  if (outcome.detailTypes.some((type) => COUPON_NOT_ACTIVE_DETAIL_TYPES.has(type))) {
+    return CART_DISCOUNT_REASON.NOT_ACTIVE;
+  }
+  if (outcome.status === 403 && outcome.type === 'business_error') {
+    return CART_DISCOUNT_REASON.NOT_ELIGIBLE;
+  }
+  if (outcome.type === 'business_error' && outcome.status === 400) {
+    return CART_DISCOUNT_REASON.NOT_APPLICABLE;
+  }
+  return undefined;
+}
 
 /**
  * Implementation of CartService for Emporix cart data.
@@ -43,6 +158,9 @@ class EmporixCartService implements CartService {
     @inject('StockService') private stockService: StockService,
     @inject('LoggerService') private logger: LoggerService,
     @inject('SiteService') private siteService: SiteService,
+    @inject('ShippingService') private readonly shippingService: ShippingService,
+    @inject('EmporixCouponApi') private readonly couponApi: EmporixCouponApi,
+    @inject('EmporixCustomerApi') private readonly customerApi: EmporixCustomerApi,
   ) {}
 
   private normalizeLegalEntityId(value: string | undefined): string {
@@ -50,20 +168,231 @@ class EmporixCartService implements CartService {
   }
 
   /**
-   * Use explicit match-prices (site + session currency + country) for cart mutations.
+   * Use explicit match-prices (site + session currency + country + customer/LE) for cart mutations.
    * `match-prices-by-context` can diverge from the shop session cookie when propagation lags,
    * which produced priceIds incompatible with the cart currency.
    */
   private explicitPriceParamsForCartOperation(session: Session, cartSiteCode: string): PriceFetchOptions {
-    return {
-      siteCode: cartSiteCode,
-      currency: session.currency,
-      country: session.country,
-    };
+    return (
+      priceFetchOptionsFromSession(session, cartSiteCode) ?? {
+        siteCode: cartSiteCode,
+        currency: session.currency,
+        country: session.country,
+        useFallback: false,
+      }
+    );
+  }
+
+  private cartLineMutationContextChanged(before: EmporixCart, after: EmporixCart): boolean {
+    return this.normalizeCurrencyCode(before.currency) !== this.normalizeCurrencyCode(after.currency);
+  }
+
+  private async reloadCartItemAfterContextAlign(
+    cartId: string,
+    itemId: string,
+  ): Promise<{ cart: Cart; cartItem: Cart['items'][number] }> {
+    const cart = await this.getCartById(cartId);
+    if (!cart) {
+      throw new Error('Cart not found');
+    }
+    const cartItem = cart.items.find((item) => item.id === itemId);
+    if (!cartItem?.product?.id) {
+      throw new Error('Cart item not found');
+    }
+    return { cart, cartItem };
   }
 
   private normalizeCurrencyCode(value: string | undefined): string {
     return typeof value === 'string' ? value.trim().toUpperCase() : '';
+  }
+
+  /**
+   * True only when the payload proves there are no lines. `items` is optional, so a response
+   * that omits the line expansion is not treated as empty. `totalUnitsCount` wins when present.
+   */
+  private cartHasNoLines(cart: EmporixCart): boolean {
+    if (typeof cart.totalUnitsCount === 'number') {
+      return cart.totalUnitsCount === 0;
+    }
+    if (Array.isArray(cart.items)) {
+      return cart.items.length === 0;
+    }
+    return false;
+  }
+
+  /** Empty cart created in another session. A cart with lines is kept — it is still this customer's. */
+  private isEmptyCartBoundToOtherSession(cart: EmporixCart, session: Session): boolean {
+    if (!this.cartHasNoLines(cart)) {
+      return false;
+    }
+    const cartSessionId = cart.sessionId?.trim() ?? '';
+    const sessionId = session.id?.trim() ?? '';
+    return cartSessionId.length > 0 && sessionId.length > 0 && cartSessionId !== sessionId;
+  }
+
+  private shouldReplaceEmptyCartAfterCurrencyFailure(cart: EmporixCart, error: unknown): boolean {
+    if (!this.cartHasNoLines(cart) || !(error instanceof CartCurrencyUpdateError)) {
+      return false;
+    }
+    return (
+      error.code === CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN ||
+      error.code === CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH
+    );
+  }
+
+  /**
+   * Drop the session pointer to an empty cart this session cannot reprice and open a new cart
+   * in the session currency. Does not delete the old cart (it may belong to another session).
+   */
+  private async replaceEmptyCartForSession(session: Session, abandonedCartId: string): Promise<EmporixCart> {
+    this.logger.warn(
+      { abandonedCartId, sessionId: session.id, currency: session.currency },
+      'Replacing empty cart this session cannot reprice',
+    );
+    const cleared = await this.clearSessionCartIfStillBound(abandonedCartId);
+    if (!cleared) {
+      const rebound = await this.reboundCartOrThrow(abandonedCartId);
+      return this.alignReboundCartCurrency(rebound, session);
+    }
+    return this.openReplacementCart(session, abandonedCartId);
+  }
+
+  /**
+   * Create a replacement cart, then bind it only if the session has not already moved
+   * to another cart. Binding is the last step so a newer pointer is not overwritten.
+   */
+  private async openReplacementCart(session: Session, abandonedCartId: string): Promise<EmporixCart> {
+    const created = await this.createCartDocument(session.currency, session.siteCode);
+    if (created.id === abandonedCartId) {
+      throw new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context');
+    }
+    if (!created.fresh) {
+      const existing = await this.cartApi.getCart(created.id);
+      if (!existing) {
+        throw new Error('Cart not found');
+      }
+      return this.alignReboundCartCurrency(existing, session);
+    }
+    return this.bindReplacementCart(created.id, abandonedCartId, session);
+  }
+
+  private async bindReplacementCart(
+    newCartId: string,
+    abandonedCartId: string,
+    session: Session,
+  ): Promise<EmporixCart> {
+    const current = await this.sessionService.getCurrentOrThrow();
+    const boundId = current?.cartId;
+    if (current && boundId && boundId !== abandonedCartId && boundId !== newCartId) {
+      const rebound = await this.cartApi.getCart(boundId);
+      if (rebound && !this.isEmptyCartBoundToOtherSession(rebound, current)) {
+        this.logger.info(
+          { abandonedCartId, sessionCartId: boundId, unusedCartId: newCartId },
+          'Keeping the cart bound while a replacement cart was created',
+        );
+        return this.alignReboundCartCurrency(rebound, session);
+      }
+    }
+    await this.sessionService.setCart(newCartId);
+    const created = await this.cartApi.getCart(newCartId);
+    if (!created) {
+      throw new Error('Cart not found');
+    }
+    return created;
+  }
+
+  /** Match the session currency, or surface the reprice error instead of adding against a stale cart. */
+  private async alignReboundCartCurrency(cart: EmporixCart, session: Session): Promise<EmporixCart> {
+    const cartCurrency = this.normalizeCurrencyCode(cart.currency);
+    const sessionCurrency = this.normalizeCurrencyCode(session.currency);
+    if (!cartCurrency || !sessionCurrency || cartCurrency === sessionCurrency) {
+      return cart;
+    }
+    await this.updateCurrency(cart.id, session.currency);
+    const refreshed = await this.cartApi.getCart(cart.id);
+    if (!refreshed) {
+      throw new Error('Cart not found after currency alignment');
+    }
+    return refreshed;
+  }
+
+  private async readCartIfStillEmpty(cartId: string): Promise<EmporixCart | undefined> {
+    try {
+      const latest = await this.cartApi.getCart(cartId);
+      if (!latest || !this.cartHasNoLines(latest)) {
+        return undefined;
+      }
+      return latest;
+    } catch (readError) {
+      this.logger.warn({ err: readError, cartId }, 'Could not re-read cart before empty-cart replacement');
+      return undefined;
+    }
+  }
+
+  private async discardEmptyForeignSessionCart(
+    cart: EmporixCart | null | undefined,
+    session: Session,
+  ): Promise<EmporixCart | null | undefined> {
+    if (!cart || !this.isEmptyCartBoundToOtherSession(cart, session)) {
+      return cart;
+    }
+    this.logger.info(
+      { cartId: cart.id, cartSessionId: cart.sessionId, sessionId: session.id },
+      'Skipping empty cart bound to another session',
+    );
+    if (session.cartId === cart.id) {
+      await this.clearSessionCartIfStillBound(cart.id);
+    }
+    return undefined;
+  }
+
+  /** Clear `currentCart` only when this session still points at `cartId`. */
+  private async clearSessionCartIfStillBound(cartId: string): Promise<boolean> {
+    const current = await this.sessionService.getCurrent();
+    if (current?.cartId !== cartId) {
+      this.logger.info(
+        { cartId, sessionCartId: current?.cartId },
+        'Leaving session cart pointer — it no longer matches the cart being dropped',
+      );
+      return false;
+    }
+    await this.sessionService.clearCart();
+    return true;
+  }
+
+  /**
+   * Do not add a line to an empty cart that belongs to another session. Drop the pointer when
+   * it still names that cart, then add on the cart bound to this session.
+   */
+  private async addItemOnCurrentSessionCart(
+    abandonedCartId: string,
+    productId: string,
+    quantity: number,
+    session: Session,
+  ): Promise<ModifyCartItemResult> {
+    this.logger.info(
+      { cartId: abandonedCartId, sessionId: session.id },
+      'Skipping empty cart bound to another session before line mutation',
+    );
+    await this.clearSessionCartIfStillBound(abandonedCartId);
+    const currentCart = await this.getCart();
+    if (currentCart && currentCart.id !== abandonedCartId) {
+      return this.addItemToCart(currentCart.id, productId, quantity);
+    }
+    const replacement = await this.openReplacementCart(session, abandonedCartId);
+    return this.addItemToCart(replacement.id, productId, quantity);
+  }
+
+  private async reboundCartOrThrow(abandonedCartId: string): Promise<EmporixCart> {
+    const current = await this.sessionService.getCurrentOrThrow();
+    const reboundId = current?.cartId;
+    if (reboundId && reboundId !== abandonedCartId && current) {
+      const rebound = await this.cartApi.getCart(reboundId);
+      if (rebound && !this.isEmptyCartBoundToOtherSession(rebound, current)) {
+        return rebound;
+      }
+    }
+    throw new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'Forbidden cart context');
   }
 
   /**
@@ -85,7 +414,20 @@ class EmporixCartService implements CartService {
       { cartId: rawCart.id, cartCurrency: rawCart.currency, sessionCurrency: session.currency },
       'Aligning cart currency with session before cart line mutation',
     );
-    await this.updateCurrency(rawCart.id, session.currency);
+    try {
+      await this.updateCurrency(rawCart.id, session.currency);
+    } catch (error) {
+      if (!this.shouldReplaceEmptyCartAfterCurrencyFailure(rawCart, error)) {
+        throw error;
+      }
+      // Another tab may have added a line after the pre-update snapshot. Replace only
+      // when a fresh read is still empty; otherwise keep the populated cart.
+      const latestEmptyCart = await this.readCartIfStillEmpty(rawCart.id);
+      if (!latestEmptyCart) {
+        throw error;
+      }
+      return this.replaceEmptyCartForSession(session, latestEmptyCart.id);
+    }
     const refreshed = await this.cartApi.getCart(rawCart.id);
     if (!refreshed) {
       throw new Error('Cart not found after currency alignment');
@@ -133,7 +475,23 @@ class EmporixCartService implements CartService {
   }
 
   async createCart(currency: string, siteCode: string): Promise<string> {
-    // TODO extract these information to a SiteConfigService
+    const created = await this.createCartDocument(currency, siteCode);
+    if (created.fresh) {
+      // Emporix POST /carts does not always persist `currentCart` on the session context immediately
+      // for anonymous flows. Without this, GET /api/cart?create=true can return null (getCartById
+      // / follow-up getCart) and the client shows "No cart available" until a full page reload.
+      await this.sessionService.setCart(created.id);
+    }
+    return created.id;
+  }
+
+  /**
+   * Create the cart document without binding the session. `fresh` is false when Emporix
+   * reports the session already has a cart and we resolved that cart instead.
+   */
+  private async createCartDocument(currency: string, siteCode: string): Promise<{ id: string; fresh: boolean }> {
+    // Destination (legacy countryCode+zipCode, or addresses[]) is set at checkout
+    // when both country and zip are known. Cart Service rejects country-only writes.
     const createCartRequest = {
       siteCode,
       currency,
@@ -146,11 +504,7 @@ class EmporixCartService implements CartService {
     };
     try {
       const cartId = await this.cartApi.createCart(createCartRequest);
-      // Emporix POST /carts does not always persist `currentCart` on the session context immediately
-      // for anonymous flows. Without this, GET /api/cart?create=true can return null (getCartById
-      // / follow-up getCart) and the client shows "No cart available" until a full page reload.
-      await this.sessionService.setCart(cartId);
-      return cartId;
+      return { id: cartId, fresh: true };
     } catch (error) {
       // Cart already exists for this session — Emporix returns either
       // 409 Conflict or a "Duplicate key found" error. Fall back to the existing cart.
@@ -162,7 +516,7 @@ class EmporixCartService implements CartService {
         if (!existingCart) {
           throw new Error('Failed to get session cart');
         }
-        return existingCart.id;
+        return { id: existingCart.id, fresh: false };
       }
       throw error;
     }
@@ -203,6 +557,7 @@ class EmporixCartService implements CartService {
 
       if (cart) {
         cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
+        cart = await this.discardEmptyForeignSessionCart(cart, session);
       }
     }
 
@@ -226,6 +581,7 @@ class EmporixCartService implements CartService {
             false,
           );
           cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
+          cart = await this.discardEmptyForeignSessionCart(cart, session);
         } catch (error) {
           throw this.mapCartResolutionError(error, {
             fallbackCode: CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN,
@@ -240,6 +596,7 @@ class EmporixCartService implements CartService {
         try {
           cart = await this.cartApi.getCartByCriteria(currentSiteCode, session.id, undefined, 'shopping', false);
           cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
+          cart = await this.discardEmptyForeignSessionCart(cart, session);
         } catch (error) {
           throw this.mapCartResolutionError(error, {
             fallbackCode: CART_CURRENCY_UPDATE_ERROR_CODE.UPSTREAM_FAILURE,
@@ -274,6 +631,19 @@ class EmporixCartService implements CartService {
     return this.mapper.mapToService(raw);
   }
 
+  async isProvenEmptyCart(cartId: string): Promise<boolean> {
+    try {
+      const raw = await this.cartApi.getCart(cartId);
+      if (!raw) {
+        return false;
+      }
+      return this.cartHasNoLines(raw);
+    } catch (error) {
+      this.logger.warn({ err: error, cartId }, 'Could not prove cart is empty');
+      return false;
+    }
+  }
+
   async addItemToCart(cartId: string, productId: string, quantity: number): Promise<ModifyCartItemResult> {
     const [initialRawCart, product, session] = await Promise.all([
       this.cartApi.getCart(cartId),
@@ -294,24 +664,13 @@ class EmporixCartService implements CartService {
     // Determine the cart's effective site code
     let cartSiteCode = rawCart.siteCode || session.siteCode;
 
-    // GUARD: If cart belongs to a different site, auto-recover by fetching/creating the correct cart.
-    // This handles race conditions where the session site changed but the cart ID wasn't updated yet.
-    if (cartSiteCode !== session.siteCode) {
-      this.logger.warn(
-        { cartId, cartSite: cartSiteCode, sessionSite: session.siteCode },
-        'Cart belongs to different site — auto-recovering correct cart',
-      );
-      const correctCart = await this.getCart();
-      if (!correctCart) {
-        throw new Error('Failed to get cart for current site');
-      }
-      // Prevent infinite recursion: if we got back the same cart, something is fundamentally wrong
-      if (correctCart.id === cartId) {
-        throw new Error(
-          `Cart site mismatch cannot be resolved: cart ${cartId} site=${cartSiteCode}, session site=${session.siteCode}`,
-        );
-      }
-      return this.addItemToCart(correctCart.id, productId, quantity);
+    const redirected = await this.redirectAddWhenCartSiteDiffers(cartId, cartSiteCode, productId, quantity, session);
+    if (redirected) {
+      return redirected;
+    }
+
+    if (this.isEmptyCartBoundToOtherSession(rawCart, session)) {
+      return this.addItemOnCurrentSessionCart(rawCart.id, productId, quantity, session);
     }
 
     rawCart = await this.ensureCartCurrencyMatchesSessionBeforeLineMutation(rawCart, session);
@@ -372,10 +731,41 @@ class EmporixCartService implements CartService {
     // Return result with appropriate status
     return {
       cartItem: cartItem,
+      cartId: postAlignCartId,
       status: (hasSufficientStock ? 'OK' : 'PENDING') as CartStatus,
       statusDetailCode: (hasSufficientStock ? undefined : 'addToCart.insufficientStock') as CartStatusDetailCode,
       statusDetailPayload: { availableQuantity },
     };
+  }
+
+  /**
+   * A cart from another site is not mutated. Returns the add on the session cart, or undefined
+   * when the requested cart already matches the session site.
+   */
+  private async redirectAddWhenCartSiteDiffers(
+    cartId: string,
+    cartSiteCode: string,
+    productId: string,
+    quantity: number,
+    session: Session,
+  ): Promise<ModifyCartItemResult | undefined> {
+    if (cartSiteCode === session.siteCode) {
+      return undefined;
+    }
+    this.logger.warn(
+      { cartId, cartSite: cartSiteCode, sessionSite: session.siteCode },
+      'Cart belongs to different site — auto-recovering correct cart',
+    );
+    const correctCart = await this.getCart();
+    if (!correctCart) {
+      throw new Error('Failed to get cart for current site');
+    }
+    if (correctCart.id === cartId) {
+      throw new Error(
+        `Cart site mismatch cannot be resolved: cart ${cartId} site=${cartSiteCode}, session site=${session.siteCode}`,
+      );
+    }
+    return this.addItemToCart(correctCart.id, productId, quantity);
   }
 
   private async checkStock(site: string, productId: string, quantity: number) {
@@ -420,20 +810,18 @@ class EmporixCartService implements CartService {
     const rawCartForCurrency = await this.cartApi.getCart(cartId);
     if (rawCartForCurrency) {
       const aligned = await this.ensureCartCurrencyMatchesSessionBeforeLineMutation(rawCartForCurrency, session);
-      if (this.normalizeCurrencyCode(rawCartForCurrency.currency) !== this.normalizeCurrencyCode(aligned.currency)) {
-        cart = await this.getCartById(cartId);
-        if (!cart) {
-          throw new Error('Cart not found');
-        }
-        cartItem = cart.items.find((item) => item.id === itemId);
-        if (!cartItem || !cartItem.product?.id) {
-          throw new Error('Cart item not found');
-        }
+      if (this.cartLineMutationContextChanged(rawCartForCurrency, aligned)) {
+        ({ cart, cartItem } = await this.reloadCartItemAfterContextAlign(cartId, itemId));
       }
     }
 
+    const productId = cartItem.product?.id;
+    if (!productId) {
+      throw new Error('Cart item not found');
+    }
+
     const price = await this.priceService.getProductPrice(
-      cartItem.product.id,
+      productId,
       quantity,
       undefined,
       this.explicitPriceParamsForCartOperation(session, cartSiteCode),
@@ -452,7 +840,7 @@ class EmporixCartService implements CartService {
       },
     };
 
-    const { hasSufficientStock, availableQuantity } = await this.checkStock(cart?.site, cartItem.product.id, quantity);
+    const { hasSufficientStock, availableQuantity } = await this.checkStock(cart?.site, productId, quantity);
     await this.cartApi.updateCartItemQuantity(cartId, itemId, updateRequest);
 
     // Update Item
@@ -559,23 +947,27 @@ class EmporixCartService implements CartService {
   private async updateShippingInfoOnce(
     cartId: string,
     shippingAddress: CartShippingAddress,
-    billingAddress?: CartShippingAddress,
+    _billingAddress?: CartShippingAddress,
   ): Promise<void> {
     const cart = await this.cartApi.getCart(cartId);
     if (!cart) {
       throw new Error('Cart not found');
     }
 
-    const addresses: EmporixCartAddress[] = [{ ...shippingAddress, type: 'SHIPPING' as const }];
-    if (billingAddress) {
-      addresses.push({ ...billingAddress, type: 'BILLING' as const });
-    }
+    // Destination-only tax-country write: REQUEST SHIPPING+BILLING from ship-to.
+    // Checkout billing is ignored so leftover/legal-entity DE cannot win Emporix's tax chain.
+    const addresses: EmporixCartAddress[] = [
+      { ...shippingAddress, type: 'SHIPPING' as const, origin: 'REQUEST' },
+      { ...shippingAddress, type: 'BILLING' as const, origin: 'REQUEST' },
+    ];
 
     await this.cartApi.updateCart(cartId, {
       metadata: {
         ...cart.metadata,
         version: (cart.metadata?.version ?? 0) + 1,
       },
+      countryCode: shippingAddress.country,
+      zipCode: shippingAddress.zipCode,
       addresses,
     });
     await this.refreshCartWithCleanup(cartId);
@@ -605,6 +997,93 @@ class EmporixCartService implements CartService {
     }
   }
 
+  private resolveCartDestination(cart: EmporixCart): { countryCode?: string; zipCode?: string } {
+    const shipping = cart.addresses?.find((address) => address.type === 'SHIPPING');
+    if (shipping?.country || shipping?.zipCode) {
+      return { countryCode: shipping.country, zipCode: shipping.zipCode };
+    }
+    const legacy = cart as unknown as Record<string, unknown>;
+    return {
+      countryCode: typeof legacy.countryCode === 'string' ? legacy.countryCode : undefined,
+      zipCode: typeof legacy.zipCode === 'string' ? legacy.zipCode : undefined,
+    };
+  }
+
+  private async mapCartById(cartId: string): Promise<Cart> {
+    const raw = await this.cartApi.getCart(cartId);
+    if (!raw) {
+      throw new Error('Cart not found');
+    }
+    return this.mapper.mapToService(raw);
+  }
+
+  private async updateShippingMethodOnce(cartId: string, method: CartShippingMethodSelection): Promise<Cart> {
+    const cart = await this.cartApi.getCart(cartId);
+    if (!cart) {
+      throw new Error('Cart not found');
+    }
+
+    const destination = this.resolveCartDestination(cart);
+    const windows = await this.shippingService.getDeliveryWindowsForCart(cartId, destination.zipCode);
+    const window = matchDeliveryWindowForShippingMethod(windows, method);
+
+    if (!window) {
+      this.logger.warn(
+        {
+          cartId,
+          methodId: method.methodId,
+          methodName: method.methodName,
+          zoneId: method.zoneId,
+          windowCount: windows.length,
+          windowMethods: windows.map((entry) => ({
+            id: entry.id,
+            deliveryMethod: entry.deliveryMethod,
+            zoneId: entry.zoneId,
+          })),
+        },
+        'No delivery window matches the selected shipping method — cart keeps the minimum shipping estimate',
+      );
+      return this.mapper.mapToService(cart);
+    }
+
+    await this.cartApi.updateCart(cartId, {
+      metadata: {
+        ...cart.metadata,
+        version: (cart.metadata?.version ?? 0) + 1,
+      },
+      countryCode: destination.countryCode,
+      zipCode: destination.zipCode,
+      deliveryWindowId: window.id,
+      deliveryWindow: {
+        id: window.id,
+        slotId: window.slotId,
+        deliveryDate: window.deliveryDate,
+      },
+    });
+    await this.refreshCartWithCleanup(cartId);
+    return this.mapCartById(cartId);
+  }
+
+  async updateShippingMethod(cartId: string, method: CartShippingMethodSelection): Promise<Cart> {
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await this.updateShippingMethodOnce(cartId, method);
+      } catch (error) {
+        if (this.isCartOptimisticLockConflict(error) && attempt < maxAttempts - 1) {
+          this.logger.warn(
+            { cartId, attempt, methodId: method.methodId },
+            'Cart shipping-method update hit optimistic lock — retrying with fresh version',
+          );
+          await new Promise((r) => setTimeout(r, 55 * (attempt + 1)));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error('Failed to update shipping method');
+  }
+
   async updateCurrency(cartId: string, currency: string): Promise<void> {
     const canonicalCart = await this.resolveCanonicalCartForCurrencyUpdate(cartId);
     const site = await this.siteService.getSite(canonicalCart.siteCode);
@@ -631,6 +1110,160 @@ class EmporixCartService implements CartService {
         'Recovered stale cart id during currency update',
       );
     }
+  }
+
+  async applyDiscount(cartId: string, code: string): Promise<Cart> {
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      throw new CartDiscountError('Coupon code is required');
+    }
+
+    const cartBeforeApply = await this.requireSessionCart(cartId, { checkSite: true });
+
+    try {
+      await this.cartApi.applyDiscount(cartId, trimmedCode);
+    } catch (error) {
+      const mapped = this.mapCartDiscountError(error, 'Failed to apply discount');
+      throw await this.withDiscountRejectionReason(mapped, trimmedCode, cartBeforeApply);
+    }
+
+    let cart = await this.requireSessionCart(cartId);
+    if (this.isCartMissingDiscountsAndSavings(cart)) {
+      await this.refreshCartWithCleanup(cartId);
+      cart = await this.requireSessionCart(cartId);
+    }
+
+    return cart;
+  }
+
+  async removeDiscount(cartId: string, discountIndex: number): Promise<Cart> {
+    const cart = await this.requireSessionCart(cartId, { checkSite: true });
+    if (!removableCartPromoAtIndex(cart.discounts, discountIndex)) {
+      throw new CartDiscountError('Discount is not removable', { upstreamStatus: 400 });
+    }
+
+    try {
+      await this.cartApi.removeDiscount(cartId, discountIndex);
+    } catch (error) {
+      throw this.mapCartDiscountError(error, 'Failed to remove discount');
+    }
+
+    return this.requireSessionCart(cartId);
+  }
+
+  /**
+   * Loads the cart for a discount write. With `checkSite` (the first load of a write): the id is
+   * caller-supplied and customer carts outlive a site switch, so — like `updateCartItemQuantity`
+   * — a cart from another site is refused instead of being mutated in the wrong site context.
+   */
+  private async requireSessionCart(cartId: string, options?: { checkSite?: boolean }): Promise<Cart> {
+    try {
+      const cart = await this.getCartById(cartId);
+      if (!cart) {
+        throw new CartDiscountError('Cart not found');
+      }
+      if (!options?.checkSite) {
+        return cart;
+      }
+      const session = await this.sessionService.getCurrentOrThrow();
+      if (!session) {
+        throw new CartDiscountError('Failed to get session context', { upstreamStatus: 401 });
+      }
+      if (cart.site && cart.site !== session.siteCode) {
+        this.logger.warn(
+          { cartId, cartSite: cart.site, sessionSite: session.siteCode },
+          'Cart belongs to different site during discount write — aborting',
+        );
+        throw new CartDiscountError(CART_SITE_MISMATCH_MESSAGE);
+      }
+      return cart;
+    } catch (error) {
+      if (isCartDiscountError(error)) {
+        throw error;
+      }
+      throw this.mapCartDiscountError(error, 'Failed to resolve cart for discount write');
+    }
+  }
+
+  /**
+   * Coupon Service `customerNumber` is the Customer Service path identifier, not session
+   * `customerId`. Those differ on some tenants; sending the session id classifies segment
+   * / allow-list refusals against the wrong shopper. Resolved from GET `/customer/{tenant}/me`.
+   * Omitted when the profile has no number — never fall back to session.customerId.
+   */
+  private async couponValidationCustomerNumber(session: Session): Promise<string | undefined> {
+    if (!isAuthenticatedSessionCustomerId(session.customerId)) {
+      return undefined;
+    }
+    try {
+      const profile = await this.customerApi.getCustomerProfile();
+      if (isAnonymousProfileCustomerId(profile.id)) {
+        return undefined;
+      }
+      const customerNumber = profile.customerNumber?.trim();
+      return customerNumber || undefined;
+    } catch (error) {
+      this.logger.warn({ err: error }, 'Coupon validation omitted customerNumber; profile lookup failed');
+      return undefined;
+    }
+  }
+
+  /**
+   * The Cart Service answers every coupon rejection with the same generic 400, so on that 400
+   * the Coupon Service validation is asked once for the typed reason (COP-5589 QA: "not an
+   * active promo code" was shown for segment, threshold and currency rejections alike).
+   * Re-applying a code already on the cart is a 409 Conflict and needs no lookup (mapped by
+   * status, since shopper-facing chips hide `valid: false` rows). Other 4xx
+   * (401/403/404) are cart-context failures mapped by status, not coupon rejections.
+   * Classification is best-effort — any failure or inconclusive answer keeps the original error.
+   */
+  private async withDiscountRejectionReason(
+    error: CartDiscountError,
+    code: string,
+    cart: Cart,
+  ): Promise<CartDiscountError> {
+    if (error.reason) {
+      return error;
+    }
+    if (isDocumentedCouponAlreadyAppliedRejection(error, code, cart)) {
+      return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
+    }
+    if (!shouldClassifyCouponRejection(error)) {
+      return error;
+    }
+    if (
+      cart.discounts?.some(
+        (discount) => discount.code === code && discount.code !== 'TOTAL' && discount.valid !== false,
+      )
+    ) {
+      return this.withReason(error, CART_DISCOUNT_REASON.ALREADY_APPLIED);
+    }
+    try {
+      const session = await this.sessionService.getCurrentOrThrow();
+      const customerNumber = session ? await this.couponValidationCustomerNumber(session) : undefined;
+      const outcome = await this.couponApi.validateCoupon(code, {
+        orderTotal: { amount: cart.subTotalPrice.amount, currency: cart.currency },
+        ...(cart.legalEntity ? { legalEntityId: cart.legalEntity } : {}),
+        ...(customerNumber ? { customerNumber } : {}),
+      });
+      const reason = classifyCouponRejection(outcome);
+      this.logger.info(
+        { cartId: cart.id, reason, validation: outcome },
+        'Coupon rejected by cart service; classified via coupon validation',
+      );
+      return reason ? this.withReason(error, reason) : error;
+    } catch (validationError) {
+      this.logger.warn({ err: validationError, cartId: cart.id }, 'Coupon validation lookup failed after rejection');
+      return error;
+    }
+  }
+
+  private withReason(error: CartDiscountError, reason: CartDiscountReason): CartDiscountError {
+    return new CartDiscountError(error.message, {
+      upstreamStatus: error.upstreamStatus,
+      upstreamBody: error.upstreamBody,
+      reason,
+    });
   }
 
   async getSavedCarts(pagination: PaginationQuery): Promise<Paginated<Cart>> {
@@ -730,6 +1363,27 @@ class EmporixCartService implements CartService {
     return canonicalRawCart;
   }
 
+  /**
+   * Apply can return before coupon rows hydrate. A free-shipping apply often has
+   * `savingsTotal === 0` with an omitted `discounts` array — treat that as missing
+   * so we refresh once for chips (COP-4815 review 5238303353).
+   */
+  private isCartMissingDiscountsAndSavings(cart: Cart): boolean {
+    return shopperFacingCartPromos(cart.discounts).length === 0;
+  }
+
+  private mapCartDiscountError(error: unknown, message: string): CartDiscountError {
+    if (isCartDiscountError(error)) {
+      return error;
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new CartDiscountError(message, {
+      upstreamStatus: extractUpstreamStatus(errorMessage) ?? 500,
+      upstreamBody: extractUpstreamBody(errorMessage),
+    });
+  }
+
   private mapCartResolutionError(
     error: unknown,
     fallback: {
@@ -753,6 +1407,13 @@ class EmporixCartService implements CartService {
     }
 
     if (upstreamStatus === 400 || upstreamStatus === 409 || upstreamStatus === 422) {
+      if (isCouponRelatedCurrencyFailure(errorMessage, upstreamBody)) {
+        return new CartCurrencyUpdateError(
+          CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT,
+          'Coupon blocks currency update',
+          { upstreamStatus, upstreamBody },
+        );
+      }
       return new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.CONTEXT_MISMATCH, 'Cart context mismatch', {
         upstreamStatus,
         upstreamBody,
@@ -770,85 +1431,6 @@ class EmporixCartService implements CartService {
       upstreamStatus,
       upstreamBody,
     });
-  }
-
-  private mapPromoCodeError(error: unknown): PromoCodeError {
-    if (error instanceof PromoCodeError) {
-      return error;
-    }
-
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const upstreamStatus = extractUpstreamStatus(errorMessage);
-    const upstreamBody = extractUpstreamBody(errorMessage);
-    const normalizedMessage = errorMessage.toLowerCase();
-
-    if (normalizedMessage.includes('already exists')) {
-      return new PromoCodeError(PROMO_CODE_ERROR_CODE.ALREADY_APPLIED, 'Promo code already applied', {
-        upstreamStatus,
-        upstreamBody,
-      });
-    }
-
-    if (upstreamStatus === 404) {
-      return new PromoCodeError(PROMO_CODE_ERROR_CODE.NOT_FOUND, 'Promo code not found', {
-        upstreamStatus,
-        upstreamBody,
-      });
-    }
-
-    if (upstreamStatus === 400 || upstreamStatus === 409) {
-      return new PromoCodeError(PROMO_CODE_ERROR_CODE.INVALID, 'Invalid promo code', {
-        upstreamStatus,
-        upstreamBody,
-      });
-    }
-
-    return new PromoCodeError(PROMO_CODE_ERROR_CODE.UPSTREAM_FAILURE, 'Failed to apply promo code', {
-      upstreamStatus,
-      upstreamBody,
-    });
-  }
-
-  async applyPromoCode(cartId: string, code: string): Promise<Cart> {
-    const trimmedCode = code.trim();
-    if (!trimmedCode) {
-      throw new PromoCodeError(PROMO_CODE_ERROR_CODE.EMPTY_CODE, 'Promo code is required');
-    }
-
-    try {
-      await this.cartApi.applyDiscount(cartId, trimmedCode);
-      await this.refreshCartWithCleanup(cartId);
-    } catch (error) {
-      throw this.mapPromoCodeError(error);
-    }
-
-    const cart = await this.getCartById(cartId);
-    if (!cart) {
-      throw new PromoCodeError(PROMO_CODE_ERROR_CODE.NOT_FOUND, 'Cart not found');
-    }
-
-    return cart;
-  }
-
-  async removePromoCode(cartId: string, code: string): Promise<Cart> {
-    const trimmedCode = code.trim();
-    if (!trimmedCode) {
-      throw new PromoCodeError(PROMO_CODE_ERROR_CODE.EMPTY_CODE, 'Promo code is required');
-    }
-
-    try {
-      await this.cartApi.removeDiscounts(cartId, [trimmedCode]);
-      await this.refreshCartWithCleanup(cartId);
-    } catch (error) {
-      throw this.mapPromoCodeError(error);
-    }
-
-    const cart = await this.getCartById(cartId);
-    if (!cart) {
-      throw new PromoCodeError(PROMO_CODE_ERROR_CODE.NOT_FOUND, 'Cart not found');
-    }
-
-    return cart;
   }
 }
 

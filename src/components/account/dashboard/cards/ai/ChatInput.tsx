@@ -6,6 +6,7 @@ import { FormProvider } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { FormControl, FormField, FormItem } from '@/components/ui/form';
 import { InputButton } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import type { AiHelperFormData } from './types';
 
 interface ChatInputProps {
@@ -32,9 +33,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({ form, onSubmit, loading, i
   }, [loading]);
 
   return (
-    <div className="bg-surface-page border-t border-gray-200 pt-4 pb-4">
+    <div className={cn('bg-surface-page border-t border-gray-200 pt-4 pb-4', loading && 'cursor-progress')}>
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form
+          onSubmit={form.handleSubmit((data) => {
+            if (loading) {
+              return;
+            }
+            onSubmit(data);
+          })}
+        >
           <FormField
             control={form.control}
             name="question"
@@ -52,7 +60,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ form, onSubmit, loading, i
                     }}
                     placeholder={placeholder}
                     buttonText={buttonText}
-                    disabled={loading}
+                    buttonDisabled={loading}
                     aria-label={placeholder}
                     {...field}
                   />

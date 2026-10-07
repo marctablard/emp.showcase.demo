@@ -37,7 +37,11 @@ class EmporixProductApi implements IEmporixProductApi {
   }
 
   async searchProducts(params: EmporixSearchParams<EmporixProduct>): Promise<EmporixPaginatedResponse<EmporixProduct>> {
-    const { body, query } = buildSearchQuery(params);
+    // Always expand template ref so PLP enrichment can resolve attribute labels/types.
+    const { body, query } = buildSearchQuery({
+      ...params,
+      expand: params.expand?.includes('template') ? params.expand : [...(params.expand ?? []), 'template'],
+    });
     const response = await this.apiClient.authenticatedFetch(
       `/product/${this.config.tenant}/products/search?${query}`,
       {
@@ -52,20 +56,26 @@ class EmporixProductApi implements IEmporixProductApi {
       undefined,
       createProductMetrics('/product/{tenant}/products/search'),
     );
+    if (!response.ok) {
+      const errorBody = (await response.text()).trim().slice(0, 200);
+      throw new Error(`Failed to search products: ${response.status} ${errorBody}`);
+    }
     return buildPaginatedResponse(params, response);
   }
 
   async getProduct(id: string): Promise<EmporixProduct | undefined> {
     const response = await this.apiClient.authenticatedFetch(
       `/product/${this.config.tenant}/products/${id}?expand=parentVariant,template`,
-      { method: 'GET' },
+      // Accept-Language: * keeps localized template attribute names as locale maps.
+      { method: 'GET', headers: { 'Accept-Language': '*' } },
       'public',
       undefined,
       createProductMetrics('/product/{tenant}/products/{id}'),
       DEFAULT_CACHE_REVALIDATE,
     );
     if (!response.ok) {
-      if (response.status == 404) {
+      if (response.status === 404 || response.status === 403) {
+        // Public product reads return 403 for unpublished or otherwise non-visible products; surface them as not found.
         return undefined;
       } else {
         throw new Error(`Failed to get product: ${response.statusText}`);

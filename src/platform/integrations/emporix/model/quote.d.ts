@@ -59,6 +59,8 @@ export interface EmporixCreateQuoteFromCartRequest {
     zoneId?: string;
     shippingTaxCode?: string;
   };
+  customerReference?: string;
+  customerComment?: string;
 }
 
 /**
@@ -144,6 +146,8 @@ export interface EmporixQuoteShipping {
     [key: string]: string;
   };
   shippingTaxCode?: string;
+  /** Shipping VAT percent (e.g. 3.7). Independent of item `price.tax.taxRate`. */
+  taxRate?: number;
 }
 
 /**
@@ -188,6 +192,8 @@ export interface EmporixQuote {
   billingAddress?: EmporixAddress;
   shippingAddress?: EmporixAddress;
   items: EmporixQuoteItem[];
+  customerReference?: string;
+  customerComment?: string;
   metadata: {
     mixins?: Record<string, string>;
     version: number;

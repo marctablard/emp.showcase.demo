@@ -42,7 +42,7 @@ export class EmporixSessionMapper implements SessionMapper<EmporixSessionContext
       country: source.targetLocation,
       region: readSessionContextAttributeValue(source.context, 'region'),
       cartId: readSessionContextAttributeValue(source.context, 'currentCart'),
-      legalEntityId: readSessionContextAttributeValue(source.context, 'legalEntityId'),
+      legalEntityId: mapLegalEntityId(source.context?.['legalEntityId']),
       attributes,
       ...(typeof source.metadata?.version === 'number' ? { metadata: { version: source.metadata.version } } : {}),
     };
@@ -119,6 +119,19 @@ export class EmporixSessionMapper implements SessionMapper<EmporixSessionContext
       value: attribute.value,
     };
   }
+}
+
+function mapLegalEntityId(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value && typeof value === 'object' && 'value' in value) {
+    const nested = (value as { value?: unknown }).value;
+    if (typeof nested === 'string') {
+      return nested;
+    }
+  }
+  return undefined;
 }
 
 export default EmporixSessionMapper;

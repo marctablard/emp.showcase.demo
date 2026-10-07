@@ -29,7 +29,7 @@ export interface EmporixOAuthApi {
    *
    * @param tenant The tenant ID
    * @param clientId Client ID for anonymous access
-   * @param sessionParams Optional session context values to pre-seed the new session (COP-5047)
+   * @param sessionParams Optional session context values to pre-seed the new session
    * @returns Promise with the anonymous token response
    */
   getAnonymousToken(
@@ -83,6 +83,12 @@ export interface EmporixOAuthApi {
     refreshToken: string,
     legalEntityId?: string,
   ): Promise<EmporixCustomerTokenResponse>;
+
+  /**
+   * Validate the current customer access token and read its legal-entity scope.
+   * Other response fields (including email) are intentionally discarded.
+   */
+  validateCustomerToken(tenant: string, accessToken: string): Promise<{ legalEntityId?: string }>;
 
   /**
    * Get a service access token

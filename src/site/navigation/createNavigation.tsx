@@ -1,8 +1,9 @@
 'use client';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useLocale } from 'next-intl';
 import { usePathname as useNextPathname, useRouter as useNextRouter } from 'next/navigation';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
+import { resolveLocaleAwareHref } from '@/lib/common/resolve-locale-aware-href';
 import { createSiteNavigationShared } from '../shared/createNavigationShared';
 import type { SiteRoutingConfig } from '../types';
 import { addPrefixIfNeeded, getLocalePrefix, hasPathnamePrefixed, prependPrefix, unprefixPathname } from '../utils';
@@ -20,11 +21,14 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
       if (!pathname) return pathname;
 
       let unprefixedPathname = pathname;
-      const sitePrefix = prependPrefix(site);
-      const isPathnameSitePrefixed = hasPathnamePrefixed(sitePrefix, pathname);
+      let sitePrefix: string | null = null;
+      if (site) {
+        sitePrefix = prependPrefix(site);
+        const isPathnameSitePrefixed = hasPathnamePrefixed(sitePrefix, pathname);
 
-      if (isPathnameSitePrefixed) {
-        unprefixedPathname = unprefixPathname(pathname, sitePrefix);
+        if (isPathnameSitePrefixed) {
+          unprefixedPathname = unprefixPathname(pathname, sitePrefix);
+        }
       }
       // We must reimplement this logic, because next-intl does not allow to hook into it
       const localePrefix = getLocalePrefix(locale, intlRouting);
@@ -35,7 +39,7 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
 
       // Guard against corrupted URLs that still contain the site prefix after stripping
       // (e.g. /brand1/de/brand1/product/123 → after first strip → /brand1/product/123)
-      if (hasPathnamePrefixed(sitePrefix, unprefixedPathname)) {
+      if (sitePrefix && hasPathnamePrefixed(sitePrefix, unprefixedPathname)) {
         unprefixedPathname = unprefixPathname(unprefixedPathname, sitePrefix);
       }
 
@@ -45,37 +49,56 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
 
   function useRouter() {
     const nextRouter = useNextRouter();
+    const currentLocale = useLocale();
     const site = useSiteCode();
-    return useMemo(() => {
-      function createHandler<Options, Fn extends (href: string, options?: Options) => void>(fn: Fn) {
-        return function handler(
-          href: string | { pathname: string },
-          options?: Partial<Options> & { site?: string },
-        ): void {
-          const { site: nextSite, ...rest } = options || {};
-          const path = addPrefixIfNeeded(
-            typeof href === 'string' ? href : href.pathname,
-            nextSite || (site as string),
-            siteRouting,
-          );
-          const args: [href: string, options?: Options] = [path];
-          if (Object.keys(rest).length > 0) {
-            // @ts-expect-error unsafe typing expected
-            args.push(rest);
-          }
-          fn(...args);
-        };
-      }
 
+    type RouterOptions = Partial<Record<string, unknown>> & { locale?: string; site?: string };
+
+    const getSiteOuterPath = useCallback(
+      (href: string | { pathname: string }, options?: RouterOptions) => {
+        const { site: nextSite, locale: nextLocale } = options ?? {};
+        const localeAwarePath = resolveLocaleAwareHref(href, currentLocale, nextLocale);
+
+        return addPrefixIfNeeded(localeAwarePath, nextSite || site, siteRouting);
+      },
+      [currentLocale, site],
+    );
+
+    const createHandler = useCallback(
+      (fn: (href: string, options?: any) => void, method: 'push' | 'replace' | 'prefetch') => {
+        return function handler(href: string | { pathname: string }, options?: RouterOptions): void {
+          const { site: _nextSite, locale: nextLocale, ...rest } = options ?? {};
+          const path = getSiteOuterPath(href, options);
+
+          if (method !== 'prefetch' && nextLocale && nextLocale !== currentLocale) {
+            if (method === 'replace') {
+              globalThis.location.replace(path);
+              return;
+            }
+
+            globalThis.location.assign(path);
+            return;
+          }
+
+          if (Object.keys(rest).length > 0) {
+            fn(path, rest);
+            return;
+          }
+
+          fn(path);
+        };
+      },
+      [currentLocale, getSiteOuterPath],
+    );
+
+    return useMemo(() => {
       return {
         ...nextRouter,
-        push: createHandler<Parameters<typeof nextRouter.push>[1], typeof nextRouter.push>(nextRouter.push),
-        replace: createHandler<Parameters<typeof nextRouter.replace>[1], typeof nextRouter.replace>(nextRouter.replace),
-        prefetch: createHandler<Parameters<typeof nextRouter.prefetch>[1], typeof nextRouter.prefetch>(
-          nextRouter.prefetch,
-        ),
+        push: createHandler(nextRouter.push, 'push'),
+        replace: createHandler(nextRouter.replace, 'replace'),
+        prefetch: createHandler(nextRouter.prefetch, 'prefetch'),
       };
-    }, [nextRouter, site]);
+    }, [createHandler, nextRouter]);
   }
 
   return {

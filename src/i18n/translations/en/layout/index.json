@@ -18,6 +18,7 @@
     "quickOrder": "Quick Order",
     "wishlists": "Wishlist",
     "allProducts": "All Products",
+    "assignedProducts": "Assigned Products",
     "products": "Products",
     "services": "Services",
     "solutions": "Solutions",
@@ -39,6 +40,10 @@
     "doubleCheck": "Double-check your search for any typos or spelling mistakes, or try using a different search term.",
     "commonSearch": "Here are common search queries from other customers:",
     "clearHistory": "delete search history",
+    "seeAllCategories": "Show all",
+    "allFromCategory": "All from {name}",
+    "back": "Back",
+    "openSubcategoriesFor": "Open subcategories for {name}",
     "navigation": {
       "meta": "Meta"
     },
@@ -74,7 +79,9 @@
     "privacyPolicy": "Privacy Policy"
   },
   "footerLinks": {
+    "showAllCategories": "Show all",
     "products": "Products",
+    "assignedProducts": "Assigned Products",
     "solarPanels": "Solar Panels",
     "inverters": "Inverters",
     "batterySolutions": "Battery Solutions",

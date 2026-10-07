@@ -5,12 +5,29 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Languages } from 'lucide-react';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { Spinner } from '@/components/ui/spinner';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useSite } from '@/hooks/site/useSite';
 import { type LanguageKey, dk } from '@/i18n/dynamic-key';
-import { redirect, usePathname } from '@/i18n/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 import { updateSessionLanguage } from '@/lib/client/session';
 import { getLogger } from '@/lib/logger/use-logger-client';
+
+const LOCALIZED_BREADCRUMB_FILTER_PARAMS = [
+  'filters[_product_i18n.categoryBreadcrumbs.displayPath]',
+  'filters[_product_i18n.categories.breadcrumbs.displayPath]',
+];
+
+export const stripLocalizedBreadcrumbFilter = (search: string): string => {
+  const normalizedSearch = search.startsWith('?') ? search.slice(1) : search;
+  const searchParams = new URLSearchParams(normalizedSearch);
+
+  for (const paramName of LOCALIZED_BREADCRUMB_FILTER_PARAMS) {
+    searchParams.delete(paramName);
+  }
+
+  return searchParams.toString();
+};
 
 export function LanguageSwitcher() {
   const t = useTranslations('common.Languages');
@@ -18,10 +35,7 @@ export function LanguageSwitcher() {
   const currentLocale = useLocale();
   const { site, loading: siteLoading } = useSite();
   const pathname = usePathname();
-
-  // Get the current search parameters to preserve them when switching languages
-  const searchParams =
-    typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const router = useRouter();
 
   // Memoize the language options to avoid recreating objects on each render
   const languageOptions = useMemo(() => {
@@ -48,16 +62,35 @@ export function LanguageSwitcher() {
     // language. Failures are logged but never block navigation — the SSR
     // layout self-heals unsupported locales on next request.
     try {
-      await updateSessionLanguage(newLocale);
+      const updated = await updateSessionLanguage(newLocale);
+      if (!updated) {
+        notify({
+          title: t('switchFailed'),
+          type: ToastType.Error,
+        });
+        return;
+      }
     } catch (err) {
       getLogger().error(
         { err, locale: newLocale, site: site.code },
         'updateSessionLanguage failed during language switch',
       );
+      notify({
+        title: t('switchFailed'),
+        type: ToastType.Error,
+      });
+      return;
     }
-    const searchParamsString = searchParams.toString();
-    const queryString = searchParamsString ? `?${searchParamsString}` : '';
-    redirect({ href: pathname + queryString, locale: newLocale, site: site.code, forcePrefix: true });
+    const sanitizedSearch = stripLocalizedBreadcrumbFilter(globalThis.location.search);
+    const isBrowsePath = pathname.endsWith('/browse');
+    let href = pathname;
+    if (sanitizedSearch) {
+      href = `${pathname}?${sanitizedSearch}`;
+    }
+    if (!sanitizedSearch && isBrowsePath) {
+      href = '/browse';
+    }
+    router.push(href, { locale: newLocale, site: site.code });
   };
 
   if (siteLoading) {

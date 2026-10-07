@@ -30,17 +30,17 @@ export function AccountListToolbar({ className, children }: { className?: string
  * from the orders / quotes tables. Use `cn(accountTableHeadClass, 'text-right')`
  * etc. for per-column alignment.
  */
-export const accountTableHeadClass = '!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings';
+export const accountTableHeadClass = '!h-14 whitespace-nowrap px-2 text-sm font-bold text-text-headings';
 
 /**
  * Canonical class for the `<TableRow>` inside a `<TableHeader>`. Drives the
  * shared font scale that head cells inherit. Pair with `accountTableHeadClass`
  * on each `<TableHead>`.
  */
-export const accountTableHeadRowClass = 'text-sm xl:text-base';
+export const accountTableHeadRowClass = 'text-sm';
 
 /** Canonical body-cell class for account list tables. */
-export const accountTableCellClass = 'px-2 py-4 align-middle text-sm xl:text-base text-text-body';
+export const accountTableCellClass = 'px-2 py-4 align-middle text-sm text-text-body';
 
 /**
  * Head cell for a centered "vignette" column — status / priority / health
@@ -72,7 +72,7 @@ export function accountTableRowStripe(index: number): string {
  */
 export function accountTableRowClass(index: number, options?: { clickable?: boolean }): string {
   return cn(
-    'text-sm xl:text-base transition-colors hover:bg-surface-image-background',
+    'text-sm transition-colors hover:bg-surface-image-background',
     accountTableRowStripe(index),
     options?.clickable && 'cursor-pointer',
   );

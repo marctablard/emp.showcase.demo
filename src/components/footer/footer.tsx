@@ -2,12 +2,19 @@
 
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Instagram, Linkedin, Mail, Youtube } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { useNewsletterForm } from '@/hooks/newsletter/useNewsletterForm';
+import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
+import { takeRootCategoryPage } from '@/lib/navigation/take-root-category-page';
 import { cn } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
 import { InputButton } from '../ui/input';
 import UiLink from '../ui/link';
+
+/** Brand marks removed from lucide-react v1 — use public SVG assets (lucide size-4). */
+function BrandSocialIcon({ src }: Readonly<{ src: string }>) {
+  return <Image src={src} alt="" width={16} height={16} className="size-4" aria-hidden="true" />;
+}
 
 export default function Footer({ reduced = false }: { reduced?: boolean }) {
   const t = useTranslations('layout.footer');
@@ -93,28 +100,72 @@ export default function Footer({ reduced = false }: { reduced?: boolean }) {
   );
 }
 
-export function FooterLinks() {
+export type FooterTopProductCategoryLink = { label: string; href: string };
+
+interface FooterLinksProps {
+  topProductCategories?: FooterTopProductCategoryLink[];
+  showAllProductsBrowse?: boolean;
+  /**
+   * COP-4822 (AC1): when the customer is segmented, the footer shares the header's assigned
+   * category forest and the column heading reads "Assigned Products" instead of "Products".
+   */
+  assignedProductsMode?: boolean;
+}
+
+export function FooterLinks({
+  topProductCategories,
+  showAllProductsBrowse = false,
+  assignedProductsMode = false,
+}: Readonly<FooterLinksProps>) {
   const t = useTranslations('layout.footerLinks');
+  const categoryPreviewCount = getNavigationRootCategoriesPageSize();
+  const { visible: visibleTopProductCategories } = takeRootCategoryPage(
+    topProductCategories ?? [],
+    categoryPreviewCount,
+  );
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 md:gap-6 ml-4 mr-4 md:ml-6 md:mr-6 py-4 md:py-6 border-b border-b-border-primary">
       <div className="flex flex-col gap-2">
-        <p className="text-lg mb-1">{t('products')}</p>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('solarPanels')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('inverters')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('batterySolutions')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('wiringSolutions')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('solarAccessories')}
-        </UiLink>
+        <p className="text-lg mb-1">{assignedProductsMode ? t('assignedProducts') : t('products')}</p>
+        {topProductCategories && topProductCategories.length > 0 ? (
+          <>
+            {visibleTopProductCategories.map((link) => (
+              <UiLink key={link.href + link.label} type="Link" href={link.href} variant="secondary" size="s">
+                {link.label}
+              </UiLink>
+            ))}
+            {showAllProductsBrowse ? (
+              <UiLink
+                type="Link"
+                href="/browse"
+                variant="text"
+                size="s"
+                className="underline font-bold text-text-action p-0 h-auto justify-start"
+              >
+                {t('showAllCategories')}
+              </UiLink>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('solarPanels')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('inverters')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('batterySolutions')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('wiringSolutions')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('solarAccessories')}
+            </UiLink>
+          </>
+        )}
       </div>
       <div className="flex flex-col gap-2">
         <p className="text-lg mb-1">{t('services')}</p>
@@ -146,15 +197,15 @@ export function FooterLinks() {
       <div className="flex flex-col gap-2">
         <p className="text-lg mb-1">{t('aboutUs')}</p>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Linkedin />
+          <BrandSocialIcon src="/images/linkedin.svg" />
           Linkedin
         </UiLink>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Youtube />
+          <BrandSocialIcon src="/images/youtube.svg" />
           Youtube
         </UiLink>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Instagram />
+          <BrandSocialIcon src="/images/instagram.svg" />
           Instagram
         </UiLink>
       </div>
@@ -169,7 +220,7 @@ export function FooterWrapper({ className, ...props }: React.ComponentProps<'div
         <div
           data-slot="footer"
           className={cn(
-            'pb-1 sm:mx-4 lg:mx-9 shadow-xl rounded-ss-lg rounded-se-lg  bg-[url("/images/footer-bg.svg")] bg-no-repeat bg-right-bottom',
+            "pb-1 sm:mx-4 md:mx-9 shadow-xl rounded-ss-lg rounded-se-lg bg-[url('/images/footer-bg.svg')] bg-no-repeat bg-right-bottom",
             className,
           )}
           {...props}
@@ -186,7 +237,7 @@ export function LegalFooter() {
 
   return (
     <div className="flex-grow">
-      <div className="max-w-6xl mx-auto sm:mb-4 sm:px-4 lg:px-9">
+      <div className="max-w-6xl mx-auto sm:mb-4 sm:px-4 md:px-9">
         <div
           data-slot="legal-footer"
           className="px-4 pb-16 pt-2 sm:-mx-2 lg:-mx-4 sm:-mt-1 sm:px-8 sm:py-0 lg:px-10 relative z-10 bg-surface-action sm:rounded-full"

@@ -1,100 +1,53 @@
 'use client';
 
-import { Fragment, useMemo, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
-import { ArrowRight, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { Search } from 'lucide-react';
 import { APPROVALS_PER_PAGE } from '@/components/account/account-table-constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import UiLink from '@/components/ui/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TablePagination } from '@/components/ui/table-pagination';
 import { useApprovals } from '@/hooks/approval/useApprovals';
-import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
-import { useProducts } from '@/hooks/product/useProducts';
-import { useRouter } from '@/i18n/navigation';
-import { cn, l10n } from '@/lib/utils';
 import type { Approval, ApprovalStatus } from '@/platform/services/model/approval';
-import {
-  AccountListContainer,
-  accountTableBadgeCellClass,
-  accountTableBadgeHeadClass,
-  accountTableHeadClass,
-  accountTableHeadRowClass,
-  accountTableRowClass,
-  shortenId,
-} from '../shared/account-list';
-import { AccountProductLines } from '../shared/account-product-lines';
-import { AccountProductThumbnails } from '../shared/account-product-thumbnails';
-import { ApprovalStatusBadge } from './approval-status-badge';
+import { AccountListContainer } from '../shared/account-list';
+import { APPROVAL_SORT_FIELD_MAP, type ApprovalSortField, ApprovalsTable } from './approvals-table';
 
 const SEARCH_DEBOUNCE_MS = 500;
+const INITIAL_PAGE_SORT = 'metadata.modifiedAt:desc';
 
 interface ApprovalsListProps {
   initialApprovals?: Approval[];
   currentUserId?: string;
+  initialTotalCount?: number;
 }
 
-function getApprovalModifiedAt(approval: Approval): number {
-  const candidate = approval.modifiedAt ?? approval.updatedAt ?? approval.createdAt;
-  const timestamp = candidate ? new Date(candidate).getTime() : 0;
-
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
-function formatApprovalUserName(user: {
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-  userId?: string;
-}): string {
-  if (user.fullName && user.fullName.trim() !== '') {
-    return user.fullName;
-  }
-
-  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
-  if (fullName !== '') {
-    return fullName;
-  }
-
-  return user.userId ?? '-';
-}
-
-function getApprovalHref(approval: Approval, currentUserId?: string): string {
-  if (
-    approval.resourceType === 'QUOTE' &&
-    currentUserId &&
-    approval.approver.userId === currentUserId &&
-    approval.requestor.userId !== currentUserId
-  ) {
-    return `/account/approval/${approval.id}`;
-  }
-
-  if (approval.resourceType === 'QUOTE') {
-    return `/account/quotes/${approval.resource.id}`;
-  }
-
-  return `/account/approvals/${approval.id}`;
-}
-
-function ListStatePanel({ children }: { children: React.ReactNode }) {
-  return <div className="border border-border-primary bg-surface-page p-6">{children}</div>;
-}
-
-export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsListProps) {
-  const locale = useLocale();
-  const router = useRouter();
+export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCount }: Readonly<ApprovalsListProps>) {
   const t = useTranslations('orders.Approval');
   const tStatus = useTranslations('orders.ApprovalStatus');
-  const tAction = useTranslations('orders.ApprovalAction');
   const [filterStatus, setFilterStatus] = useState<ApprovalStatus | '_ALL_'>('_ALL_');
   const [currentPage, setCurrentPage] = useState(1);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<ApprovalSortField>('modifiedAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const [quickSearch, setQuickSearch] = useState('');
-  const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
+  const [normalizedSearch, setNormalizedSearch] = useState('');
+
+  useEffect(() => {
+    const timeoutId = globalThis.setTimeout(() => {
+      const nextNormalizedSearch = quickSearch.trim();
+      if (nextNormalizedSearch === normalizedSearch) {
+        return;
+      }
+
+      setCurrentPage((prev) => (prev === 1 ? prev : 1));
+      setNormalizedSearch(nextNormalizedSearch);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [quickSearch, normalizedSearch]);
 
   const apiQuery = useMemo(() => {
     const parts: string[] = [];
@@ -109,89 +62,47 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
     return parts.length > 0 ? parts.join(' ') : undefined;
   }, [filterStatus, normalizedSearch]);
 
-  const { approvals, loading, error, refreshApprovals } = useApprovals(initialApprovals, undefined, apiQuery);
-
-  const sortedApprovals = useMemo(
-    () => [...approvals].sort((left, right) => getApprovalModifiedAt(right) - getApprovalModifiedAt(left)),
-    [approvals],
-  );
-
-  const totalPages = Math.max(1, Math.ceil(sortedApprovals.length / APPROVALS_PER_PAGE));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const visibleApprovals = useMemo(
-    () => sortedApprovals.slice((safeCurrentPage - 1) * APPROVALS_PER_PAGE, safeCurrentPage * APPROVALS_PER_PAGE),
-    [safeCurrentPage, sortedApprovals],
-  );
-
-  const productIds = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          visibleApprovals.flatMap(
-            (approval) =>
-              approval.resource.items?.map((item) => item.productId).filter((id): id is string => Boolean(id)) ?? [],
-          ),
-        ),
-      ),
-    [visibleApprovals],
-  );
-  const { products } = useProducts(productIds);
-  const productImages = useMemo(() => {
-    const map: Record<string, string | undefined> = {};
-    for (const product of products) {
-      map[product.id] = product.primaryImage?.url ?? product.images?.[0]?.url;
-    }
-    return map;
-  }, [products]);
-
   const handleFilter = (status: ApprovalStatus | '_ALL_') => {
     setFilterStatus(status);
     setCurrentPage(1);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
+  const apiSort = `${APPROVAL_SORT_FIELD_MAP[sortField]}:${sortDirection}`;
+
+  const { approvals, loading, error, pagination, refreshApprovals } = useApprovals(initialApprovals, {
+    pageNumber: currentPage,
+    pageSize: APPROVALS_PER_PAGE,
+    sort: apiSort,
+    query: apiQuery,
+    initialTotalCount,
+    initialRequest: {
+      pageNumber: 1,
+      pageSize: APPROVALS_PER_PAGE,
+      sort: INITIAL_PAGE_SORT,
+      query: undefined,
+    },
+  });
+
+  const toggleSort = (field: ApprovalSortField) => {
+    setCurrentPage(1);
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
   };
 
-  if (loading && normalizedSearch.length === 0 && filterStatus === '_ALL_') {
-    return (
-      <ListStatePanel>
-        <div className="flex flex-col items-center space-y-2 py-8">
-          <Spinner color="primary" variant="md" />
-          <div>{t('loading')}</div>
-        </div>
-      </ListStatePanel>
-    );
-  }
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
 
-  if (error) {
-    return (
-      <ListStatePanel>
-        <div className="bg-surface-error p-4 text-text-error">
-          {t('errorLoadingApprovals')}: {error.message}
-        </div>
-        <Button className="mt-4" onClick={() => refreshApprovals()}>
-          {t('tryAgain')}
-        </Button>
-      </ListStatePanel>
-    );
-  }
+  const handleNextPage = () => {
+    const totalPages = pagination?.totalPages ?? 1;
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
 
-  if (approvals.length === 0 && normalizedSearch.length === 0 && filterStatus === '_ALL_') {
-    return (
-      <ListStatePanel>
-        <p className="py-8 text-center text-text-placeholders">{t('noApprovalsFound')}</p>
-      </ListStatePanel>
-    );
-  }
-
+  const hasActiveSearch = normalizedSearch.length > 0 || filterStatus !== '_ALL_';
   const isSearchLoading = loading && normalizedSearch.length > 0;
 
   return (
@@ -201,13 +112,13 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
           <Input
             value={quickSearch}
             onChange={(event) => {
-              setCurrentPage(1);
               setQuickSearch(event.target.value);
             }}
             placeholder={t('searchPlaceholder')}
             className="pr-10"
             endIcon={isSearchLoading ? undefined : Search}
             aria-label={t('searchPlaceholder')}
+            data-testid="approvals-search"
           />
           {isSearchLoading && (
             <Spinner
@@ -235,131 +146,30 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
         </div>
       </div>
 
-      {!loading && approvals.length === 0 && (normalizedSearch.length > 0 || filterStatus !== '_ALL_') && (
-        <div className="border border-border-primary p-4 text-sm text-text-on-disabled">{t('noMatches')}</div>
+      {error ? (
+        <div className="border border-border-error bg-surface-error px-4 py-3 text-text-error space-y-3">
+          <p>{error.message}</p>
+          <Button onClick={() => refreshApprovals()} data-testid="approvals-retryButton">
+            {t('tryAgain')}
+          </Button>
+        </div>
+      ) : (
+        <AccountListContainer>
+          <ApprovalsTable
+            approvals={approvals}
+            currentUserId={currentUserId}
+            loading={loading}
+            currentPage={currentPage}
+            totalPages={pagination?.totalPages ?? 1}
+            onPreviousPage={handlePreviousPage}
+            onNextPage={handleNextPage}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onToggleSort={toggleSort}
+            hasActiveSearch={hasActiveSearch}
+          />
+        </AccountListContainer>
       )}
-
-      <AccountListContainer>
-        <Table>
-          <TableHeader>
-            <TableRow className={accountTableHeadRowClass}>
-              <TableHead className={accountTableHeadClass}>{t('id')}</TableHead>
-              <TableHead className={accountTableHeadClass}>{t('resourceType')}</TableHead>
-              <TableHead className={accountTableHeadClass}>{t('quoteId')}</TableHead>
-              <TableHead className={accountTableHeadClass}>{t('orderId')}</TableHead>
-              <TableHead className={accountTableHeadClass}>{t('action')}</TableHead>
-              <TableHead className={accountTableHeadClass}>{t('requestor')}</TableHead>
-              <TableHead className={accountTableHeadClass}>{t('approver')}</TableHead>
-              <TableHead className={accountTableHeadClass}>{t('createdAt')}</TableHead>
-              <TableHead className={cn(accountTableHeadClass, 'w-[160px]')}>{t('products')}</TableHead>
-              <TableHead className={accountTableBadgeHeadClass}>{t('status')}</TableHead>
-              <TableHead className={cn(accountTableHeadClass, 'w-[160px] text-center')}>{t('actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visibleApprovals.map((approval, index) => {
-              const href = getApprovalHref(approval, currentUserId);
-              const expanded = expandedId === approval.id;
-
-              return (
-                <Fragment key={approval.id}>
-                  <TableRow
-                    className={accountTableRowClass(index, { clickable: true })}
-                    onClick={() => router.push(href)}
-                  >
-                    <TableCell className="px-2 py-4 font-medium">
-                      <span title={approval.id}>
-                        <UiLink type="Link" href={href} variant="primary">
-                          {shortenId(approval.id)}
-                        </UiLink>
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-2 py-4">{approval.resourceType}</TableCell>
-                    <TableCell className="px-2 py-4">
-                      {approval.resourceType === 'QUOTE' ? (
-                        <span title={approval.resource.id}>
-                          <UiLink type="Link" href={`/account/quotes/${approval.resource.id}`} variant="primary">
-                            {shortenId(approval.resource.id)}
-                          </UiLink>
-                        </span>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell className="px-2 py-4">
-                      {approval.resource.orderId ? (
-                        <span title={approval.resource.orderId}>
-                          <UiLink type="Link" href={`/account/orders/${approval.resource.orderId}`} variant="text">
-                            {shortenId(approval.resource.orderId)}
-                          </UiLink>
-                        </span>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell className="px-2 py-4">{tAction(approval.action)}</TableCell>
-                    <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
-                    <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
-                    <TableCell className="px-2 py-4">{formatDate(approval.createdAt)}</TableCell>
-                    <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
-                      <AccountProductThumbnails
-                        items={(approval.resource.items ?? []).map((item) => ({
-                          imageUrl: item.productId ? productImages[item.productId] : undefined,
-                          name: l10n(item.productName, locale),
-                        }))}
-                        onToggle={() => setExpandedId(expanded ? null : approval.id)}
-                        expanded={expanded}
-                        toggleLabel={t('products')}
-                      />
-                    </TableCell>
-                    <TableCell className={accountTableBadgeCellClass}>
-                      <ApprovalStatusBadge status={approval.status} />
-                    </TableCell>
-                    <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
-                      <Button
-                        variant="neutral"
-                        size="icon"
-                        title={t('view')}
-                        aria-label={t('view')}
-                        onClick={() => router.push(href)}
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  {expanded ? (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={11} className="border-t border-border-primary p-0">
-                        <AccountProductLines
-                          lines={(approval.resource.items ?? []).map((item, itemIndex) => ({
-                            id: item.productId ?? item.itemId ?? String(itemIndex),
-                            imageUrl: item.productId ? productImages[item.productId] : undefined,
-                            name: l10n(item.productName, locale),
-                            quantity: item.quantity,
-                            unitPrice: item.itemPrice?.amount,
-                            currency: item.itemPrice?.currency,
-                          }))}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </Fragment>
-              );
-            })}
-          </TableBody>
-        </Table>
-
-        <TablePagination
-          className="px-3"
-          currentPage={safeCurrentPage}
-          totalPages={totalPages}
-          pageIndicator={t('pageIndicator', { current: safeCurrentPage, total: totalPages })}
-          previousLabel={t('previous')}
-          nextLabel={t('next')}
-          onPreviousPage={() => setCurrentPage((p) => Math.max(1, Math.min(p, totalPages) - 1))}
-          onNextPage={() => setCurrentPage((p) => Math.min(totalPages, Math.min(p, totalPages) + 1))}
-        />
-      </AccountListContainer>
     </div>
   );
 }

@@ -1,3 +1,6 @@
+// Relative import: jest.config.js requires this file via ts-node before path
+// aliases / Next module graphs are available.
+import { getStoryblokEnv } from '../../lib/common/cms-dual-env';
 import type { EnvVarDefinition, HealthcheckItem, HealthcheckResult } from './types';
 
 /**
@@ -33,6 +36,17 @@ export const REQUIRED_ENV_VARS: ReadonlyArray<EnvVarDefinition> = [
 export const OPTIONAL_ENV_VARS: ReadonlyArray<EnvVarDefinition> = [
   { key: 'NEXT_EMPORIX_CLIENT_ID', severity: 'warning', description: 'Emporix server-side client ID' },
   { key: 'NEXT_EMPORIX_CLIENT_SECRET', severity: 'warning', description: 'Emporix server-side client secret' },
+  {
+    key: 'NEXT_STORYBLOK_ACCESS_TOKEN',
+    severity: 'warning',
+    description:
+      'Storyblok CMS access token (without it the CMS adapter falls back to "none"; legacy NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN is also accepted)',
+  },
+  {
+    key: 'NEXT_CMS_WEBHOOK_SECRET',
+    severity: 'warning',
+    description: 'CMS webhook HMAC secret — webhooks are disabled (503) without it',
+  },
 ];
 
 /**
@@ -47,7 +61,7 @@ export function validateEnvVars(): HealthcheckResult {
   const allVars: ReadonlyArray<EnvVarDefinition> = [...REQUIRED_ENV_VARS, ...OPTIONAL_ENV_VARS];
 
   const items: HealthcheckItem[] = allVars.map((def) => {
-    const value = process.env[def.key];
+    const value = def.key === 'NEXT_STORYBLOK_ACCESS_TOKEN' ? getStoryblokEnv('ACCESS_TOKEN') : process.env[def.key];
     const present = value !== undefined && value.trim() !== '';
     return {
       name: def.key,

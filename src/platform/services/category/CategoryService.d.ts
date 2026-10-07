@@ -1,5 +1,12 @@
+import type { Category } from '../model/category';
+
 export interface CategoryService {
   getCategoryById(id: string): Promise<Category | null>;
+
+  /**
+   * Batch fetch by id (Emporix: one GET /categories with q=id:(…)).
+   */
+  getCategoriesByIds(ids: string[], options?: { showRoots?: boolean; showUnpublished?: boolean }): Promise<Category[]>;
 
   getCategoryBySlug(slug: string): Promise<Category | null>;
 
@@ -28,32 +35,23 @@ export interface CategoryService {
   getCategoryTree(categoryId: string, showUnpublished?: boolean): Promise<Category | null>;
 
   /**
-   * Retrieve all category trees for the tenant.
-   * Each returned Category already has its children populated recursively.
+   * Category trees for storefront navigation (catalog roots for site → GET /category-trees).
    */
-  getCategoryTrees(): Promise<Category[]>;
+  getNavigationCategoryTrees(siteCode: string, showUnpublished?: boolean): Promise<Category[]>;
 
   /**
-   * Retrieve category trees scoped to a specific site.
-   * Fetches the site's catalogs to determine root category IDs, then returns
-   * only the trees whose root IDs are published for that site.
-   * @param siteCode The site code (e.g. "main", "showcasedemo")
+   * Number of **products** assigned to a category, including subcategories by default.
+   *
+   * Uses `GET /category/{tenant}/categories/{categoryId}/assignments` with `X-Total-Count: true`
+   * (see {@link https://developer.emporix.io/api-references/.../category-assignment-resources}).
+   *
+   * Returns `0` on upstream failure so UI callers can treat the count as best-effort.
    */
-  getCategoryTreesForSite(siteCode: string): Promise<Category[]>;
-
-  /**
-   * Get the product IDs assigned to a category.
-   * @param categoryId The category ID
-   * @param options Pagination options
-   * @returns The product IDs and total count
-   */
-  getProductIdsForCategory(
+  getProductCountForCategory(
     categoryId: string,
-    options?: { page?: number; pageSize?: number; withSubcategories?: boolean; segmentsIds?: string },
-  ): Promise<{ ids: string[]; total: number; page: number; pageSize: number }>;
-
-  /**
-   * Returns the root category IDs published for a site (from its catalogs).
-   */
-  getSiteRootCategoryIds(siteCode: string): Promise<Set<string>>;
+    options?: {
+      withSubcategories?: boolean;
+      hideUnpublishedProducts?: boolean;
+    },
+  ): Promise<number>;
 }

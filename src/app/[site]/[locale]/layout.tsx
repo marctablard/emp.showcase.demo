@@ -5,23 +5,27 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Open_Sans, Ubuntu } from 'next/font/google';
 import { headers } from 'next/headers';
-import { notFound } from 'next/navigation';
+import { redirect as nextRedirect, notFound } from 'next/navigation';
 import '@/app/globals.css';
 import { AssistedBuyingHandler } from '@/components/auth/AssistedBuyingHandler';
 import { CsrfProvider } from '@/components/csrf/CsrfProvider';
 import { ApiDebugPanel } from '@/components/debug/ApiDebugPanel';
 import { CurrencyFallbackToastBus } from '@/components/header/switcher/currency-fallback-toast-bus';
 import { Notification } from '@/components/notification/notification';
+import { SiteThemeStyle } from '@/components/theme/site-theme-style';
 import { Toaster } from '@/components/ui/sonner';
-import { redirect } from '@/i18n/edge/navigation';
+import { getPathname, redirect } from '@/i18n/edge/navigation';
 import { routing } from '@/i18n/routing';
 import { isBrowserDebugOutputEnabled, isDebugApiEnabled } from '@/lib/common/debug-env';
+import { appendLocaleAlignParam } from '@/lib/common/locale-cookie';
 import { getSessionForSite, setSessionLanguage } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
+import { getCmsService } from '@/platform/services/cms/get-cms-service';
+import { CurrencyCookieAligner } from '@/providers/CurrencyCookieAligner';
+import { CurrencyUrlAligner } from '@/providers/CurrencyUrlAligner';
 import SiteProvider from '@/providers/SiteProvider';
 import { SiteSessionAligner } from '@/providers/SiteSessionAligner';
 import { StoreProvider } from '@/providers/StoreProvider';
-import { StoryblokProvider } from '@/providers/StoryblokProvider';
 import { setRequestSite } from '@/site/server/';
 import { INTERNAL_APP_PATH_HEADER } from '@/site/types';
 
@@ -132,7 +136,8 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
     const pathWithoutLocale = stripLocalePrefix(appPath, locale);
     const targetHref = pathWithoutLocale ? `/${pathWithoutLocale}` : '/';
 
-    return redirect({ href: targetHref, locale: newLocale, site: siteCode, forcePrefix: true });
+    const path = getPathname({ href: targetHref, locale: newLocale, site: siteCode, forcePrefix: true });
+    nextRedirect(appendLocaleAlignParam(path, newLocale));
   }
   // TODO: we need to figure out why getRequestSite
   // doesn't return the correct value in child layouts
@@ -140,27 +145,34 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
   setRequestSite(siteCode);
   setRequestLocale(locale);
 
+  // Provider-side editing bridge (e.g. Storyblok Visual Editor). The active
+  // CmsAdapter exposes it via the CMSService facade; `null` when the adapter
+  // has no bridge (local-JSON / none), so it is mounted conditionally.
+  const CmsBridgeScript = (await getCmsService()).BridgeScript;
+
   return (
     <html
       lang={locale}
       className={`${fontHeadlines.variable} ${fontBody.variable} ${fontHeadlines.className} ${fontBody.className}`}
     >
       <body className="flex h-full flex-col font-body has-[.search]:overflow-hidden">
+        <SiteThemeStyle siteCode={siteCode} />
         <AuthSessionProvider>
           <SiteProvider siteCode={siteCode}>
             <NextIntlClientProvider locale={locale}>
               <StoreProvider shopSession={shopSession} site={site} availableSites={availableSites}>
-                <StoryblokProvider>
-                  <CsrfProvider />
-                  <AssistedBuyingHandler />
-                  <SiteSessionAligner />
-                  {isDebugApiEnabled() && isBrowserDebugOutputEnabled() && <ApiDebugPanel />}
-                  {children}
-                  {dialog}
-                  <Toaster />
-                  <CurrencyFallbackToastBus />
-                  <Notification />
-                </StoryblokProvider>
+                {CmsBridgeScript && <CmsBridgeScript />}
+                <CsrfProvider />
+                <AssistedBuyingHandler />
+                <SiteSessionAligner />
+                <CurrencyUrlAligner />
+                <CurrencyCookieAligner />
+                {isDebugApiEnabled() && isBrowserDebugOutputEnabled() && <ApiDebugPanel />}
+                {children}
+                {dialog}
+                <Toaster />
+                <CurrencyFallbackToastBus />
+                <Notification />
               </StoreProvider>
             </NextIntlClientProvider>
           </SiteProvider>

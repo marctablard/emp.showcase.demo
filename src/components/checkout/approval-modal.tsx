@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Avatar } from '@/components/ui/avatar';
+import { ApproverSelectList } from '@/components/approval/approver-select-list';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,7 @@ interface ApprovalModalProps {
 export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit }: ApprovalModalProps) {
   const t = useTranslations('checkout.approval');
   const { toast } = useToast();
+  const commentRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { approvers, loading, error, refetch } = useApproverSearch({
     resourceType: resourceContext.resourceType,
@@ -35,8 +36,23 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSelectApprover = (approver: ApprovalUser) => {
-    setSelectedApprover(approver);
+  const resetAndClose = () => {
+    setSelectedApprover(null);
+    setComment('');
+    onClose();
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetAndClose();
+    }
+  };
+
+  const handleSelectApprover = (userId: string) => {
+    const approver = approvers?.find((candidate) => candidate.userId === userId);
+    if (approver) {
+      setSelectedApprover(approver);
+    }
   };
 
   const handleSubmit = async () => {
@@ -52,7 +68,7 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
     setIsSubmitting(true);
     try {
       await approvalSubmit(selectedApprover.userId, comment);
-      onClose();
+      resetAndClose();
     } catch (error) {
       getLogger().error({ err: error }, 'Error creating approval request');
       toast({
@@ -72,39 +88,28 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
   }, [isOpen, resourceContext.resourceId, refetch, loading, approvers, error]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="sm:max-w-[500px]"
+        data-testid="approval-dialog"
+        closeTestId="approval-closeButton"
+        aria-describedby={undefined}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          commentRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{t('selectApprover')}</DialogTitle>
         </DialogHeader>
 
         {approvers && approvers.length > 0 && (
-          <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-md p-2">
-            {approvers.map((approver) => (
-              <div
-                key={approver.userId}
-                className={`flex items-center p-2 rounded-md cursor-pointer ${
-                  selectedApprover?.userId === approver.userId
-                    ? 'bg-surface-action-hover-2'
-                    : 'hover:bg-surface-disabled'
-                }`}
-                onClick={() => handleSelectApprover(approver)}
-                data-testid={`approval-approver-${approver.userId}`}
-              >
-                <Avatar className="h-8 w-8 mr-2">
-                  <div className="bg-surface-action text-text-on-action rounded-full h-full w-full flex items-center justify-center">
-                    {approver.firstName?.charAt(0) || approver.lastName?.charAt(0) || 'U'}
-                  </div>
-                </Avatar>
-                <div>
-                  <p className="font-medium">
-                    {approver.firstName} {approver.lastName}
-                  </p>
-                  <p className="text-sm text-text-placeholders">{approver.fullName}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ApproverSelectList
+            approvers={approvers}
+            selectedUserId={selectedApprover?.userId ?? null}
+            onSelect={handleSelectApprover}
+            testIdPrefix="approval-approver"
+          />
         )}
 
         {loading && (
@@ -120,7 +125,7 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
         {!loading && error && (
           <div className="text-center py-4 space-y-2">
             <p className="text-sm text-text-error">{t('errorFetchingApproversDescription')}</p>
-            <Button variant="secondary" size="small" onClick={() => refetch()}>
+            <Button variant="secondary" size="small" onClick={() => refetch()} data-testid="approval-retryButton">
               {t('retry')}
             </Button>
           </div>
@@ -129,20 +134,29 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
         <div className="space-y-2">
           <Label htmlFor="approval-comment">{t('comment')}</Label>
           <Textarea
+            ref={commentRef}
             id="approval-comment"
             placeholder={t('commentPlaceholder')}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={3}
+            maxLength={500}
             data-testid="approval-comment"
           />
         </div>
 
-        <DialogFooter>
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting} data-testid="approval-cancelButton">
+        <DialogFooter className="sm:justify-between">
+          <Button
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={resetAndClose}
+            disabled={isSubmitting}
+            data-testid="approval-cancelButton"
+          >
             {t('cancel')}
           </Button>
           <Button
+            className="w-full sm:w-auto"
             onClick={handleSubmit}
             disabled={!selectedApprover || isSubmitting}
             data-testid="approval-submitButton"

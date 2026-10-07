@@ -10,7 +10,7 @@ This document consolidates how to run, build, and deploy the Emporix Showcase ap
 - DI container generation (Inversify) required for builds.
 
 ## Prerequisites
-- Node.js 20+ (recommended by README).
+- Node.js 22.x or 24.x (matches the `engines` field in `package.json`).
 - npm (or yarn).
 - Access to Emporix Developer Portal for API keys (see links below).
 - Optional: Storyblok account and space (if using CMS in production).
@@ -131,9 +131,100 @@ Integration tests are gated and will only run when:
   - `NEXT_EMPORIX_TEST_TENANT`
   - `NEXT_EMPORIX_TEST_CLIENT_ID`
   - `NEXT_EMPORIX_TEST_CLIENT_SECRET`
-- BatteryIncluded integration envs are set:
-  - `NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY`
-  - `NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION`
+
+BatteryIncluded search runtime credentials are not taken from storefront env vars. The server resolves BI `searchKey` and `indexName` from Emporix indexing provider `BATTERY_INCLUDED`, while `NEXT_PUBLIC_BATTERY_INCLUDED_BASE_URL` remains the BI API base URL.
+
+## Local Clean-Install Parity Check (CI Dependency Parity)
+
+`npm run jest` never reinstalls dependencies, so it cannot catch a broken lockfile, a dependency blocked by Aikido safe-chain (malware or safe-chain's own minimum package release-age policy), or a newly-disclosed high severity advisory. Validate that in isolation with:
+
+```bash
+npm run verify:ci-install
+```
+
+This runs [`scripts/verify-safe-chain-install.sh`](../scripts/verify-safe-chain-install.sh), which mirrors the dependency-install step used in `.github/workflows/*.yaml`:
+
+1. Copies `package.json`, `package-lock.json`, and `.npmrc` into a disposable temp directory — your real `node_modules` is untouched.
+2. Runs `safe-chain setup-ci` there first, then `npm ci --ignore-scripts` via `npx`, using the project's pinned npm version (`packageManager` in `package.json`) and safe-chain installed on-demand via `npx` only (never as a project/global dependency), matching CI's setup sequence while still enforcing safe-chain protections.
+3. Runs `npm audit --audit-level=high` against the resulting lockfile.
+
+This repo does not set npm's own `min-release-age` (see `.npmrc`); safe-chain still enforces its own, independently-controlled minimum release-age policy on top of malware blocking, both here and in CI. A freshly published dependency bump can therefore still be held back by safe-chain for a period after release even though plain `npm install` would resolve it — that is safe-chain working as intended, not a bug in this script or a reason to weaken it. A pass here only confirms today's lockfile clears safe-chain's policies and the audit; it is not a guarantee that a future bump of the same package will.
+
+Scripts are skipped only because the disposable directory has no `.git` (the `prepare`/husky script requires one); it does not affect dependency resolution or the safe-chain/audit checks, but it does mean this check validates clean resolution, supply-chain policy, and audit only — it is not full lifecycle-script parity with CI, since CI's real `npm ci` runs install scripts and this one intentionally does not. Run this after any `package.json`/`package-lock.json` change, and never weaken it (lower `--audit-level`, skip safe-chain, or pin an old safe-chain release) to force a pass — a failure here means a real dependency issue that must be fixed or explicitly, visibly accepted.
+
+### Preview-Only Safe-Chain Minimum-Package-Age Override
+
+Two separate skips exist. Neither is a general safe-chain bypass.
+
+**1. App lockfile (`npm ci`)** — standing preview exception, matching `npm run verify:ci-install:preview-override` (`SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1`):
+
+- PR preview and develop preview always: `npm ci --safe-chain-skip-minimum-package-age`
+- `smoke_prod` **only** when `github.event_name == pull_request`
+- Production deploy (`github-actions-deploy-prod.yaml`) and non-PR smoke (`push` to `feature/**`, `workflow_dispatch`) keep plain `npm ci` with the full lockfile age gate
+
+**2. Vercel CLI (`npm i -g vercel`)** — CLI-only exception, not the app lockfile:
+
+- PR preview, develop preview, and `smoke_prod` (all events) skip age for the Vercel CLI install because that CLI currently pulls a too-new `@napi-rs/wasm-runtime`
+- Production deploy does **not** pass this flag on `npm i -g vercel`
+
+Scope of both skips — read carefully:
+- They skip **only** safe-chain's minimum-package-age check.
+- `safe-chain setup-ci` still runs first, and every other safe-chain protection (malware/dependency-confusion blocking) stays fully enforced.
+- After `npm ci`, PR preview and `smoke_prod` run `npm audit --audit-level=high` through `scripts/verify-audit-policy.mjs`; develop preview runs the same `npm audit --audit-level=high` command directly. The age skip does not weaken that audit.
+- The install step is a normal, non-`continue-on-error` step: any other install failure (network, integrity, malware block, unresolved dependency, etc.) still fails the job exactly as before.
+
+This is a **standing preview-lane exception**, not a one-package time-box: preview/PR may install freshly published lockfile versions; production deploy must still wait for safe-chain's age window. Do not copy the `npm ci` skip onto production deploy.
+
+To reproduce the preview lockfile install locally:
+
+```bash
+npm run verify:ci-install:preview-override
+```
+
+which is equivalent to `SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install` and only ever skips the minimum-package-age gate — never the malware checks or the audit step.
+
+### npm audit Policy Exceptions
+
+The **Run npm audit** steps of `.github/workflows/github-actions-deploy-pr-preview.yaml` and `.github/workflows/github-actions-smoke-prod.yaml` still run the real, unmodified `npm audit --audit-level=high` — the audit level is never lowered, dev dependencies are never omitted, and `audit fix --force` is never used. What changed is how those steps decide pass/fail: instead of relying on `npm audit`'s own exit code, they capture its JSON report and pass it to [`scripts/verify-audit-policy.mjs`](../scripts/verify-audit-policy.mjs), which re-derives the pass/fail decision from the report content:
+
+```yaml
+- name: Run npm audit
+  run: |
+    npm audit --audit-level=high --json > audit-report.json || true
+    node scripts/verify-audit-policy.mjs audit-report.json
+```
+
+`ALLOWED_EXCEPTIONS` currently holds a short-lived set (expires **2026-10-12**) for Next.js (`GHSA-p293-qw3h-jr36`, `GHSA-2xp9-vwfh-vxw4`), `sharp` (`GHSA-rgj7-g3m4-5g8c`), `js-yaml` (`GHSA-2883-xcg3-v3hh`), and `@tiptap/core` (`GHSA-j95f-988m-3j2f`). A hand-rewritten patched lockfile OOMed `npm ci` on GitHub runners, so the last installable lockfile stays in place until a generated lockfile can be committed. Do not extend `expires` without that lockfile.
+
+High/critical `browserslist` advisories [`GHSA-c83g-rgw3-j3cx`](https://github.com/advisories/GHSA-c83g-rgw3-j3cx) and [`GHSA-73wf-gq98-2v4g`](https://github.com/advisories/GHSA-73wf-gq98-2v4g) are fixed by pinning the patched `4.28.8` release via `overrides` in `package.json` (same pattern as `brace-expansion`). Do not add those GHSAs to `ALLOWED_EXCEPTIONS`. `browserslist@4.28.8` also pulls a too-new `electron-to-chromium` that safe-chain's minimum-package-age gate rejects on workflows that still run unmodified `npm ci` (production deploy, non-PR smoke, other branch deploys). Pin `electron-to-chromium` to the previously settled `1.5.389` until a newer release has aged in; then drop that override.
+
+High/critical Next.js ([`GHSA-p293-qw3h-jr36`](https://github.com/advisories/GHSA-p293-qw3h-jr36), [`GHSA-2xp9-vwfh-vxw4`](https://github.com/advisories/GHSA-2xp9-vwfh-vxw4)), `sharp` ([`GHSA-rgj7-g3m4-5g8c`](https://github.com/advisories/GHSA-rgj7-g3m4-5g8c)), `js-yaml` ([`GHSA-2883-xcg3-v3hh`](https://github.com/advisories/GHSA-2883-xcg3-v3hh)), and `@tiptap/core` ([`GHSA-j95f-988m-3j2f`](https://github.com/advisories/GHSA-j95f-988m-3j2f)) advisories are temporarily excepted as above. Do not add a single-package `@tiptap/core` override (it breaks `@tiptap/pm` / extension peers). Remove the exceptions as soon as a generated lockfile with the patched releases installs under `npm ci`.
+
+The mechanism exists to allow narrowly-scoped, time-boxed exceptions when a fix genuinely is not yet available, while keeping every other failure mode fatal. The active allowlist is the 2026-10-12 Next.js / `sharp` / `js-yaml` / `@tiptap/core` set above. The separately resolved historical `brace-expansion` entry is no longer in `ALLOWED_EXCEPTIONS`:
+
+- **Advisory:** [`GHSA-mh99-v99m-4gvg`](https://github.com/advisories/GHSA-mh99-v99m-4gvg) — `brace-expansion` DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively through `minimatch` by the ESLint and Jest toolchains.
+- **Resolved:** upstream published fixed patch releases, so the advisory is fixed **without** the semver-major `eslint`/`jest` bump the exception was originally taken for. Later high advisories [`GHSA-qhr7-859c-m2p7`](https://github.com/advisories/GHSA-qhr7-859c-m2p7) and [`GHSA-6j4f-fj2g-mc7p`](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p) are fixed the same way. `overrides` pin `1.1.21`, `2.1.7`, `3.0.9`, and `5.0.12` (and map `^4.0.0` onto `5.0.12`, the first patched release for that line) for [`GHSA-q2hr-2g5m-vwhr`](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr). Do not add those GHSAs to `ALLOWED_EXCEPTIONS`. The original entry was removed from `ALLOWED_EXCEPTIONS` per its own removal condition, ahead of its 2026-08-08 expiry.
+- **Scope note:** `ALLOWED_EXCEPTIONS` is module-level in `scripts/verify-audit-policy.mjs`, so any future entry is honored by **every** workflow that runs that script: today PR preview and `smoke_prod`. Do not add an exception unless it is acceptable on both. Develop preview, production deploy, and the other named-env deploys run plain `npm audit --audit-level=high` with no allowlist. That asymmetry is why a tolerated advisory can be green on those script-backed jobs and still red on a branch/prod deploy — an exception buys time only where `verify-audit-policy.mjs` is the gate.
+
+If a new exception ever becomes necessary, it MUST carry an explicit short-lived `expires` date, a written rationale, and `securitySignOff` (`ticket` + `recordedIn`). `recordedIn` must be an Atlassian browse URL (`https://….atlassian.net/browse/TICKET-123`), not a GitHub PR or free-text note. Do not add an unsigned exception. Remove the entry as soon as a real fix lands.
+
+The current 2026-10-12 set is recorded on [COP-5589](https://emporix.atlassian.net/browse/COP-5589) as a CI-gate-only relaxation (no runtime dependency versions changed). Independent security sign-off on that ticket is still required before merge.
+
+`scripts/verify-audit-policy.mjs` is deliberately strict about everything else:
+
+- Any high/critical advisory **not** in `ALLOWED_EXCEPTIONS` fails CI.
+- A missing, empty, unparsable, or unexpectedly-shaped audit report (e.g. a registry/network error instead of a real report) fails CI.
+- Trailing npm/safe-chain notices after the first JSON object are ignored so a valid report is not rejected as malformed. The first object must still be a real audit report.
+- It is robust to the two shapes `npm audit --json` uses inside each vulnerability's `via` array: a plain dependency-name string (transitive propagation through an already-reported package) versus an advisory object (an actual disclosed vulnerability, carrying its own `severity`/`url`/`title`). Only advisory objects are checked against the allowlist.
+- Clock override (`--as-of=YYYY-MM-DD`) and the fixture allowlist (`--exceptions-json=...`) are accepted only under Jest (`JEST_WORKER_ID`). CI always uses the real UTC date and production `ALLOWED_EXCEPTIONS` so an expired exception cannot be backdated and tests cannot inject a fake allowlist.
+
+To reproduce this exact CI check locally:
+
+```bash
+npm run verify:audit-policy
+```
+
+Do not weaken this mechanism to force a pass — do not add entries to `ALLOWED_EXCEPTIONS` without an expiry and a reviewed rationale, do not remove or extend the expiry check, do not add `continue-on-error` to the step, and do not lower `--audit-level` or add `--omit=dev`. A failure here means either a new high/critical advisory that must be triaged, or an exception has expired and needs a real fix or an explicit, reviewed renewal.
 
 ## Deployment (Vercel + GitHub Actions)
 Deployment is automated using Vercel and GitHub Actions.
@@ -173,9 +264,9 @@ The `/api/ready` endpoint fails if any of these are missing:
 
 ### Optional but common
 - Storyblok
-  - `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN`
-  - `NEXT_PUBLIC_STORYBLOK_MULTI_SITE`
-  - `NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW`
+  - `NEXT_STORYBLOK_ACCESS_TOKEN`
+  - `NEXT_STORYBLOK_MULTI_SITE`
+  - `NEXT_STORYBLOK_ACCESS_PREVIEW`
 - SSO
   - `NEXT_SSO_PASSWORD_SECRET`
   - Provider credentials (e.g. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
@@ -205,11 +296,11 @@ Steps:
    - Emporix API (for `NEXT_EMPORIX_CLIENT_ID` + `NEXT_EMPORIX_CLIENT_SECRET`)
 
 ## Storyblok setup (optional CMS)
-- Set `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN` in `.env`.
+- Set `NEXT_STORYBLOK_ACCESS_TOKEN` in `.env`.
 - For Visual Editor local use, run `npm run dev:https` (HTTPS required).
 - Ensure your Storyblok space allows the dev/deployed domain.
 
-See `docs/storyblok-integration.md` and `docs/local-cms.md`.
+See `docs/cms-framework.md` and `docs/local-cms.md`.
 
 ## Health checks (important for hosting)
 - Liveness: `/api/health`
@@ -288,7 +379,7 @@ Q: Does Vercel need a custom build command?
 A: The repo uses `npm run build`, which runs DI generation + Next.js build + lint.
 
 Q: How to debug a failed deploy?
-A: Check GitHub Actions logs (build/test) and Vercel deployment logs. Common issues are missing env vars or invalid Emporix credentials.
+A: Check GitHub Actions logs (build/test) and Vercel deployment logs. Common issues are missing env vars or invalid Emporix credentials. Ignore `npm warn deprecated …` during install — those are transitive notices and do not fail the job. Ignore `.git can't be found` from an older `prepare`/`husky` run: Vercel has no git worktree; `scripts/prepare-husky.cjs` skips husky when `.git` is absent. A real Vercel failure after `next build` that says `verify-client-chunks: missing …/.next/static/chunks` means the Next 16.3 immutable-assets layout (`.next/static/immutable/chunks`) was not scanned — that script now checks both paths.
 
 ## Troubleshooting checklist (common questions)
 - App fails on startup: verify required envs and `.env` present.
@@ -303,6 +394,13 @@ A: Check GitHub Actions logs (build/test) and Vercel deployment logs. Common iss
 - `docs/environment-variables.md`
 - `docs/deployment-process.md`
 - `docs/health-checks.md`
-- `docs/storyblok-integration.md`
+- `docs/cms-framework.md`
 - `docs/sso-authentication.md`
 - `docs/site-middleware.md`
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Environment Variables](./environment-variables.md)
+- [Deployment Process](./deployment-process.md)
+- [Health Checks](./health-checks.md)

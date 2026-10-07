@@ -1,4 +1,4 @@
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { create } from 'zustand/react';
 
@@ -27,6 +27,14 @@ const defaultState: ComparisonState = {
 
 export const createComparisonStore = (initState?: ComparisonState, storageKey?: string) => {
   const name = storageKey || process.env.NEXT_PUBLIC_COMPARISON_STORAGE_NAME || 'comparison-storage';
+  const persistOptions = {
+    name,
+    ...(typeof globalThis !== 'undefined' && globalThis.localStorage
+      ? {
+          storage: createJSONStorage(() => globalThis.localStorage),
+        }
+      : {}),
+  };
 
   return create<ComparisonStore>()(
     persist(
@@ -58,9 +66,7 @@ export const createComparisonStore = (initState?: ComparisonState, storageKey?: 
           }),
         getCount: (): number => get().productIds.length,
       })),
-      {
-        name,
-      },
+      persistOptions,
     ),
   );
 };

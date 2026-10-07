@@ -1,136 +1,238 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
-import type { MenuItem, SubMenuItem } from '@/data/navigation-menu';
-import { navigationMenuItems } from '@/data/navigation-menu';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
+import type { SubMenuItem } from '@/data/navigation-menu';
+import { ALL_PRODUCTS_NAVIGATION_ITEM_ID, navigationMenuItems } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
+import { mergeNavigationProductSubmenu } from '@/lib/navigation/merge-navigation-product-submenu';
+import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
+import { takeRootCategoryPage } from '@/lib/navigation/take-root-category-page';
+import { cn } from '@/lib/utils';
 
-interface NavStackEntry {
-  label: string;
-  href?: string;
+interface TabletDrillLevel {
+  /** Section title for “All from {name}” and browse link target label context */
+  allFromSectionName: string;
+  allFromHref: string;
   items: SubMenuItem[];
+  topMenuId?: string;
+  /** Parent category PLP when the child list is truncated (see all). */
+  categorySeeAllHref?: string;
 }
 
-interface TabletMenuFlyoutProps {
-  menuItems?: MenuItem[];
+function subMenuItemKey(item: SubMenuItem, index: number): string {
+  return item.id ?? `${item.href}::${item.label}::${index}`;
 }
 
-export function TabletMenuFlyout({ menuItems: menuItemsProp = navigationMenuItems }: TabletMenuFlyoutProps) {
+const mainNavRowClass = 'flex min-h-11 min-w-0 flex-1 items-center py-3 text-start text-lg text-text-body';
+
+export interface TabletMenuFlyoutProps {
+  onRequestClose?: () => void;
+}
+
+export function TabletMenuFlyout({ onRequestClose }: TabletMenuFlyoutProps) {
   const t = useTranslations('layout.header');
+  const { submenuItems: productCategorySubmenu, showSeeAllBrowse } = useNavigationProductSubmenu();
 
-  const menuItems = menuItemsProp.map((item) => ({
-    ...item,
-    label: t(item.labelKey as any),
-  }));
+  const menuItems = navigationMenuItems.map((item) => {
+    const merged = mergeNavigationProductSubmenu(item, productCategorySubmenu);
+    return {
+      ...merged,
+      label: t(item.labelKey as any),
+    };
+  });
 
-  const [navStack, setNavStack] = useState<NavStackEntry[]>([]);
+  const [drillStack, setDrillStack] = useState<TabletDrillLevel[]>([]);
 
-  const currentItems = navStack.length > 0 ? navStack[navStack.length - 1].items : null;
-  const currentEntry = navStack.length > 0 ? navStack[navStack.length - 1] : null;
+  const isDrilldown = drillStack.length > 0;
+  const currentLevel = isDrilldown ? drillStack[drillStack.length - 1] : null;
 
-  const openSubmenu = (label: string, href: string | undefined, items: SubMenuItem[]) => {
-    setNavStack((prev) => [...prev, { label, href, items }]);
-  };
-
-  const handleTopLevelDrill = (item: (typeof menuItems)[0]) => {
-    if (item.hasSubmenu && item.submenuItems) {
-      openSubmenu(item.label, item.href, item.submenuItems);
+  const topLevelBrowseHref = useCallback((item: (typeof menuItems)[0]): string => {
+    if (item.href) {
+      return item.href;
     }
-  };
-
-  const handleSubmenuDrill = (item: SubMenuItem) => {
-    if (item.hasSubmenu && item.submenuItems) {
-      openSubmenu(item.label, item.href, item.submenuItems);
+    if (item.id === ALL_PRODUCTS_NAVIGATION_ITEM_ID) {
+      return '/browse';
     }
-  };
+    return '/browse';
+  }, []);
 
-  const handleBack = () => {
-    setNavStack((prev) => prev.slice(0, -1));
-  };
+  const openTopLevel = useCallback(
+    (item: (typeof menuItems)[0]) => {
+      if (!item.hasSubmenu || !(item.submenuItems?.length ?? 0)) {
+        return;
+      }
+      setDrillStack([
+        {
+          allFromSectionName: item.label,
+          allFromHref: topLevelBrowseHref(item),
+          items: item.submenuItems ?? [],
+          topMenuId: item.id,
+        },
+      ]);
+    },
+    [topLevelBrowseHref],
+  );
+
+  const openNested = useCallback((item: SubMenuItem) => {
+    if (!item.hasSubmenu || !(item.submenuItems?.length ?? 0)) {
+      return;
+    }
+    setDrillStack((s) => [
+      ...s,
+      {
+        allFromSectionName: item.label,
+        allFromHref: item.href,
+        items: item.submenuItems ?? [],
+        topMenuId: s[0]?.topMenuId,
+        categorySeeAllHref: item.href,
+      },
+    ]);
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setDrillStack((s) => s.slice(0, -1));
+  }, []);
+
+  const categoryPreviewCount = getNavigationRootCategoriesPageSize();
+  const { visible: drillVisibleItems, truncated: drillTruncated } = takeRootCategoryPage(
+    currentLevel?.items ?? [],
+    categoryPreviewCount,
+  );
+  const tabletSeeAllHref =
+    drillTruncated && currentLevel?.categorySeeAllHref ? currentLevel.categorySeeAllHref : '/browse';
+  const showTabletSeeAll =
+    (currentLevel?.topMenuId === ALL_PRODUCTS_NAVIGATION_ITEM_ID && showSeeAllBrowse) ||
+    (drillTruncated && !!currentLevel?.categorySeeAllHref);
+
+  const closeAfterNavigate = useCallback(() => {
+    onRequestClose?.();
+  }, [onRequestClose]);
 
   return (
     <div className="backdrop-active mt-6 mb-4">
-      {navStack.length === 0 ? (
-        <ul>
-          {menuItems.map((item) => (
-            <li key={item.id}>
-              {item.hasSubmenu ? (
-                <>
-                  <div className="flex items-center justify-between py-4 text-lg">
-                    {item.href ? (
-                      <Link href={item.href} className="flex-1">
+      {!isDrilldown ? (
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-2">
+            <ul className="flex min-w-0 flex-1 flex-col">
+              {menuItems.map((item) => {
+                const hasSubmenu = item.hasSubmenu && (item.submenuItems?.length ?? 0) > 0;
+                return (
+                  <li key={item.id} className="border-b border-border-subtle last:border-b-0">
+                    {item.href && !hasSubmenu ? (
+                      <Link href={item.href} className={cn(mainNavRowClass, 'w-full')} onClick={closeAfterNavigate}>
                         {item.label}
                       </Link>
-                    ) : (
-                      <span className="flex-1">{item.label}</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleTopLevelDrill(item)}
-                      className="cursor-pointer ps-2"
-                      aria-label={`Open ${item.label} subcategories`}
-                    >
-                      <ChevronDown className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <hr className="border-border-subtle" />
-                </>
-              ) : (
-                <>
-                  <Link href={item.href ?? '#'} className="flex items-center justify-between py-4 text-lg">
-                    {item.label}
-                  </Link>
-                  <hr className="border-border-subtle" />
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
+                    ) : hasSubmenu ? (
+                      <div className="flex w-full items-stretch">
+                        <Link
+                          href={topLevelBrowseHref(item)}
+                          className={cn(mainNavRowClass, 'pe-2')}
+                          onClick={closeAfterNavigate}
+                        >
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                        <button
+                          type="button"
+                          className="flex shrink-0 items-center justify-center px-3 py-2 text-text-action"
+                          aria-label={t('openSubcategoriesFor', { name: item.label })}
+                          onClick={() => openTopLevel(item)}
+                        >
+                          <ChevronRight className="h-5 w-5 shrink-0" aria-hidden />
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       ) : (
-        <>
-          <div className="flex flex-col gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={handleBack} className="flex items-center gap-2">
-                <ArrowLeft className="w-5 h-5 text-text-action" />
-              </button>
-              {currentEntry?.href ? (
-                <Link href={currentEntry.href} className="text-lg font-medium">
-                  {currentEntry.label}
-                </Link>
-              ) : (
-                <span className="text-lg font-medium">{currentEntry?.label}</span>
-              )}
-            </div>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="flex items-center gap-3 rounded-sm px-4 py-3 text-start text-sm font-bold uppercase tracking-wide text-text-action"
+            >
+              <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden />
+              {t('back')}
+            </button>
+            {currentLevel ? (
+              <Link
+                href={currentLevel.allFromHref}
+                className="flex items-center justify-between gap-2 py-2 text-md font-bold text-text-body"
+                onClick={closeAfterNavigate}
+              >
+                <span className="min-w-0 truncate">
+                  {t('allFromCategory', { name: currentLevel.allFromSectionName })}
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0" aria-hidden />
+              </Link>
+            ) : null}
             <hr className="border-border-subtle" />
           </div>
-          <ul className="divide-y divide-border-subtle">
-            {currentItems?.map((item, index) => (
-              <li key={`${item.label}-${index}`}>
-                {item.hasSubmenu ? (
-                  <div className="flex items-center justify-between py-2 text-md">
-                    <Link href={item.href} className="flex-1">
+          <ul className="flex min-w-0 flex-col">
+            {drillVisibleItems.map((item, index) => {
+              const hasChildren = item.hasSubmenu && (item.submenuItems?.length ?? 0) > 0;
+              if (item.href && !hasChildren) {
+                return (
+                  <li key={subMenuItemKey(item, index)} className="border-b border-border-subtle last:border-b-0">
+                    <Link
+                      href={item.href}
+                      className="flex w-full items-center justify-between py-2 text-md text-text-body"
+                      onClick={closeAfterNavigate}
+                    >
                       {item.label}
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleSubmenuDrill(item)}
-                      className="cursor-pointer ps-2"
-                      aria-label={`Open ${item.label} subcategories`}
-                    >
-                      <ChevronDown className="w-5 h-5" />
-                    </button>
-                  </div>
-                ) : (
-                  <Link href={item.href} className="flex items-center justify-between py-2 text-md">
-                    {item.label}
-                  </Link>
-                )}
+                  </li>
+                );
+              }
+              if (hasChildren) {
+                return (
+                  <li key={subMenuItemKey(item, index)} className="border-b border-border-subtle last:border-b-0">
+                    <div className="flex w-full items-stretch">
+                      <Link
+                        href={item.href}
+                        className="flex min-h-11 min-w-0 flex-1 items-center py-2 pe-2 text-start text-md font-bold text-text-body"
+                        onClick={closeAfterNavigate}
+                      >
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                      <button
+                        type="button"
+                        className="flex shrink-0 items-center justify-center px-3 py-2 text-text-action"
+                        aria-label={t('openSubcategoriesFor', { name: item.label })}
+                        onClick={() => openNested(item)}
+                      >
+                        <ChevronRight className="h-5 w-5 shrink-0" aria-hidden />
+                      </button>
+                    </div>
+                  </li>
+                );
+              }
+              return (
+                <li key={subMenuItemKey(item, index)} className="border-b border-border-subtle last:border-b-0">
+                  <span className="flex items-center py-2 text-md">{item.label}</span>
+                </li>
+              );
+            })}
+            {showTabletSeeAll ? (
+              <li className="border-b border-border-subtle last:border-b-0">
+                <Link
+                  href={tabletSeeAllHref}
+                  className="flex items-center justify-between py-2 text-md font-bold text-text-action underline"
+                  onClick={closeAfterNavigate}
+                >
+                  {t('seeAllCategories')}
+                </Link>
               </li>
-            ))}
+            ) : null}
           </ul>
-        </>
+        </div>
       )}
     </div>
   );

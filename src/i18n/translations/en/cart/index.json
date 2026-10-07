@@ -34,13 +34,6 @@
     "vat": "VAT.",
     "shippingCosts": "Shipping costs",
     "untilFreeShipping": " until free shipping",
-    "promoCode": "Promo Code",
-    "apply": "Apply",
-    "discount": "Discount",
-    "promoCodeApplied": "Promo code applied",
-    "promoCodeRemoved": "Promo code removed",
-    "promoCodeError": "Could not update promo code",
-    "removePromoCode": "Remove promo code {code}",
     "freeShippingOn": "Free shipping on orders over 400.00 €!",
     "goToCheckout": "Go to Checkout",
     "calculatedAtCheckout": "Calculated at checkout",
@@ -49,7 +42,11 @@
     "processing": "Processing...",
     "submitOrder": "Submit Order",
     "termsAndConditions": "I agree to the terms and conditions",
-    "fees": "Fees"
+    "fees": "Fees",
+    "shippingVat": "Shipping VAT",
+    "promoCodeInfo": "Promo Codes can be entered in the checkout process.",
+    "promoAppliedTitle": "Your order overview already showing discounted price.",
+    "promoAppliedInfo": "Coupons already added by you, during the checkout process. You can add or remove the coupons from checkout page."
   },
   "requestQuote": "Request Quote",
   "requestQuoteTitle": "For a quote request, the products in your cart will be submitted:",
@@ -94,7 +91,8 @@
     "failedTitle": "Failed to submit quote",
     "failedDescription": "Please try again later",
     "partialFailureDescription": "The quote was created, but the approval request could not be linked. Open the created quote to continue manual remediation without resubmitting the inquiry.",
-    "viewCreatedQuote": "Open created quote"
+    "viewCreatedQuote": "Open created quote",
+    "totalChanged": "Total price has changed for the newly selected address, now: {total}."
   },
   "priceChange": {
     "title": "Price Change Notification",
@@ -171,5 +169,6 @@
   },
   "freeShippingOn": "Free shipping on orders over {threshold}!",
   "untilFreeShipping": " until free shipping",
-  "fees": "Fees"
+  "fees": "Fees",
+  "couponsRemovedFromEmptyCart": "Promo codes {codes} were removed because the cart is empty."
 }

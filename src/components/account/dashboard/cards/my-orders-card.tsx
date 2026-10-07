@@ -1,158 +1,213 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Search } from 'lucide-react';
-import { MyOrdersTable } from '@/components/account/orders/my-orders-table';
+import { MyOrdersTable, type OrderSortField, type SortDirection } from '@/components/account/orders/my-orders-table';
 import { AccountListContainer } from '@/components/account/shared/account-list';
+import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
-import { H4 } from '@/components/ui/h';
+import { H1, H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
+import { Spinner } from '@/components/ui/spinner';
+import { TableCard } from '@/components/ui/table';
+import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useOrders } from '@/hooks/order/useOrders';
 import { cn } from '@/lib/utils';
 import type { Order } from '@/platform/services/model/order/order';
 import type { DashboardCardProps } from './dashboard-card';
 import { DashboardCard } from './dashboard-card';
 
-// On the full orders page we fetch a wide window of history so the client-side
-// product/SKU search covers more than just the most recent orders. The compact
-// dashboard card stays light since it is not the primary search surface.
-const ORDERS_PAGE_SIZE_FULL = 200;
-const ORDERS_PAGE_SIZE_COMPACT = 50;
+const SEARCH_DEBOUNCE_MS = 500;
+const ORDERS_PER_PAGE = 5;
+/**
+ * Raw upstream Emporix Order fields backing each sortable column (see resources/emporix/order.yml).
+ * Expected Delivery Date has no entry here: `Order.expectedDeliveryDate` is resolved by
+ * `EmporixOrderMapper.resolveExpectedDeliveryDate` from whichever `shipments[]` entry has a
+ * non-empty `expectDeliveryOn`, falling back to `deliveryWindow.deliveryDate` — there is no
+ * single raw field a server-side sort could target, so that column stays non-sortable.
+ */
+const ORDER_SORT_FIELD_MAP: Record<OrderSortField, string> = {
+  orderNumber: 'id',
+  relatedQuote: 'quoteId',
+  orderDate: 'created',
+  status: 'status',
+  orderValue: 'calculatedPrice.finalPrice.netValue',
+  shippingCost: 'calculatedPrice.totalShipping.netValue',
+  customer: 'customer.name',
+  deliveryAddress: 'shippingAddress.street',
+};
+const INITIAL_SORT_FIELD: OrderSortField = 'orderDate';
+const INITIAL_SORT_DIRECTION: SortDirection = 'desc';
+const INITIAL_API_SORT = 'created:DESC';
 
 interface MyOrdersCardProps extends Omit<DashboardCardProps, 'children'> {
   className?: string;
-  forceRefreshOnMount?: boolean;
+  /** SSR-fetched orders used to seed the store on the canonical Order History page, avoiding a duplicate client fetch on mount. */
+  initialOrders?: Order[];
+  /** Renders the canonical Order History full-page layout (H1 heading, no "Show all orders" affordance) instead of the compact dashboard widget. */
+  pageMode?: boolean;
+  initialTotalCount?: number;
   /** Hide the in-card title + "show all" row (used when a page header is shown above). */
   showHeader?: boolean;
   /** Render as a flat, bordered list container (matching detail pages) instead of a rounded dashboard card. */
   flat?: boolean;
 }
 
-/**
- * Returns true when the search term matches the order id, or any of its
- * products by name, SKU or product id. Enables searching order history by the
- * products it contains, not just the order number.
- */
-function orderMatchesSearch(order: Order, term: string): boolean {
-  if (order.id?.toLowerCase().includes(term)) {
-    return true;
-  }
-  return (order.items ?? []).some(
-    (item) =>
-      item.name?.toLowerCase().includes(term) ||
-      item.sku?.toLowerCase().includes(term) ||
-      item.productId?.toLowerCase().includes(term),
-  );
-}
-
 export function MyOrdersCard({
   className,
   title,
-  forceRefreshOnMount = false,
+  initialOrders,
+  pageMode = false,
+  initialTotalCount,
   showHeader = true,
   flat = false,
   ...props
-}: MyOrdersCardProps) {
+}: Readonly<MyOrdersCardProps>) {
   const t = useTranslations('orders');
 
   const [quickSearch, setQuickSearch] = useState('');
-  const term = quickSearch.trim().toLowerCase();
+  const [sortField, setSortField] = useState<OrderSortField>(INITIAL_SORT_FIELD);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(INITIAL_SORT_DIRECTION);
+  const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
+  const apiQuery = normalizedSearch.length > 0 ? `id:~(${normalizedSearch})` : undefined;
+  const apiSort = `${ORDER_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
 
-  // Fetch orders from the hook
-  const { orders, loading, refetchOrders } = useOrders({
-    pageSize: flat ? ORDERS_PAGE_SIZE_FULL : ORDERS_PAGE_SIZE_COMPACT,
+  const { orders, loading, error, totalCount, pageNumber, setPageNumber, refetchOrders } = useOrders({
+    initialOrders,
+    initialTotalCount,
+    pageSize: ORDERS_PER_PAGE,
+    pageNumber: 1,
+    query: apiQuery,
+    sort: apiSort,
+    initialRequest: {
+      pageNumber: 1,
+      pageSize: ORDERS_PER_PAGE,
+      sort: INITIAL_API_SORT,
+      query: undefined,
+    },
   });
 
-  useEffect(() => {
-    if (!forceRefreshOnMount) {
-      return;
-    }
-    refetchOrders();
-  }, [forceRefreshOnMount, refetchOrders]);
+  const resetToFirstPage = () => setPageNumber(1);
 
-  const filteredOrders = useMemo(() => {
-    if (!orders) return [];
-    if (!term) return orders;
-    return orders.filter((order) => orderMatchesSearch(order, term));
-  }, [orders, term]);
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const ordersPerPage = 5;
+  const hasServerTotalCount = totalCount !== undefined;
+  const hasNextPage = hasServerTotalCount
+    ? pageNumber < Math.ceil(totalCount / ORDERS_PER_PAGE)
+    : (orders?.length ?? 0) === ORDERS_PER_PAGE;
 
   // Pagination handlers
   const handlePreviousPage = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
+    setPageNumber(Math.max(pageNumber - 1, 1));
   };
 
   const handleNextPage = () => {
-    const maxPage = Math.ceil(filteredOrders.length / ordersPerPage);
-    setCurrentPage((prev) => Math.min(prev + 1, maxPage));
+    if (hasNextPage) {
+      setPageNumber(pageNumber + 1);
+    }
   };
 
-  const showNoMatches = !loading && filteredOrders.length === 0 && term.length > 0;
+  const handleSortChange = (field: OrderSortField, direction: SortDirection) => {
+    resetToFirstPage();
+    setSortField(field);
+    setSortDirection(direction);
+  };
 
-  const searchField = (
-    <div className="relative w-full max-w-[380px]">
-      <Input
-        value={quickSearch}
-        onChange={(event) => {
-          setCurrentPage(1);
-          setQuickSearch(event.target.value);
-        }}
-        placeholder={t('search.placeholder')}
-        className="pr-10"
-        endIcon={Search}
-        aria-label={t('search.placeholder')}
-      />
+  const isSearchLoading = loading && normalizedSearch.length > 0;
+
+  const searchInput = (
+    <div className={cn('w-full max-w-[380px]', !flat && 'mb-4')}>
+      <div className="relative w-full">
+        <Input
+          value={quickSearch}
+          onChange={(event) => {
+            setQuickSearch(event.target.value);
+          }}
+          placeholder={t('search.placeholder')}
+          className="pr-10"
+          endIcon={isSearchLoading ? undefined : Search}
+          aria-label={t('search.placeholder')}
+          data-testid="orders-search"
+        />
+        {isSearchLoading && (
+          <Spinner
+            variant="sm"
+            color="primary"
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+            loadingText={t('loading')}
+          />
+        )}
+      </div>
     </div>
   );
 
-  const table = (
+  const table = error ? (
+    <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 space-y-3">
+      <p>
+        {t('errorLoadingOrders')}: {error.message}
+      </p>
+      <Button onClick={() => refetchOrders()} data-testid="orders-retryButton">
+        {t('tryAgain')}
+      </Button>
+    </div>
+  ) : (
     <MyOrdersTable
-      orders={filteredOrders}
-      currentPage={currentPage}
-      ordersPerPage={ordersPerPage}
+      orders={orders || []}
+      currentPage={pageNumber}
+      ordersPerPage={ORDERS_PER_PAGE}
+      totalCount={totalCount}
+      sortField={sortField}
+      sortDirection={sortDirection}
       loading={loading}
       onPreviousPage={handlePreviousPage}
       onNextPage={handleNextPage}
-      expandAll={term.length > 0}
+      onSortChange={handleSortChange}
+      hasActiveSearch={normalizedSearch.length > 0}
+      productHighlightTerm={normalizedSearch}
     />
   );
 
   if (flat) {
     return (
       <div className={cn('space-y-6', className)}>
-        {searchField}
-        {showNoMatches && (
-          <div className="border border-border-primary p-4 text-sm text-text-on-disabled">{t('noMatches')}</div>
-        )}
+        {searchInput}
         <AccountListContainer>{table}</AccountListContainer>
+      </div>
+    );
+  }
+
+  if (pageMode) {
+    return (
+      <div className={cn('space-y-6', className)}>
+        <H1>{title || t('orderHistory')}</H1>
+        <TableCard className="overflow-hidden">
+          {searchInput}
+          <div className="flex flex-col">{table}</div>
+        </TableCard>
       </div>
     );
   }
 
   return (
     <DashboardCard variant="default" className={cn('py-4 pb-0', className)} {...props}>
-      {showHeader && (
+      {showHeader ? (
         <div className="flex items-center justify-between mb-4">
           <CardTitle>
             <H4>{title || t('myOrders')}</H4>
           </CardTitle>
-          <UiLink type="Link" href="/account/orders" variant="primary" size="m" iconAfter={<ArrowRight />}>
+          <UiLink
+            type="Link"
+            href="/account/orders"
+            variant="primary"
+            size="m"
+            iconAfter={<ArrowRight />}
+            data-testid="orders-showAll"
+          >
             {t('showAllOrders')}
           </UiLink>
         </div>
-      )}
-      {/* search */}
-      <div className="mb-4">{searchField}</div>
-      {showNoMatches && (
-        <div className="rounded-md border border-border-primary p-4 text-sm text-text-on-disabled">
-          {t('noMatches')}
-        </div>
-      )}
+      ) : null}
+      {searchInput}
       <div className="flex flex-col">{table}</div>
     </DashboardCard>
   );

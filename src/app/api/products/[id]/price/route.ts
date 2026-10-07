@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { PriceService } from '@/platform/services/price/PriceService';
@@ -32,18 +33,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Use client-provided currency if available to avoid race condition
-    // between client-side session store and server-side session context propagation
-    const currency = currencyOverride || session.currency;
+    // Client currency avoids a race with server session propagation; the helper
+    // trims/uppercases so we do not overwrite that with raw session values.
+    const currency = currencyOverride?.trim() || session.currency;
 
-    // Get price service and fetch price using explicit session params
-    // to avoid race condition with Emporix session-context propagation
     const priceService = server.get<PriceService>('PriceService');
-    const price = await priceService.getProductPrice(productId, quantity, unitCode, {
-      siteCode: session.siteCode,
-      currency,
-      country: session.country,
-    });
+    const price = await priceService.getProductPrice(
+      productId,
+      quantity,
+      unitCode,
+      priceFetchOptionsFromSession({ ...session, currency }),
+    );
 
     if (!price) {
       return NextResponse.json({ error: `Price for product with ID ${productId} not found` }, { status: 404 });

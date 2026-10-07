@@ -31,9 +31,9 @@ export const PasswordChangeSchema = z
       .string()
       .min(1, 'password.newPassword.required')
       .min(8, 'password.newPassword.minLength')
-      .regex(/(?=.*[a-z])/, 'password.newPassword.lowercase')
-      .regex(/(?=.*[A-Z])/, 'password.newPassword.uppercase')
-      .regex(/(?=.*\d)/, 'password.newPassword.number'),
+      .regex(/[a-z]/, 'password.newPassword.lowercase')
+      .regex(/[A-Z]/, 'password.newPassword.uppercase')
+      .regex(/\d/, 'password.newPassword.number'),
     confirmPassword: z.string().min(1, 'password.confirmPassword.required'),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -74,6 +74,64 @@ export const ProfileEditSchema = z.object({
   preferredLanguage: z.string(),
   preferredCurrency: z.string(),
 });
+
+const CompanyUserFormBaseSchema = z.object({
+  title: z.union([z.enum(['MR', 'MRS', 'MS']), z.literal('')]),
+  firstName: z.string().trim().min(1, 'user-management.validation.firstNameRequired'),
+  lastName: z.string().trim().min(1, 'user-management.validation.lastNameRequired'),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'user-management.validation.emailRequired')
+    .email('user-management.validation.emailInvalid'),
+  phone: z
+    .string()
+    .trim()
+    .refine((value) => value.length === 0 || /^[+0-9()\s.-]+$/.test(value), {
+      message: 'user-management.validation.phoneInvalid',
+    }),
+  active: z.boolean(),
+  selectedLegalEntityId: z.string().min(1),
+  groupAssignments: z.array(
+    z.object({
+      legalEntityId: z.string().min(1),
+      groupId: z.string().min(1),
+    }),
+  ),
+});
+
+function hasValidSelectedLegalEntityGroup(data: z.infer<typeof CompanyUserFormBaseSchema>): boolean {
+  return (
+    data.groupAssignments.length === 1 &&
+    data.groupAssignments[0].legalEntityId === data.selectedLegalEntityId &&
+    data.groupAssignments[0].groupId.length > 0
+  );
+}
+
+export const CompanyUserCreateFormSchema = CompanyUserFormBaseSchema.superRefine((data, context) => {
+  if (!hasValidSelectedLegalEntityGroup(data)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'user-management.validation.requiredGroup',
+      path: ['groupAssignments'],
+    });
+  }
+});
+
+export const CompanyUserEditFormSchema = CompanyUserFormBaseSchema.superRefine((data, context) => {
+  if (data.groupAssignments.length > 0 && !hasValidSelectedLegalEntityGroup(data)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'user-management.validation.requiredGroup',
+      path: ['groupAssignments'],
+    });
+  }
+});
+
+/** Backward-compatible create schema; create must always include one selected-LE group. */
+export const CompanyUserFormSchema = CompanyUserCreateFormSchema;
+
+export type CompanyUserFormData = z.infer<typeof CompanyUserFormBaseSchema>;
 
 export const PaymentFormSchema = z
   .object({
@@ -135,6 +193,15 @@ export const RegistrationSchema = z
     country: z.string().min(1, 'register.country.required'),
     vatNumber: z.string().optional(),
     shippingSameAsBilling: z.boolean(),
+    billingContactName: z.string().optional(),
+    billingCompanyName: z.string().optional(),
+    billingStreet: z.string().optional(),
+    billingHouseNumber: z.string().optional(),
+    billingPostalCode: z.string().optional(),
+    billingCity: z.string().optional(),
+    billingCountry: z.string().optional(),
+    billingState: z.string().optional(),
+    billingPhone: z.string().optional(),
     password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/),
     passwordConfirmation: z.string().min(1, 'register.passwordConfirmation.required'),
     additionalInformation: z.string().max(500).optional(),
@@ -166,6 +233,45 @@ export const RegistrationSchema = z
       message: 'register.vatNumber.required',
       path: ['vatNumber'],
     },
-  );
+  )
+  .superRefine((data, ctx) => {
+    if (!data.shippingSameAsBilling) {
+      if (!data.billingContactName || data.billingContactName.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingContactName.required',
+          path: ['billingContactName'],
+        });
+      }
+      if (!data.billingStreet || data.billingStreet.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingStreet.required',
+          path: ['billingStreet'],
+        });
+      }
+      if (!data.billingPostalCode || data.billingPostalCode.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingPostalCode.required',
+          path: ['billingPostalCode'],
+        });
+      }
+      if (!data.billingCity || data.billingCity.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingCity.required',
+          path: ['billingCity'],
+        });
+      }
+      if (!data.billingCountry || data.billingCountry.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingCountry.required',
+          path: ['billingCountry'],
+        });
+      }
+    }
+  });
 
 export type RegistrationData = z.infer<typeof RegistrationSchema>;

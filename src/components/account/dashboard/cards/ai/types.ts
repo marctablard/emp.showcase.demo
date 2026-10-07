@@ -69,6 +69,15 @@ export interface HTMLData {
   html: string;
 }
 
+export interface TextData {
+  message?: string;
+  formatting?: string;
+}
+
+export interface UnrecognizedData {
+  previewJson?: string;
+}
+
 export interface ErrorData {
   errorCode?: string;
   message: string;
@@ -99,7 +108,7 @@ export interface ProductData {
 }
 
 export interface ProductListData {
-  products: ProductData[];
+  products?: ProductData[];
   context?: string;
 }
 
@@ -207,7 +216,7 @@ export interface OrderData {
 }
 
 export interface OrderListData {
-  orders: OrderData[];
+  orders?: OrderData[];
   pagination?: PaginationData;
 }
 
@@ -257,7 +266,7 @@ export interface QuoteData {
 }
 
 export interface QuoteListData {
-  quotes: QuoteData[];
+  quotes?: QuoteData[];
   message?: string;
   pagination?: PaginationData;
 }
@@ -308,7 +317,7 @@ export interface ReturnData {
 }
 
 export interface ReturnListData {
-  returns: ReturnData[];
+  returns?: ReturnData[];
   message?: string;
 }
 
@@ -337,7 +346,8 @@ export type StructuredDataType =
   | 'table'
   | 'html'
   | 'text'
-  | 'error';
+  | 'error'
+  | 'unrecognized';
 
 export type StructuredData =
   | { type: 'cart_summary'; data: CartSummaryData }
@@ -354,7 +364,8 @@ export type StructuredData =
   | { type: 'table'; data: TableData }
   | { type: 'html'; data: HTMLData }
   | { type: 'error'; data: ErrorData }
-  | { type: 'text'; data: null };
+  | { type: 'unrecognized'; data: UnrecognizedData }
+  | { type: 'text'; data: TextData | null };
 
 export type StructuredDataPayload<T extends StructuredDataType> = Extract<StructuredData, { type: T }>['data'];
 

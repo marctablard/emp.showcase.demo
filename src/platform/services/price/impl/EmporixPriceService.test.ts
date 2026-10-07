@@ -105,6 +105,35 @@ describe('EmporixPriceService', () => {
     expect(price?.currency).toBe('EUR');
   });
 
+  it('sends customer principal, legal entity, and useFallback false on explicit match', async () => {
+    priceApi.matchPrices.mockResolvedValue([
+      {
+        itemId: { id: 'enjoysolar-200w-module' },
+        currency: 'CHF',
+      } as EmporixMatchedPrice,
+    ]);
+
+    await priceService.getProductPrice('enjoysolar-200w-module', 1, undefined, {
+      siteCode: 'fw-site',
+      currency: 'CHF',
+      country: 'CH',
+      customerId: '50899020',
+      legalEntityId: 'le-1',
+    });
+
+    expect(priceApi.matchPrices).toHaveBeenCalledWith(
+      expect.objectContaining({
+        siteCode: 'fw-site',
+        targetCurrency: 'CHF',
+        targetLocation: { countryCode: 'CH' },
+        principal: { id: '50899020', type: 'CUSTOMER' },
+        legalEntityId: 'le-1',
+        useFallback: false,
+      }),
+    );
+    expect(priceApi.matchPricesByContext).not.toHaveBeenCalled();
+  });
+
   it('forwards legalEntityId to match-prices for B2B price list matching', async () => {
     priceApi.matchPrices.mockResolvedValue([
       {

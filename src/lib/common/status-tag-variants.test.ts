@@ -9,6 +9,7 @@ import {
   isOrderStatusValue,
   isQuoteStatusValue,
   isReturnStatusValue,
+  normalizeStatusKey,
 } from './status-tag-variants';
 
 describe('status-tag-variants', () => {
@@ -151,6 +152,25 @@ describe('status-tag-variants', () => {
 
     it('rejects garbage', () => {
       expect(isOrderStatusValue('FAKE')).toBe(false);
+    });
+  });
+
+  describe('normalizeStatusKey', () => {
+    it('uppercases strings and turns hyphens into underscores', () => {
+      expect(normalizeStatusKey('in-progress')).toBe('IN_PROGRESS');
+      expect(normalizeStatusKey('OPEN')).toBe('OPEN');
+    });
+
+    it('returns empty string for non-strings so callers never call toUpperCase on them', () => {
+      expect(normalizeStatusKey(undefined)).toBe('');
+      expect(normalizeStatusKey(null)).toBe('');
+      expect(normalizeStatusKey(2)).toBe('');
+      expect(normalizeStatusKey({ code: 'OPEN' })).toBe('');
+    });
+
+    it('reads Emporix status objects', () => {
+      expect(normalizeStatusKey({ value: 'OPEN' })).toBe('OPEN');
+      expect(normalizeStatusKey({ value: 'in-progress' })).toBe('IN_PROGRESS');
     });
   });
 });

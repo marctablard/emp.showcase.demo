@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CircleAlert, CircleCheckBig } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useRouter } from '@/i18n/navigation';
@@ -25,7 +25,7 @@ export function WishlistBulkMoveResultModal({ isOpen, onClose, mode }: WishlistB
   };
 
   const isSuccess = mode === 'success';
-  const Icon = isSuccess ? CheckCircle2 : AlertCircle;
+  const Icon = isSuccess ? CircleCheckBig : CircleAlert;
   const iconColor = isSuccess ? 'text-icon-success' : 'text-icon-warning';
   const title = isSuccess ? t('success.title') : t('warning.title');
   const description = isSuccess ? t('success.description') : t('warning.description');

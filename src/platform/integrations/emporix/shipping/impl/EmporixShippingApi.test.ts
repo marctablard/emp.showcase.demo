@@ -1,6 +1,7 @@
 import { Container } from 'inversify';
 import { EmporixTokenManager as TokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
 import { EmporixFindSiteRequest, EmporixShippingMethod } from '../../model/shipping';
@@ -39,7 +40,12 @@ describe('EmporixShippingApi', () => {
       .bind<EmporixApiInvoker>('EmporixApiInvoker')
       .toDynamicValue(
         (ctx) =>
-          new EmporixApiInvoker(ctx.get<EmporixConfig>('EmporixConfig'), ctx.get<TokenManager>('EmporixTokenManager')),
+          new EmporixApiInvoker(
+            ctx.get<EmporixConfig>('EmporixConfig'),
+            ctx.get<TokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
+          ),
       )
       .inSingletonScope();
     container.bind<EmporixShippingApi>('EmporixShippingApi').to(EmporixShippingApi);
@@ -120,6 +126,63 @@ describe('EmporixShippingApi', () => {
         expect(result[0].id).toBeDefined();
         expect(result[0].zones).toBeDefined();
       }
+    });
+  });
+
+  describe('getDeliveryWindowsByCart', () => {
+    it('returns windows for a cart', async () => {
+      (apiInvoker.authenticatedFetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => [
+          {
+            id: 'window-1',
+            deliveryDate: '2026-09-02T10:00:00.000Z',
+            slotId: 'slot-1',
+            zoneId: 'zone-de',
+            deliveryMethod: 'DHL Standard',
+          },
+        ],
+      });
+
+      const result = await shippingApi.getDeliveryWindowsByCart('cart-1', '10115');
+
+      expect(apiInvoker.authenticatedFetch).toHaveBeenCalledWith(
+        expect.stringContaining('actualDeliveryWindows/cart-1?postalCode=10115'),
+        { method: 'GET' },
+        'public',
+        undefined,
+        expect.anything(),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('window-1');
+    });
+
+    it('normalizes a single window object into a one-element array', async () => {
+      (apiInvoker.authenticatedFetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 'window-1',
+          deliveryDate: '2026-09-02T10:00:00.000Z',
+          slotId: 'slot-1',
+          zoneId: 'zone-de',
+          deliveryMethod: 'DHL Standard',
+        }),
+      });
+
+      const result = await shippingApi.getDeliveryWindowsByCart('cart-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('window-1');
+    });
+
+    it('returns an empty list when Emporix responds 404', async () => {
+      (apiInvoker.authenticatedFetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      });
+
+      await expect(shippingApi.getDeliveryWindowsByCart('cart-missing')).resolves.toEqual([]);
     });
   });
 

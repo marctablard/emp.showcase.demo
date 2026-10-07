@@ -28,9 +28,14 @@ export interface ApprovalService {
    * @param pageSize Optional page size (default: 60)
    * @param sort Optional sort parameter
    * @param query Optional query parameter for filtering
-   * @returns Promise with array of approvals
+   * @returns Promise with the approval items and, when available, the server-authoritative total count
    */
-  getApprovals(pageNumber?: number, pageSize?: number, sort?: string, query?: string): Promise<Approval[]>;
+  getApprovals(
+    pageNumber?: number,
+    pageSize?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<{ items: Approval[]; totalCount?: number }>;
 
   /**
    * Get a specific approval by ID

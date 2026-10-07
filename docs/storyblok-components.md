@@ -1,5 +1,29 @@
 # Creating Storyblok Components
 
+> **Status — the code half of this guide is superseded.**
+>
+> Everything below describes the pre-refactor, Storyblok-coupled component layer and no longer
+> matches the codebase. CMS components are now **provider-agnostic**: the same component renders
+> content coming from Storyblok, from local JSON, or from any future provider, through one central
+> renderer. Concretely, the following statements in this document are no longer true:
+>
+> | This guide says | Current reality |
+> | --- | --- |
+> | One flat file per component under `src/components/cms/` | One **folder** per component — `src/components/cms/<name>/` with `schema.ts` + `<name>.tsx` + `<name>.test.tsx` + `index.ts` |
+> | Props are wrapped in a `blok` object | Props are the flat, Zod-inferred component data: `<Name>Props = <Name>Data & HTMLAttributes<HTMLElement>` |
+> | Every component needs `'use client'` | A component is a **Server Component by default**; browser-only logic is extracted into a `'use client'` island |
+> | Components call `storyblokEditable(blok)` | The Storyblok adapter supplies the Visual-Editor attributes through the optional `getEditableProps()` SPI method; components contain no provider code |
+> | Rich text via `renderRichText()` | The agnostic `<Richtext>` component + `RichtextSchema`; adapters pre-map their wire format (TipTap, …) into that AST at the adapter boundary |
+> | Registration via `storyblokInit({ components })` | Registration in `src/components/cms/component-map.ts` **and** `component-schema.ts`, kept in lock-step by a drift-guard test |
+>
+> For the current pattern read
+> **[ADR 0002 — CMS components are co-located and schema-first](./adr/0002-cms-component-co-location-and-schema-first.md)**
+> and **[CMS Framework](./cms-framework.md)**.
+>
+> **Still accurate:** the [Creating Components in Storyblok](#creating-components-in-storyblok)
+> section — defining a block and its field schema inside a Storyblok space is unchanged. The
+> sections before it are retained for historical reference only; do not follow them for new work.
+
 This guide explains how to create and integrate Storyblok components in the Emporix Showcase project.
 
 ## Component Structure
@@ -251,3 +275,11 @@ storyblokInit({
 6. **Reusable Components**: Design components to be reusable when possible.
 
 By following these guidelines, you'll be able to create and integrate Storyblok components effectively in your Emporix Showcase project.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [CMS Framework](./cms-framework.md)
+- [ADR 0002 — CMS components are co-located and schema-first](./adr/0002-cms-component-co-location-and-schema-first.md)
+- [Local CMS](./local-cms.md)
+- [UI Components](./ui-components.md)

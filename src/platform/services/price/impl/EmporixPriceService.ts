@@ -1,7 +1,6 @@
 import { inject } from 'inversify';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
-import { getPublicPriceMatchUseFallback } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixMatchPricesRequest,
@@ -38,17 +37,16 @@ class EmporixPriceService implements PriceService {
   ): Promise<ProductPrice | null> {
     const items = [this.mapToMatchPriceItem(productId, quantity, unitCode)];
     let matchedPrices: EmporixMatchedPrice[];
+    let resolvedParams: PriceFetchOptions | undefined;
     if (!params) {
       matchedPrices = await this.priceApi.matchPricesByContext({
         items,
       });
     } else {
-      const resolvedParams = await this.resolvePriceFetchParams(params);
-      matchedPrices = await this.priceApi.matchPrices(
-        this.buildMatchPricesRequest(resolvedParams, [this.mapToMatchPriceItem(productId, quantity, unitCode)]),
-      );
+      resolvedParams = await this.resolvePriceFetchParams(params);
+      matchedPrices = await this.priceApi.matchPrices(this.buildExplicitMatchRequest(resolvedParams, items));
     }
-    const requestedCurrency = params?.currency;
+    const requestedCurrency = resolvedParams?.currency;
     const preferredPrice = this.pickPreferredMatchedPrice(matchedPrices, requestedCurrency);
     const price = preferredPrice ? this.mapper.mapToService(preferredPrice) : null;
     return price;
@@ -70,6 +68,7 @@ class EmporixPriceService implements PriceService {
     }
 
     const allMatched: EmporixMatchedPrice[] = [];
+    let resolvedParams: PriceFetchOptions | undefined;
 
     for (const chunk of chunks) {
       const items = chunk.map((id) => this.mapToMatchPriceItem(id, quantity, unitCode));
@@ -78,13 +77,13 @@ class EmporixPriceService implements PriceService {
       if (!params) {
         matchedPrices = await this.priceApi.matchPricesByContext({ items });
       } else {
-        const resolvedParams = await this.resolvePriceFetchParams(params);
-        matchedPrices = await this.priceApi.matchPrices(this.buildMatchPricesRequest(resolvedParams, items));
+        resolvedParams ??= await this.resolvePriceFetchParams(params);
+        matchedPrices = await this.priceApi.matchPrices(this.buildExplicitMatchRequest(resolvedParams, items));
       }
       allMatched.push(...matchedPrices);
     }
 
-    const requestedCurrency = params?.currency;
+    const requestedCurrency = resolvedParams?.currency;
     const matchesByProductId = new Map<string, EmporixMatchedPrice[]>();
 
     allMatched.forEach((matched) => {
@@ -138,20 +137,26 @@ class EmporixPriceService implements PriceService {
     return resolveLegalEntityIdFromSessionAndCustomer(session, customer);
   }
 
-  private buildMatchPricesRequest(
+  private buildExplicitMatchRequest(
     params: PriceFetchOptions,
     items: EmporixPriceMatchItem[],
   ): EmporixMatchPricesRequest {
-    return {
+    const matchRequest: EmporixMatchPricesRequest = {
       targetCurrency: params.currency!,
       siteCode: params.siteCode,
       targetLocation: {
         countryCode: params.country!,
       },
       items,
-      ...(params.legalEntityId ? { legalEntityId: params.legalEntityId } : {}),
-      useFallback: getPublicPriceMatchUseFallback(),
+      useFallback: params.useFallback === true,
     };
+    if (params.customerId) {
+      matchRequest.principal = { id: params.customerId, type: 'CUSTOMER' };
+    }
+    if (params.legalEntityId) {
+      matchRequest.legalEntityId = params.legalEntityId;
+    }
+    return matchRequest;
   }
 
   private pickPreferredMatchedPrice(

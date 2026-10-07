@@ -14,9 +14,12 @@ emporix-showcase/
 ├── src/                    # Main source code
 │   ├── app/                # Next.js App Router
 │   │   ├── [site]/[locale]/ # Multi-tenant routes
-│   │   │   ├── (default)/  # Full header/footer layout
-│   │   │   ├── (reduced)/  # Minimal layout (checkout)
-│   │   │   └── (no-margin)/ # Full-width CMS pages
+│   │   │   ├── (nav-shell)/ # Shared chrome (header/footer shell)
+│   │   │   │   ├── (default)/  # Catalog, cart, account, login, etc.
+│   │   │   │   └── (no-margin)/ # Full-width CMS pages
+│   │   │   ├── (default)/  # Routes outside nav-shell (e.g. account/compare)
+│   │   │   ├── (reduced)/  # Minimal layout (checkout / confirmation)
+│   │   │   └── @dialog/    # Intercepting login / password-reset dialogs
 │   │   ├── api/            # API routes
 │   ├── components/         # React components
 │   │   ├── account/        # Account components
@@ -104,6 +107,10 @@ Contains test results from automated test runs.
 Next.js App Router structure containing page components and API routes.
 
 - `/[site]/[locale]`: Multi-tenant, locale-aware routes
+  - `(nav-shell)/`: Shared header/footer shell with `(default)/` (catalog, cart, account, login, …) and `(no-margin)/` (full-width CMS)
+  - `(default)/`: Routes outside the nav-shell where present (e.g. account/compare)
+  - `(reduced)/`: Minimal chrome (checkout / confirmation)
+  - `@dialog/`: Intercepting login / password-reset dialogs
 - `/api`: API routes for server-side functionality
 
 ### `/src/components`
@@ -187,3 +194,10 @@ TypeScript type definitions used throughout the application.
 
 ### `/src/utils`
 Utility functions and helpers.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Run, Build & Deploy](./run-build-deploy.md)
+- [Layered Architecture](./layered-architecture.md)
+- [Dependency Injection](./dependency-injection.md)

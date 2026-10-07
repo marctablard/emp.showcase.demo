@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { fetchCurrentCompany } from '@/lib/client/company';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Company } from '@/platform/services/model/company/company';
@@ -299,7 +300,7 @@ export const useCompany = (): CompanyHook => {
   }, [setCompany, setLoading, setError, mockCompany]);
 
   useEffect(() => {
-    fetchCompany();
+    return startEffectTask(fetchCompany);
   }, [fetchCompany]);
 
   const refresh = () => {

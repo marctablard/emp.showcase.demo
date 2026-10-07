@@ -20,20 +20,24 @@ interface AddressCardProps {
 export const AddressCard: React.FC<AddressCardProps> = ({ address }) => {
   return (
     <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start rounded-xl border border-border-primary p-4 flex flex-col h-full shadow-lg">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h4 className="text-base font-bold text-text-on-action">{address.name}</h4>
-          {address.company && <div className="text-sm text-text-on-action/90 mt-1">{address.company}</div>}
+      {(address.name || address.company) && (
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            {address.name && <h4 className="text-base font-bold text-text-on-action">{address.name}</h4>}
+            {address.company && <div className="text-sm text-text-on-action/90 mt-1">{address.company}</div>}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="space-y-1 text-sm text-text-on-action/90 flex-grow">
-        <div>{address.addressLine1}</div>
+        {address.addressLine1 && <div>{address.addressLine1}</div>}
         {address.addressLine2 && <div>{address.addressLine2}</div>}
-        <div>
-          {address.city}, {address.state} {address.postalCode}
-        </div>
-        <div>{address.country}</div>
+        {(address.city || address.state || address.postalCode) && (
+          <div>
+            {[address.city, [address.state, address.postalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+          </div>
+        )}
+        {address.country && <div>{address.country}</div>}
       </div>
 
       {address.tags && address.tags.length > 0 && (

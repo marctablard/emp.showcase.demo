@@ -1,0 +1,35 @@
+---
+description: Require BugBug-stable data-testid on every actionable UI control
+globs: src/**/*.tsx
+alwaysApply: true
+---
+
+# BugBug selectors (`data-testid`)
+
+BugBug's preferred locator is a **product-owned test attribute**. Use `data-testid` on every actionable control. Do not rely on copy, CSS classes, Radix/React Aria ids, or DOM position.
+
+This is a coding convention, not a CI or pre-push scanner. Do not add a repo-local selector checker.
+
+## Must have `data-testid`
+
+Buttons, links used as actions, inputs, textareas, checkboxes, switches, radios, selects (`SelectTrigger` / `SelectItem`), dropdown items, dialogs (`DialogContent` + close), collapsible/popover triggers, clickable rows, address-book rows and triggers.
+
+## Naming
+
+`{flow}-{control}` in camelCase after the hyphen, already used in this repo:
+
+```tsx
+<Button data-testid="quote-sendButton">…</Button>
+<Input data-testid="quoteShipping-zipCode" />
+<DialogContent data-testid="addressSelector-dialog" closeTestId="addressSelector-closeButton">
+<button type="button" data-testid={`addressSelector-item-${address.id}`}>
+<button type="button" data-testid={`shipping-item-${address.id}`} data-country={address.country}>
+```
+
+Reuse the same prefix when a form is mounted twice (`quoteShipping-*` vs `quoteBilling-*`, `shipping-*` vs `billing-*`).
+
+## Do not
+- change or delete existing selector names to not break existing test cases
+- Use `data-bugbug-*`, generated ids, or translated text as the primary locator
+- Leave clickable `<div>`s — use `<button type="button">` (or a real control) **and** `data-testid`
+- Skip a control because Playwright/Jest can find it by role; BugBug still needs the attribute

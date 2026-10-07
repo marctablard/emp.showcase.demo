@@ -1,13 +1,23 @@
 import { Price, Tax } from '../common';
 import { Product } from '../product';
 
-export interface CartDiscount {
+export type TotalDiscountCalculationType = 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
+
+export type CartAppliedDiscountType = 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+
+export interface CartAppliedDiscount {
   code: string;
   name?: string;
-  value: number;
+  discountIndex: number;
+  amount: number;
   currency: string;
-  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
-  discountRate?: number;
+  /** Coupon type from the calculated price; `FREE_SHIPPING` chips carry no goods amount. */
+  type?: CartAppliedDiscountType;
+  /**
+   * Persisted but not redeemable (`valid: false` on the Cart API). Hidden from chips;
+   * still kept so empty-cart cleanup can DELETE it (COP-4815 review 5235435332).
+   */
+  valid?: boolean;
 }
 
 export interface Cart {
@@ -21,11 +31,30 @@ export interface Cart {
   items: CartItem[];
   shippingCosts?: Price;
   fees?: Price;
-  totalDiscount?: Price;
-  discounts?: CartDiscount[];
   totalPrice: Price;
   subTotalPrice: Price;
   tax: Tax;
+  discounts?: CartAppliedDiscount[];
+  savingsTotal?: number;
+  totalDiscountCalculationType?: TotalDiscountCalculationType;
+  includesTax?: boolean;
+  goodsDiscountedNet?: number;
+  goodsDiscountedVat?: number;
+  goodsDiscountedGross?: number;
+  /**
+   * An applied coupon waives shipping (`FREE_SHIPPING` applied discount, or
+   * `totalShipping` zeroed against a non-zero pre-discount `shipping`). `shippingCosts`
+   * is then the discounted (zero) shipping — see COP-5589 QA follow-up.
+   */
+  freeShipping?: boolean;
+}
+
+/** Coupon saving on one cart line. Amount is net. Free-shipping rows with no goods value are omitted. */
+export interface CartItemCouponDiscount {
+  code: string;
+  amount: number;
+  currency: string;
+  type?: CartAppliedDiscountType;
 }
 
 export interface CartItem {
@@ -34,6 +63,10 @@ export interface CartItem {
   price: Price;
   product?: Partial<Product>;
   tax?: Tax;
+  /** Pre-coupon line net (`calculatedPrice.price.netValue`) when a coupon lowered the line. */
+  originalNet?: number;
+  /** Goods coupons applied to this line, with each coupon's net saving. */
+  couponDiscounts?: CartItemCouponDiscount[];
 }
 
 export interface CartItemPriceChange {

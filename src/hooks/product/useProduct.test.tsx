@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import { fetchProductById } from '@/lib/client/products';
 import type { Session } from '@/platform/services/model/session/session';
 import {
@@ -109,7 +110,11 @@ describe('useProduct hook', () => {
     expect(result.current.error).toBe(null);
 
     // Verify that the API was called with the correct ID and options
-    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'main|USD');
+    expect(fetchProductById).toHaveBeenCalledWith(
+      'test-product-123',
+      undefined,
+      'anonymous:main:ANONYMOUS:main|USD|anonymous|',
+    );
   });
 
   /**
@@ -145,7 +150,11 @@ describe('useProduct hook', () => {
       expect(result.current.error).toBe(mockError);
 
       // Verify that the API was called with the correct ID and options
-      expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'main|USD');
+      expect(fetchProductById).toHaveBeenCalledWith(
+        'test-product-123',
+        undefined,
+        'anonymous:main:ANONYMOUS:main|USD|anonymous|',
+      );
     } finally {
       // Restore the original console.error
       console.error = originalConsoleError;
@@ -205,8 +214,7 @@ describe('useProduct hook', () => {
     expect(storeResult.current.getCurrentProduct()).toEqual(mockProduct);
   });
 
-  test('should use cached product from store if available', async () => {
-    // Create a shared store
+  test('id-only still fetches when sessionPricingKey is ready even if ProductStore already has that id', async () => {
     const sharedStore = createProductStore();
     const historyStore = createHistoryStore();
     const sessionStore = createSessionStore({
@@ -224,18 +232,27 @@ describe('useProduct hook', () => {
       </SessionStoreContext.Provider>
     );
 
-    // First, add a product to the store
     const { result: storeResult } = renderHook(() => useProductStore(), { wrapper: customWrapper });
 
     await act(async () => {
       storeResult.current.addProduct(mockProduct);
     });
 
-    // Now, render the useProduct hook with the same product ID
+    const fetchedProduct = { ...mockProduct, name: 'Fetched despite store cache' };
+    (fetchProductById as jest.Mock).mockResolvedValue(fetchedProduct);
+
     const { result: hookResult } = renderHook(() => useProduct('test-product-123'), { wrapper: customWrapper });
 
-    // Product should be immediately available without loading
-    expect(hookResult.current.loading).toBe(false);
+    await waitFor(() => {
+      expect(hookResult.current.loading).toBe(false);
+    });
+
+    expect(fetchProductById).toHaveBeenCalledWith(
+      'test-product-123',
+      undefined,
+      'anonymous:main:ANONYMOUS:main|USD|anonymous|',
+    );
+    expect(hookResult.current.product).toEqual(fetchedProduct);
   });
 
   test('should set error when session is irrecoverably null', async () => {
@@ -317,5 +334,290 @@ describe('useProduct hook', () => {
     // Product should be updated
     expect(result.current.product).toEqual(thirdProduct);
     expect(result.current.loading).toBe(false);
+  });
+
+  /**
+   * Cold-bootstrap race (preserve-on-failure contract for Phase 2).
+   * Public PDP SSR seeds omit price.currency (PUBLIC_PRODUCT_OPTIONS.prices = false).
+   * When sessionPricingKey arrives, current production force-refreshes and clears product to null;
+   * a failed/null client refetch then yields loading=false + product=null (false Not Found path).
+   * Wishlist is not involved — no wishlist mocks.
+   */
+  describe('cold-bootstrap SSR seed + sessionPricingKey race', () => {
+    const publicProductOptions = {
+      prices: false,
+      variants: false,
+      categories: false,
+      availability: false,
+    };
+
+    const ssrProductWithoutPrice = {
+      id: 'enjoysolar-200w-module',
+      name: 'EnjoySolar 200W Module',
+      description: 'SSR public product without displayable price',
+      purchasable: true,
+      // intentionally no price.currency — mirrors public SSR seed
+    };
+
+    const readySession: Session = {
+      id: 'cold-session',
+      siteCode: 'main',
+      currency: 'USD',
+      customerId: 'ANONYMOUS',
+    };
+
+    const createBootstrapWrapper = (sessionStore: ReturnType<typeof createSessionStore>) => {
+      const sharedStore = createProductStore();
+      const historyStore = createHistoryStore();
+      const cartStore = createCartStore();
+      return ({ children }: { children: ReactNode }) => (
+        <SessionStoreContext.Provider value={sessionStore}>
+          <CartStoreContext.Provider value={cartStore}>
+            <HistoryStoreContext.Provider value={historyStore}>
+              <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+            </HistoryStoreContext.Provider>
+          </CartStoreContext.Provider>
+        </SessionStoreContext.Provider>
+      );
+    };
+
+    test('does not catalog-refetch when hook argument is an SSR Product object with ready session', async () => {
+      const sessionStore = createSessionStore({
+        session: readySession,
+        loading: false,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+      (fetchProductById as jest.Mock).mockRejectedValue(new Error('should not be called'));
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      expect(result.current.loading).toBe(false);
+      expect(result.current.product).not.toBeNull();
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(result.current.error).toBe(null);
+      expect(fetchProductById).not.toHaveBeenCalled();
+    });
+
+    test('does not catalog-refetch when sessionPricingKey changes for an SSR Product object', async () => {
+      const sessionStore = createSessionStore({
+        session: readySession,
+        loading: false,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+      (fetchProductById as jest.Mock).mockResolvedValue(null);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      expect(fetchProductById).not.toHaveBeenCalled();
+      expect(result.current.loading).toBe(false);
+
+      await act(async () => {
+        sessionStore.getState().setSession({ ...readySession, currency: 'EUR' });
+      });
+
+      expect(result.current.loading).toBe(false);
+      expect(result.current.product).not.toBeNull();
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(result.current.error).toBe(null);
+      expect(fetchProductById).not.toHaveBeenCalled();
+    });
+
+    test('does not catalog-refetch when sessionPricingKey is introduced after cold start for an SSR Product object', async () => {
+      const sessionStore = createSessionStore({
+        // Incomplete session — no siteCode/currency yet (sessionPricingKey empty)
+        session: { id: 'cold-incomplete', customerId: 'ANONYMOUS', siteCode: '', currency: '' },
+        loading: true,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+      (fetchProductById as jest.Mock).mockRejectedValue(new Error('should not be called'));
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(result.current.loading).toBe(false);
+      expect(fetchProductById).not.toHaveBeenCalled();
+
+      await act(async () => {
+        sessionStore.getState().setSession(readySession);
+        sessionStore.getState().setLoading(false);
+      });
+
+      expect(result.current.loading).toBe(false);
+      expect(result.current.product).not.toBeNull();
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(result.current.error).toBe(null);
+      expect(fetchProductById).not.toHaveBeenCalled();
+    });
+
+    test('explicit refetch still fetches for an SSR Product object seed', async () => {
+      const sessionStore = createSessionStore({
+        session: readySession,
+        loading: false,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+      const refetchedProduct = { ...ssrProductWithoutPrice, name: 'Refetched catalog product' };
+      (fetchProductById as jest.Mock).mockResolvedValue(refetchedProduct);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      expect(fetchProductById).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await result.current.refetch();
+      });
+
+      expect(fetchProductById).toHaveBeenCalledWith(
+        ssrProductWithoutPrice.id,
+        publicProductOptions,
+        'anonymous:main:ANONYMOUS:main|USD|anonymous|',
+      );
+      expect(result.current.product?.name).toBe(refetchedProduct.name);
+      expect(result.current.loading).toBe(false);
+    });
+
+    test('assigned mode drops an SSR seed after a catalog fetch error (COP-4822 fail closed)', async () => {
+      const sessionStore = createSessionStore({
+        session: { ...readySession, customerId: 'cust-42' },
+        loading: false,
+      });
+      const assignedWrapper = ({ children }: { children: ReactNode }) => {
+        const Inner = createBootstrapWrapper(sessionStore);
+        return (
+          <ProductsModeProvider value={{ mode: 'assigned', isSegmented: true, canToggleAllProducts: false }}>
+            <Inner>{children}</Inner>
+          </ProductsModeProvider>
+        );
+      };
+      (fetchProductById as jest.Mock).mockRejectedValue(new Error('Failed to fetch product: 500'));
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: assignedWrapper,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+        expect(result.current.product).toBeNull();
+      });
+      expect(result.current.error?.message).toContain('500');
+    });
+
+    test('assigned mode drops an SSR seed after a confirmed catalog 404 (COP-4822 AC4)', async () => {
+      const sessionStore = createSessionStore({
+        session: { ...readySession, customerId: 'cust-42' },
+        loading: false,
+      });
+      const assignedWrapper = ({ children }: { children: ReactNode }) => {
+        const Inner = createBootstrapWrapper(sessionStore);
+        return (
+          <ProductsModeProvider value={{ mode: 'assigned', isSegmented: true, canToggleAllProducts: false }}>
+            <Inner>{children}</Inner>
+          </ProductsModeProvider>
+        );
+      };
+      (fetchProductById as jest.Mock).mockResolvedValue(null);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: assignedWrapper,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+        expect(result.current.product).toBeNull();
+      });
+
+      expect(fetchProductById).toHaveBeenCalledWith(
+        ssrProductWithoutPrice.id,
+        publicProductOptions,
+        'assigned:main:cust-42:main|USD|cust-42|',
+      );
+    });
+
+    test('discards a product response from a superseded customer scope (COP-4822 race guard)', async () => {
+      const sessionStore = createSessionStore({
+        session: readySession,
+        loading: false,
+      });
+      const sharedStore = createProductStore();
+      const raceWrapper = ({ children }: { children: ReactNode }) => (
+        <SessionStoreContext.Provider value={sessionStore}>
+          <CartStoreContext.Provider value={createCartStore()}>
+            <HistoryStoreContext.Provider value={createHistoryStore()}>
+              <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+            </HistoryStoreContext.Provider>
+          </CartStoreContext.Provider>
+        </SessionStoreContext.Provider>
+      );
+
+      let resolveStale: (value: unknown) => void = () => {};
+      (fetchProductById as jest.Mock)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveStale = resolve;
+            }),
+        )
+        // Refetch under the logged-in scope: the product is not in the customer's scope → 404.
+        .mockResolvedValueOnce(null);
+
+      const { result } = renderHook(() => useProduct(mockProduct.id), { wrapper: raceWrapper });
+
+      await waitFor(() => expect(fetchProductById).toHaveBeenCalledTimes(1));
+      expect(fetchProductById).toHaveBeenLastCalledWith(
+        mockProduct.id,
+        undefined,
+        'anonymous:main:ANONYMOUS:main|USD|anonymous|',
+      );
+
+      // Customer transition while the anonymous request is still in flight.
+      await act(async () => {
+        sessionStore.getState().setSession({ ...readySession, customerId: 'cust-42' });
+      });
+
+      await waitFor(() => expect(fetchProductById).toHaveBeenCalledTimes(2));
+      expect(fetchProductById).toHaveBeenLastCalledWith(
+        mockProduct.id,
+        undefined,
+        'anonymous:main:cust-42:main|USD|cust-42|',
+      );
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.product).toBeNull();
+
+      // The stale anonymous-scope response resolves late: it must not be rendered or cached.
+      await act(async () => {
+        resolveStale(mockProduct);
+      });
+
+      expect(result.current.product).toBeNull();
+      expect(sharedStore.getState().getProduct(mockProduct.id)).toBeNull();
+      expect(result.current.loading).toBe(false);
+    });
+
+    test('session-null fail-safe does not strand SSR-seeded product as null without loading', async () => {
+      const sessionStore = createSessionStore({
+        session: null,
+        loading: false,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.product).not.toBeNull();
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(fetchProductById).not.toHaveBeenCalled();
+    });
   });
 });

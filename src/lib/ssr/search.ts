@@ -3,6 +3,7 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import type { SearchService } from '@/platform/services/search';
+import BatteryIncludedSearchService from '@/platform/services/search/impl/BatteryIncludedSearchService';
 import ssr from '@/platform/ssr';
 
 const getSearchService = () => ssr.get<SearchService>('SearchService');
@@ -20,4 +21,9 @@ const _searchProducts = cache(async (params: SearchParams<Product>): Promise<Sea
 
 export function searchProducts(params: SearchParams<Product>): Promise<SearchResult<Product> | undefined> {
   return _searchProducts(params);
+}
+
+export function getSearchResultsLayout(): 'list' | 'grid' {
+  const searchService = getSearchService();
+  return searchService instanceof BatteryIncludedSearchService ? 'list' : 'grid';
 }

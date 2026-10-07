@@ -54,7 +54,7 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
    * Get an anonymous token
    * @param tenant The tenant ID
    * @param clientId Client ID for anonymous access
-   * @param sessionParams Optional session context values to pre-seed the new session (COP-5047)
+   * @param sessionParams Optional session context values to pre-seed the new session
    * @returns Promise with the anonymous token response
    */
   async getAnonymousToken(
@@ -181,6 +181,26 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
     }
 
     return (await response.json()) as EmporixCustomerTokenResponse;
+  }
+
+  async validateCustomerToken(tenant: string, accessToken: string): Promise<{ legalEntityId?: string }> {
+    // Bypass debug response logging: this endpoint also returns an email field.
+    const response = await fetch(`${this.baseUrl}/customer/${tenant}/validateauthtoken`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to validate customer token: ${response.statusText}`);
+    }
+
+    const body = (await response.json()) as { legalEntityId?: unknown };
+    return typeof body.legalEntityId === 'string' && body.legalEntityId.trim()
+      ? { legalEntityId: body.legalEntityId.trim() }
+      : {};
   }
 
   /**

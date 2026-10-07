@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import 'server-only';
+import { formatGuestCheckoutError } from '@/lib/common/guest-checkout-error-message';
 import { injectable } from '@/platform/core/di/injectable';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixCartApi from '../../cart/impl/EmporixCartApi';
@@ -78,7 +79,7 @@ class EmporixCheckoutApi implements IEmporixCheckoutApi {
 
     if (!response.ok) {
       const errorDetails = await response.text();
-      throw new Error(`Failed to guest checkout: ${response.statusText} ${errorDetails}`);
+      throw new Error(formatGuestCheckoutError(response.statusText, errorDetails));
     }
 
     return await response.json();

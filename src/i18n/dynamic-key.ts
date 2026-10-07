@@ -127,10 +127,7 @@ export type OrderStatusLowercaseKey =
 // Used by: my-orders-table.tsx
 // ---------------------------------------------------------------------------
 export type OrderPaymentTypeKey =
-  | 'paymentTypes.creditcard'
-  | 'paymentTypes.paypal'
-  | 'paymentTypes.invoice'
-  | 'paymentTypes.prepayment';
+  'paymentTypes.creditcard' | 'paymentTypes.paypal' | 'paymentTypes.invoice' | 'paymentTypes.prepayment';
 
 // ---------------------------------------------------------------------------
 // Namespace: orders.Tracking
@@ -207,11 +204,7 @@ export type ServiceTicketStatusKey =
 // Priority/SLA values come from the ticket and the structure availableSLAs.
 // ---------------------------------------------------------------------------
 export type ServiceTicketPriorityKey =
-  | 'priorities.blocker'
-  | 'priorities.critical'
-  | 'priorities.high'
-  | 'priorities.medium'
-  | 'priorities.low';
+  'priorities.blocker' | 'priorities.critical' | 'priorities.high' | 'priorities.medium' | 'priorities.low';
 
 // ---------------------------------------------------------------------------
 // Namespace: common.Languages
@@ -224,9 +217,7 @@ export type LanguageKey = 'label' | 'en' | 'de';
 // Used by: notification.tsx
 // ---------------------------------------------------------------------------
 export type NotificationOnboardingKey =
-  | 'company.onboarding.rejected'
-  | 'company.onboarding.pending'
-  | 'company.onboarding.approved';
+  'company.onboarding.rejected' | 'company.onboarding.pending' | 'company.onboarding.approved';
 
 // ---------------------------------------------------------------------------
 // Namespace: auth.errors
@@ -245,12 +236,7 @@ export type NotificationCodeKey = 'SUBSTITUTION_AVAILABLE' | 'ITEM_PRICE_CHANGE'
 // Used by: documents-card.tsx
 // ---------------------------------------------------------------------------
 export type DocumentKey =
-  | 'title'
-  | 'categories.contracts'
-  | 'categories.company'
-  | 'categories.manuals'
-  | 'categories.warranty'
-  | 'seeAll';
+  'title' | 'categories.contracts' | 'categories.company' | 'categories.manuals' | 'categories.warranty' | 'seeAll';
 
 // ---------------------------------------------------------------------------
 // Namespace: validation
@@ -302,8 +288,12 @@ export type ValidationKey =
 // ---------------------------------------------------------------------------
 export type ProductFilterKey =
   | 'filters.prices.effectiveAmount'
+  | 'filters.categoryIds'
   | 'filters.categoryAssignments.name'
   | 'filters.filterButton'
+  | 'filters.close'
+  | 'filters.productCount'
+  | 'filters.showProducts'
   | 'filters.clearFilter'
   | 'filters.applyFilters'
   | ProductVariantAttributeKey
@@ -311,8 +301,7 @@ export type ProductFilterKey =
 
 // ---------------------------------------------------------------------------
 // Namespace: product (sub-path: filters.mixins.productVariantAttributes.*)
-// Used by: product-detail.tsx, product-variant-selector-multi.tsx,
-//          product-variant-selector-simple.tsx, product-tile-fly-out.tsx
+// Used by: product-detail.tsx, product-variant-attribute-groups.tsx, product-tile-fly-out.tsx
 // These keys come from product data. Unknown keys use { defaultValue }.
 // ---------------------------------------------------------------------------
 export type ProductVariantAttributeKey =

@@ -21,8 +21,8 @@ interface UseWishlist {
 }
 
 /**
- * Reads + mutates the customer's wishlist. Auto-fetches on mount, clears on logout, refetches
- * on login.
+ * Reads + mutates the customer's wishlist. Fetches when next-auth is authenticated, clears
+ * on logout, and does not fetch while status is loading or unauthenticated.
  */
 export const useWishlist = (): UseWishlist => {
   const {
@@ -54,13 +54,6 @@ export const useWishlist = (): UseWishlist => {
     setCurrentCart(result.cart);
     return result;
   };
-
-  useEffect(() => {
-    if (currentWishlist === undefined) {
-      fetchWishlist();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWishlist]);
 
   const { status: sessionStatus } = useSession();
   useEffect(() => {
@@ -101,6 +94,9 @@ export const useWishlist = (): UseWishlist => {
     removeItem,
     moveItemToCart: moveItemToCartAndSyncCart,
     refetch: async () => {
+      if (sessionStatus !== 'authenticated') {
+        return;
+      }
       await fetchWishlist();
     },
   };

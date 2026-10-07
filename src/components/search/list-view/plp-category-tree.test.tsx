@@ -1,0 +1,215 @@
+/**
+ * @jest-environment jsdom
+ */
+import React from 'react';
+import '@testing-library/jest-dom';
+import { render, screen, within } from '@testing-library/react';
+import { type ProductsModeContextValue, ProductsModeProvider } from '@/components/navigation/products-mode-context';
+import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
+import { PlpCategoryTree } from './plp-category-tree';
+
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
+jest.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),
+}));
+
+jest.mock('@/lib/client/customer-segment', () => ({
+  setProductsMode: jest.fn(),
+}));
+
+// Provide minimal mock for next/image if necessary, or other components
+jest.mock('@/i18n/navigation', () => ({
+  Link: React.forwardRef<HTMLAnchorElement, React.AnchorHTMLAttributes<HTMLAnchorElement>>(function MockLink(
+    { children, ...props },
+    ref,
+  ) {
+    return (
+      <a ref={ref} {...props}>
+        {children}
+      </a>
+    );
+  }),
+  useRouter: () => ({
+    push: jest.fn(),
+  }),
+}));
+
+window.HTMLElement.prototype.scrollIntoView = jest.fn();
+
+/* Mock out the helper if needed or use real */
+const mockContext: PlpCategoryContext = {
+  ancestorTrail: [
+    { kind: 'virtual-all-products' },
+    { kind: 'category', category: { id: 'parent-1', name: { en: 'Parent 1' }, children: [] } },
+  ],
+  currentCategory: { id: 'cat-1', name: { en: 'Category 1' }, children: [] },
+  currentChildren: [
+    { id: 'child-1', name: { en: 'Child 1' }, children: [] },
+    { id: 'child-2', name: { en: 'Child 2' }, children: [] },
+  ],
+  ribbonCategories: [],
+  sidebarCountCategoryIds: [],
+};
+
+const mockNoFilterContext: PlpCategoryContext = {
+  ancestorTrail: [],
+  currentCategory: undefined,
+  currentChildren: [{ id: 'root-1', name: { en: 'Root 1' }, children: [] }],
+  ribbonCategories: [],
+  sidebarCountCategoryIds: [],
+};
+
+describe('PlpCategoryTree', () => {
+  it('renders drill-down hierarchy with current node and ancestors', () => {
+    // Override the mock to inject something
+    jest
+      .spyOn(require('next/navigation'), 'useSearchParams')
+      .mockReturnValue(new URLSearchParams('q=tubes&filters[brand]=X'));
+
+    render(
+      <PlpCategoryTree
+        plpCategoryContext={mockContext}
+        locale="en"
+        total={100}
+        categoryCountsById={{ 'cat-1': 10, 'child-1': 5, 'child-2': 0 }}
+      />,
+    );
+
+    // Get the breadcrumb links (the ancestors before the current node)
+    // We render the ancestors inside a <ul>. Let's find all the links inside that nav list.
+    const nav = screen.getByRole('navigation', { name: 'title' });
+    const ul = nav.querySelector('ul');
+    const breadcrumbLinks = ul ? Array.from(ul.querySelectorAll('a')) : [];
+
+    // Assert that 'All Categories' is at index 0 of the breadcrumb stack
+    expect(breadcrumbLinks[0]).toHaveTextContent('allCategories');
+    expect(breadcrumbLinks[0]).toHaveAttribute('title', 'allCategories');
+    // Check that 'All Categories' drops the category filter but preserves search and brand filter
+    expect(breadcrumbLinks[0]).toHaveAttribute('href', expect.stringContaining('q=tubes'));
+    expect(breadcrumbLinks[0]).toHaveAttribute('href', expect.stringContaining('filters%5Bbrand%5D=X'));
+
+    // Assert that 'Parent 1' is at index 1 of the breadcrumb stack
+    expect(breadcrumbLinks[1]).toHaveTextContent('Parent 1');
+    expect(breadcrumbLinks[1]).toHaveAttribute('title', 'Parent 1');
+
+    // Current row
+    expect(screen.getByText('Category 1')).toBeInTheDocument();
+    const currLink = screen.getByText('Category 1').closest('a');
+    expect(currLink).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText('Category 1')).toHaveAttribute('title', 'Category 1');
+    expect(currLink).toHaveAttribute(
+      'href',
+      expect.stringContaining('/browse?q=tubes&filters%5Bbrand%5D=X&filters%5BcategoryIds%5D=cat-1'),
+    );
+
+    // Children row
+    expect(screen.getByText('Child 1')).toBeInTheDocument();
+    expect(screen.getByText('Child 1')).toHaveAttribute('title', 'Child 1');
+    // Verify count appears for child 1 (5 was added in mock)
+    expect(screen.getByText('Child 1').parentElement).toHaveTextContent('Child 15');
+
+    // Children row with 0 count still renders
+    expect(screen.getByText('Child 2')).toBeInTheDocument();
+    expect(screen.getByText('Child 2')).toHaveAttribute('title', 'Child 2');
+    expect(screen.getByText('Child 2').parentElement).toHaveTextContent('Child 20');
+  });
+
+  it('renders virtual All Products row when no category is selected and drops facets on click', () => {
+    jest
+      .spyOn(require('next/navigation'), 'useSearchParams')
+      .mockReturnValue(new URLSearchParams('q=tubes&filters[brand]=X'));
+
+    render(
+      <PlpCategoryTree
+        plpCategoryContext={mockNoFilterContext}
+        locale="en"
+        total={999}
+        categoryCountsById={{ 'root-1': 12 }}
+      />,
+    );
+
+    // Virtual current row
+    expect(screen.getByText('allProducts')).toBeInTheDocument();
+    const currLink = screen.getByText('allProducts').closest('a');
+    expect(currLink).toHaveAttribute('aria-current', 'page');
+    // Main level All Products should reset all
+    expect(currLink).toHaveAttribute('href', '/browse');
+
+    // Children
+    expect(screen.getByText('Root 1')).toBeInTheDocument();
+  });
+
+  describe('products mode (COP-4822)', () => {
+    const renderWithMode = (mode: ProductsModeContextValue, isNested?: boolean) =>
+      render(
+        <ProductsModeProvider value={mode}>
+          <PlpCategoryTree
+            plpCategoryContext={mockNoFilterContext}
+            locale="en"
+            total={999}
+            categoryCountsById={{ 'root-1': 12 }}
+            isNested={isNested}
+          />
+        </ProductsModeProvider>,
+      );
+
+    it('renders the products mode switch in the card header when the toggle is available', () => {
+      renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: true });
+
+      const heading = screen.getByRole('heading', { level: 5, name: 'title' });
+      const header = heading.parentElement as HTMLElement;
+      const control = screen.getByTestId('plp-productsModeSwitch');
+
+      expect(header).toHaveAttribute('data-slot', 'card-header');
+      // Wraps the switch group onto its own row in the 274px sidebar instead of overflowing the card.
+      expect(header).toHaveClass('flex', 'flex-nowrap', 'items-center', 'justify-between', 'gap-x-2');
+      expect(header).not.toHaveClass('gap-4');
+      expect(header.firstElementChild).toBe(heading);
+      expect(header).toContainElement(control);
+      expect(header).toContainElement(screen.getByTestId('plp-productsModeLabel'));
+      expect(control).toHaveAttribute('role', 'radiogroup');
+      expect(screen.getByTestId('plp-productsModeAssigned')).toBeChecked();
+      expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProductsShort');
+      expect(screen.getByRole('radio', { name: 'allProductsShort' })).toBeInTheDocument();
+    });
+
+    it('does not render the products mode switch when the toggle is not available', () => {
+      renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: false });
+
+      expect(screen.getByRole('heading', { level: 5, name: 'title' })).toBeInTheDocument();
+      expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('plp-showAllProductsCheckbox')).not.toBeInTheDocument();
+    });
+
+    it('does not render a header or switch in the nested variant (the mobile drawer mounts its own)', () => {
+      renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: true }, true);
+
+      expect(screen.getByTestId('plp-category-tree-nested')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 5 })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+    });
+
+    it('labels the root row "Assigned Products" in assigned mode', () => {
+      renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: true });
+
+      const currLink = screen.getByTestId('plp-category-tree-current');
+      expect(currLink).toHaveTextContent('assignedProducts');
+      expect(currLink).toHaveAttribute('title', 'assignedProducts');
+      expect(currLink).toHaveAttribute('aria-current', 'page');
+      expect(currLink).toHaveAttribute('href', '/browse');
+      expect(within(currLink).queryByText('allProducts')).not.toBeInTheDocument();
+    });
+
+    it('keeps the "All Products" root row in ALL mode', () => {
+      renderWithMode({ mode: 'all', isSegmented: true, canToggleAllProducts: true });
+
+      const currLink = screen.getByTestId('plp-category-tree-current');
+      expect(currLink).toHaveTextContent('allProducts');
+      expect(within(currLink).queryByText('assignedProducts')).not.toBeInTheDocument();
+    });
+  });
+});

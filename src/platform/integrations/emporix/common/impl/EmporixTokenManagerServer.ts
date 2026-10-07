@@ -33,6 +33,14 @@ class EmporixTokenManagerServer extends EmporixTokenManagerAbstract {
     this.logger = logger;
   }
 
+  protected override logCustomerTokenRefreshSkipped(context: {
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }): void {
+    this.logger.warn(context, 'Customer token refresh skipped');
+  }
+
   /**
    * Resolves session params lazily in the cache-miss/refresh path only. Overriding
    * `fetchAnonymousToken` (instead of `getAnonymousToken`) keeps cached-token reads free of

@@ -199,6 +199,25 @@ describe('EmporixOAuthApiClient', () => {
     });
   });
 
+  describe('validateCustomerToken', () => {
+    it('uses the customer access token and returns the legal entity ID', async () => {
+      mockJsonResponse({ legalEntityId: 'legal-entity-1' });
+
+      await expect(api.validateCustomerToken('tenant', 'customer-access')).resolves.toEqual({
+        legalEntityId: 'legal-entity-1',
+      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/customer/tenant/validateauthtoken'),
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer customer-access',
+          }),
+        }),
+      );
+    });
+  });
+
   describe('getServiceAccessToken', () => {
     it('should throw with browser context error', async () => {
       await expect(api.getServiceAccessToken('t', 'c', 's')).rejects.toThrow('not available in the browser context');

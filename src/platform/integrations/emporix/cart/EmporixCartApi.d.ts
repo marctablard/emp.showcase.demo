@@ -1,9 +1,7 @@
 import {
   EmporixAddCartItemRequest,
-  EmporixAppliedDiscount,
   EmporixCart,
   EmporixCreateCartRequest,
-  EmporixDiscountResponse,
   EmporixPaginatedResponse,
   EmporixSearchParams,
   EmporixUpdateCartItemRequest,
@@ -122,32 +120,26 @@ export interface EmporixCartApi {
   refreshCart(cartId: string): Promise<void>;
 
   /**
+   * Apply a discount coupon to a cart
+   * @param cartId Cart ID
+   * @param code Coupon code
+   * @returns Promise resolving when the discount is applied
+   */
+  applyDiscount(cartId: string, code: string): Promise<void>;
+
+  /**
+   * Remove one discount from a cart by index
+   * @param cartId Cart ID
+   * @param discountIndex Discount index from the cart discounts list
+   * @returns Promise resolving when the discount is removed
+   */
+  removeDiscount(cartId: string, discountIndex: number): Promise<void>;
+
+  /**
    * Merge two carts into one
    * @param sourceCartId The ID of the source cart
    * @param targetCartId The ID of the target cart
    * @returns Promise resolving when the carts are merged
    */
   mergeCarts(sourceCartId: string, targetCartId: string): Promise<void>;
-
-  /**
-   * Apply a coupon discount code to the cart
-   * @param cartId Cart ID
-   * @param code Coupon code
-   * @returns Applied discount metadata
-   */
-  applyDiscount(cartId: string, code: string): Promise<EmporixAppliedDiscount>;
-
-  /**
-   * List all discounts applied to the cart
-   * @param cartId Cart ID
-   * @returns Applied discount details
-   */
-  getDiscounts(cartId: string): Promise<EmporixDiscountResponse[]>;
-
-  /**
-   * Remove discounts from the cart
-   * @param cartId Cart ID
-   * @param codes Optional coupon codes to remove; removes all when omitted
-   */
-  removeDiscounts(cartId: string, codes?: string[]): Promise<void>;
 }

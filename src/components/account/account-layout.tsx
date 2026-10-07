@@ -27,8 +27,10 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCustomer } from '@/hooks/customer/useCustomer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import type { BreadcrumbContent } from '@/lib/breadcrumb';
+import { CustomerRole } from '@/platform/services/model/customer/roles';
 import { UiBreadcrumb } from '../ui/molecules/ui-breadcrumb';
 import { AccountSidebar } from './account-sidebar';
 
@@ -39,8 +41,11 @@ interface AccountLayoutProps {
 
 export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   const t = useTranslations('account');
+  const { customer } = useCustomer();
   const [showSidebarOffcanvas, setShowSidebarOffcanvas] = useState(false);
-  const isDesktop = useBreakpoint('lg');
+  // Figma: the persistent sidebar appears from tablet (768) up; only below that a drawer is used.
+  const isDesktop = useBreakpoint('sm');
+  const canManageUsers = customer?.roles?.includes(CustomerRole.B2B_ADMIN) === true;
 
   // Toggle sidebar offcanvas visibility
   const toggleSidebarOffcanvas = () => {
@@ -140,11 +145,15 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           title: t('sidebar.items.addressManagement'),
           icon: <MapPin className="h-6 w-6" />,
         },
-        {
-          href: '/account/users',
-          title: t('sidebar.items.teamManagement'),
-          icon: <UserCog className="h-6 w-6" />,
-        },
+        ...(canManageUsers
+          ? [
+              {
+                href: '/account/users',
+                title: t('sidebar.items.userManagement'),
+                icon: <UserCog className="h-6 w-6" />,
+              },
+            ]
+          : []),
         {
           href: '/account/wishlists',
           title: t('sidebar.items.wishlists'),
@@ -201,7 +210,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 lg:px-9">
+    <div className="content-container w-full">
       {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="md:gap-x-6" />}
 
       {/* Mobile Menu Button - only visible on mobile */}
@@ -213,18 +222,24 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
         </div>
       )}
 
-      <div className="flex min-h-screen">
-        {/* Desktop Sidebar - always visible on desktop */}
-        {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} />}
+      {/*
+        items-start + no min-h-screen: the tall desktop sidebar must not stretch <main>
+        and invent empty space above the site footer.
+        mt-4 / mb-4 keep a 1rem gap under breadcrumbs and above the site footer.
+        sm:mx-4 / md:mx-9 align the side margins with the Figma grid.
+      */}
+      <div className="mt-4 mb-4 flex items-start sm:mx-4 md:mx-9">
+        {/* Desktop Sidebar - always visible on desktop. Q30: page/document scrolls, not the rail. */}
+        {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} scrollable={false} />}
 
         {/* Mobile Off-canvas Sidebar */}
-        {showSidebarOffcanvas && (
+        {!isDesktop && showSidebarOffcanvas && (
           <>
             {/* Backdrop - closes the sidebar when clicked */}
             <div className="fixed inset-0 z-40 bg-black/20" onClick={toggleSidebarOffcanvas} aria-hidden="true" />
 
-            {/* Off-canvas Panel */}
-            <div className="fixed left-0 top-0 h-[calc(100vh-58px)] max-w-[320px] w-full bg-surface-page z-50 overflow-y-auto shadow-lg">
+            {/* Keep the last menu items above the 58px mobile bottom bar. */}
+            <div className="fixed left-0 top-0 bottom-[58px] h-[calc(100dvh-58px)] max-w-[320px] w-full bg-surface-page z-50 overflow-y-auto overscroll-contain shadow-lg">
               <div className="flex justify-end p-4">
                 <Button variant="link" size="icon" onClick={toggleSidebarOffcanvas} className="text-black">
                   <X />
@@ -236,7 +251,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           </>
         )}
 
-        <main className={`w-full min-w-0 ${isDesktop ? 'ml-4' : ''}`}>{children}</main>
+        <main className="@container w-full min-w-0 sm:ml-4">{children}</main>
       </div>
     </div>
   );

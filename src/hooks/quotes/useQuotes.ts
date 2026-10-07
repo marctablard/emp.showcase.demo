@@ -1,25 +1,139 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
+import { useSession } from '@/hooks/session/useSession';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { SearchParams, SearchResult } from '@/platform/services/model/common';
+import type { SearchFilterLeafValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
+
+function appendQuoteFilterParam(queryParams: URLSearchParams, key: string, value: SearchFilterLeafValue): void {
+  if (Array.isArray(value)) {
+    queryParams.append(key, value.join(','));
+    return;
+  }
+
+  queryParams.append(key, value);
+}
+
+interface UseQuotesOptions extends SearchParams<Quote> {
+  /** Total item count seeded from SSR, used to compute pagination before the first client fetch. */
+  initialTotalCount?: number;
+  /** The exact params SSR used to fetch `initialQuotes`, used to decide if the initial client fetch can be skipped. */
+  initialRequest?: {
+    page?: number;
+    size?: number;
+    sort?: string;
+    query?: string;
+    filters?: SearchParams<Quote>['filters'];
+  };
+}
+
+function sortStrings(values: string[]): string[] {
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string | undefined {
+  if (!filters) {
+    return undefined;
+  }
+
+  const sortedTopLevel = Object.entries(filters)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, value]) => {
+      if (Array.isArray(value)) {
+        return [key, sortStrings(value)];
+      }
+
+      if (typeof value === 'object' && value !== null) {
+        const sortedNested = Object.entries(value)
+          .sort(([nestedKeyA], [nestedKeyB]) => nestedKeyA.localeCompare(nestedKeyB))
+          .map(([nestedKey, nestedValue]) => [
+            nestedKey,
+            Array.isArray(nestedValue) ? sortStrings(nestedValue) : nestedValue,
+          ]);
+        return [key, sortedNested];
+      }
+
+      return [key, value];
+    });
+
+  return JSON.stringify(sortedTopLevel);
+}
+
+function appendNormalizedQuoteFilters(queryParams: URLSearchParams, normalizedFilters?: string): void {
+  if (!normalizedFilters) {
+    return;
+  }
+
+  const parsedFilters = JSON.parse(normalizedFilters) as Array<
+    [string, SearchFilterLeafValue | Array<[string, SearchFilterLeafValue]>]
+  >;
+
+  parsedFilters.forEach(([key, value]) => {
+    if (Array.isArray(value) && value.every((entry) => Array.isArray(entry))) {
+      value.forEach(([nestedKey, nestedValue]) => {
+        appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
+      });
+      return;
+    }
+
+    appendQuoteFilterParam(queryParams, key, value as SearchFilterLeafValue);
+  });
+}
 
 /**
  * Hook for fetching quotes
  * @param initialQuotes Optional initial quotes data (from SSR)
  * @param params Optional search params for client-side filtering
  */
-export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>) {
-  const [loading, setLoading] = useState<boolean>(!initialQuotes);
+export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
+  const page = params?.page;
+  const size = params?.size;
+  const sort = params?.sort;
+  const searchQuery = params?.query;
+  const filters = params?.filters;
+  const initialTotalCount = params?.initialTotalCount;
+  const initialRequest = params?.initialRequest;
+  const normalizedFilters = normalizeQuoteFilters(filters);
+  const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
+
+  const { session } = useSession();
+  // Legal-entity scoped: refetch when the header dropdown switches company so
+  // the list reflects the new LE's quotes rather than the previous session's.
+  const legalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
+
+  const canReuseInitialData =
+    !!initialQuotes &&
+    (page ?? 0) === (initialRequest?.page ?? 0) &&
+    size === initialRequest?.size &&
+    sort === initialRequest?.sort &&
+    searchQuery === initialRequest?.query &&
+    normalizedFilters === normalizedInitialRequestFilters;
+
+  const [loading, setLoading] = useState<boolean>(!canReuseInitialData);
   const [error, setError] = useState<Error | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes || []);
-  const [pagination, setPagination] = useState<{
-    pageNumber: number;
-    pageSize: number;
-    totalPages: number;
-    totalItems: number;
-  }>();
+  const [pagination, setPagination] = useState<
+    | {
+        pageNumber: number;
+        pageSize: number;
+        totalPages: number;
+        totalItems: number;
+      }
+    | undefined
+  >(() => {
+    if (initialTotalCount === undefined) {
+      return undefined;
+    }
+    const pageSize = size || 10;
+    return {
+      pageNumber: page ?? 0,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(initialTotalCount / pageSize)),
+      totalItems: initialTotalCount,
+    };
+  });
   const [availableFilters, setAvailableFilters] = useState<
     Array<{
       id: string;
@@ -32,12 +146,6 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
       }>;
     }>
   >([]);
-
-  const page = params?.page;
-  const size = params?.size;
-  const sort = params?.sort;
-  const searchQuery = params?.query;
-  const filters = params?.filters;
 
   const fetchQuotes = useCallback(async () => {
     try {
@@ -57,15 +165,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
       if (searchQuery !== undefined) {
         queryParams.append('q', searchQuery);
       }
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            queryParams.append(key, value.join(','));
-          } else {
-            queryParams.append(key, value);
-          }
-        });
-      }
+      appendNormalizedQuoteFilters(queryParams, normalizedFilters);
 
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       const res = await fetch(`/api/quotes${queryString}`);
@@ -92,22 +192,37 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
     } finally {
       setLoading(false);
     }
-  }, [page, size, sort, searchQuery, filters]);
+  }, [page, size, sort, searchQuery, normalizedFilters]);
 
   const refetchQuotes = useCallback(async () => {
     await fetchQuotes();
   }, [fetchQuotes]);
 
-  // Skip only the very first fetch when SSR data is available and no custom params override the defaults
-  const hasCustomParams = !!(params?.query || params?.page || params?.size || params?.sort || params?.filters);
-  const isFirstRender = useRef(!!initialQuotes && !hasCustomParams);
+  // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
+  // Seeded during render but only ever read/written inside the effect: once the first effect run
+  // has consumed it, every later param change refetches, so navigating back to the SSR'd page
+  // still refreshes instead of showing whatever the previous fetch left in state.
+  const skipInitialFetchRef = useRef(canReuseInitialData);
+
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
       return;
     }
-    fetchQuotes();
+    return startEffectTask(fetchQuotes);
   }, [fetchQuotes]);
+
+  // Dedicated LE watcher: mirrors `useApprovals`/`useReturns`. Kept out of the
+  // main effect deps so lint doesn't flag LE (not a URL arg) and the initial
+  // SSR-skip stays intact.
+  const previousLegalEntityIdRef = useRef(legalEntityId);
+  useEffect(() => {
+    if (previousLegalEntityIdRef.current === legalEntityId) {
+      return;
+    }
+    previousLegalEntityIdRef.current = legalEntityId;
+    return startEffectTask(fetchQuotes);
+  }, [legalEntityId, fetchQuotes]);
 
   return {
     loading,

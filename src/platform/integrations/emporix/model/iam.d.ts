@@ -57,7 +57,8 @@ export interface EmporixAccessControl {
  */
 export interface EmporixGroup {
   id?: string;
-  name?: EmporixLocalizedString;
+  /** Locale map when `Accept-Language: *`; a resolved string when a specific language is requested. */
+  name?: EmporixLocalizedString | string;
   description?: EmporixLocalizedString;
   accessControls?: string[];
   templates?: string[];
@@ -94,6 +95,12 @@ export interface EmporixGroupAssignment {
  */
 export interface EmporixIamUser {
   id?: string;
+  userType?: 'CUSTOMER' | 'EMPLOYEE';
+  firstName?: string;
+  lastName?: string;
+  contactEmail?: string;
+  groupIds?: string[];
+  groups?: EmporixGroup[];
   roleId?: string;
   resourceId?: string;
   name?: EmporixLocalizedString;
@@ -101,4 +108,14 @@ export interface EmporixIamUser {
   resource?: EmporixResource;
   metadata?: EmporixMetadata;
   scopes?: string[];
+}
+
+/**
+ * Group-user assignment returned by GET /iam/{tenant}/groups/{groupId}/users.
+ */
+export interface EmporixIamGroupUserAssignment {
+  id?: string;
+  groupId?: string;
+  userId?: string;
+  userType?: 'CUSTOMER' | 'EMPLOYEE';
 }

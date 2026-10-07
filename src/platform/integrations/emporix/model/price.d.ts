@@ -29,6 +29,11 @@ export interface EmporixMatchPricesRequest {
     countryCode: string;
   };
   items: EmporixPriceMatchItem[];
+  principal?: {
+    id: string;
+    type: 'CUSTOMER' | 'GROUP';
+  };
+  legalEntityId?: string;
   /**
    * Legal entity for which price lists are included in the price match.
    */

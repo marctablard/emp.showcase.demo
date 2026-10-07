@@ -57,14 +57,29 @@
   },
   "price": {
     "yourPrice": "Your Price",
-    "listPrice": "Listpreis",
+    "listPrice": "List price",
     "including": "incl",
     "notAvailable": "N/A",
     "priceNotAvailable": "Price not available",
     "includingTax": "incl. {taxRate}% VAT",
     "excludingTax": "excl. {taxRate}% VAT",
     "net": "net",
-    "gross": "gross"
+    "gross": "gross",
+    "yourPriceItemsRange": "Your price (items {min} - {max})",
+    "yourPriceItemsFrom": "Your price (items {min}+)",
+    "amountForItemsRange": "{amount} for items {min} - {max}",
+    "amountForItemsFrom": "{amount} for items {min}+",
+    "discount": "Discount",
+    "plusTax": "plus {taxRate}% VAT",
+    "tiers": {
+      "quantity": "Quantity",
+      "pricePerUnit": "Price per unit",
+      "buyRange": "Buy {min}-{max}",
+      "buyFrom": "Buy {min}+",
+      "forUnitsRange": "for units {min}-{max}",
+      "forUnitsFrom": "for units {min}+",
+      "forEachUnit": "for each unit"
+    }
   },
   "filters": {
     "mixins": {
@@ -97,9 +112,17 @@
     "categoryAssignments": {
       "name": "Category name"
     },
-    "filterButton": "Filter",
-    "clearFilter": "Clear Filter",
-    "applyFilters": "Apply Filters"
+    "filterButton": "Filters",
+    "clearFilter": "Clear Filters",
+    "applyFilters": "Apply Filters",
+    "categoryIds": "Category",
+    "close": "Close",
+    "activeFiltersTitle": "Active filters",
+    "productCount": "({count} Products)",
+    "showProducts": "Show {count} products",
+    "from": "From",
+    "till": "Till",
+    "clearAllFilters": "Clear filters"
   },
   "tabs": {
     "description": "Description",
@@ -176,5 +199,22 @@
   "cartTooltipNotPurchasable": "This product is not available for purchase.",
   "cartTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to cart.",
   "wishlistTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to the wishlist.",
-  "inComparisonList": "In comparison list"
+  "inComparisonList": "In comparison list",
+  "primaryImageAltUnlabeled": "Product view (ID: {id})",
+  "itemNumberCopied": "Item number has been copied",
+  "basicSpecifications": "Basic Specifications",
+  "basicAttributes": "Basic Attributes",
+  "showMore": "Show more…",
+  "showLess": "Show less",
+  "clearAllFilters": "Clear all filters",
+  "variants": {
+    "sellableVariants": "Sellable variants",
+    "count": "({count, plural, one {# variant} other {# variants}})",
+    "noMatchingSellableVariants": "There are no sellable variants matching your attribute selection."
+  },
+  "variantAttributeSelectViaListTooltip": "Please use sellable product list to select a variant",
+  "cartTooltipNotSellable": "This product is not sellable and cannot be put to cart.",
+  "notFoundTitle": "Product not found",
+  "notFoundBody": "The requested product could not be found. Please check the catalog for other products.",
+  "notFoundHome": "Return Home"
 }

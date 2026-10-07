@@ -1,8 +1,9 @@
 /**
  * Service layer models for approval functionality
  */
-import { CheckoutAddress, OrderShipping } from '../checkout';
-import { Address } from '../common';
+import type { TaxAggregate } from '@/lib/common/tax-aggregate';
+import { CheckoutAddress, CheckoutPaymentMethod, OrderShipping } from '../checkout';
+import type { LocalizedString } from '../common';
 
 export interface ApprovalUser {
   userId: string;
@@ -19,6 +20,15 @@ export interface ApprovalPrice {
   currency: string;
   amount: number;
   formattedAmount?: string;
+  unitPrice?: number;
+  newUnitPrice?: number;
+  /** Discount percentage when present on the cart/quote price (e.g. 35 for 35%). */
+  discount?: number;
+  netValue?: number;
+  grossValue?: number;
+  taxValue?: number;
+  /** Item tax rate percent from quote/cart `price.tax.taxRate` when present. */
+  taxRate?: number;
 }
 
 export interface ApprovalTaxablePrice {
@@ -57,6 +67,7 @@ export interface ApprovalResource {
   amount?: number;
   siteCode?: string;
   deliveryWindow?: ApprovalDeliveryWindow;
+  taxAggregate?: TaxAggregate;
 }
 
 export interface ApprovalPaymentMethod {
@@ -76,7 +87,7 @@ export interface ApprovalDetails {
   currency: string;
   paymentMethods?: CheckoutPaymentMethod[];
   shipping?: OrderShipping;
-  payment?: CheckoutPayment;
+  payment?: ApprovalPayment;
   addresses?: CheckoutAddress[];
 }
 
@@ -109,6 +120,8 @@ export interface Approval extends ApprovalBase {
   status: ApprovalStatus;
   expiryDate?: string;
   version?: number;
+  legalEntity?: { id: string };
+  createdResource?: { id: string };
 }
 
 export interface ApprovalId {

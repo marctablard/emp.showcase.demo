@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import {
   fetchOrderById as apiFetchOrderById,
   fetchOrderStatusTransitions as apiFetchOrderStatusTransitions,
   postCustomerOrderDecline as apiPostCustomerOrderDecline,
+  isOrderAccessDeniedError,
 } from '@/lib/client/orders';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -47,6 +49,20 @@ export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
   const [order, setOrder] = useState<Order | null | undefined>(initialOrder);
   const [statusTransitions, setStatusTransitions] = useState<string[]>([]);
 
+  const setResolvedError = useCallback((err: unknown, fallbackMessage: string): Error => {
+    const nextError = err instanceof Error ? err : new Error(fallbackMessage);
+
+    setError((currentError) => {
+      if (currentError && isOrderAccessDeniedError(currentError) && !isOrderAccessDeniedError(nextError)) {
+        return currentError;
+      }
+
+      return nextError;
+    });
+
+    return nextError;
+  }, []);
+
   const fetchOrder = useCallback(async () => {
     if (!orderId) return;
 
@@ -57,12 +73,12 @@ export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
       const orderData = await apiFetchOrderById(orderId);
       setOrder(orderData);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch order'));
+      setResolvedError(err, 'Failed to fetch order');
       getLogger().error({ err, orderId }, 'Error fetching order');
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, setResolvedError]);
 
   const fetchStatusTransitions = useCallback(async () => {
     if (!orderId) return;
@@ -74,12 +90,12 @@ export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
       const transitions = await apiFetchOrderStatusTransitions(orderId);
       setStatusTransitions(transitions);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch status transitions'));
+      setResolvedError(err, 'Failed to fetch status transitions');
       getLogger().error({ err, orderId }, 'Error fetching status transitions');
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, setResolvedError]);
 
   const cancelOrder = useCallback(async () => {
     if (!orderId || !order) return;
@@ -135,12 +151,14 @@ export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
 
   useEffect(() => {
     if (!orderId) return;
+    const cancels: Array<() => void> = [];
     if (order === undefined) {
-      void fetchOrder();
+      cancels.push(startEffectTask(fetchOrder));
     }
     if (autoFetchStatusTransitions) {
-      void fetchStatusTransitions();
+      cancels.push(startEffectTask(fetchStatusTransitions));
     }
+    return () => cancels.forEach((cancel) => cancel());
   }, [orderId, order, autoFetchStatusTransitions, fetchOrder, fetchStatusTransitions]);
 
   return {

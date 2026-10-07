@@ -55,7 +55,7 @@ export interface EmporixCustomerApi {
    * @param address The address data to add
    * @returns Promise with the ID of the created address
    */
-  addCustomerAddress(address: EmporixCustomerAddress): Promise<{ id: string }>;
+  addCustomerAddress(address: Partial<EmporixCustomerAddress>): Promise<{ id: string }>;
 
   /**
    * Retrieves a specific address by ID

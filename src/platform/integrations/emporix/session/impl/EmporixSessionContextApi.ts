@@ -166,7 +166,12 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
   async getOwnSessionContext(): Promise<EmporixSessionContext | undefined> {
     const cacheKey = await this.resolveOwnContextCacheKey();
     if (!cacheKey) {
-      return this._fetchOwnSessionContextWithoutCache();
+      // No session cookie in this request (typical first SSR visit). That is "no session",
+      // not an outage — `getCurrentOrThrow()` must resolve `undefined` so products mode
+      // is `anonymous`. Retrying `/me/context` would call `getSessionToken` again and
+      // throw `No valid Session Token found in SSR context`, which COP-4822 fail-closed
+      // into a 500 on every nav-shell page.
+      return undefined;
     }
 
     const now = Date.now();
@@ -187,25 +192,6 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
     } finally {
       this._ownInflight.delete(cacheKey);
     }
-  }
-
-  private async _fetchOwnSessionContextWithoutCache(): Promise<EmporixSessionContext | undefined> {
-    const response = await this.apiClient.authenticatedFetch(
-      `/session-context/${this.config.tenant}/me/context`,
-      { method: 'GET' },
-      'session',
-      undefined,
-      createSessionMetrics('/session-context/{tenant}/me/context'),
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return undefined;
-      }
-      throw new Error(`Failed to get own session context: ${response.statusText}`);
-    }
-
-    return (await response.json()) as EmporixSessionContext;
   }
 
   private async _fetchOwnSessionContextForKey(

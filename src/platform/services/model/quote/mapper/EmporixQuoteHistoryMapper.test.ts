@@ -52,7 +52,7 @@ describe('EmporixQuoteHistoryMapper', () => {
       {
         id: 'history-2',
         op: 'ADD',
-        path: '/mixins/additionalInfo',
+        path: '/mixins/additionalInfo' as unknown as '/mixins/{mixinsPath}',
         userFirstName: 'Lukasz',
         userLastName: 'Stypka',
         userType: 'EMPLOYEE',

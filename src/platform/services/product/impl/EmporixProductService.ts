@@ -1,25 +1,117 @@
 import { inject } from 'inversify';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
+import { resolveDynamicRootId } from '@/lib/common/product-dynamic-variants';
+import { resolveProductLabelImageUrl } from '@/lib/common/product-label-image';
 import {
   applyInferredVariantAttributes,
   enrichProductsWithInferredVariantAttributes,
   inferVariantAttributes,
 } from '@/lib/product/variant-name-parser';
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixLabel } from '@/platform/integrations/emporix/model';
+import type { EmporixLabel, EmporixProductTemplateDefinition } from '@/platform/integrations/emporix/model';
 import type { EmporixProduct } from '@/platform/integrations/emporix/model/product';
 import type { EmporixBrandApi } from '@/platform/integrations/emporix/product/EmporixBrandApi';
 import type { EmporixLabelApi } from '@/platform/integrations/emporix/product/EmporixLabelApi';
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
-import type { Paginated } from '@/platform/services/model/common';
-import type { Product, ProductLabel } from '@/platform/services/model/product';
+import type { EmporixProductTemplateApi } from '@/platform/integrations/emporix/product/EmporixProductTemplateApi';
+import type { LocalizedString, Paginated } from '@/platform/services/model/common';
+import type { Product, ProductLabel, ProductTemplateAttributeType } from '@/platform/services/model/product';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { CategoryService } from '../../category/CategoryService';
+import type { LoggerService } from '../../logger/LoggerService';
 import type { Category } from '../../model/category';
 import type { ProductPrice } from '../../model/price';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { PriceService } from '../../price';
 import type SegmentFilterService from '../../search/impl/SegmentFilterService';
 import type { SessionService } from '../../session/SessionService';
+
+/** Page size for tenant label catalog fetch (`GET /label/labels`). */
+const LABEL_CATALOG_PAGE_SIZE = 100;
+
+/** Bound `q=id:(…)` chunks when resolving missing template refs for BI/list products. */
+const TEMPLATE_REF_ID_CHUNK_SIZE = 50;
+const VARIANT_HYDRATION_ID_CHUNK_SIZE = 50;
+
+type ProductTemplateRef = { id: string; version?: string };
+
+/**
+ * `true` when the caller is segment-scoped but the scope is empty (COP-4822 fail closed, e.g. after
+ * a failed segment lookup): `undefined` means unscoped, `[]` means nothing is visible.
+ */
+function isEmptySegmentScope(segmentIds: string[] | undefined): boolean {
+  return segmentIds?.length === 0;
+}
+
+function templateCacheKey(id: string, version?: string): string {
+  return version ? `${id}@${version}` : id;
+}
+
+function resolveTemplateVersionFromEmporix(template: EmporixProduct['template']): string | undefined {
+  if (!template) {
+    return undefined;
+  }
+  const version = template.version;
+  if (typeof version === 'string' || typeof version === 'number') {
+    return String(version);
+  }
+  const metadataVersion = template.metadata?.version;
+  if (typeof metadataVersion === 'string' || typeof metadataVersion === 'number') {
+    return String(metadataVersion);
+  }
+  return undefined;
+}
+
+function hasDynamicVariantsMap(product: EmporixProduct): boolean {
+  return product.variants !== undefined;
+}
+
+function toVariantEnrichmentOptions(options?: ProductFetchOptions): ProductFetchOptions | undefined {
+  if (!options) {
+    return undefined;
+  }
+  return { ...options, variants: false };
+}
+
+/** Ids this service has already proven in segment scope. Never read from the client request. */
+type ProvenMemberOptions = ProductFetchOptions & { provenMemberIds?: readonly string[] };
+
+function optionsWithProvenMember(options: ProductFetchOptions, productId: string): ProvenMemberOptions {
+  return { ...options, provenMemberIds: [productId] };
+}
+
+function provenMemberIdsFor(
+  options: ProductFetchOptions | undefined,
+  productId: string,
+): readonly string[] | undefined {
+  const proven = (options as ProvenMemberOptions | undefined)?.provenMemberIds;
+  if (!proven?.includes(productId)) {
+    return undefined;
+  }
+  return proven;
+}
+
+function variantFamilyOptions(options: ProductFetchOptions, productId: string): ProvenMemberOptions {
+  const scope: ProvenMemberOptions = {
+    segmentIds: options.segmentIds,
+    siteCode: options.siteCode,
+  };
+  const provenMemberIds = provenMemberIdsFor(options, productId);
+  if (provenMemberIds) {
+    scope.provenMemberIds = provenMemberIds;
+  }
+  return scope;
+}
+
+function enrichmentOptionsFor(
+  options: ProductFetchOptions | undefined,
+  productId: string,
+): ProductFetchOptions | undefined {
+  if (options?.segmentIds === undefined) {
+    return options;
+  }
+  return optionsWithProvenMember(options, productId);
+}
 
 /**
  * Implementation of ProductService for Emporix product data.
@@ -33,19 +125,23 @@ class EmporixProductService implements ProductService {
     @inject('EmporixProductApi') private productApi: EmporixProductApi,
     @inject('EmporixBrandApi') private brandApi: EmporixBrandApi,
     @inject('EmporixLabelApi') private labelApi: EmporixLabelApi,
+    @inject('EmporixProductTemplateApi') private readonly productTemplateApi: EmporixProductTemplateApi,
     @inject('CategoryService') private categoryService: CategoryService,
     @inject('SegmentFilterService') private segmentFilterService: SegmentFilterService,
     @inject('SessionService') private sessionService: SessionService,
+    @inject('LoggerService') private readonly logger: LoggerService,
   ) {}
 
   async getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined> {
+    // Empty segment scope: nothing is visible, so the lookup is a miss without any upstream call (COP-4822).
+    if (isEmptySegmentScope(options?.segmentIds)) return undefined;
+
     const product = await this.productApi.getProduct(id);
     if (!product || !product.id) return undefined;
 
-    // Filter by customer segments if requested
-    if (options?.customerSegments) {
-      const [filteredProduct] = await this.segmentFilterService.filterByCustomerSegments([product]);
-      if (!filteredProduct) return undefined;
+    if (options?.segmentIds !== undefined) {
+      const inScope = await this.filterIdsInSegmentScope([product.id], options.segmentIds, options.siteCode);
+      if (!inScope.has(product.id)) return undefined;
     }
 
     // Map the base product
@@ -53,8 +149,8 @@ class EmporixProductService implements ProductService {
 
     mappedProduct = await this.enrichProductVariantAttributes(mappedProduct);
 
-    // Add additional data
-    const [enhancedProduct] = await this.addAdditionalData([mappedProduct], options);
+    // The opened id is already in scope. Reuse that so variant enrichment does not look it up again.
+    const [enhancedProduct] = await this.addAdditionalData([mappedProduct], enrichmentOptionsFor(options, product.id));
 
     return enhancedProduct;
   }
@@ -148,28 +244,51 @@ class EmporixProductService implements ProductService {
     return applyInferredVariantAttributes(product, attributeDefinitions, attributeMaps);
   }
 
-  async getVariantProducts(parentId: string, options?: ProductFetchOptions): Promise<Product[]> {
-    const probe = await this.productApi.getProduct(parentId);
-    const resolvedParentId = probe?.parentVariantId || parentId;
-    let items = await this.fetchVariantItems(resolvedParentId, probe ?? undefined);
+  async getVariantProducts(openedId: string, options?: ProductFetchOptions): Promise<Product[]> {
+    if (isEmptySegmentScope(options?.segmentIds)) return [];
 
-    if (items.length === 0 && resolvedParentId !== parentId) {
-      items = await this.fetchVariantItems(parentId, probe ?? undefined);
+    const openedProduct = await this.productApi.getProduct(openedId);
+    if (!openedProduct) {
+      return [];
     }
 
-    // Filter by customer segments before mapping
-    if (options?.customerSegments) {
-      items = (await this.segmentFilterService.filterByCustomerSegments(items)) as EmporixProduct[];
+    const openedKey = openedProduct.id ?? openedId;
+    const knownInScope = await this.membershipForOpenedProduct(openedKey, options);
+    if (knownInScope && !knownInScope.has(openedKey)) {
+      return [];
     }
 
-    // Map all variant products first
+    if (openedProduct.productType === 'DYNAMIC_VARIANT') {
+      const dynamicFamily = await this.getDynamicVariantProducts(openedProduct, openedId, options, knownInScope);
+      if (dynamicFamily.length === 0) {
+        return [];
+      }
+      return this.addAdditionalData(dynamicFamily, toVariantEnrichmentOptions(options));
+    }
+
+    const familyParentVariantId =
+      openedProduct.productType === 'PARENT_VARIANT' || !openedProduct.parentVariantId
+        ? (openedProduct.id ?? openedId)
+        : openedProduct.parentVariantId;
+
+    const paginated = await this.productApi.searchProducts({
+      expand: ['parentVariant', 'template'],
+      criteria: { parentVariantId: familyParentVariantId },
+      page: 0,
+      size: 100,
+    });
+    // Tenants without parentVariantId links group variants by id/code/name prefix.
+    const familyItems =
+      paginated.items.length > 0 ? paginated.items : await this.fetchVariantItems(familyParentVariantId, openedProduct);
+
+    const items = await this.applySegmentScope(familyItems, options, knownInScope);
     const mappedProducts = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
     if (mappedProducts.length === 0) {
       return [];
     }
 
     const enrichedProducts = enrichProductsWithInferredVariantAttributes(mappedProducts);
-    const parentProduct = await this.productApi.getProduct(resolvedParentId);
+    const parentProduct = await this.productApi.getProduct(familyParentVariantId);
     if (parentProduct) {
       const mappedParent = this.productMapper.mapToService(parentProduct);
       const variantsForInference = mappedProducts.some((item) => item.id === mappedParent.id)
@@ -179,30 +298,19 @@ class EmporixProductService implements ProductService {
       enrichedProducts.forEach((variant, index) => {
         enrichedProducts[index] = applyInferredVariantAttributes(variant, attributeDefinitions, attributeMaps);
       });
-
-      if (!mappedParent.variantAttributes || mappedParent.variantAttributes.length === 0) {
-        mappedParent.variantAttributes = attributeDefinitions.map((attribute) => ({
-          ...attribute,
-          values: attribute.values.map((value) => ({ ...value, selected: false })),
-        }));
-      }
     }
 
-    return await this.addAdditionalData(enrichedProducts, options);
+    return this.addAdditionalData(enrichedProducts, toVariantEnrichmentOptions(options));
   }
 
   async getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {
+    if (isEmptySegmentScope(options?.segmentIds)) {
+      return { items: [], page: page ?? 0, pageSize: pageSize ?? 0, total: 0 };
+    }
+
     const paginated = await this.productApi.getProducts(page, pageSize);
 
-    // Filter by customer segments before mapping
-    let items: EmporixProduct[] = [];
-    if (options?.customerSegments) {
-      items = (await this.segmentFilterService.filterByCustomerSegments(
-        paginated.items.filter((item: EmporixProduct) => !!item.id),
-      )) as EmporixProduct[];
-    } else {
-      items = paginated.items;
-    }
+    const items = await this.applySegmentScope(paginated.items, options);
     const mappedProducts: Product[] = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
 
     // Add additional data to all products
@@ -212,8 +320,287 @@ class EmporixProductService implements ProductService {
       items: enhancedProducts,
       page: paginated.page,
       pageSize: paginated.size,
-      total: paginated.total,
+      // Assigned scope is applied after the unscoped Product API page: the upstream `total` would
+      // count out-of-segment products. Report the filtered page size so callers cannot paginate
+      // past items that are actually visible (COP-4822). Assigned PLP uses SearchService, not this.
+      total: options?.segmentIds === undefined ? paginated.total : enhancedProducts.length,
     };
+  }
+
+  /**
+   * Keeps only the products inside the customer's segment scope when `options.segmentIds` is set
+   * (fail closed). `undefined` leaves the items untouched; `[]` is an empty scope and drops every
+   * item without an upstream membership call.
+   */
+  /**
+   * Assigned mode only. `undefined` means the caller is unscoped and must not filter.
+   */
+  private async membershipForOpenedProduct(
+    openedKey: string,
+    options?: ProductFetchOptions,
+  ): Promise<Set<string> | undefined> {
+    if (options?.segmentIds === undefined || !openedKey) {
+      return undefined;
+    }
+    const provenMemberIds = provenMemberIdsFor(options, openedKey);
+    if (provenMemberIds) {
+      return new Set(provenMemberIds);
+    }
+    return this.filterIdsInSegmentScope([openedKey], options.segmentIds, options.siteCode);
+  }
+
+  private async applySegmentScope(
+    items: EmporixProduct[],
+    options?: ProductFetchOptions,
+    knownInScope?: Set<string>,
+  ): Promise<EmporixProduct[]> {
+    if (options?.segmentIds === undefined) {
+      return items;
+    }
+    if (isEmptySegmentScope(options.segmentIds)) {
+      return [];
+    }
+    const withIds = items.filter((item: EmporixProduct) => !!item.id);
+    const uncheckedIds = withIds.map((item) => item.id as string).filter((id) => !knownInScope?.has(id));
+    const checked = uncheckedIds.length
+      ? await this.filterIdsInSegmentScope(uncheckedIds, options.segmentIds, options.siteCode)
+      : new Set<string>();
+    const inScope = new Set<string>([...(knownInScope ?? []), ...checked]);
+    return withIds.filter((item) => inScope.has(item.id as string));
+  }
+
+  private mapDynamicVariantMapAttributes(
+    entry: NonNullable<EmporixProduct['variants']>[string],
+  ): NonNullable<Product['variantAttributes']> {
+    if (!entry.variantAttributes) {
+      return [];
+    }
+
+    return Object.entries(entry.variantAttributes)
+      .map(([key, attribute]) => {
+        const qualifier = attribute.value?.qualifier;
+        if (qualifier === null || qualifier === undefined) {
+          return undefined;
+        }
+
+        return {
+          key,
+          ...(attribute.name ? { name: attribute.name } : {}),
+          values: [
+            {
+              key: String(qualifier),
+              ...(attribute.value?.name ? { name: attribute.value.name } : {}),
+              ...(typeof attribute.value?.unit === 'string' && attribute.value.unit.trim()
+                ? { unit: attribute.value.unit.trim() }
+                : {}),
+              selected: true,
+            },
+          ],
+        };
+      })
+      .filter((attribute): attribute is NonNullable<Product['variantAttributes']>[number] => attribute !== undefined);
+  }
+
+  private mergeDynamicVariantEntry(
+    productId: string,
+    entry: NonNullable<EmporixProduct['variants']>[string],
+    hydrated?: Product,
+  ): Product {
+    const merged: Product =
+      hydrated ??
+      ({
+        id: productId,
+        name: entry.name ?? entry.code ?? productId,
+        description: {},
+        purchasable: entry.sellable === true,
+      } as Product);
+
+    merged.id = productId;
+    merged.productType = 'DYNAMIC_VARIANT';
+    if (entry.name) {
+      merged.name = entry.name;
+    }
+    if (entry.parentVariantId) {
+      merged.parentVariantId = entry.parentVariantId;
+    }
+    if (typeof entry.sellable === 'boolean') {
+      merged.sellable = entry.sellable;
+      merged.purchasable = entry.sellable;
+    }
+    if (entry.variantAttributes) {
+      const attributes = this.mapDynamicVariantMapAttributes(entry);
+      merged.variantAttributes = attributes;
+      // Mixin `variantAttributeValues` wins in chip/filter selection. The denormalized
+      // map is the qualifier source for DYNAMIC_VARIANT, so replace that mixin map too.
+      merged.variantAttributeValues = Object.fromEntries(
+        attributes.flatMap((attribute) => {
+          const value = attribute.values[0]?.key;
+          return value === undefined ? [] : [[attribute.key, String(value)]];
+        }),
+      );
+    }
+    return merged;
+  }
+
+  private async getDynamicRootWithVariants(openedProduct: EmporixProduct): Promise<EmporixProduct> {
+    const openedId = openedProduct.id ?? openedProduct.code;
+    const initialRootCandidateId = resolveDynamicRootId({
+      id: openedId,
+      parentVariantId: openedProduct.parentVariantId,
+      parentVariantPath: openedProduct.parentVariantPath,
+    });
+
+    let current =
+      initialRootCandidateId === openedId ? openedProduct : await this.productApi.getProduct(initialRootCandidateId);
+    if (!current) {
+      throw new Error(`Failed to resolve dynamic variant root for ${openedId}`);
+    }
+
+    while (!hasDynamicVariantsMap(current) && current.parentVariantId) {
+      const parent = await this.productApi.getProduct(current.parentVariantId);
+      if (!parent) {
+        break;
+      }
+      current = parent;
+    }
+
+    if (!hasDynamicVariantsMap(current)) {
+      throw new Error(`Dynamic variant family map missing for ${openedId}`);
+    }
+
+    return current;
+  }
+
+  private async hydrateDynamicVariantMembers(memberIds: string[]): Promise<Map<string, Product>> {
+    const hydrated = new Map<string, Product>();
+    if (memberIds.length === 0) {
+      return hydrated;
+    }
+
+    for (let offset = 0; offset < memberIds.length; offset += VARIANT_HYDRATION_ID_CHUNK_SIZE) {
+      const chunk = memberIds.slice(offset, offset + VARIANT_HYDRATION_ID_CHUNK_SIZE);
+      const response = await this.productApi.searchProducts({
+        page: 0,
+        size: chunk.length,
+        criteria: { id: `(${chunk.join(',')})` },
+        expand: ['template', 'parentVariant'],
+      });
+      const items: EmporixProduct[] = response.items ?? [];
+      items.forEach((item) => {
+        if (!item.id) {
+          return;
+        }
+        hydrated.set(item.id, this.productMapper.mapToService(item));
+      });
+    }
+
+    return hydrated;
+  }
+
+  /**
+   * Assigned mode: the opened dynamic node must itself be in scope before the root walk.
+   * The membership set is reused so that id is not sent to segment lookup again with the map.
+   * Returns `undefined` when the opened id is out of scope.
+   */
+  private async scopeDynamicMemberIds(
+    memberIds: string[],
+    openedKey: string,
+    options: ProductFetchOptions | undefined,
+    knownInScope: Set<string> | undefined,
+  ): Promise<string[] | undefined> {
+    if (options?.segmentIds === undefined) {
+      return memberIds;
+    }
+    const alreadyInScope = knownInScope ?? new Set<string>();
+    if (!alreadyInScope.has(openedKey)) {
+      return undefined;
+    }
+    const uncheckedIds = memberIds.filter((id) => !alreadyInScope.has(id));
+    const checked = uncheckedIds.length
+      ? await this.filterIdsInSegmentScope(uncheckedIds, options.segmentIds, options.siteCode)
+      : new Set<string>();
+    const inScope = new Set<string>([...alreadyInScope, ...checked]);
+    return memberIds.filter((id) => inScope.has(id));
+  }
+
+  private async getDynamicVariantProducts(
+    openedProduct: EmporixProduct,
+    openedId: string,
+    options?: ProductFetchOptions,
+    knownInScope?: Set<string>,
+  ): Promise<Product[]> {
+    const openedKey = openedProduct.id ?? openedId;
+    let scopedKnown = knownInScope;
+    if (options?.segmentIds !== undefined && !scopedKnown?.has(openedKey)) {
+      scopedKnown = await this.filterIdsInSegmentScope([openedKey], options.segmentIds, options.siteCode);
+      if (!scopedKnown.has(openedKey)) {
+        return [];
+      }
+    }
+
+    const rootWithVariantMap = await this.getDynamicRootWithVariants(openedProduct);
+    const variantEntries = rootWithVariantMap.variants ?? {};
+    const allMemberIds = Object.keys(variantEntries);
+    if (allMemberIds.length === 0) {
+      return [];
+    }
+
+    const scopedMemberIds = await this.scopeDynamicMemberIds(allMemberIds, openedKey, options, scopedKnown);
+    if (!scopedMemberIds || scopedMemberIds.length === 0) {
+      return [];
+    }
+
+    const hydratedById = await this.hydrateDynamicVariantMembers(scopedMemberIds);
+    return scopedMemberIds
+      .map((memberId) => {
+        const entry = variantEntries[memberId];
+        if (!entry) {
+          return undefined;
+        }
+        return this.mergeDynamicVariantEntry(memberId, entry, hydratedById.get(memberId));
+      })
+      .filter((member): member is Product => member !== undefined);
+  }
+
+  async isInSegmentScope(
+    productId: string,
+    options?: Pick<ProductFetchOptions, 'segmentIds' | 'siteCode'>,
+  ): Promise<boolean> {
+    if (options?.segmentIds === undefined) {
+      return true;
+    }
+    if (isEmptySegmentScope(options.segmentIds)) {
+      return false;
+    }
+    const id = productId.trim();
+    if (!id) {
+      return false;
+    }
+    const inScope = await this.filterIdsInSegmentScope([id], options.segmentIds, options.siteCode);
+    return inScope.has(id);
+  }
+
+  /**
+   * Segment membership for the effective site the mode was resolved for (`options.siteCode`),
+   * falling back to the session site — the same site authority this service already uses for
+   * prices. Only the active `segmentIds` count; without any usable site nothing can be proven in
+   * scope, so the result is empty.
+   */
+  private async filterIdsInSegmentScope(
+    ids: string[],
+    segmentIds: string[],
+    effectiveSiteCode: string | undefined,
+  ): Promise<Set<string>> {
+    let siteCode = effectiveSiteCode?.trim() || undefined;
+    if (!siteCode) {
+      const session = await this.sessionService.getCurrent();
+      siteCode = session?.siteCode?.trim() || undefined;
+    }
+    if (!siteCode) {
+      this.logger.warn({ ids: ids.length }, 'Segment scope requested without a usable site; failing closed');
+      return new Set();
+    }
+    return this.segmentFilterService.filterProductIdsInScope(ids, siteCode, segmentIds);
   }
 
   /**
@@ -223,67 +610,291 @@ class EmporixProductService implements ProductService {
    * @returns Enhanced products with additional data
    */
   public async addAdditionalData(products: Product[], options?: ProductFetchOptions): Promise<Product[]> {
-    // Get additional data (brands, labels, and categories)
-    const { brandMap, labelMap, productCategoriesMap, priceMap, variantMap } = await this.getAdditionalData(
-      products,
-      options,
-    );
+    // BI/search hits often carry templateAttributes without template.id — resolve refs first.
+    await this.resolveMissingTemplateRefs(products);
 
-    // Enhance each product with brand, label, and category information
+    // Get additional data (brands, labels, templates, and categories)
+    const { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap } =
+      await this.getAdditionalData(products, options);
+
+    // Enhance each product with brand, label, template labels, and category information
     products.forEach((product: Product) => {
-      // Add brand information
-      if (product.brand) {
-        const brand = brandMap.get(product.brand.id);
-        if (brand) {
-          product.brand = {
-            id: brand.id,
-            name: brand.name,
-            logo: {
-              url: brand.image,
-              altText: brand.name,
-            },
-          };
-        }
-      }
-
-      // Add label information
-      if (product.labels && product.labels.length > 0) {
-        product.labels = product.labels
-          .map((label: ProductLabel) => labelMap.get(label.id))
-          .filter((label?: EmporixLabel): label is EmporixLabel => Boolean(label))
-          .map((label: EmporixLabel) => this.mapLabel(label));
-      }
-
-      // Add categories if available
-      if (product.id) {
-        const categories = productCategoriesMap.get(product.id);
-        if (categories && categories.length > 0) {
-          // currently theres no way to determine the primary Category, so we use the first
-          // this is important for SEO so canonical URLs don't change when the product is
-          // being browsed to from different Categories
-          product.primaryCategory = categories[0];
-          product.categories = categories;
-        }
-      }
-
-      // Add price information if available
-      if (product.id) {
-        const price = priceMap.get(product.id);
-        if (price) {
-          product.price = price;
-        }
-      }
-
-      // Add variant information if available
-      if (product.id) {
-        const variants = variantMap.get(product.id);
-        if (variants) {
-          product.variants = variants;
-        }
-      }
+      this.applyAdditionalDataToProduct(product, {
+        brandMap,
+        labelMap,
+        templateMap,
+        productCategoriesMap,
+        priceMap,
+        variantMap,
+      });
     });
 
     return products;
+  }
+
+  private applyAdditionalDataToProduct(
+    product: Product,
+    maps: {
+      brandMap: Map<string, { id: string; name: string; image?: string }>;
+      labelMap: Map<string, EmporixLabel>;
+      templateMap: Map<string, EmporixProductTemplateDefinition>;
+      productCategoriesMap: Map<string, Category[]>;
+      priceMap: Map<string, ProductPrice>;
+      variantMap: Map<string, Product[]>;
+    },
+  ): void {
+    this.applyBrandToProduct(product, maps.brandMap);
+    this.applyLabelsToProduct(product, maps.labelMap);
+    this.applyTemplateMetaToProduct(product, maps.templateMap);
+    this.applyIdBoundDataToProduct(product, maps);
+    const templateRef = product.template;
+    product.variants?.forEach((variant) => {
+      this.applyTemplateMetaToProduct(variant, maps.templateMap, templateRef);
+    });
+  }
+
+  private applyBrandToProduct(
+    product: Product,
+    brandMap: Map<string, { id: string; name: string; image?: string }>,
+  ): void {
+    if (!product.brand) {
+      return;
+    }
+    const brand = brandMap.get(product.brand.id);
+    if (!brand) {
+      return;
+    }
+    product.brand = {
+      id: brand.id,
+      name: brand.name,
+      logo: {
+        url: brand.image ?? '',
+        altText: brand.name,
+      },
+    };
+  }
+
+  private applyLabelsToProduct(product: Product, labelMap: Map<string, EmporixLabel>): void {
+    if (!product.labels?.length) {
+      return;
+    }
+    product.labels = product.labels
+      .map((label: ProductLabel) => labelMap.get(label.id))
+      .filter((label?: EmporixLabel): label is EmporixLabel => Boolean(label))
+      .map((label: EmporixLabel) => this.mapLabel(label));
+  }
+
+  private applyTemplateMetaToProduct(
+    product: Product,
+    templateMap: Map<string, EmporixProductTemplateDefinition>,
+    fallbackTemplate?: Product['template'],
+  ): void {
+    const templateRef = product.template?.id ? product.template : fallbackTemplate;
+    if (!templateRef?.id) {
+      return;
+    }
+    if (!product.template?.id && fallbackTemplate) {
+      product.template = fallbackTemplate;
+    }
+    const template =
+      templateMap.get(templateCacheKey(templateRef.id, templateRef.version)) ?? templateMap.get(templateRef.id);
+    if (!template) {
+      return;
+    }
+    product.templateAttributeLabels = this.mapTemplateAttributeLabels(template);
+    product.templateAttributeTypes = this.mapTemplateAttributeTypes(template);
+    product.templateAttributeOrder = this.mapTemplateAttributeOrder(template);
+    if (!product.variantAttributes?.length) {
+      return;
+    }
+    product.variantAttributes = product.variantAttributes.map((attr) => {
+      const label = product.templateAttributeLabels?.[attr.key];
+      return label ? { ...attr, name: label } : attr;
+    });
+  }
+
+  private productNeedsTemplateRef(product: Product): boolean {
+    if (!product.id || product.template?.id) {
+      return false;
+    }
+    if (product.templateAttributes && Object.keys(product.templateAttributes).length > 0) {
+      return true;
+    }
+    if (product.variantAttributes && product.variantAttributes.length > 0) {
+      return true;
+    }
+    return Boolean(product.isParentVariant || product.parentVariantId);
+  }
+
+  private collectProductsNeedingTemplateRefs(products: Product[]): Product[] {
+    return products.filter((product) => this.productNeedsTemplateRef(product));
+  }
+
+  private indexTemplateRefFromSearchItem(
+    item: EmporixProduct,
+    templateByProductId: Map<string, ProductTemplateRef>,
+  ): void {
+    const rawTemplate = item.template?.id ? item.template : item.parentVariant?.template;
+    if (!item.id || !rawTemplate?.id) {
+      return;
+    }
+    const version = resolveTemplateVersionFromEmporix(rawTemplate);
+    const ref: ProductTemplateRef = {
+      id: rawTemplate.id,
+      ...(version ? { version } : {}),
+    };
+    templateByProductId.set(item.id, ref);
+    if (item.parentVariantId) {
+      templateByProductId.set(item.parentVariantId, ref);
+    }
+  }
+
+  private applyResolvedTemplateRefs(products: Product[], templateByProductId: Map<string, ProductTemplateRef>): void {
+    for (const product of products) {
+      const ref =
+        templateByProductId.get(product.id) ??
+        (product.parentVariantId ? templateByProductId.get(product.parentVariantId) : undefined);
+      if (ref) {
+        product.template = ref;
+      }
+    }
+  }
+
+  /**
+   * Battery Included (and similar) mappers often omit `template.id`.
+   * Resolve refs via product search `expand=template`, then Templates API can supply labels/types.
+   */
+  private async resolveMissingTemplateRefs(products: Product[]): Promise<void> {
+    const needingRefs = this.collectProductsNeedingTemplateRefs(products);
+    if (needingRefs.length === 0) {
+      return;
+    }
+
+    const ids = [
+      ...new Set(needingRefs.flatMap((product) => [product.id, product.parentVariantId].filter(Boolean) as string[])),
+    ];
+    const templateByProductId = new Map<string, ProductTemplateRef>();
+
+    for (let offset = 0; offset < ids.length; offset += TEMPLATE_REF_ID_CHUNK_SIZE) {
+      const chunk = ids.slice(offset, offset + TEMPLATE_REF_ID_CHUNK_SIZE);
+      try {
+        const response = await this.productApi.searchProducts({
+          page: 0,
+          size: chunk.length,
+          criteria: { id: `(${chunk.join(',')})` },
+          expand: ['template', 'parentVariant'],
+        });
+        for (const item of response.items ?? []) {
+          this.indexTemplateRefFromSearchItem(item, templateByProductId);
+        }
+      } catch (error) {
+        this.logger.error(
+          { err: error, chunkSize: chunk.length },
+          'Failed to resolve product template refs; continuing without them',
+        );
+      }
+    }
+
+    this.applyResolvedTemplateRefs(needingRefs, templateByProductId);
+  }
+
+  private applyIdBoundDataToProduct(
+    product: Product,
+    maps: {
+      productCategoriesMap: Map<string, Category[]>;
+      priceMap: Map<string, ProductPrice>;
+      variantMap: Map<string, Product[]>;
+    },
+  ): void {
+    if (!product.id) {
+      return;
+    }
+    const categories = maps.productCategoriesMap.get(product.id);
+    if (categories && categories.length > 0) {
+      // currently theres no way to determine the primary Category, so we use the first
+      // this is important for SEO so canonical URLs don't change when the product is
+      // being browsed to from different Categories
+      product.primaryCategory = categories[0];
+      product.categories = categories;
+    }
+    const price = maps.priceMap.get(product.id);
+    if (price) {
+      product.price = price;
+    }
+    const variants = maps.variantMap.get(product.id);
+    if (variants) {
+      product.variants = variants;
+    }
+  }
+
+  private mapTemplateAttributeLabels(template: EmporixProductTemplateDefinition): Record<string, LocalizedString> {
+    const labels: Record<string, LocalizedString> = {};
+    for (const attribute of template.attributes ?? []) {
+      if (attribute.key && attribute.name) {
+        labels[attribute.key] = attribute.name;
+      }
+    }
+    return labels;
+  }
+
+  private mapTemplateAttributeTypes(
+    template: EmporixProductTemplateDefinition,
+  ): Record<string, ProductTemplateAttributeType> {
+    const types: Record<string, ProductTemplateAttributeType> = {};
+    for (const attribute of template.attributes ?? []) {
+      if (
+        attribute.key &&
+        (attribute.type === 'TEXT' ||
+          attribute.type === 'NUMBER' ||
+          attribute.type === 'BOOLEAN' ||
+          attribute.type === 'DATETIME')
+      ) {
+        types[attribute.key] = attribute.type;
+      }
+    }
+    return types;
+  }
+
+  /** Preserve Product Templates `attributes[]` order for PLP/PDP display. */
+  private mapTemplateAttributeOrder(template: EmporixProductTemplateDefinition): string[] {
+    const order: string[] = [];
+    for (const attribute of template.attributes ?? []) {
+      if (attribute.key) {
+        order.push(attribute.key);
+      }
+    }
+    return order;
+  }
+
+  private async fetchProductTemplates(
+    refs: Array<{ id: string; version?: string }>,
+  ): Promise<Map<string, EmporixProductTemplateDefinition>> {
+    const templateMap = new Map<string, EmporixProductTemplateDefinition>();
+    if (refs.length === 0) {
+      return templateMap;
+    }
+
+    const unique = new Map<string, { id: string; version?: string }>();
+    for (const ref of refs) {
+      unique.set(templateCacheKey(ref.id, ref.version), ref);
+    }
+
+    const fetched = await Promise.all(
+      [...unique.values()].map(async (ref) => {
+        const template = await this.productTemplateApi.getProductTemplate(ref.id, ref.version);
+        return { ref, template };
+      }),
+    );
+
+    for (const { ref, template } of fetched) {
+      if (!template) {
+        continue;
+      }
+      templateMap.set(templateCacheKey(ref.id, ref.version), template);
+      templateMap.set(ref.id, template);
+    }
+
+    return templateMap;
   }
 
   /**
@@ -293,10 +904,78 @@ class EmporixProductService implements ProductService {
     return {
       id: label.id,
       name: label.name,
-      image: label.image || label.cloudinaryUrl,
+      // Prefer absolute `image` URL; never treat `cloudinaryUrl` storage path as an img src.
+      image: resolveProductLabelImageUrl(label.image),
       description: label.description,
       overlay: label.overlay,
     };
+  }
+
+  /**
+   * Resolves catalog page total for label pagination, or `'break'` when the catalog is exhausted.
+   */
+  private resolveLabelCatalogTotal(response: { items: EmporixLabel[]; total: number }, page: number): number | 'break' {
+    if (response.total >= 0) {
+      return response.total;
+    }
+    if (response.items.length === 0) {
+      return 'break';
+    }
+    const hasMorePage = response.items.length < LABEL_CATALOG_PAGE_SIZE ? 0 : 1;
+    return (page + 1) * LABEL_CATALOG_PAGE_SIZE + hasMorePage;
+  }
+
+  /** Fetches any requested label IDs still missing after the catalog scan. */
+  private async mergeMissingLabelsById(labelIds: Set<string>, labelMap: Map<string, EmporixLabel>): Promise<void> {
+    const missingIds = [...labelIds].filter((id) => !labelMap.has(id));
+    if (missingIds.length === 0) {
+      return;
+    }
+    const missingLabels = await Promise.all(missingIds.map((id) => this.labelApi.getLabel(id)));
+    for (const label of missingLabels) {
+      if (label) {
+        labelMap.set(label.id, label);
+      }
+    }
+  }
+
+  /**
+   * Loads needed labels from the tenant catalog (`GET /label/labels`) with pagination,
+   * then falls back to per-id GET for any IDs still missing.
+   */
+  private async fetchLabelsByIds(labelIds: Set<string>): Promise<Map<string, EmporixLabel>> {
+    const labelMap = new Map<string, EmporixLabel>();
+    if (labelIds.size === 0) {
+      return labelMap;
+    }
+
+    let page = 0;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (labelMap.size < labelIds.size && page * LABEL_CATALOG_PAGE_SIZE < total) {
+      const response = await this.labelApi.getLabels(page, LABEL_CATALOG_PAGE_SIZE);
+      const resolvedTotal = this.resolveLabelCatalogTotal(response, page);
+      if (resolvedTotal === 'break') {
+        break;
+      }
+      total = resolvedTotal;
+
+      for (const label of response.items) {
+        if (labelIds.has(label.id)) {
+          labelMap.set(label.id, label);
+        }
+      }
+
+      if (response.items.length < LABEL_CATALOG_PAGE_SIZE) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    await this.mergeMissingLabelsById(labelIds, labelMap);
+
+    return labelMap;
   }
 
   /**
@@ -310,58 +989,59 @@ class EmporixProductService implements ProductService {
   ): Promise<{
     brandMap: Map<string, any>;
     labelMap: Map<string, EmporixLabel>;
+    templateMap: Map<string, EmporixProductTemplateDefinition>;
     productCategoriesMap: Map<string, Category[]>;
     priceMap: Map<string, ProductPrice>;
     variantMap: Map<string, Product[]>;
   }> {
-    // Collect all brand IDs and label IDs from products
+    // Collect all brand IDs, label IDs, template refs, and product IDs
     const brandIds = new Set<string>();
     const labelIds = new Set<string>();
+    const templateRefs: Array<{ id: string; version?: string }> = [];
     const productIds = new Set<string>();
+
+    const collectTemplateRef = (product: Product): void => {
+      if (product.template?.id) {
+        templateRefs.push({ id: product.template.id, version: product.template.version });
+      }
+    };
 
     products.forEach((product: Product) => {
       if (product.brand) brandIds.add(product.brand.id);
       if (product.labels) product.labels.forEach((label: ProductLabel) => labelIds.add(label.id));
+      // Always fetch the Templates API definition. `expand=template` often echoes the
+      // attribute key into `attributes[].name` instead of the MD localized label.
+      collectTemplateRef(product);
+      product.variants?.forEach(collectTemplateRef);
       if (product.id) productIds.add(product.id);
     });
+    const productIdList = [...productIds];
 
     let sessionForProductPrices: Awaited<ReturnType<SessionService['getCurrent']>> | null = null;
 
-    // Fetch all brands, labels, and categories in parallel
-    const [brands, labels, productCategoriesArray, batchPriceMap, variantArray] = await Promise.all([
+    // Fetch brands, labels, product templates, and categories in parallel
+    const [brands, labelMap, templateMap, productCategoriesArray, batchPriceMap, variantArray] = await Promise.all([
       Promise.all([...brandIds].map((id) => this.brandApi.getBrand(id))),
-      Promise.all([...labelIds].map((id) => this.labelApi.getLabel(id))),
+      this.fetchLabelsByIds(labelIds),
+      this.fetchProductTemplates(templateRefs),
       Promise.all(
         [...productIds].map((id) =>
           options?.categories ? this.categoryService.getCategoriesForProduct(id, true) : undefined,
         ),
       ),
-      (async () => {
-        const ids = [...productIds];
-        if (typeof options?.prices === 'object' && options.prices !== null) {
-          return this.priceService.getProductPrices(ids, undefined, undefined, options.prices);
-        } else if (options?.prices === true) {
-          sessionForProductPrices = await this.sessionService.getCurrent();
-          if (sessionForProductPrices) {
-            return this.priceService.getProductPrices(ids, undefined, undefined, {
-              siteCode: sessionForProductPrices.siteCode,
-              currency: sessionForProductPrices.currency,
-              country: sessionForProductPrices.country,
-            });
-          }
-          return this.priceService.getProductPrices(ids);
-        }
-        return new Map<string, ProductPrice | null>();
-      })(),
-      Promise.all([...productIds].map((id) => (options?.variants ? this.getVariantProducts(id) : undefined))),
+      this.fetchProductPricesForEnrichment(productIds, options, (session) => {
+        sessionForProductPrices = session;
+      }),
+      // Forward ONLY the segment scope (`segmentIds` + effective `siteCode`): passing the full options
+      // would re-enter variant/price enrichment per variant.
+      options?.variants
+        ? Promise.all(productIdList.map((id) => this.getVariantProducts(id, variantFamilyOptions(options, id))))
+        : Promise.resolve<Product[][]>([]),
     ]);
 
-    // Create lookup maps for brands and labels
+    // Create lookup maps for brands
     const brandMap = new Map<string, any>();
     brands.filter(Boolean).forEach((brand: any) => brand && brandMap.set(brand.id, brand));
-
-    const labelMap = new Map<string, EmporixLabel>();
-    labels.filter(Boolean).forEach((label: EmporixLabel) => label && labelMap.set(label.id, label));
 
     // Create lookup map for product categories
     const productCategoriesMap = new Map<string, Category[]>();
@@ -387,22 +1067,56 @@ class EmporixProductService implements ProductService {
     });
 
     const variantMap = new Map<string, Product[]>();
-    variantArray.filter(Boolean).forEach((variants: Product[]) => {
-      if (!variants?.length) {
-        return;
+    variantArray.forEach((variants: Product[], index: number) => {
+      const productId = productIdList[index];
+      if (productId && variants?.length > 0) {
+        variantMap.set(productId, variants);
       }
-
-      const parentKey = variants[0].parentVariantId || variants[0].id;
-      variantMap.set(parentKey, variants);
-
-      products.forEach((product) => {
-        if (product.id === parentKey || product.parentVariantId === parentKey) {
-          variantMap.set(product.id, variants);
-        }
-      });
     });
 
-    return { brandMap, labelMap, productCategoriesMap, priceMap, variantMap };
+    return { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap };
+  }
+
+  /**
+   * Price enrichment is best-effort. A 404 / failed Price API must not fail the catalog
+   * identity — the PDP still renders and omits the price (COP-4822 QA).
+   */
+  private async fetchProductPricesForEnrichment(
+    productIds: Set<string>,
+    options: ProductFetchOptions | undefined,
+    rememberSession: (session: Awaited<ReturnType<SessionService['getCurrent']>>) => void,
+  ): Promise<Map<string, ProductPrice | null>> {
+    const ids = [...productIds];
+    try {
+      if (typeof options?.prices === 'object' && options.prices !== null) {
+        return await this.priceService.getProductPrices(ids, undefined, undefined, options.prices);
+      }
+      if (options?.prices === true) {
+        const session = await this.sessionService.getCurrent();
+        if (session) {
+          rememberSession(session);
+          return await this.priceService.getProductPrices(
+            ids,
+            undefined,
+            undefined,
+            priceFetchOptionsFromSession(session) ?? {
+              siteCode: session.siteCode,
+              currency: session.currency,
+              country: session.country,
+              useFallback: false,
+            },
+          );
+        }
+        return await this.priceService.getProductPrices(ids);
+      }
+      return new Map<string, ProductPrice | null>();
+    } catch (error) {
+      this.logger.warn(
+        { err: error instanceof Error ? error : String(error), productIds: ids },
+        'Product price lookup failed; continuing without prices',
+      );
+      return new Map<string, ProductPrice | null>();
+    }
   }
 }
 

@@ -164,3 +164,10 @@ It's **not** appropriate when:
 - ❌ You're trying to hide a real stale closure bug
 - ❌ You haven't considered proper alternatives
 - ❌ You don't understand why ESLint is complaining
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Testing Guide](./testing-guide.md)
+- [Testing Strategy](./testing-strategy.md)
+- [Naming Conventions](./naming-conventions.md)

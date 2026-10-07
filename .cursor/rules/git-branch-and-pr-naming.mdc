@@ -1,0 +1,40 @@
+---
+description: Name git branches and pull requests from the Jira ticket key and cleaned summary
+alwaysApply: true
+---
+
+# Git branch and PR naming (Jira)
+
+When creating a git branch or pull request, use the Jira ticket if one is available.
+
+## Clean the summary first
+
+From the Jira summary, drop:
+
+- Bracket prefixes such as `[FE]`, `[BE]`, `[Agent<->FE Bug]`
+- Text before the first `|` (for example `B2BCF|`)
+
+Keep the remaining title as-is (do not lowercase it).
+
+Example ticket: `PROJ-1234 B2BCF|FE Agent in streaming mode`  
+Cleaned name: `FE Agent in streaming mode`
+
+## Branch name
+
+`{TICKET}-{cleaned-name-in-kebab-case}` — spaces become hyphens; keep original word casing.
+
+```
+PROJ-1234-FE-Agent-in-streaming-mode
+```
+
+## Pull request title
+
+`{TICKET} {cleaned name}` — ticket, space, cleaned summary (not kebab-case).
+
+```
+PROJ-1234 FE Agent in streaming mode
+```
+
+## If there is no Jira ticket
+
+Use a short kebab-case branch and a plain-language PR title. Do not invent a ticket key.

@@ -30,10 +30,13 @@ export const routing = defineRouting({
   defaultLocale: 'en',
   // Used for routing
   localePrefix: 'as-needed',
+  // Locale comes from the URL only. Cookie / Accept-Language detection is off
+  // so a missing or stale locale cookie cannot redirect `/us-branch` ↔ `/us-branch/de`.
+  localeDetection: false,
 });
 ```
 
-This defines our supported locales and routing behavior. The `localePrefix: 'as-needed'` setting means that the default locale won't show in the URL, but other locales will.
+This defines our supported locales and routing behavior. The `localePrefix: 'as-needed'` setting means that the default locale won't show in the URL, but other locales will. `localeDetection: false` means next-intl does not redirect from the locale cookie or `Accept-Language`; German is selected by navigating to a `/de` path. The storefront still works when cookies are cleared or blocked.
 
 ### 2. Navigation Helpers (`src/i18n/navigation.ts`)
 
@@ -128,9 +131,13 @@ src/
   app/
     [site]/[locale]/
       layout.tsx             # Root layout with site + locale handling
-      (default)/page.tsx     # Home page
-      (default)/hello/       # Example feature directory
-        page.tsx             # Feature-specific page
+      (nav-shell)/
+        (default)/           # Catalog, cart, account, login, etc.
+        (no-margin)/
+          page.tsx           # CMS / home page
+          [...slug]/         # CMS dynamic pages
+      (reduced)/             # Checkout / confirmation
+      @dialog/               # Intercepting auth dialogs
 ```
 
 ### Root Layout (`src/app/[site]/[locale]/layout.tsx`)
@@ -192,7 +199,7 @@ Key features:
 - `setRequestLocale()` enables static rendering with the correct locale
 - `NextIntlClientProvider` makes translations available to client components
 
-### Page Component (`src/app/[site]/[locale]/(default)/page.tsx`)
+### Page Component (`src/app/[site]/[locale]/(nav-shell)/(no-margin)/page.tsx`)
 
 ```tsx
 import { useTranslations } from 'next-intl';
@@ -274,7 +281,45 @@ export default function Navigation() {
 }
 ```
 
-### 5. Integration with Services
+### 5. Interactive Locale Switching (Client Navigation Boundary)
+
+Interactive locale changes triggered from client components (for example, the header language switcher) must use the application navigation API from `@/i18n/navigation`.
+
+- Keep the href logical and sanitized in the client component; do not precompute a locale-specific pathname with `getPathname(...)` for the transition.
+- Navigate with the client router by calling `router.push(href, { locale, site })` so the shared site-aware router resolves the locale-aware pathname through next-intl first and applies the site segment as the outer prefix afterward.
+- When `locale` is omitted on site-aware `push`/`replace`, the router must still run `getI18nPathname` with the current UI locale so the path stays prefixed (for example `/de/browse` after a currency `refresh`). Do not pass a raw unprefixed href through `addPrefixIfNeeded` alone.
+- Inbound `?currency=` is applied (or rewritten to the session currency) by `CurrencyUrlAligner` — see [Site Middleware](./site-middleware.md) storefront currency query. Language stays on the path (`/de/...`), not a query param.
+- For changed-locale `push`/`replace`, the shared router performs a document navigation to the final canonical path so the URL (not a cookie) carries the new locale.
+- Do not use raw `next/navigation` routing directly for interactive locale changes.
+- Do not invoke server redirect helpers inside client event handlers.
+
+Header **site** switches use the same router. `performSiteSwitch` keeps the current UI locale when the target site lists it, and keeps the current currency when the target site supports it; it falls back to the target site's default language or currency only when the current values are unsupported. Cookies must not be required to avoid a freeze:
+
+- `SiteSwitcher` (`src/components/header/switcher/header-site-switcher.tsx`) calls `useRouter` from `@/i18n/navigation` and `router.push('/', { locale, site })`. Do not use `next/navigation` for this transition.
+- `localeDetection: false` is the cookie-less loop breaker: next-intl will not re-prefix an unprefixed US URL from a stale `de` cookie or `Accept-Language`.
+- `performSiteSwitch` still best-effort `writeLocaleCookie` the destination-supported locale when `document.cookie` is available. That write is optional; it must no-op when cookies are blocked.
+- Locale cookie helpers live in `src/lib/common/locale-cookie.ts`. That module must not import `@/i18n/routing`.
+
+When the `[site]/[locale]` layout finds a URL locale the current site does not advertise, it redirects to the site-aware default-locale path (see [Site Middleware](./site-middleware.md) `emp_locale`). That bounce is URL-based. Set-Cookie on the bounce is best-effort only.
+
+This keeps locale transitions aligned with combined site and locale routing rules without hardcoding URL segments or bypassing the shared router contract.
+
+### 6. Browser Regression Coverage for Locale Route + Cookie Sync
+
+The language-switch behavior is verified with Playwright browser coverage:
+
+- Fixture: `e2e/fixtures/multilingual-site.ts`
+- Spec: `e2e/language-switcher.spec.ts`
+
+The fixture discovers an eligible multilingual site via `/api/site`, opens its English browse route, and asserts `html[lang="en"]` before interaction. The spec then selects German from the visible language menu and verifies:
+
+- Route transition to the German browse route
+- Rendered document locale (`html[lang="de"]`)
+- Locale cookie synchronization using `NEXT_PUBLIC_LOCALE_COOKIE` with `NEXT_LOCALE` fallback
+
+The browser regression in `e2e/language-switcher.spec.ts` remains the contract for both directions and route ordering: default-site English-to-German, reverse German-to-English transition back to `/browse`, and non-default literal `/{site}/de/browse` after English-to-German with the resolved locale cookie values.
+
+### 7. Integration with Services
 
 When working with our service layer, translations should be handled at the UI level, not in the services themselves. This keeps the service layer focused on business logic rather than presentation concerns:
 
@@ -313,3 +358,10 @@ The service layer returns raw data that can be translated or formatted at the UI
 ## Conclusion
 
 Our next-intl implementation provides a robust, type-safe, and performant solution for internationalization. By following the patterns and practices outlined in this documentation, we can create a consistent multilingual experience across our application.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Site Middleware](./site-middleware.md)
+- [Project Structure](./project-structure.md)
+- [Rendering: SSR / SSG / ISR](./rendering-ssr-ssg-isr.md)

@@ -8,6 +8,13 @@ import type { CartCurrencyUpdateErrorCode } from './errors';
  */
 export type CartShippingAddress = Partial<Omit<Address, 'id' | 'geoLocation'>>;
 
+/** Checkout shipping-method selection to persist on the Emporix cart. */
+export type CartShippingMethodSelection = {
+  methodId: string;
+  zoneId: string;
+  methodName?: string;
+};
+
 /**
  * Cart status enum for tracking cart item availability
  */
@@ -26,6 +33,11 @@ export interface ModifyCartItemResult {
    * The ID of the added item
    */
   cartItem: CartItem;
+
+  /**
+   * Cart that received the line. Differs from the caller's cart id when an empty cart was replaced.
+   */
+  cartId?: string;
 
   /**
    * Status of the cart after adding the item
@@ -76,6 +88,12 @@ export interface CartService {
   getCartById(id: string, checkSession?: boolean): Promise<Cart | null>;
 
   /**
+   * True only when the upstream cart payload proves there are no lines.
+   * An omitted `items` expansion is not empty — the mapper turns that into `[]`.
+   */
+  isProvenEmptyCart(cartId: string): Promise<boolean>;
+
+  /**
    * Adds an item to a cart with stock checking
    * @param cartId The ID of the cart
    * @param productId The ID of the product to add
@@ -121,11 +139,34 @@ export interface CartService {
   ): Promise<void>;
 
   /**
+   * Assign the selected shipping method on the cart via a matching delivery window
+   * so Emporix recalculates `calculatedPrice.totalShipping` / `finalPrice`.
+   * Returns the refreshed mapped cart (or the current cart when no window matches).
+   */
+  updateShippingMethod(cartId: string, method: CartShippingMethodSelection): Promise<Cart>;
+
+  /**
    * Updates the currency for a cart
    * @param cartId The ID of the cart
    * @param currency The new currency code
    */
   updateCurrency(cartId: string, currency: string): Promise<void>;
+
+  /**
+   * Applies a discount coupon to the cart, then returns the refreshed mapped cart.
+   * @param cartId The ID of the cart
+   * @param code Coupon code
+   * @returns Promise<Cart>
+   */
+  applyDiscount(cartId: string, code: string): Promise<Cart>;
+
+  /**
+   * Removes one discount from the cart by index, then returns the refreshed mapped cart.
+   * @param cartId The ID of the cart
+   * @param discountIndex Discount index from the cart discounts list
+   * @returns Promise<Cart>
+   */
+  removeDiscount(cartId: string, discountIndex: number): Promise<Cart>;
 
   /**
    * Retrieves the saved carts for the current customer
@@ -158,20 +199,4 @@ export interface CartService {
    * @returns The mapped cart or null if not found
    */
   getCartByCriteria(siteCode: string, sessionId: string, customerId?: string, type?: string): Promise<Cart | null>;
-
-  /**
-   * Apply a promo/coupon code to the cart
-   * @param cartId The ID of the cart
-   * @param code The coupon code to apply
-   * @returns The updated cart with recalculated prices
-   */
-  applyPromoCode(cartId: string, code: string): Promise<Cart>;
-
-  /**
-   * Remove a promo/coupon code from the cart
-   * @param cartId The ID of the cart
-   * @param code The coupon code to remove
-   * @returns The updated cart with recalculated prices
-   */
-  removePromoCode(cartId: string, code: string): Promise<Cart>;
 }

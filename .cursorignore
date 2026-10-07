@@ -1,0 +1,12 @@
+# sonar-secrets: auto-added after secret detection
+src/i18n/translations/en/account/index.json
+# sonar-secrets: auto-added after secret detection
+src/i18n/translations/de/account/index.json
+# sonar-secrets: auto-added after secret detection
+src/lib/validation/form-schemas.test.ts
+# sonar-secrets: auto-added after secret detection
+resources/emporix/oauth.yml
+# sonar-secrets: auto-added after secret detection
+resources/emporix/customer-tenant-manager.yml
+# sonar-secrets: auto-added after secret detection
+src/i18n/translations/de.json

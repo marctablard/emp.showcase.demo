@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { RETURN_ERROR_CODE } from '@/lib/common/returns/return-error-codes';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Return, ReturnItem } from '@/platform/services/model/return';
@@ -26,15 +27,19 @@ async function enrichReturnWithOrderData(returnData: Return): Promise<Return> {
     const orderService = server.get<OrderService>('OrderService');
     const orders = await Promise.all(orderIds.map((id) => orderService.getCustomerOrderById(id)));
 
-    const orderItemMap = new Map<string, { productId: string; images?: string[]; brand?: string; sku?: string }>();
+    const orderItemMap = new Map<
+      string,
+      { productId: string; images?: string[]; brand?: string; sku?: string; vendorName?: string }
+    >();
     for (const order of orders) {
       if (!order) continue;
       for (const item of order.items) {
         orderItemMap.set(`${order.id}:${item.id}`, {
           productId: item.productId,
           images: item.images,
-          brand: undefined,
+          brand: item.vendorName,
           sku: item.sku,
+          vendorName: item.vendorName,
         });
       }
     }
@@ -48,7 +53,8 @@ async function enrichReturnWithOrderData(returnData: Return): Promise<Return> {
           ...item,
           productId: item.productId ?? orderItem.productId,
           images: item.images ?? orderItem.images,
-          brand: item.brand ?? orderItem.brand,
+          brand: item.brand ?? orderItem.brand ?? orderItem.vendorName,
+          vendorName: item.vendorName ?? orderItem.vendorName,
           itemNumber: item.itemNumber ?? orderItem.sku,
         };
       }),
@@ -71,7 +77,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const returnItem = await returnService.getReturn(id);
 
     if (!returnItem) {
-      return NextResponse.json({ error: 'Return not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Return not found', code: RETURN_ERROR_CODE.RETURN_NOT_FOUND },
+        { status: 404 },
+      );
     }
 
     const enriched = await enrichReturnWithOrderData(returnItem);
@@ -88,6 +97,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       },
       `Error fetching return ${id}`,
     );
-    return NextResponse.json({ error: 'Failed to fetch return' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch return', code: RETURN_ERROR_CODE.RETURN_FETCH_FAILED },
+      { status: 500 },
+    );
   }
 }

@@ -236,7 +236,7 @@ describe('useSession fetch resilience', () => {
       mutationResult = await result.current.setCurrency('EUR');
     });
 
-    expect(mutationResult!.success).toBe(false);
+    expect(mutationResult!.success).toBe(true);
     expect(store.session).toEqual({ id: 'session-existing', currency: 'USD', siteCode: 'main' });
     expect(store.setSession).not.toHaveBeenCalledWith(null);
   });
@@ -392,7 +392,11 @@ describe('useSession setCurrency cart reconciliation', () => {
 
     mockUseSessionStore.mockReturnValue(store);
     mockUseCartStore.mockReturnValue(cartStore);
-    mockUpdateSessionCurrency.mockResolvedValue({ success: false, cartCurrencyBlocked: true });
+    mockUpdateSessionCurrency.mockResolvedValue({
+      success: false,
+      cartCurrencyBlocked: true,
+      couponCodes: ['ACCESSORIES15'],
+    });
 
     const { result } = renderHook(() => useSession());
     let out: SetCurrencyResult;
@@ -402,6 +406,7 @@ describe('useSession setCurrency cart reconciliation', () => {
 
     expect(out!.success).toBe(false);
     expect(out!.cartCurrencyBlocked).toBe(true);
+    expect(out!.couponCodes).toEqual(['ACCESSORIES15']);
     expect(cartStore.setCurrentCart).not.toHaveBeenCalled();
   });
 });

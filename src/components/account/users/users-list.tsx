@@ -1,0 +1,605 @@
+'use client';
+
+import { type FormEvent, useEffect, useLayoutEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { Plus, Search } from 'lucide-react';
+import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import UiLink from '@/components/ui/link';
+import { Spinner } from '@/components/ui/spinner';
+import { releaseNavigationWaitCursorLease, useGlobalCursor } from '@/hooks/common/useGlobalCursor';
+import { usePersistedState } from '@/hooks/common/usePersistedState';
+import { useSession } from '@/hooks/session/useSession';
+import { useCompanyUsers, useOtherCompanyUsers } from '@/hooks/user-management/useCompanyUsers';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { resolveClientSelectedLegalEntityId } from '@/lib/common/legal-entity-context';
+import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
+import { AccountListContainer } from '../shared/account-list';
+import { AccountPageHeader } from '../shared/account-page-header';
+import { CompanyScopeToggle } from './company-scope-toggle';
+import { DeleteUserDialog } from './delete-user-dialog';
+import { type CompanyUserSortField, USER_SORT_FIELD_MAP, UsersTable } from './users-table';
+
+const INITIAL_PAGE_SORT = 'firstName:asc';
+const SHOW_OTHER_COMPANY_USERS_PENDING_OWNER_ID = 'pending';
+const COMPANY_USER_SORT_FIELDS = new Set<CompanyUserSortField>([
+  'firstName',
+  'lastName',
+  'contactEmail',
+  'metadataCreatedAt',
+  'active',
+]);
+
+export type UsersListSortState = {
+  field: CompanyUserSortField;
+  direction: 'asc' | 'desc';
+};
+
+export const DEFAULT_USERS_LIST_SORT: UsersListSortState = {
+  field: 'firstName',
+  direction: 'asc',
+};
+
+export function showOtherCompanyUsersStorageKey(ownerId: string): string {
+  return `user-management.v1:${encodeURIComponent(ownerId)}:showOtherCompanyUsers`;
+}
+
+export function usersListSortStorageKey(ownerId: string): string {
+  return `user-management.v1:${encodeURIComponent(ownerId)}:sort`;
+}
+
+export function deserializeShowOtherCompanyUsers(raw: string): boolean {
+  try {
+    return JSON.parse(raw) === true;
+  } catch {
+    return false;
+  }
+}
+
+export function canManageSelectedCompanyUsers(
+  adminLegalEntityIds: string[] | undefined,
+  legalEntityId: string | undefined,
+): boolean {
+  if (adminLegalEntityIds === undefined) {
+    return true;
+  }
+  const sessionLegalEntityId = typeof legalEntityId === 'string' ? legalEntityId.trim() : '';
+  return sessionLegalEntityId.length > 0 && adminLegalEntityIds.includes(sessionLegalEntityId);
+}
+
+/**
+ * Current / All companies is Admin-LE scope only. Hide it when the session
+ * company is not an Admin LE, or when the customer is Admin of only one LE.
+ * `showOtherCompaniesToggle` is the fallback when admin ids are not passed.
+ */
+export function canShowCompanyScopeToggle(
+  adminLegalEntityIds: string[] | undefined,
+  canManageSelectedCompany: boolean,
+  showOtherCompaniesToggle: boolean,
+): boolean {
+  if (!canManageSelectedCompany) {
+    return false;
+  }
+  if (adminLegalEntityIds === undefined) {
+    return showOtherCompaniesToggle;
+  }
+  return adminLegalEntityIds.length > 1;
+}
+
+export function deserializeUsersListSort(raw: string): UsersListSortState {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return DEFAULT_USERS_LIST_SORT;
+    }
+    const { field, direction } = parsed as Record<string, unknown>;
+    if (
+      typeof field === 'string' &&
+      COMPANY_USER_SORT_FIELDS.has(field as CompanyUserSortField) &&
+      (direction === 'asc' || direction === 'desc')
+    ) {
+      return { field: field as CompanyUserSortField, direction };
+    }
+    return DEFAULT_USERS_LIST_SORT;
+  } catch {
+    return DEFAULT_USERS_LIST_SORT;
+  }
+}
+
+interface CompanyUsersListView {
+  users: CompanyUser[];
+  loading: boolean;
+  error: Error | null;
+  pagination?: {
+    pageNumber: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+  };
+  refreshUsers: () => Promise<void>;
+}
+
+function toCompanyUsersListView(
+  users: CompanyUser[],
+  loading: boolean,
+  error: Error | null,
+  pagination: CompanyUsersListView['pagination'],
+  refreshUsers: () => Promise<void>,
+): CompanyUsersListView {
+  return { users, loading, error, pagination, refreshUsers };
+}
+
+interface UsersListProps {
+  initialUsers?: CompanyUser[];
+  initialTotalCount?: number;
+  onDeleteUser?: (user: CompanyUser) => void;
+  showOtherCompaniesToggle?: boolean;
+  selectedCompanyName?: string;
+  headerCompanies?: Array<{ id: string; name: string }>;
+  adminLegalEntityIds?: string[];
+  selectedLegalEntityId?: string;
+}
+
+export function UsersList({
+  initialUsers,
+  initialTotalCount,
+  onDeleteUser,
+  showOtherCompaniesToggle = false,
+  selectedCompanyName: selectedCompanyNameProp,
+  headerCompanies = [],
+  adminLegalEntityIds,
+  selectedLegalEntityId: selectedLegalEntityIdProp,
+}: Readonly<UsersListProps>) {
+  const t = useTranslations('user-management');
+  const { session } = useSession();
+  const sessionLegalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
+  const recoveredLegalEntityId = typeof selectedLegalEntityIdProp === 'string' ? selectedLegalEntityIdProp.trim() : '';
+  const selectedLegalEntityId = resolveClientSelectedLegalEntityId({
+    sessionLegalEntityId,
+    recoveredLegalEntityId,
+    knownCompanyIds: headerCompanies.map((company) => company.id),
+  });
+  const canManageSelectedCompany = canManageSelectedCompanyUsers(adminLegalEntityIds, selectedLegalEntityId);
+  const selectedCompanyName =
+    headerCompanies.find((company) => company.id === selectedLegalEntityId)?.name ?? selectedCompanyNameProp;
+  const showScopeToggle = canShowCompanyScopeToggle(
+    adminLegalEntityIds,
+    canManageSelectedCompany,
+    showOtherCompaniesToggle,
+  );
+  const [isClient, setIsClient] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [quickSearch, setQuickSearch] = useState('');
+  const [submittedSearch, setSubmittedSearch] = useState('');
+  const [userToDelete, setUserToDelete] = useState<CompanyUser | null>(null);
+
+  useEffect(() => {
+    // @see https://react.dev/reference/react-dom/client/hydrateRoot#handling-different-client-and-server-content
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsClient(true);
+  }, []);
+
+  const sessionCustomerId = session?.customerId;
+  const ownerId = isAuthenticatedSessionCustomerId(sessionCustomerId) ? sessionCustomerId : undefined;
+  const persistEnabled = isClient && Boolean(ownerId);
+  const [showOtherCompanyUsers, setShowOtherCompanyUsers] = usePersistedState({
+    key: showOtherCompanyUsersStorageKey(ownerId ?? SHOW_OTHER_COMPANY_USERS_PENDING_OWNER_ID),
+    defaultValue: false,
+    enabled: persistEnabled,
+    deserialize: deserializeShowOtherCompanyUsers,
+  });
+  const [sort, setSort] = usePersistedState<UsersListSortState>({
+    key: usersListSortStorageKey(ownerId ?? SHOW_OTHER_COMPANY_USERS_PENDING_OWNER_ID),
+    defaultValue: DEFAULT_USERS_LIST_SORT,
+    storage: 'sessionStorage',
+    enabled: persistEnabled,
+    deserialize: deserializeUsersListSort,
+  });
+  const { field: sortField, direction: sortDirection } = sort;
+
+  const apiQuery = submittedSearch.length > 0 ? submittedSearch : undefined;
+  const apiSort = `${USER_SORT_FIELD_MAP[sortField]}:${sortDirection}`;
+  const otherCompanyUsersEnabled = showScopeToggle && showOtherCompanyUsers;
+
+  const {
+    users: selectedLegalEntityUsers,
+    loading: selectedLegalEntityLoading,
+    error: selectedLegalEntityError,
+    pagination: selectedLegalEntityPagination,
+    refreshUsers: refreshSelectedLegalEntityUsers,
+  } = useCompanyUsers(initialUsers, {
+    pageNumber: currentPage,
+    pageSize: USERS_PER_PAGE,
+    sort: apiSort,
+    query: apiQuery,
+    initialTotalCount,
+    initialRequest: {
+      pageNumber: 1,
+      pageSize: USERS_PER_PAGE,
+      sort: INITIAL_PAGE_SORT,
+      query: undefined,
+    },
+    enabled: !otherCompanyUsersEnabled && canManageSelectedCompany,
+  });
+
+  const {
+    users: otherCompanyUsers,
+    loading: otherCompanyUsersLoading,
+    error: otherCompanyUsersError,
+    pagination: otherCompanyPagination,
+    refreshUsers: refreshOtherCompanyUsers,
+  } = useOtherCompanyUsers({
+    enabled: otherCompanyUsersEnabled,
+    pageNumber: currentPage,
+    pageSize: USERS_PER_PAGE,
+    sort: apiSort,
+    query: apiQuery,
+  });
+
+  const selectedLegalEntityView = toCompanyUsersListView(
+    selectedLegalEntityUsers,
+    selectedLegalEntityLoading,
+    selectedLegalEntityError,
+    selectedLegalEntityPagination,
+    refreshSelectedLegalEntityUsers,
+  );
+  const otherCompanyView = toCompanyUsersListView(
+    otherCompanyUsers,
+    otherCompanyUsersLoading,
+    otherCompanyUsersError,
+    otherCompanyPagination,
+    refreshOtherCompanyUsers,
+  );
+  const {
+    users,
+    loading,
+    error,
+    pagination,
+    refreshUsers: refreshActiveUsers,
+  } = otherCompanyUsersEnabled ? otherCompanyView : selectedLegalEntityView;
+  useGlobalCursor(loading);
+  useLayoutEffect(() => {
+    if (!loading) {
+      releaseNavigationWaitCursorLease({ force: true });
+    }
+  }, [loading]);
+
+  const applySubmittedSearch = (rawQuery: string) => {
+    const nextSubmittedSearch = rawQuery.trim();
+    setCurrentPage(1);
+    setSubmittedSearch(nextSubmittedSearch);
+  };
+
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    applySubmittedSearch(quickSearch);
+  };
+
+  const handleSearchBlur = () => {
+    applySubmittedSearch(quickSearch);
+  };
+
+  const handleDeleteUser = (user: CompanyUser) => {
+    if (onDeleteUser) {
+      onDeleteUser(user);
+      return;
+    }
+    setUserToDelete(user);
+  };
+
+  const toggleSort = (field: CompanyUserSortField) => {
+    setCurrentPage(1);
+    setSort((prev) => {
+      if (prev.field === field) {
+        return { field, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
+  };
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    const totalPages = pagination?.totalPages ?? 1;
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const hasActiveSearch = submittedSearch.length > 0;
+  const isSearchLoading = loading && hasActiveSearch;
+
+  const handleShowAllCompaniesChange = (showAllCompanies: boolean) => {
+    setShowOtherCompanyUsers(showAllCompanies);
+    if (showAllCompanies) {
+      setCurrentPage(1);
+    }
+  };
+
+  const notAdminInCompanyMessage = t('notifications.notAdminInCompany', {
+    company: selectedCompanyName?.trim() || t('currentCompany'),
+  });
+
+  return (
+    <UsersListLayout
+      canManageSelectedCompany={canManageSelectedCompany}
+      selectedCompanyName={selectedCompanyName}
+      showScopeToggle={showScopeToggle}
+      showOtherCompanyUsers={showOtherCompanyUsers}
+      onShowAllCompaniesChange={handleShowAllCompaniesChange}
+      notAdminInCompanyMessage={notAdminInCompanyMessage}
+      users={users}
+      loading={loading}
+      error={error}
+      pagination={pagination}
+      refreshActiveUsers={refreshActiveUsers}
+      currentPage={currentPage}
+      onPreviousPage={handlePreviousPage}
+      onNextPage={handleNextPage}
+      quickSearch={quickSearch}
+      onQuickSearchChange={setQuickSearch}
+      onSearchSubmit={submitSearch}
+      onSearchBlur={handleSearchBlur}
+      isSearchLoading={isSearchLoading}
+      hasActiveSearch={hasActiveSearch}
+      sortField={sortField}
+      sortDirection={sortDirection}
+      onToggleSort={toggleSort}
+      otherCompanyUsersEnabled={otherCompanyUsersEnabled}
+      onDeleteUser={onDeleteUser}
+      handleDeleteUser={handleDeleteUser}
+      userToDelete={userToDelete}
+      onUserToDeleteChange={setUserToDelete}
+    />
+  );
+}
+
+function UsersListLayout({
+  canManageSelectedCompany,
+  selectedCompanyName,
+  showScopeToggle,
+  showOtherCompanyUsers,
+  onShowAllCompaniesChange,
+  notAdminInCompanyMessage,
+  users,
+  loading,
+  error,
+  pagination,
+  refreshActiveUsers,
+  currentPage,
+  onPreviousPage,
+  onNextPage,
+  quickSearch,
+  onQuickSearchChange,
+  onSearchSubmit,
+  onSearchBlur,
+  isSearchLoading,
+  hasActiveSearch,
+  sortField,
+  sortDirection,
+  onToggleSort,
+  otherCompanyUsersEnabled,
+  onDeleteUser,
+  handleDeleteUser,
+  userToDelete,
+  onUserToDeleteChange,
+}: Readonly<{
+  canManageSelectedCompany: boolean;
+  selectedCompanyName?: string;
+  showScopeToggle: boolean;
+  showOtherCompanyUsers: boolean;
+  onShowAllCompaniesChange: (showAllCompanies: boolean) => void;
+  notAdminInCompanyMessage: string;
+  users: CompanyUser[];
+  loading: boolean;
+  error: Error | null;
+  pagination: CompanyUsersListView['pagination'];
+  refreshActiveUsers: () => Promise<void>;
+  currentPage: number;
+  onPreviousPage: () => void;
+  onNextPage: () => void;
+  quickSearch: string;
+  onQuickSearchChange: (value: string) => void;
+  onSearchSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSearchBlur: () => void;
+  isSearchLoading: boolean;
+  hasActiveSearch: boolean;
+  sortField: CompanyUserSortField;
+  sortDirection: 'asc' | 'desc';
+  onToggleSort: (field: CompanyUserSortField) => void;
+  otherCompanyUsersEnabled: boolean;
+  onDeleteUser?: (user: CompanyUser) => void;
+  handleDeleteUser: (user: CompanyUser) => void;
+  userToDelete: CompanyUser | null;
+  onUserToDeleteChange: (user: CompanyUser | null) => void;
+}>) {
+  const t = useTranslations('user-management');
+  const tGroups = useTranslations('account.sidebar.groups');
+
+  return (
+    <div className="space-y-6">
+      <AccountPageHeader
+        eyebrow={tGroups('myOrganisation')}
+        title={t('heading')}
+        actions={
+          canManageSelectedCompany ? (
+            <UiLink
+              type="Link"
+              href="/account/users/new"
+              variant="buttonPrimary"
+              className="w-auto shrink-0 whitespace-nowrap"
+              iconBefore={<Plus className="size-5" aria-hidden />}
+            >
+              {t('createButton')}
+            </UiLink>
+          ) : null
+        }
+      />
+      {showScopeToggle ? (
+        <CompanyScopeToggle
+          currentCompanyName={selectedCompanyName}
+          showAllCompanies={showOtherCompanyUsers}
+          onShowAllCompaniesChange={onShowAllCompaniesChange}
+        />
+      ) : null}
+
+      {canManageSelectedCompany ? (
+        <UsersListManagedSection
+          users={users}
+          loading={loading}
+          error={error}
+          pagination={pagination}
+          refreshActiveUsers={refreshActiveUsers}
+          currentPage={currentPage}
+          onPreviousPage={onPreviousPage}
+          onNextPage={onNextPage}
+          quickSearch={quickSearch}
+          onQuickSearchChange={onQuickSearchChange}
+          onSearchSubmit={onSearchSubmit}
+          onSearchBlur={onSearchBlur}
+          isSearchLoading={isSearchLoading}
+          hasActiveSearch={hasActiveSearch}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onToggleSort={onToggleSort}
+          otherCompanyUsersEnabled={otherCompanyUsersEnabled}
+          onDeleteUser={onDeleteUser}
+          handleDeleteUser={handleDeleteUser}
+          userToDelete={userToDelete}
+          onUserToDeleteChange={onUserToDeleteChange}
+        />
+      ) : (
+        <output className="text-text-secondary">{notAdminInCompanyMessage}</output>
+      )}
+    </div>
+  );
+}
+
+function UsersListManagedSection({
+  users,
+  loading,
+  error,
+  pagination,
+  refreshActiveUsers,
+  currentPage,
+  onPreviousPage,
+  onNextPage,
+  quickSearch,
+  onQuickSearchChange,
+  onSearchSubmit,
+  onSearchBlur,
+  isSearchLoading,
+  hasActiveSearch,
+  sortField,
+  sortDirection,
+  onToggleSort,
+  otherCompanyUsersEnabled,
+  onDeleteUser,
+  handleDeleteUser,
+  userToDelete,
+  onUserToDeleteChange,
+}: Readonly<{
+  users: CompanyUser[];
+  loading: boolean;
+  error: Error | null;
+  pagination: CompanyUsersListView['pagination'];
+  refreshActiveUsers: () => Promise<void>;
+  currentPage: number;
+  onPreviousPage: () => void;
+  onNextPage: () => void;
+  quickSearch: string;
+  onQuickSearchChange: (value: string) => void;
+  onSearchSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSearchBlur: () => void;
+  isSearchLoading: boolean;
+  hasActiveSearch: boolean;
+  sortField: CompanyUserSortField;
+  sortDirection: 'asc' | 'desc';
+  onToggleSort: (field: CompanyUserSortField) => void;
+  otherCompanyUsersEnabled: boolean;
+  onDeleteUser?: (user: CompanyUser) => void;
+  handleDeleteUser: (user: CompanyUser) => void;
+  userToDelete: CompanyUser | null;
+  onUserToDeleteChange: (user: CompanyUser | null) => void;
+}>) {
+  const t = useTranslations('user-management');
+
+  return (
+    <>
+      <div className="space-y-4">
+        <form className="flex flex-wrap gap-4" onSubmit={onSearchSubmit}>
+          <div className="relative w-[380px] max-w-full">
+            <Input
+              type="search"
+              value={quickSearch}
+              onChange={(event) => {
+                onQuickSearchChange(event.target.value);
+              }}
+              onBlur={onSearchBlur}
+              placeholder={t('searchPlaceholder')}
+              className="appearance-none pr-10 [&::-webkit-search-cancel-button]:hidden"
+              endIcon={isSearchLoading ? undefined : Search}
+              aria-label={t('searchPlaceholder')}
+            />
+            {isSearchLoading ? (
+              <Spinner
+                variant="sm"
+                color="primary"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                loadingText={t('loading')}
+              />
+            ) : null}
+          </div>
+        </form>
+
+        {error ? (
+          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 space-y-3">
+            <p>{error.message}</p>
+            <Button
+              onClick={() => {
+                Promise.resolve(refreshActiveUsers()).catch(() => undefined);
+              }}
+            >
+              {t('tryAgain')}
+            </Button>
+          </div>
+        ) : (
+          <AccountListContainer>
+            <UsersTable
+              users={users}
+              loading={loading}
+              currentPage={currentPage}
+              totalPages={pagination?.totalPages ?? 1}
+              onPreviousPage={onPreviousPage}
+              onNextPage={onNextPage}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onToggleSort={onToggleSort}
+              hasActiveSearch={hasActiveSearch}
+              onDeleteUser={otherCompanyUsersEnabled ? undefined : handleDeleteUser}
+              showLegalEntityName={otherCompanyUsersEnabled}
+            />
+          </AccountListContainer>
+        )}
+      </div>
+      {otherCompanyUsersEnabled || onDeleteUser ? null : (
+        <DeleteUserDialog
+          user={userToDelete}
+          open={userToDelete !== null}
+          onOpenChange={(open) => {
+            if (!open) onUserToDeleteChange(null);
+          }}
+          onDeleted={() => {
+            onUserToDeleteChange(null);
+            refreshActiveUsers().catch(() => undefined);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+export function AccountUsersList(props: Readonly<Omit<UsersListProps, 'onDeleteUser'>>) {
+  return <UsersList {...props} />;
+}

@@ -1,11 +1,14 @@
 import { inject } from 'inversify';
+import { resolveCountryForSite } from '@/lib/common/site-country';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixTokenManager } from '@/platform/integrations/emporix/common/EmporixTokenManager';
+import { decodeTokenLegalEntityId } from '@/platform/integrations/emporix/common/util/common';
 import type { EmporixConfig } from '@/platform/integrations/emporix/config';
 import type {
   EmporixContextAttribute,
   EmporixSessionContext,
 } from '@/platform/integrations/emporix/model/session-context';
+import type { EmporixOAuthApi } from '@/platform/integrations/emporix/oauth/EmporixOAuthApi';
 import type { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Site } from '@/platform/services/model/common/site';
@@ -32,6 +35,7 @@ class EmporixSessionService implements SessionService {
     @inject('EmporixSessionMapper') private mapper: SessionMapper<EmporixSessionContext, EmporixContextAttribute>,
     @inject('SiteService') private siteService: SiteService,
     @inject('EmporixTokenManager') private tokenManager: EmporixTokenManager,
+    @inject('EmporixOAuthApi') private readonly oauthApi: EmporixOAuthApi,
     @inject('EmporixConfig') private config: EmporixConfig,
     @inject('LoggerService') private logger: LoggerService,
   ) {}
@@ -54,16 +58,10 @@ class EmporixSessionService implements SessionService {
   }
 
   async setCurrency(currency: string): Promise<void> {
-    const session = await this.sessionContextApi.getOwnSessionContext();
-    if (!session) {
-      return;
-    }
-    await this.sessionContextApi.updateOwnSessionContext({
-      currency: currency,
-      metadata: {
-        version: session.metadata?.version || 1,
-      },
-    });
+    // Re-read own context and retry once on a stale metadata.version. A parallel
+    // session PATCH (another tab on this same session) otherwise fails the currency
+    // write. Another browser is a different session and is not read here.
+    await this.updateContext({ currency });
   }
 
   async setCountry(country: string): Promise<void> {
@@ -71,9 +69,13 @@ class EmporixSessionService implements SessionService {
     if (!session) {
       return;
     }
+    const targetLocation = this.normalizeSessionCountry(country);
+    if (!targetLocation) {
+      return;
+    }
     // TODO propagate Country Switch via Event-System
     await this.sessionContextApi.updateOwnSessionContext({
-      targetLocation: country,
+      targetLocation,
       metadata: {
         version: session.metadata?.version || 1,
       },
@@ -92,6 +94,11 @@ class EmporixSessionService implements SessionService {
     const fields: Partial<EmporixSessionContext> = { siteCode: site };
     if (siteChanged && defaultCurrency) {
       fields.currency = defaultCurrency;
+    }
+    const targetSite = await this.siteService.getSite(site);
+    const nextCountry = resolveCountryForSite(targetSite, initialSession.targetLocation);
+    if (nextCountry && nextCountry !== initialSession.targetLocation) {
+      fields.targetLocation = nextCountry;
     }
 
     await this.updateSessionContextWithRetry(fields, {
@@ -140,12 +147,55 @@ class EmporixSessionService implements SessionService {
     */
   }
 
-  async setLegalEntity(legalEntityId: string): Promise<void> {
-    await this.tokenManager.refreshCustomerTokenWithLegalEntity(this.config.tenant, legalEntityId);
+  async setLegalEntity(legalEntityId: string): Promise<{ tokenRefreshSucceeded: true; tokenLooksLikeJwt: boolean }> {
+    const refreshedToken = await this.tokenManager.refreshCustomerTokenWithLegalEntity(
+      this.config.tenant,
+      legalEntityId,
+      this.config.clientId,
+    );
+    if (!refreshedToken) {
+      this.logger.error(
+        { legalEntityId, tokenRefreshSucceeded: false },
+        'Failed to refresh customer token with legal entity',
+      );
+      throw new Error('Failed to scope customer token to the selected legal entity');
+    }
+
     await this.sessionContextApi.addOwnSessionContextAttribute({
       key: 'legalEntityId',
       value: legalEntityId,
     });
+    return {
+      tokenRefreshSucceeded: true,
+      tokenLooksLikeJwt: refreshedToken.accessToken.split('.').length === 3,
+    };
+  }
+
+  async getCustomerTokenLegalEntityId(): Promise<string | undefined> {
+    try {
+      const token = await this.tokenManager.getCustomerToken(this.config.tenant, this.config.clientId);
+      if (!token) {
+        return undefined;
+      }
+      try {
+        const validated = await this.oauthApi.validateCustomerToken(this.config.tenant, token.accessToken);
+        if (validated.legalEntityId) {
+          return validated.legalEntityId;
+        }
+      } catch (error) {
+        this.logger.warn(
+          { error: error instanceof Error ? error.message : String(error) },
+          'Could not validate customer token legal entity; falling back to token claims',
+        );
+      }
+      return decodeTokenLegalEntityId(token.accessToken, token.saasToken);
+    } catch (error) {
+      this.logger.warn(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Could not read customer token legal entity for diagnostics',
+      );
+      return undefined;
+    }
   }
 
   async clearLegalEntity(): Promise<void> {
@@ -159,7 +209,7 @@ class EmporixSessionService implements SessionService {
     }
     // Re-scope the customer token to drop the legalEntityId claim (no-op for anonymous sessions).
     try {
-      await this.tokenManager.refreshCustomerTokenWithLegalEntity(this.config.tenant, '');
+      await this.tokenManager.refreshCustomerTokenWithLegalEntity(this.config.tenant, '', this.config.clientId);
     } catch (error) {
       this.logger.error(
         { error: error instanceof Error ? error.message : String(error) },
@@ -344,49 +394,71 @@ class EmporixSessionService implements SessionService {
   }
 
   /**
-   * Get the current session context
+   * Get the current session context; a failed lookup is swallowed (best-effort read).
    */
   async getCurrent(): Promise<Session | undefined> {
     try {
-      const sessionContext = await this.sessionContextApi.getOwnSessionContext();
-      const result = sessionContext ? this.mapper.mapToService(sessionContext) : undefined;
-      if (!result) {
-        return undefined;
-      }
-      await this.adjustSessionsSettings(sessionContext, result);
-      return result;
-    } catch (_error) {
-      // fail silently for ssr context
+      return await this.getCurrentOrThrow();
+    } catch (error) {
+      // Best-effort read for SSR / display paths: log and resolve "no session". Access-gating
+      // callers must use getCurrentOrThrow() so an outage cannot pass as an anonymous visitor.
+      this.logger.warn(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Could not read current session context; treating as no session (best-effort read)',
+      );
       return undefined;
     }
   }
 
-  private async adjustSessionsSettings(sessionContext: EmporixSessionContext | undefined, result: Session) {
+  /**
+   * Get the current session context; `undefined` only when there is no session, a failed lookup
+   * rejects so access-gating callers can fail closed.
+   */
+  async getCurrentOrThrow(): Promise<Session | undefined> {
+    const sessionContext = await this.sessionContextApi.getOwnSessionContext();
+    const result = sessionContext ? this.mapper.mapToService(sessionContext) : undefined;
+    if (!result) {
+      return undefined;
+    }
+    await this.adjustSessionsSettings(sessionContext, result);
+    return result;
+  }
+
+  private applyDefaultSiteIfNeeded(
+    sessionContext: EmporixSessionContext | undefined,
+    result: Session,
+    updateDefaults: Partial<EmporixSessionContext>,
+  ): void {
     const resolvedDefaultSite = this.defaultSite || this.availableSites[0];
-    const updateDefaults: Partial<EmporixSessionContext> = {};
     if (resolvedDefaultSite && (!sessionContext?.siteCode || !this.availableSites.includes(sessionContext.siteCode))) {
       updateDefaults.siteCode = resolvedDefaultSite;
       result.siteCode = resolvedDefaultSite;
     }
+  }
 
-    const needsAdjustment = Object.keys(updateDefaults).length > 0;
-    this.logger.debug(
-      `adjustSessionsSettings entry site=${result.siteCode} currency=${result.currency} country=${result.country} language=${result.language} region=${result.region} needsAdjustment=${needsAdjustment}`,
-    );
-
-    const site = await this.siteService.getSite(result.siteCode);
-    if (!site) {
-      return;
-    }
-
+  private applySiteCurrencyIfNeeded(site: Site, result: Session, updateDefaults: Partial<EmporixSessionContext>): void {
     if (site.defaultCurrency?.id && (!result.currency || !this.isCurrencySupportedOnSite(site, result.currency))) {
       updateDefaults.currency = site.defaultCurrency.id;
       result.currency = site.defaultCurrency.id;
     }
-    if (!result.country) {
-      updateDefaults.targetLocation = this.defaultCountry;
-      result.country = this.defaultCountry;
+  }
+
+  private applySessionCountryDefaults(
+    site: Site,
+    result: Session,
+    updateDefaults: Partial<EmporixSessionContext>,
+  ): void {
+    const currentCountry = this.normalizeSessionCountry(result.country);
+    const nextCountry =
+      resolveCountryForSite(site, currentCountry || undefined) || (currentCountry ? undefined : this.defaultCountry);
+    const rawCountry = typeof result.country === 'string' ? result.country : '';
+    if (nextCountry && nextCountry !== rawCountry) {
+      updateDefaults.targetLocation = nextCountry;
+      result.country = nextCountry;
     }
+  }
+
+  private applyLanguageAndRegionDefaults(result: Session, updateDefaults: Partial<EmporixSessionContext>): void {
     if (!result.language) {
       // Top-level field since the 2026-04-21 BE changelog — write it at the
       // root of the PATCH payload so we don't have to round-trip the full
@@ -402,25 +474,60 @@ class EmporixSessionService implements SessionService {
       }
       result.region = this.defaultRegion;
     }
-    if (Object.keys(updateDefaults).length > 0) {
-      // Merge with existing `context` since PATCH replaces the whole object.
-      if (updateDefaults.context) {
-        updateDefaults.context = {
-          ...(sessionContext?.context ?? {}),
-          ...updateDefaults.context,
-        };
-      }
-      this.logger.info({ updateDefaults }, 'Patching session defaults');
-      updateDefaults.metadata = {
-        version: sessionContext?.metadata?.version || 1,
-      };
-      // Fire-and-forget; 404s are expected for newly-created sessions (eventual consistency).
-      this.sessionContextApi.updateOwnSessionContext(updateDefaults).catch((error: Error) => {
-        if (!error.message.includes('Not Found')) {
-          this.logger.error({ error: error.message }, 'Unexpected error updating session defaults');
-        }
-      });
+  }
+
+  private async persistSessionDefaults(
+    sessionContext: EmporixSessionContext | undefined,
+    updateDefaults: Partial<EmporixSessionContext>,
+  ): Promise<void> {
+    if (Object.keys(updateDefaults).length === 0) {
+      return;
     }
+    // Merge with existing `context` since PATCH replaces the whole object.
+    if (updateDefaults.context) {
+      updateDefaults.context = {
+        ...(sessionContext?.context ?? {}),
+        ...updateDefaults.context,
+      };
+    }
+    this.logger.info({ updateDefaults }, 'Patching session defaults');
+    updateDefaults.metadata = {
+      version: sessionContext?.metadata?.version || 1,
+    };
+    // Await so later match-prices-by-context / cart reads see the same country.
+    // 404s are expected for newly-created sessions (eventual consistency).
+    try {
+      await this.sessionContextApi.updateOwnSessionContext(updateDefaults);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('Not Found')) {
+        this.logger.error({ error: message }, 'Unexpected error updating session defaults');
+      }
+    }
+  }
+
+  private async adjustSessionsSettings(sessionContext: EmporixSessionContext | undefined, result: Session) {
+    const updateDefaults: Partial<EmporixSessionContext> = {};
+    this.applyDefaultSiteIfNeeded(sessionContext, result, updateDefaults);
+
+    const needsAdjustment = Object.keys(updateDefaults).length > 0;
+    this.logger.debug(
+      `adjustSessionsSettings entry site=${result.siteCode} currency=${result.currency} country=${result.country} language=${result.language} region=${result.region} needsAdjustment=${needsAdjustment}`,
+    );
+
+    const site = await this.siteService.getSite(result.siteCode);
+    if (!site) {
+      return;
+    }
+
+    this.applySiteCurrencyIfNeeded(site, result, updateDefaults);
+    this.applySessionCountryDefaults(site, result, updateDefaults);
+    this.applyLanguageAndRegionDefaults(result, updateDefaults);
+    await this.persistSessionDefaults(sessionContext, updateDefaults);
+  }
+
+  private normalizeSessionCountry(value: string | undefined): string {
+    return typeof value === 'string' ? value.trim().toUpperCase() : '';
   }
 
   private isCurrencySupportedOnSite(site: Site, currency: string): boolean {

@@ -3,25 +3,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { AlertCircle, FlipHorizontal2, Minus, Package, Plus, ShoppingCart, Trash2, Truck } from 'lucide-react';
+import { CircleAlert, FlipHorizontal2, Minus, Package, Plus, ShoppingCart, Trash2, Truck } from 'lucide-react';
+import { resolveProductBrandLabel } from '@/components/product/resolve-product-brand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useComparison } from '@/hooks/comparison/useComparison';
+import { useSyncedState } from '@/hooks/common/use-synced-state';
+import { useComparisonToggle } from '@/hooks/comparison/useComparisonToggle';
 import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { useAvailability } from '@/hooks/product/useAvailability';
+import { useProduct } from '@/hooks/product/useProduct';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlist } from '@/hooks/wishlist/useWishlist';
 import { type ProductAttributeKey, dk } from '@/i18n/dynamic-key';
 import type { MoveWishlistItemToCartResult } from '@/lib/client/wishlist';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 import type { WishlistItem as WishlistItemModel } from '@/platform/services/model/wishlist/wishlist';
-import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 
 interface WishlistItemProps {
   item: WishlistItemModel;
@@ -31,15 +34,110 @@ interface WishlistItemProps {
 
 const QUANTITY_DEBOUNCE_MS = 700;
 
+type WishlistStatusFlags = {
+  showUnavailable: boolean;
+  showNoPrice: boolean;
+  showPartialStock: boolean;
+  availableQuantity?: number;
+  requestedQuantity: number;
+};
+
+function WishlistStatusLine({ flags }: Readonly<{ flags: WishlistStatusFlags }>) {
+  const t = useTranslations('account.wishlist');
+  const tCart = useTranslations('cart');
+
+  if (flags.showUnavailable) {
+    return (
+      <p className="flex items-center gap-2 text-sm text-text-warning">
+        <CircleAlert className="h-4 w-4" aria-hidden="true" />
+        {t('statuses.unavailable')}
+      </p>
+    );
+  }
+  if (flags.showNoPrice) {
+    return (
+      <p className="flex items-center gap-2 text-sm text-text-warning">
+        <CircleAlert className="h-4 w-4" aria-hidden="true" />
+        {t('statuses.noPrice')}
+      </p>
+    );
+  }
+  if (flags.showPartialStock) {
+    return (
+      <p className="flex items-center gap-2 text-sm text-text-warning">
+        <Package className="h-4 w-4" aria-hidden="true" />
+        {tCart('substitution.availableDescription', {
+          available: flags.availableQuantity ?? 0,
+          total: flags.requestedQuantity,
+        })}
+      </p>
+    );
+  }
+  return (
+    <p className="flex items-center gap-2 text-sm text-text-success">
+      <Truck className="h-4 w-4" aria-hidden="true" />
+      {t('statuses.onlineAvailable')}
+    </p>
+  );
+}
+
+function WishlistPriceBlock({
+  hasPriceToShow,
+  hasDiscount,
+  grossAmount,
+  grossOriginalAmount,
+  netAmount,
+  currency,
+}: Readonly<{
+  hasPriceToShow: boolean;
+  hasDiscount: boolean;
+  grossAmount?: number;
+  grossOriginalAmount?: number;
+  netAmount?: number;
+  currency?: string;
+}>) {
+  const t = useTranslations('account.wishlist');
+
+  if (!hasPriceToShow || grossAmount === undefined || currency === undefined) {
+    return (
+      <div>
+        <p className="font-bold">{t('priceUnavailable')}</p>
+        <p className="text-sm text-text-placeholders">
+          {t('net')} {t('priceUnavailable')}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {hasDiscount && grossOriginalAmount !== undefined && (
+        <p className="text-sm text-text-placeholders line-through tabular-nums">
+          {formatCurrency(grossOriginalAmount, currency)}
+        </p>
+      )}
+      <p className={`font-bold tabular-nums${hasDiscount ? ' text-text-error' : ''}`}>
+        {formatCurrency(grossAmount, currency)}
+      </p>
+      {netAmount !== undefined && (
+        <p className="text-sm text-text-placeholders tabular-nums">
+          {t('net')} {formatCurrency(netAmount, currency)}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   const t = useTranslations('account.wishlist');
-  // Reuses cart's "X of Y available" phrasing instead of duplicating the plural key.
-  const tCart = useTranslations('cart');
   const tProduct = useTranslations('product');
   const { l10n } = useL10n();
   const { updateItemQuantity, removeItem, moveItemToCart, loading } = useWishlist();
   const { availability } = useAvailability(item.productId);
-  const [quantity, setQuantity] = useState(item.quantity);
+  const { product: catalogProduct } = useProduct(item.productId);
+  const brandName = resolveProductBrandLabel(catalogProduct, l10n);
+  // Follows the item's quantity when it changes upstream, while staying locally editable.
+  const [quantity, setQuantity] = useSyncedState(item.quantity);
   const [isProcessing, setIsProcessing] = useState(false);
   const quantityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -51,14 +149,9 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
     purchasable: item.isPurchasable,
     ...(item.sku ? { sku: item.sku } : {}),
   };
-  const { isInComparison, toggleProduct, isFull } = useComparison();
+  const { isInComparison, toggle: toggleComparison } = useComparisonToggle();
   const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(productForComparison);
   const isCompared = isInComparison(item.productId);
-
-  useEffect(() => {
-    if (item.quantity !== quantity) setQuantity(item.quantity);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.quantity]);
 
   useEffect(() => {
     return () => {
@@ -133,19 +226,7 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   };
 
   const handleCompareClick = () => {
-    const productName = l10n(item.name) || item.productId;
-    if (isCompared) {
-      toggleProduct(item.productId);
-      notify({ title: tProduct('removedFromComparison', { name: productName }), type: ToastType.Info });
-    } else if (isFull) {
-      notify({
-        title: tProduct('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }),
-        type: ToastType.Warning,
-      });
-    } else {
-      toggleProduct(item.productId);
-      notify({ title: tProduct('addedToComparison', { name: productName }), type: ToastType.Success });
-    }
+    toggleComparison(item.productId, l10n(item.name) || item.productId);
   };
 
   const handleAddToCart = async () => {
@@ -189,53 +270,36 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   // Shared sub-elements — defined once, assembled differently per layout.
 
   const productNameLink = (
-    <UiLink
-      type="Link"
-      variant="textNoUnderline"
-      className="font-headlines text-2xl text-text-headings"
-      href={`/product/${item.productId}`}
-    >
-      {displayName}
-    </UiLink>
+    <div className="flex min-w-0 flex-col gap-1">
+      {brandName ? <p className="text-sm font-body text-text-body">{brandName}</p> : null}
+      <UiLink
+        type="Link"
+        variant="textNoUnderline"
+        className="font-headlines text-2xl text-text-headings"
+        href={`/product/${item.productId}`}
+      >
+        {displayName}
+      </UiLink>
+    </div>
   );
 
+  const imageSrc = resolveProductImageSrc(item.imageUrl);
+  const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : displayName;
   const imageThumb = (
-    <div className="w-14 h-14 shrink-0 rounded-ss-md rounded-ee-md overflow-hidden bg-surface-image-background flex items-center justify-center">
-      {item.imageUrl ? (
-        <Image src={item.imageUrl} alt={displayName} width={56} height={56} className="object-contain w-full h-full" />
-      ) : (
-        <ShoppingCart className="h-5 w-5 opacity-30 text-icon-secondary" />
-      )}
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
+      <Image src={imageSrc} alt={imageAlt} width={56} height={56} className="max-h-full max-w-full object-contain" />
     </div>
   );
 
   const priceBlock = (
-    <div>
-      {hasPriceToShow ? (
-        <>
-          {hasDiscount && (
-            <p className="text-sm text-text-placeholders line-through tabular-nums">
-              {formatCurrency(grossOriginalAmount, currency)}
-            </p>
-          )}
-          <p className={`font-bold tabular-nums${hasDiscount ? ' text-text-error' : ''}`}>
-            {formatCurrency(grossAmount, currency)}
-          </p>
-          {netAmount !== undefined && (
-            <p className="text-sm text-text-placeholders tabular-nums">
-              {t('net')} {formatCurrency(netAmount, currency)}
-            </p>
-          )}
-        </>
-      ) : (
-        <>
-          <p className="font-bold">{t('priceUnavailable')}</p>
-          <p className="text-sm text-text-placeholders">
-            {t('net')} {t('priceUnavailable')}
-          </p>
-        </>
-      )}
-    </div>
+    <WishlistPriceBlock
+      hasPriceToShow={hasPriceToShow}
+      hasDiscount={hasDiscount}
+      grossAmount={grossAmount}
+      grossOriginalAmount={grossOriginalAmount}
+      netAmount={netAmount}
+      currency={currency}
+    />
   );
 
   const itemNumberLine = (
@@ -258,29 +322,16 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
       </div>
     ) : null;
 
-  const statusLine = showUnavailable ? (
-    <p className="flex items-center gap-2 text-sm text-text-warning">
-      <AlertCircle className="h-4 w-4" aria-hidden="true" />
-      {t('statuses.unavailable')}
-    </p>
-  ) : showNoPrice ? (
-    <p className="flex items-center gap-2 text-sm text-text-warning">
-      <AlertCircle className="h-4 w-4" aria-hidden="true" />
-      {t('statuses.noPrice')}
-    </p>
-  ) : showPartialStock ? (
-    <p className="flex items-center gap-2 text-sm text-text-warning">
-      <Package className="h-4 w-4" aria-hidden="true" />
-      {tCart('substitution.availableDescription', {
-        available: availability!.availableQuantity,
-        total: item.quantity,
-      })}
-    </p>
-  ) : (
-    <p className="flex items-center gap-2 text-sm text-text-success">
-      <Truck className="h-4 w-4" aria-hidden="true" />
-      {t('statuses.onlineAvailable')}
-    </p>
+  const statusLine = (
+    <WishlistStatusLine
+      flags={{
+        showUnavailable,
+        showNoPrice,
+        showPartialStock,
+        availableQuantity: availability?.availableQuantity,
+        requestedQuantity: item.quantity,
+      }}
+    />
   );
 
   const removeButton = (

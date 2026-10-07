@@ -75,7 +75,12 @@ export function AddressDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]" showCloseButton>
+      <DialogContent
+        className="sm:max-w-[500px]"
+        showCloseButton
+        data-testid="accountAddress-dialog"
+        closeTestId="accountAddress-closeButton"
+      >
         <DialogHeader>
           <DialogTitle>
             {title || (addressType === 'SHIPPING' ? t('Address.addShippingAddress') : t('Address.addBillingAddress'))}

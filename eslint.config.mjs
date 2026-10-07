@@ -43,7 +43,58 @@ const eslintConfig = defineConfig([
               name: '@/lib/client/service',
               message: 'Removed. Use @/lib/logger/browser-logger or @/lib/client/validation-registry.',
             },
+            {
+              // Dual-env reads legacy NEXT_PUBLIC_* via dynamic env[key]. Importing
+              // the alias from client-bundled code can re-inline those keys.
+              // Prefer @/lib/server/storyblok-env (server-only). Tier-1 healthcheck
+              // / the storyblok-env re-export may use a relative path to the pure
+              // module (see cms-dual-env.ts header).
+              name: '@/lib/common/cms-dual-env',
+              message:
+                'Do not import @/lib/common/cms-dual-env (legacy NEXT_PUBLIC_* dual-env). Use @/lib/server/storyblok-env in server code. Tier-1 healthcheck may import cms-dual-env via a relative path only.',
+            },
           ],
+        },
+      ],
+      // Forbid reintroduction of `process.env.NEXT_PUBLIC_STORYBLOK_*` and
+      // `process.env.NEXT_PUBLIC_CMS_*` reads. These keys were migrated to
+      // server-only `NEXT_STORYBLOK_*` / `NEXT_CMS_*`; the browser obtains
+      // token-dependent values through server-actions (see
+      // src/app/_actions/storyblok-bridge.ts and
+      // src/app/_actions/cms-banner.ts). Legacy PUBLIC fallback for server
+      // resolution lives only in `src/lib/common/cms-dual-env.ts` (dynamic
+      // `env[key]` — not caught by these literal selectors); the alias import
+      // is blocked above via no-restricted-imports. Three AST selectors cover
+      // the common access shapes: dot-notation, computed (bracket) access, and
+      // destructuring. An aliased indirection
+      // (`const e = process.env; e.NEXT_PUBLIC_STORYBLOK_*`) is intentionally
+      // not caught at the AST level — that vector is covered by the
+      // bundle-content audit in scripts/preview-smoke.sh. String literals
+      // referencing the old names (e.g. source-text audits in test files)
+      // are unaffected and test files are additionally excluded by
+      // globalIgnores below.
+      'no-restricted-syntax': [
+        'error',
+        {
+          // Dot-notation: process.env.NEXT_PUBLIC_STORYBLOK_FOO
+          selector:
+            "MemberExpression[object.object.name='process'][object.property.name='env'][property.name=/^NEXT_PUBLIC_(STORYBLOK|CMS)_/]",
+          message:
+            'process.env.NEXT_PUBLIC_STORYBLOK_* and process.env.NEXT_PUBLIC_CMS_* are deprecated. Use the server-only NEXT_STORYBLOK_* / NEXT_CMS_* keys server-side; in the browser, fetch values through a server-action (see src/app/_actions/storyblok-bridge.ts and src/app/_actions/cms-banner.ts).',
+        },
+        {
+          // Computed (bracket) access: process.env['NEXT_PUBLIC_STORYBLOK_FOO']
+          selector:
+            "MemberExpression[object.object.name='process'][object.property.name='env'][computed=true][property.value=/^NEXT_PUBLIC_(STORYBLOK|CMS)_/]",
+          message:
+            'process.env.NEXT_PUBLIC_STORYBLOK_* and process.env.NEXT_PUBLIC_CMS_* are deprecated. Use the server-only NEXT_STORYBLOK_* / NEXT_CMS_* keys server-side; in the browser, fetch values through a server-action (see src/app/_actions/storyblok-bridge.ts and src/app/_actions/cms-banner.ts).',
+        },
+        {
+          // Destructuring: const { NEXT_PUBLIC_STORYBLOK_FOO } = process.env
+          selector:
+            "VariableDeclarator[init.object.name='process'][init.property.name='env'] > ObjectPattern > Property[key.name=/^NEXT_PUBLIC_(STORYBLOK|CMS)_/]",
+          message:
+            'process.env.NEXT_PUBLIC_STORYBLOK_* and process.env.NEXT_PUBLIC_CMS_* are deprecated. Use the server-only NEXT_STORYBLOK_* / NEXT_CMS_* keys server-side; in the browser, fetch values through a server-action (see src/app/_actions/storyblok-bridge.ts and src/app/_actions/cms-banner.ts).',
         },
       ],
     },
@@ -54,8 +105,11 @@ const eslintConfig = defineConfig([
     '.next/**',
     'out/**',
     'build/**',
+    'coverage/**',
     'playwright-report/**',
     'test-results/**',
+    // Sonar scanner temp bundles — linting them OOMs Node (seen during concurrent local Sonar)
+    '.scannerwork/**',
     'next-env.d.ts',
     'scripts/**',
     'specifications/**',

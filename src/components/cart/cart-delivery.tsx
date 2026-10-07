@@ -36,6 +36,7 @@ export function CartDelivery() {
             <AddressSelector
               addressBook="auto"
               addressType="SHIPPING"
+              testIdPrefix="cartShipping"
               onSelect={(address) => submitShippingAddress({ ...address, type: 'SHIPPING' })}
               selectedAddressId={shippingAddress?.id}
               triggerElement={
@@ -43,6 +44,7 @@ export function CartDelivery() {
                   variant="link"
                   size="default"
                   className="normal-case text-base tracking-normal p-0 gap-1 underline"
+                  data-testid="cartShipping-addressBook"
                 >
                   {t('change')}
                   <Pencil />

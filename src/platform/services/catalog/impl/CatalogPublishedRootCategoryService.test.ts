@@ -1,0 +1,77 @@
+import type { EmporixCatalogApi } from '@/platform/integrations/emporix/catalog/EmporixCatalogApi';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import { CatalogPublishedRootCategoryService } from './CatalogPublishedRootCategoryService';
+
+describe('CatalogPublishedRootCategoryService', () => {
+  const logger: LoggerService = {
+    warn: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    child: jest.fn().mockReturnThis(),
+  } as unknown as LoggerService;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-01-01T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.clearAllMocks();
+  });
+
+  it('unions categoryIds from all catalogs for the site', async () => {
+    const catalogApi: EmporixCatalogApi = {
+      getCatalogs: jest.fn().mockResolvedValue({
+        items: [{ categoryIds: ['a', 'b'] }, { categoryIds: ['b', 'c'] }],
+        page: 1,
+        size: 100,
+        total: 2,
+      }),
+      getCatalog: jest.fn(),
+    } as unknown as EmporixCatalogApi;
+
+    const svc = new CatalogPublishedRootCategoryService(catalogApi, logger);
+    await expect(svc.getRootCategoryIdsForSite('main')).resolves.toEqual(['a', 'b', 'c']);
+    expect(catalogApi.getCatalogs).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns cached ids within TTL without calling API again', async () => {
+    // We use a site code that is present in the standard test environment configuration (.env.test / .env),
+    // such as default 'main'. If user changes the .env.test file, this test may fail. In that case, update the site code below to a valid configured storefront site code.
+    const getCatalogs = jest.fn().mockResolvedValue({
+      items: [{ categoryIds: ['x'] }],
+      page: 1,
+      size: 100,
+      total: 1,
+    });
+    const catalogApi = { getCatalogs, getCatalog: jest.fn() } as unknown as EmporixCatalogApi;
+
+    const svc = new CatalogPublishedRootCategoryService(catalogApi, logger);
+    await svc.getRootCategoryIdsForSite('main');
+    await svc.getRootCategoryIdsForSite('main');
+    expect(getCatalogs).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns empty array and logs when getCatalogs throws', async () => {
+    const catalogApi: EmporixCatalogApi = {
+      getCatalogs: jest.fn().mockRejectedValue(new Error('network')),
+      getCatalog: jest.fn(),
+    } as unknown as EmporixCatalogApi;
+
+    const svc = new CatalogPublishedRootCategoryService(catalogApi, logger);
+    await expect(svc.getRootCategoryIdsForSite('main')).resolves.toEqual([]);
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('does not call Emporix when site code is not a configured storefront (e.g. .well-known path segment)', async () => {
+    const getCatalogs = jest.fn();
+    const catalogApi = { getCatalogs, getCatalog: jest.fn() } as unknown as EmporixCatalogApi;
+
+    const svc = new CatalogPublishedRootCategoryService(catalogApi, logger);
+    await expect(svc.getRootCategoryIdsForSite('.well-known')).resolves.toEqual([]);
+    expect(getCatalogs).not.toHaveBeenCalled();
+    expect(logger.debug).toHaveBeenCalled();
+  });
+});

@@ -1,0 +1,38 @@
+name: SonarQube scan
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [develop]
+
+jobs:
+  sonarqube-scan:
+    name: SonarQube scan
+    # Dependabot-triggered PR runs do not receive Actions secrets (SONAR_LOGIN would be empty → 401), so skip them.
+    # Do not put `secrets.*` in this job-level `if`: GitHub cannot evaluate the secrets
+    # context there, which fails the workflow in 0s and drops the PR check.
+    if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_NAME: emporix-showcase
+      SONAR_TOKEN: ${{ secrets.SONAR_LOGIN }}
+      SONAR_HOST_URL: 'https://sonarqube.k8s-tech.emporix.io'
+
+    steps:
+      - name: Skip when Sonar is not configured
+        if: ${{ env.SONAR_TOKEN == '' }}
+        run: echo "SONAR_LOGIN is not set; skipping scan (client checkout without Sonar)."
+      - uses: actions/checkout@v4
+        if: ${{ env.SONAR_TOKEN != '' }}
+        with:
+          fetch-depth: 0
+      - uses: sonarsource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        if: ${{ env.SONAR_TOKEN != '' }}
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ env.PROJECT_NAME }}

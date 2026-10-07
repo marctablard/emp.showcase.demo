@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
-import { AlertCircle, CheckCircle, Clock, Package, Truck } from 'lucide-react';
+import { CircleAlert, CircleCheck, Clock, Package, Truck } from 'lucide-react';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -45,9 +45,9 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
       case 'OUT_FOR_DELIVERY':
         return <Package className="h-6 w-6 text-icon-information" />;
       case 'DELIVERED':
-        return <CheckCircle className="h-6 w-6 text-icon-success" />;
+        return <CircleCheck className="h-6 w-6 text-icon-success" />;
       case 'EXCEPTION':
-        return <AlertCircle className="h-6 w-6 text-icon-error" />;
+        return <CircleAlert className="h-6 w-6 text-icon-error" />;
       default:
         return <Package className="h-6 w-6" />;
     }
@@ -82,7 +82,11 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className="sm:max-w-lg"
+        data-testid="order-tracking-dialog"
+        closeTestId="order-tracking-closeButton"
+      >
         <DialogHeader>
           <DialogTitle>{tTracking('trackingInformation')}</DialogTitle>
         </DialogHeader>
@@ -97,7 +101,7 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
         {error && (
           <div className="p-4 text-center">
-            <AlertCircle className="h-10 w-10 text-text-error mx-auto mb-2" />
+            <CircleAlert className="h-10 w-10 text-text-error mx-auto mb-2" />
             <p className="text-text-error">{tTracking('errorFetchingTracking')}</p>
           </div>
         )}
@@ -170,7 +174,11 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
             {/* External tracking link */}
             {trackingInfo.carrier.trackingUrl && (
               <div className="pt-2 text-center">
-                <Button variant="secondary" onClick={() => window.open(trackingInfo.carrier.trackingUrl, '_blank')}>
+                <Button
+                  variant="secondary"
+                  onClick={() => window.open(trackingInfo.carrier.trackingUrl, '_blank')}
+                  data-testid="order-tracking-carrierLink"
+                >
                   {tTracking('viewOnCarrierWebsite')}
                 </Button>
               </div>

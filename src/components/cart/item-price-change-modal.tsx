@@ -3,16 +3,19 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useCart } from '@/hooks/cart/useCart';
 import { useL10n } from '@/hooks/useL10n';
+import { cartCouponCodesForMessage } from '@/lib/common/applied-promo-display';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import type { CartItem, CartItemPriceChange } from '@/platform/services/model/cart/cart.d';
+import { isCartMutationCancelledError } from '@/stores/cart-store';
 
 interface ItemPriceChangeModalProps {
   isOpen: boolean;
@@ -24,8 +27,11 @@ interface ItemPriceChangeModalProps {
 
 export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, onDone }: ItemPriceChangeModalProps) {
   const t = useTranslations('cart');
+  const tProduct = useTranslations('product');
   const { l10n } = useL10n();
-  const { removeItem, loading } = useCart();
+  const imageSrc = resolveProductImageSrc(cartItem.product?.images?.[0]?.url);
+  const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : l10n(cartItem.product?.name || 'Product');
+  const { cart, removeItem, loading } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Handle confirming the price change
@@ -39,9 +45,21 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
 
     setIsProcessing(true);
     try {
-      await removeItem(cartItem.id);
+      const couponCodes = cartCouponCodesForMessage(cart?.discounts);
+      const removingLastItem = (cart?.items.length ?? 0) === 1;
+      const { leftoverCouponsCleared } = await removeItem(cartItem.id);
+      if (removingLastItem && couponCodes.length > 0 && leftoverCouponsCleared) {
+        notify({
+          type: ToastType.Info,
+          title: t('couponsRemovedFromEmptyCart', { codes: couponCodes.join(', ') }),
+          duration: 8000,
+        });
+      }
       onDone();
     } catch (error) {
+      if (isCartMutationCancelledError(error)) {
+        return;
+      }
       getLogger().error({ err: error }, 'Error removing item from cart');
     } finally {
       setIsProcessing(false);
@@ -63,20 +81,14 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
           {/* Product information */}
           <div className="border-b pb-4">
             <div className="flex items-center gap-4">
-              <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] object-fit overflow-hidden">
-                {cartItem.product && cartItem.product.images?.length ? (
-                  <Image
-                    width={100}
-                    height={65}
-                    src={String(cartItem.product.images[0].url)}
-                    alt={l10n(cartItem.product.name || 'Product')}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-icon-secondary">
-                    <ShoppingCart className="h-6 w-6 opacity-30" />
-                  </div>
-                )}
+              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
+                <Image
+                  width={100}
+                  height={65}
+                  src={imageSrc}
+                  alt={imageAlt}
+                  className="max-h-full max-w-full object-contain"
+                />
               </div>
               <div className="flex-grow">
                 <div className="flex items-center justify-between">

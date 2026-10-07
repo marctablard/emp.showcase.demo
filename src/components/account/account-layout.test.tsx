@@ -1,0 +1,279 @@
+/**
+ * @jest-environment jsdom
+ */
+import '@testing-library/jest-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { breakpoints } from '@/hooks/useBreakpoint';
+import { CustomerRole } from '@/platform/services/model/customer/roles';
+import { AccountLayout } from './account-layout';
+
+function setViewportWidth(width: number) {
+  Object.defineProperty(globalThis, 'innerWidth', {
+    writable: true,
+    configurable: true,
+    value: width,
+  });
+}
+
+let mockCustomer: { roles?: string[] } | null | undefined;
+
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
+}));
+
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/account',
+}));
+
+jest.mock('@/i18n/navigation', () => ({
+  Link: ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  ),
+}));
+
+jest.mock('@/hooks/authentication/useAuthentication', () => ({
+  useAuthentication: () => ({ logout: jest.fn() }),
+}));
+
+jest.mock('@/hooks/customer/useCustomer', () => ({
+  useCustomer: () => ({
+    customer: mockCustomer,
+    loading: mockCustomer === undefined,
+  }),
+}));
+
+describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
+  const originalInnerWidth = globalThis.innerWidth;
+
+  beforeEach(() => {
+    mockCustomer = undefined;
+  });
+
+  afterEach(() => {
+    setViewportWidth(originalInnerWidth);
+  });
+
+  // Regression coverage for the persistent account rail and the mobile
+  // off-canvas menu toggle must switch on one and the same useBreakpoint boundary, keeping the
+  // spacing and sidebar width classes aligned to it.
+  //
+  // The boundary later moved from 'md' (1024) to 'sm' (768). Figma draws a persistent rail on
+  // all four account templates at 768 — Order History 6354:68313 closes exactly on
+  // 16 + 180 + 24 + 532 + 16 = 768 — and drops it only at 360, where an "ACCOUNT MENU" button
+  // (6354:68546, 328x48) takes its place. The 'Account nav bar' component set 3445:157880 backs
+  // this up: its only two variants are the desktop rail and a 360-wide full-screen drawer, i.e.
+  // there is no tablet drawer state to render between 768 and 1023.
+  //
+  // The rail's WIDTH still swaps at md (180 @768 -> 288 @1024) — that is a separate boundary from
+  // its PRESENCE, and both are asserted below.
+  it('shows the mobile menu button and hides the persistent rail just below the sm boundary (767px)', () => {
+    setViewportWidth(breakpoints.sm - 1);
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.getByRole('button', { name: 'sidebar.menu' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  });
+
+  it('opens the Account Menu drawer above the 58px bar so Logout is present', () => {
+    setViewportWidth(breakpoints.sm - 1);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'sidebar.menu' }));
+
+    expect(screen.getByRole('button', { name: 'logout' })).toBeInTheDocument();
+
+    const nav = screen.getByRole('navigation');
+    const panel = nav.parentElement;
+    expect(panel).toHaveClass('bottom-[58px]');
+    expect(panel).toHaveClass('h-[calc(100dvh-58px)]');
+    expect(panel).toHaveClass('overflow-y-auto');
+    expect(panel).toHaveClass('overscroll-contain');
+    expect(panel?.className).not.toMatch(/h-\[[^\]]*100vh/);
+    expect(nav).not.toHaveClass('overflow-y-auto');
+    expect(nav).not.toHaveClass('max-h-[calc(100dvh-11rem)]');
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).not.toHaveClass('min-h-screen');
+  });
+
+  it('shows the persistent rail at 180px from the sm boundary (768px), without the mobile button', () => {
+    setViewportWidth(breakpoints.sm);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'sidebar.menu' })).not.toBeInTheDocument();
+    const sidebar = screen.getByRole('navigation');
+    expect(sidebar).toHaveClass('min-w-[180px]');
+    expect(sidebar).not.toHaveClass('overflow-y-auto');
+    expect(sidebar).not.toHaveClass('min-h-0');
+    expect(sidebar).not.toHaveClass('overscroll-contain');
+    expect(sidebar).not.toHaveClass('max-h-[calc(100dvh-11rem)]');
+    expect(sidebar).not.toHaveClass('md:max-h-[calc(100dvh-15rem)]');
+    expect(screen.getByRole('button', { name: 'logout' })).toBeInTheDocument();
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).toHaveClass('items-start');
+    expect(row).not.toHaveClass('min-h-screen');
+  });
+
+  it('shows the persistent rail at the correct width and hides the mobile menu button at the md boundary (1024px)', () => {
+    setViewportWidth(breakpoints.md);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'sidebar.menu' })).not.toBeInTheDocument();
+    const sidebar = screen.getByRole('navigation');
+    expect(sidebar).toBeInTheDocument();
+    expect(sidebar).toHaveClass('md:min-w-[288px]');
+    expect(sidebar).not.toHaveClass('lg:min-w-[288px]');
+    expect(sidebar).not.toHaveClass('overflow-y-auto');
+    expect(sidebar).not.toHaveClass('min-h-0');
+    expect(sidebar).not.toHaveClass('overscroll-contain');
+    expect(sidebar).not.toHaveClass('max-h-[calc(100dvh-11rem)]');
+    expect(sidebar).not.toHaveClass('md:max-h-[calc(100dvh-15rem)]');
+    expect(screen.getByRole('button', { name: 'logout' })).toBeInTheDocument();
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).toHaveClass('items-start');
+    expect(row).not.toHaveClass('min-h-screen');
+  });
+
+  it('locks document overflow only while the mobile off-canvas is open', () => {
+    setViewportWidth(breakpoints.sm - 1);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(document.documentElement.style.overflow).not.toBe('hidden');
+
+    fireEvent.click(screen.getByRole('button', { name: 'sidebar.menu' }));
+
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    fireEvent.click(container.querySelector('.fixed.inset-0')!);
+
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(document.documentElement.style.overflow).not.toBe('hidden');
+  });
+
+  it('does not lock document overflow when the persistent rail is shown', () => {
+    setViewportWidth(breakpoints.sm);
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(document.documentElement.style.overflow).not.toBe('hidden');
+  });
+
+  it('aligns the outer layout spacing to the md breakpoint instead of lg', () => {
+    setViewportWidth(breakpoints.md);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    // content-container = max-w-6xl mx-auto px-4 md:px-9: 16px side margins below md, 36px from md.
+    expect(container.firstChild).toHaveClass('content-container');
+  });
+
+  it('keeps 1rem gaps around the account content row and does not stretch to viewport height', () => {
+    setViewportWidth(breakpoints.md);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveClass('mt-4', 'mb-4');
+    expect(row).not.toHaveClass('min-h-screen');
+
+    const main = container.querySelector('main');
+    expect(main).not.toHaveClass('pb-8');
+  });
+});
+
+describe('AccountLayout User Management ADMIN gate', () => {
+  const originalInnerWidth = globalThis.innerWidth;
+  const userManagementLinkName = 'sidebar.items.userManagement';
+
+  beforeEach(() => {
+    mockCustomer = undefined;
+    setViewportWidth(breakpoints.md);
+  });
+
+  afterEach(() => {
+    setViewportWidth(originalInnerWidth);
+  });
+
+  it('hides the User Management link when the customer is undefined', () => {
+    mockCustomer = undefined;
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('link', { name: userManagementLinkName })).not.toBeInTheDocument();
+  });
+
+  it('hides the User Management link when roles lack B2B_ADMIN', () => {
+    mockCustomer = { roles: [CustomerRole.B2B_BUYER] };
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('link', { name: userManagementLinkName })).not.toBeInTheDocument();
+  });
+
+  it('shows the User Management link when roles include B2B_ADMIN', () => {
+    mockCustomer = { roles: [CustomerRole.B2B_ADMIN] };
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.getByRole('link', { name: userManagementLinkName })).toHaveAttribute('href', '/account/users');
+  });
+});

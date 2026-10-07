@@ -6,6 +6,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { isEqual } from 'lodash';
+import { breakpoints } from '@/lib/breakpoints';
 import { useLocalDashboardStore } from '@/lib/client/dashboard';
 import { AiHelperCard } from './cards/ai-helper-card';
 import { DocumentsCard } from './cards/documents-card';
@@ -16,6 +17,10 @@ import { TicketCard } from './cards/ticket-card';
 // Import card components from the cards folder
 import { WeatherCard } from './cards/weather-card';
 
+// Created once at module scope: calling WidthProvider() during render produces a new component
+// type on every render, which remounts the whole grid and drops its DOM/measurement state.
+const ResponsiveReactGridLayout = WidthProvider(Responsive);
+
 interface DashboardProps {
   isCustomizable: boolean;
   layouts: Layouts;
@@ -23,27 +28,27 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ isCustomizable, layouts, layoutChanged }: DashboardProps) {
-  const state = useLocalDashboardStore();
-
-  const ResponsiveReactGridLayout = WidthProvider(Responsive);
+  // Subscribe to the setters only — the store deliberately holds layout state that must not
+  // re-render this component when it changes.
+  const setCurrentBreakpoint = useLocalDashboardStore((s) => s.setCurrentBreakpoint);
+  const setCurrentLayout = useLocalDashboardStore((s) => s.setCurrentLayout);
 
   const onBreakpointChange = (breakpoint: string) => {
-    state.currentBreakpoint = breakpoint;
+    setCurrentBreakpoint(breakpoint);
   };
 
   const onLayoutChange = useCallback(
     (layout: Layout[], newLayouts: Layouts) => {
       if (!isEqual(layouts, newLayouts)) {
-        // TODO this triggers a re-render of the dashboard component
-        // when it changes the state of the Config-Store... no idea why
         layoutChanged(newLayouts);
       }
-      const currentLayout = state.currentLayout;
+      // Read through getState() so this callback does not need the layout as a dependency.
+      const currentLayout = useLocalDashboardStore.getState().currentLayout;
       if (!isEqual(layout, currentLayout)) {
-        state.currentLayout = layout;
+        setCurrentLayout(layout);
       }
     },
-    [layouts, layoutChanged, state],
+    [layouts, layoutChanged, setCurrentLayout],
   );
 
   const layoutItems = useMemo(() => {
@@ -79,7 +84,7 @@ export default function Dashboard({ isCustomizable, layouts, layoutChanged }: Da
         measureBeforeMount={false}
         onBreakpointChange={onBreakpointChange}
         onLayoutChange={onLayoutChange}
-        breakpoints={{ lg: 1280, md: 1024, sm: 768 }}
+        breakpoints={{ lg: breakpoints.lg, md: breakpoints.md, sm: breakpoints.sm }}
         cols={{ lg: 3, md: 3, sm: 1 }}
         rowHeight={20}
         isDraggable={isCustomizable}

@@ -15,7 +15,7 @@ export interface EmporixTokenManager {
   /**
    * Get a valid anonymous token, refreshing if necessary
    * @param tenant The tenant ID
-   * @param sessionParams Optional session context values to pre-seed the new session (COP-5047)
+   * @param sessionParams Optional session context values to pre-seed the new session
    * @returns Promise with the token
    */
   getAnonymousToken(
@@ -92,11 +92,13 @@ export interface EmporixTokenManager {
    * Used when switching companies in B2B context
    * @param tenant The tenant ID
    * @param legalEntityId The legal entity ID to switch to
+   * @param clientId Storefront client ID (needed to mint/refresh the anonymous bearer for refreshauthtoken)
    * @returns Promise with the refreshed token
    */
   refreshCustomerTokenWithLegalEntity(
     tenant: string,
     legalEntityId: string,
+    clientId: string,
   ): Promise<{ accessToken: string; saasToken?: string; sessionId: string } | null>;
 
   /**
@@ -104,6 +106,22 @@ export interface EmporixTokenManager {
    * Used by invokers to force a fresh token on 401 retry.
    */
   clearPublicTokenCache(tenant: string, clientId: string): void;
+
+  /**
+   * Clear the in-process service token cache for the given credentials/scopes.
+   * Used by invokers to force a fresh token on 401 retry.
+   */
+  clearServiceTokenCache(tenant: string, clientId: string, clientSecret: string, scopes?: string[]): void;
+
+  /**
+   * Force-refresh the current session token after upstream 401 (access_token_expired).
+   * Customer sessions refresh via refresh_token (authorized with a fresh anonymous token);
+   * anonymous sessions remint/refresh the anonymous token.
+   */
+  forceRefreshSessionToken(
+    tenant: string,
+    clientId: string,
+  ): Promise<{ accessToken: string; saasToken?: string; sessionId: string }>;
 
   /**
    * Clear all stored tokens

@@ -1,7 +1,9 @@
 {
   "title": "Produktvergleich",
   "clear": "Vergleich zurücksetzen",
-  "noSharedAttributes": "Die ausgewählten Produkte haben keine gemeinsamen Attribute.",
+  "close": "Vergleich schließen",
+  "noAttributes": "Für die ausgewählten Produkte liegen keine Attribute zum Vergleich vor.",
+  "valuesDiffer": "Werte unterschiedlich",
   "emptyState": "Ihre Vergleichsliste ist leer.",
   "emptyStateAction": "Produkte durchsuchen",
   "addMoreProducts": "Fügen Sie mindestens ein weiteres Produkt zum Vergleichen hinzu.",
@@ -16,5 +18,14 @@
   "remove": "Entfernen",
   "addToWishlist": "Zur Merkliste hinzufügen",
   "removeFromComparison": "Aus Vergleich entfernen",
-  "productAttributes": "Produktattribute"
+  "productAttributes": "Produktattribute",
+  "previousProducts": "Vorherige Produkte",
+  "nextProducts": "Weitere Produkte",
+  "productRange": "{range} von {total}",
+  "productRangeShort": "{range}/{total}",
+  "valueMissing": "Keine Angabe",
+  "differenceNote": "Zeilen mit unterschiedlichen Werten sind gekennzeichnet.",
+  "productRangeAnnouncement": "Produkte {first} bis {last} von {total}",
+  "productPositionAnnouncement": "Produkt {first} von {total}",
+  "attribute": "Attribut"
 }

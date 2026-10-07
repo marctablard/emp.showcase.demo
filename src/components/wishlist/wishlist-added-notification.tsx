@@ -4,11 +4,13 @@ import { type CSSProperties, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { CheckCircle2, Pin, X } from 'lucide-react';
+import { CircleCheckBig, X } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { H4, H6 } from '@/components/ui/h';
 import { useL10n } from '@/hooks/useL10n';
+import { breakpoints } from '@/lib/breakpoints';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import type { WishlistItem } from '@/platform/services/model/wishlist/wishlist';
 
 interface WishlistAddedNotificationProps {
@@ -20,12 +22,15 @@ interface WishlistAddedNotificationProps {
 const CART_BUTTON_ANCHOR_SELECTOR = '[data-anchor="header-cart-button"]';
 const ANCHOR_OFFSET_TOP = 8;
 const ANCHOR_OFFSET_RIGHT = 8;
-const DESKTOP_ANCHOR_MIN_WIDTH = 1024;
+const DESKTOP_ANCHOR_MIN_WIDTH = breakpoints.md;
 
 function WishlistAddedNotification({ id, item, quantity }: WishlistAddedNotificationProps) {
   const t = useTranslations('product.addToWishlistResult');
+  const tProduct = useTranslations('product');
   const { l10n } = useL10n();
   const productName = l10n(item.name) || item.productId;
+  const imageSrc = resolveProductImageSrc(item.imageUrl);
+  const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : productName;
   const dismiss = () => sonnerToast.dismiss(id);
   const [anchorStyle, setAnchorStyle] = useState<CSSProperties | null>(null);
 
@@ -71,18 +76,14 @@ function WishlistAddedNotification({ id, item, quantity }: WishlistAddedNotifica
         </button>
       </div>
       <div className="flex items-start gap-3">
-        <div className="w-14 h-14 shrink-0 rounded-ss-md rounded-ee-md overflow-hidden bg-surface-image-background flex items-center justify-center">
-          {item.imageUrl ? (
-            <Image
-              src={item.imageUrl}
-              alt={productName}
-              width={56}
-              height={56}
-              className="object-contain w-full h-full"
-            />
-          ) : (
-            <Pin className="h-5 w-5 text-icon-secondary opacity-30" />
-          )}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
+          <Image
+            src={imageSrc}
+            alt={imageAlt}
+            width={56}
+            height={56}
+            className="max-h-full max-w-full object-contain"
+          />
         </div>
         <div className="flex flex-col gap-1 min-w-0">
           <H6 className="truncate">{productName}</H6>
@@ -90,7 +91,7 @@ function WishlistAddedNotification({ id, item, quantity }: WishlistAddedNotifica
             {t('itemNumber')}: {item.sku || item.productId}
           </p>
           <p className="flex items-center gap-2 text-base text-text-success">
-            <CheckCircle2 className="h-[22px] w-[22px] shrink-0" />
+            <CircleCheckBig className="h-[22px] w-[22px] shrink-0" />
             {t('quantityAdded', { count: quantity })}
           </p>
         </div>

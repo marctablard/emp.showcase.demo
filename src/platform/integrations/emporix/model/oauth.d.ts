@@ -31,7 +31,7 @@ export interface EmporixCustomerTokenResponse extends EmporixAnonymousTokenRespo
  *
  * Pre-seeding avoids a follow-up `PATCH /me/context` from `adjustSessionsSettings`
  * when the shopper's preferred site/currency/language/country are already known
- * from cookies or headers (COP-5047 / COP-5055).
+ * from cookies or headers.
  *
  * `region` is kept on the type for internal symmetry with the other session
  * fields but is **not** a first-class anonymous-login query parameter; it is

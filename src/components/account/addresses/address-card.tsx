@@ -26,13 +26,14 @@ interface AddressCardProps {
  */
 export function AddressCard({ address, isDeleting = false, onEdit, onDelete }: AddressCardProps) {
   const t = useTranslations('account');
+  const showDefaultBadge = address.source === 'customer' && address.isDefault === true;
 
   return (
     <div className="flex h-full flex-col border border-border-primary bg-surface-page">
       <div className="flex items-start justify-between gap-2 border-b border-border-primary px-4 py-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <p className="truncate text-base font-bold text-text-headings">{address.contactName}</p>
-          {address.source === 'customer' && address.isDefault ? (
+          {showDefaultBadge ? (
             <Badge variant="outline" rounded="default" className="bg-surface-success text-text-success">
               {t('Address.default')}
             </Badge>
@@ -46,6 +47,7 @@ export function AddressCard({ address, isDeleting = false, onEdit, onDelete }: A
               className="h-8 w-8"
               onClick={() => onEdit(address)}
               aria-label={t('Address.editAddress')}
+              data-testid={`accountAddress-edit-${address.id}`}
             >
               <Edit className="h-4 w-4" />
             </Button>
@@ -58,6 +60,7 @@ export function AddressCard({ address, isDeleting = false, onEdit, onDelete }: A
               onClick={() => onDelete(address)}
               disabled={isDeleting}
               aria-label={t('Address.deleteAddress')}
+              data-testid={`accountAddress-delete-${address.id}`}
             >
               {isDeleting ? <Spinner variant="sm" /> : <Trash className="h-4 w-4" />}
             </Button>
@@ -95,7 +98,12 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
     return (
       <div className="text-center py-8">
         <p className="text-text-error">{t('Address.errorLoadingAddresses')}</p>
-        <Button variant="secondary" onClick={() => fetchAddresses()} className="mt-4">
+        <Button
+          variant="secondary"
+          onClick={() => fetchAddresses()}
+          className="mt-4"
+          data-testid="accountAddress-retryButton"
+        >
           {t('tryAgain')}
         </Button>
       </div>
@@ -106,7 +114,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
     return (
       <div className="text-center py-8">
         <p className="text-text-placeholders">{t('Address.noAddresses')}</p>
-        <Button onClick={() => setIsDialogOpen(true)} className="mt-4">
+        <Button onClick={() => setIsDialogOpen(true)} className="mt-4" data-testid="accountAddress-addButton">
           <Plus className="mr-2 h-4 w-4" />
           {t('Address.addNewAddress')}
         </Button>
@@ -117,7 +125,12 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
   return (
     <div>
       <div className="mb-4 flex justify-end">
-        <Button variant="secondary" size="small" onClick={() => setIsDialogOpen(true)}>
+        <Button
+          variant="secondary"
+          size="small"
+          onClick={() => setIsDialogOpen(true)}
+          data-testid="accountAddress-addButton"
+        >
           <Plus className="mr-2 h-4 w-4" />
           {t('Address.addNewAddress')}
         </Button>
@@ -128,56 +141,58 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
           <p className="text-text-placeholders">
             {type === 'SHIPPING' ? t('Address.noShippingAddresses') : t('Address.noBillingAddresses')}
           </p>
-          <Button onClick={() => setIsDialogOpen(true)} className="mt-4">
+          <Button onClick={() => setIsDialogOpen(true)} className="mt-4" data-testid="accountAddress-emptyAddButton">
             <Plus className="mr-2 h-4 w-4" />
             {t('Address.addNewAddress')}
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-          {addresses
-            .filter((address) => address.tags.includes(type))
-            .map((address: CustomerAddress) => {
-              return (
-                <AddressCard
-                  key={address.id || `${address.contactName}-${address.street}-${address.city}`}
-                  address={address}
-                  isDeleting={deletingAddressId === address.id}
-                  onEdit={(addr) => {
-                    // Öffnet den Dialog im Bearbeitungsmodus
-                    setCurrentAddress(addr);
-                    setIsDialogOpen(true);
-                  }}
-                  onDelete={async (address) => {
-                    if (window.confirm(t('confirmDeleteAddress'))) {
-                      try {
-                        const addressId = address.id;
-                        if (addressId) {
-                          setDeletingAddressId(addressId);
+        <div className="@container min-w-0">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3" data-slot="address-cards-grid">
+            {addresses
+              .filter((address) => address.tags.includes(type))
+              .map((address: CustomerAddress) => {
+                return (
+                  <AddressCard
+                    key={address.id || `${address.contactName}-${address.street}-${address.city}`}
+                    address={address}
+                    isDeleting={deletingAddressId === address.id}
+                    onEdit={(addr) => {
+                      // Öffnet den Dialog im Bearbeitungsmodus
+                      setCurrentAddress(addr);
+                      setIsDialogOpen(true);
+                    }}
+                    onDelete={async (address) => {
+                      if (window.confirm(t('confirmDeleteAddress'))) {
+                        try {
+                          const addressId = address.id;
+                          if (addressId) {
+                            setDeletingAddressId(addressId);
 
-                          await deleteAddress(addressId);
-                          // Die Adressliste wird automatisch durch den Hook aktualisiert
+                            await deleteAddress(addressId);
+                            // Die Adressliste wird automatisch durch den Hook aktualisiert
+                            toast({
+                              title: t('Address.success'),
+                              description: t('Address.addressDeleted'),
+                              variant: 'success',
+                            });
+                          }
+                        } catch (error) {
+                          getLogger().error({ err: error }, 'Error deleting address');
                           toast({
-                            title: t('Address.success'),
-                            description: t('Address.addressDeleted'),
-                            variant: 'success',
+                            title: t('Address.error'),
+                            description: t('Address.errorDeletingAddress'),
+                            variant: 'destructive',
                           });
+                        } finally {
+                          setDeletingAddressId(null);
                         }
-                      } catch (error) {
-                        getLogger().error({ err: error }, 'Error deleting address');
-                        toast({
-                          title: t('Address.error'),
-                          description: t('Address.errorDeletingAddress'),
-                          variant: 'destructive',
-                        });
-                      } finally {
-                        setDeletingAddressId(null);
                       }
-                    }
-                  }}
-                />
-              );
-            })}
+                    }}
+                  />
+                );
+              })}
+          </div>
         </div>
       )}
 

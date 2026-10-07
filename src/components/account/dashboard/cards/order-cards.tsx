@@ -17,10 +17,28 @@ import { useOrder } from '@/hooks/order/useOrder';
 import { useOrders } from '@/hooks/order/useOrders';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import { isOrderAccessDeniedError } from '@/lib/client/orders';
+import { orderGoodsSavings } from '@/lib/common/applied-promo-display';
 import type { Order } from '@/platform/services/model/order/order';
 import type { DashboardCardProps } from './dashboard-card';
 import { DashboardCard } from './dashboard-card';
 import { StatCard } from './stat-card';
+
+function DashboardOrderDiscountRow({ order }: { readonly order: Order }) {
+  const tOrder = useTranslations('orders');
+  const savings = orderGoodsSavings(order);
+  if (!savings) {
+    return null;
+  }
+  return (
+    <div className="flex justify-between mb-2" data-testid="dashboard-order-discount">
+      <span>{tOrder('discount')}</span>
+      <span>
+        -{savings.amount} {savings.currency}
+      </span>
+    </div>
+  );
+}
 
 /**
  * Order Summary Card component
@@ -185,6 +203,8 @@ function OrderDetail({ orderId }: { orderId: string }) {
   const tOrder = useTranslations('orders');
   const tPaymentModes = useTranslations('checkout.PaymentModes');
   const { order, loading, error } = useOrder({ orderId });
+  const orderErrorMessage =
+    error && isOrderAccessDeniedError(error) ? tOrder('orderAccessDenied') : tOrder('errorFetchingOrder');
 
   if (loading) {
     return (
@@ -213,7 +233,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-text-error">{tOrder('errorFetchingOrder')}</p>
+            <p className="text-text-error">{orderErrorMessage}</p>
             <Button variant="secondary" className="mt-4" asChild>
               <Link href="/account/orders">
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -336,14 +356,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
               </div>
             )}
 
-            {order.discounts && order.discounts.length > 0 && (
-              <div className="flex justify-between mb-2">
-                <span>{tOrder('discount')}</span>
-                <span>
-                  -{order.discounts[0].value} {order.discounts[0].currency}
-                </span>
-              </div>
-            )}
+            <DashboardOrderDiscountRow order={order} />
 
             <div className="flex justify-between font-bold mt-4 pt-4 border-t">
               <span>{tOrder('total')}</span>

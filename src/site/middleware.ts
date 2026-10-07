@@ -2,8 +2,9 @@ import createIntlMiddleware from 'next-intl/middleware';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { routing as intlRouting } from '@/i18n/routing';
-import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
+import { LOCALE_ALIGN_QUERY_PARAM, getLocaleCookieName, parseLocaleAlignParam } from '@/lib/common/locale-cookie';
 import { edgeLog } from '@/lib/server/edge-stderr-log';
+import { PREVIEW_ROUTE_PREFIX, getPreviewDetector } from '@/platform/services/cms/preview/preview-detector-registry';
 import {
   INTERNAL_APP_PATH_HEADER,
   INTERNAL_SITE_HEADER,
@@ -40,13 +41,7 @@ function isUnprefixedDefaultSiteCanonicalPath(
   return !siteRouting.availableSites.includes(first);
 }
 
-function syncSiteCookie(
-  req: NextRequest,
-  res: NextResponse,
-  routing: SiteConfig,
-  resolvedSite?: string,
-  resolvedLocale?: string,
-) {
+function syncSiteCookie(req: NextRequest, res: NextResponse, routing: SiteConfig, resolvedSite?: string) {
   if (!routing.cookie) {
     return;
   }
@@ -63,24 +58,6 @@ function syncSiteCookie(
         sameSite: 'lax',
         path: '/',
       });
-    }
-  }
-
-  if (resolvedLocale) {
-    const localeCookieName = process.env.NEXT_PUBLIC_LOCALE_COOKIE;
-    if (localeCookieName) {
-      const locale = req.cookies?.get(localeCookieName);
-      if (locale?.value !== resolvedLocale) {
-        const maxAge = routing.cookie.maxAge ?? 365 * 24 * 60 * 60;
-        res.cookies.set({
-          name: localeCookieName,
-          value: resolvedLocale,
-          maxAge: maxAge,
-          httpOnly: false,
-          sameSite: 'lax',
-          path: '/',
-        });
-      }
     }
   }
 }
@@ -171,151 +148,293 @@ const withCookies = function (
   req: NextRequest,
   routing: SiteConfig,
   resolvedSite?: string,
-  resolvedLocale?: string,
 ): NextResponse {
   from.cookies.getAll().forEach((cookie) => {
-    to.cookies.set(cookie.name, cookie.value);
+    to.cookies.set(cookie);
   });
-  syncSiteCookie(req, to, routing, resolvedSite, resolvedLocale);
+  syncSiteCookie(req, to, routing, resolvedSite);
   return to;
 };
+
+/**
+ * Preview routes carry their own `/preview/[site]/[locale]/...` — they are
+ * never site-rewritten. The edge-safe detector flags genuine preview requests
+ * so caching is skipped; everything Storyblok-specific stays out of the Edge
+ * bundle (the registry imports only the pure detection module).
+ *
+ * Returns `null` when the request is not a preview route, so the caller falls
+ * through to normal site handling.
+ */
+function handlePreviewRoute(req: NextRequest): NextResponse | null {
+  const { pathname } = req.nextUrl;
+  // Segment-exact: a bare `startsWith` would also swallow `/previewable`,
+  // silently skipping the site rewrite for an unrelated app route.
+  const isPreviewRoute = pathname === PREVIEW_ROUTE_PREFIX || pathname.startsWith(`${PREVIEW_ROUTE_PREFIX}/`);
+  if (!isPreviewRoute) {
+    return null;
+  }
+  const isPreview = getPreviewDetector(process.env).isPreviewRequest(req.nextUrl);
+  const res = NextResponse.next();
+  if (isPreview) {
+    res.headers.set('cache-control', 'no-store');
+  }
+  return res;
+}
+
+/**
+ * Resolves the site from path/cookie/header, then validates it against
+ * `availableSites`. A site outside that list falls back to `defaultSite` when
+ * one is configured; without a default it is flagged invalid so the layout can
+ * render not-found. A request that resolves no site at all lands on the first
+ * available site.
+ */
+function resolveValidatedSite(
+  req: NextRequest,
+  routing: SiteConfig,
+): { site: string; appPath: string; siteInvalid: boolean } {
+  const { site: resolvedSite, appPath } = resolveSite(req.nextUrl.pathname, req.cookies, req.headers, routing);
+  let site = resolvedSite;
+  let siteInvalid = false;
+
+  if (site && !routing.availableSites.includes(site)) {
+    if (routing.defaultSite) {
+      site = routing.defaultSite;
+    } else {
+      edgeLog('warn', 'invalid_site_rejected', {
+        site,
+        path: req.nextUrl.pathname,
+        availableSites: routing.availableSites,
+        recommendation: 'Check NEXT_PUBLIC_AVAILABLE_SITES configuration',
+      });
+      siteInvalid = true;
+      site = routing.availableSites[0];
+    }
+  }
+
+  const effectiveSite = site === undefined || site === '' ? routing.availableSites[0] : site;
+  return { site: effectiveSite, appPath, siteInvalid };
+}
+
+/** Request headers forwarded to the app: resolved app path, locale and site. */
+function buildForwardHeaders(
+  req: NextRequest,
+  appPath: string,
+  locale: string | null,
+  site: string,
+  siteInvalid: boolean,
+): Headers {
+  const headers = new Headers(req.headers);
+  headers.set(INTERNAL_APP_PATH_HEADER, appPath);
+  if (locale) {
+    headers.set(INTL_LOCALE_HEADER, locale);
+  }
+  if (site) {
+    headers.set(INTERNAL_SITE_HEADER, site);
+  }
+  if (siteInvalid) {
+    headers.set(INTERNAL_SITE_INVALID_HEADER, 'true');
+  }
+  return headers;
+}
+
+/** Rewrites an invalid-site request onto a valid route so the layout can render not-found. */
+function rewriteForInvalidSite(
+  req: NextRequest,
+  intlResponse: NextResponse,
+  routing: SiteConfig,
+  site: string,
+  appPath: string,
+  headers: Headers,
+): NextResponse {
+  const rewrite = new URL(req.nextUrl);
+  const appSegment = appPath === '' || appPath === '/' ? '' : `/${appPath}`;
+  rewrite.pathname = `/${site}${appSegment}`;
+  const response = NextResponse.rewrite(rewrite, { request: { headers } });
+  return withCookies(intlResponse, response, req, routing, site);
+}
+
+/**
+ * Aligns the URL with the site-prefix policy: prefixed sites gain their
+ * `/{site}` segment, non-prefixed sites lose it. Returns `null` when the URL
+ * already matches and no redirect is needed.
+ */
+function resolveSitePrefixRedirect(
+  req: NextRequest,
+  intlResponse: NextResponse,
+  routing: SiteConfig,
+  site: string,
+  appPath: string,
+  headers: Headers,
+): NextResponse | null {
+  const hasSitePrefix = req.nextUrl.pathname.startsWith(`/${site}`);
+
+  if (shouldPrefix(site, routing)) {
+    if (hasSitePrefix) {
+      return null;
+    }
+    const redirect = new URL(req.nextUrl);
+    redirect.pathname = `/${site}${redirect.pathname == '/' ? '' : redirect.pathname}`;
+    return withCookies(intlResponse, NextResponse.redirect(redirect, { headers }), req, routing, site);
+  }
+
+  if (!hasSitePrefix) {
+    return null;
+  }
+  const redirect = new URL(req.nextUrl);
+  redirect.pathname = appPath ? `/${appPath}` : '/';
+  return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site);
+}
+
+/** Final hop: pass through when the path already carries the site, otherwise rewrite onto it. */
+function buildSiteResponse(req: NextRequest, site: string, headers: Headers): NextResponse {
+  if (req.nextUrl.pathname.startsWith(`/${site}`)) {
+    return NextResponse.next({ request: { headers } });
+  }
+  const rewrite = new URL(req.nextUrl);
+  rewrite.pathname = `/${site}${rewrite.pathname == '/' ? '' : rewrite.pathname}`;
+  return NextResponse.rewrite(rewrite, { request: { headers } });
+}
+
+/**
+ * Runs next-intl against the site-stripped path. The reduced path is faked in
+ * and restored right after, so callers still see the original URL.
+ */
+function runIntlMiddleware(req: NextRequest, appPath: string): NextResponse {
+  const originalPathname = req.nextUrl.pathname;
+  req.nextUrl.pathname = appPath;
+  const intlResponse = intlMiddleware(req);
+  req.nextUrl.pathname = originalPathname;
+  return intlResponse;
+}
+
+const LOCALE_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+
+/**
+ * One-shot unsupported-locale bounce: 302 to the same URL with `emp_locale`
+ * stripped. Set-Cookie is best-effort; `localeDetection: false` is what stops
+ * next-intl re-prefixing when cookies are missing. Invalid values are ignored.
+ */
+function handleLocaleAlignQuery(req: NextRequest): NextResponse | null {
+  const alignedLocale = parseLocaleAlignParam(
+    req.nextUrl.searchParams.get(LOCALE_ALIGN_QUERY_PARAM),
+    intlRouting.locales,
+  );
+  if (!alignedLocale) {
+    return null;
+  }
+
+  const redirectUrl = new URL(req.nextUrl);
+  redirectUrl.searchParams.delete(LOCALE_ALIGN_QUERY_PARAM);
+  const response = NextResponse.redirect(redirectUrl, 302);
+  response.cookies.set({
+    name: getLocaleCookieName(),
+    value: alignedLocale,
+    maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS,
+    httpOnly: false,
+    sameSite: 'lax',
+    path: '/',
+  });
+  return response;
+}
+
+/**
+ * next-intl asked for a locale redirect — re-issue it with the site segment
+ * prepended where the routing policy requires one. Returns `null` when intl
+ * wants no redirect.
+ */
+function resolveIntlRedirect(
+  req: NextRequest,
+  intlResponse: NextResponse,
+  routing: SiteConfig,
+  site: string,
+): NextResponse | null {
+  const intlLocation = intlResponse.headers.get('location');
+  if (!intlLocation) {
+    return null;
+  }
+  const newLocation = new URL(intlLocation);
+  // prepend site if necessary
+  if (shouldPrefix(site, routing)) {
+    newLocation.pathname = `/${site}${newLocation.pathname == '/' ? '' : newLocation.pathname}`;
+  }
+  return withCookies(intlResponse, NextResponse.redirect(newLocation), req, routing, site);
+}
+
+/**
+ * next-intl asked for a rewrite — prepend our site segment to its target.
+ * Returns `null` when intl wants no rewrite.
+ */
+function resolveIntlRewrite(
+  req: NextRequest,
+  intlResponse: NextResponse,
+  routing: SiteConfig,
+  site: string,
+  headers: Headers,
+): NextResponse | null {
+  const intlRewrite = intlResponse.headers.get(NEXT_REWRITE_HEADER);
+  if (!intlRewrite) {
+    return null;
+  }
+  const newRewrite = new URL(intlRewrite);
+  newRewrite.pathname = `/${site}${newRewrite.pathname == '/' ? '' : newRewrite.pathname}`;
+  return withCookies(intlResponse, NextResponse.rewrite(newRewrite, { request: { headers } }), req, routing, site);
+}
 
 export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
   return (req: NextRequest) => {
     const path = req.nextUrl.pathname;
     const routing = resolveApplicableRouting(req.nextUrl.hostname, routingConfig);
 
+    const previewResponse = handlePreviewRoute(req);
+    if (previewResponse) {
+      return previewResponse;
+    }
+
     // Only protect actual entry routes; arbitrary two-segment paths such as /json/list
     // are not app pages and should not be treated as misrouted probes.
-    if (isProbeProtectedMainRoute(path, routing)) {
-      if (isLikelyProbe(req)) {
-        return handleMisroutedHealthCheck(req);
-      }
+    if (isProbeProtectedMainRoute(path, routing) && isLikelyProbe(req)) {
+      return handleMisroutedHealthCheck(req);
     }
 
-    // First look for the matching routing by Domain
-    const resolved = resolveSite(req.nextUrl.pathname, req.cookies, req.headers, routing);
-    let { site } = resolved;
-    const { appPath } = resolved;
-    const fallbackEnabled = !!routing.defaultSite;
-    let siteInvalid = false;
-
-    // Post-resolution validation: reject sites not in availableSites (from cookies/headers)
-    if (site && !routing.availableSites.includes(site)) {
-      if (fallbackEnabled) {
-        site = routing.defaultSite;
-      } else {
-        edgeLog('warn', 'invalid_site_rejected', {
-          site,
-          path: req.nextUrl.pathname,
-          availableSites: routing.availableSites,
-          recommendation: 'Check NEXT_PUBLIC_AVAILABLE_SITES configuration',
-        });
-        siteInvalid = true;
-        site = routing.availableSites[0];
-      }
-    }
-
-    // No site resolved at all (no path/cookie/header match, no default)
-    if (!site) {
-      site = routing.availableSites[0];
-    }
+    const { site, appPath, siteInvalid } = resolveValidatedSite(req, routing);
 
     if (!siteInvalid) {
       setCachedRequestSite(site);
     }
 
-    const originalPathname = req.nextUrl.pathname;
-    // fake a reduced path for the intlMiddleware
-    req.nextUrl.pathname = appPath;
-    // First we check if Next-Intl requires a redirect or rewrite
-    const intlResponse = intlMiddleware(req);
-    // and restore the URL!
-    req.nextUrl.pathname = originalPathname;
-    // if intl requires a redirect, let's
-    const intlLocation = intlResponse.headers.get('location');
-    if (intlLocation && !siteInvalid) {
-      // build URL from redirectLocation
-      const newLocation = new URL(intlLocation);
-      // prepend site if necessary
-      if (shouldPrefix(site, routing)) {
-        newLocation.pathname = `/${site}${newLocation.pathname == '/' ? '' : newLocation.pathname}`;
-      }
-      return withCookies(intlResponse, NextResponse.redirect(newLocation), req, routing, site);
+    const localeAlignResponse = handleLocaleAlignQuery(req);
+    if (localeAlignResponse) {
+      return localeAlignResponse;
     }
+
+    // First we check if Next-Intl requires a redirect or rewrite
+    const intlResponse = runIntlMiddleware(req, appPath);
+
+    if (!siteInvalid) {
+      const intlRedirect = resolveIntlRedirect(req, intlResponse, routing, site);
+      if (intlRedirect) {
+        return intlRedirect;
+      }
+    }
+
     // We can continue, but now we need to set the headers for Locale and Site
     const locale = intlResponse.headers.get(INTL_MIDDLEWARE_HEADER);
-    const resolvedLocale = locale || getPublicDefaultLanguage();
-    const headers = new Headers(req.headers);
-    headers.set(INTERNAL_APP_PATH_HEADER, appPath);
-    if (locale) {
-      headers.set(INTL_LOCALE_HEADER, locale);
-    }
-    if (site) {
-      headers.set(INTERNAL_SITE_HEADER, site);
-    }
+    const headers = buildForwardHeaders(req, appPath, locale, site, siteInvalid);
+
     if (siteInvalid) {
-      headers.set(INTERNAL_SITE_INVALID_HEADER, 'true');
+      return rewriteForInvalidSite(req, intlResponse, routing, site, appPath, headers);
     }
 
-    // When site is flagged invalid, rewrite to a valid route so the layout can render not-found
-    if (siteInvalid) {
-      const rewrite = new URL(req.nextUrl);
-      rewrite.pathname = `/${site}${appPath === '' || appPath === '/' ? '' : `/${appPath}`}`;
-      const response = NextResponse.rewrite(rewrite, { request: { headers } });
-      intlResponse.cookies.getAll().forEach((cookie) => {
-        response.cookies.set(cookie.name, cookie.value);
-      });
-      return response;
+    const prefixRedirect = resolveSitePrefixRedirect(req, intlResponse, routing, site, appPath, headers);
+    if (prefixRedirect) {
+      return prefixRedirect;
     }
 
-    // handle Site-Redirection
-    if (shouldPrefix(site, routing)) {
-      if (!req.nextUrl.pathname.startsWith(`/${site}`)) {
-        const redirect = new URL(req.nextUrl);
-        redirect.pathname = `/${site}${redirect.pathname == '/' ? '' : redirect.pathname}`;
-        return withCookies(
-          intlResponse,
-          NextResponse.redirect(redirect, { headers }),
-          req,
-          routing,
-          site,
-          resolvedLocale,
-        );
-      }
-    } else {
-      if (req.nextUrl.pathname.startsWith(`/${site}`)) {
-        const redirect = new URL(req.nextUrl);
-        redirect.pathname = appPath ? `/${appPath}` : '/';
-        return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site, resolvedLocale);
-      }
-    }
-
-    const intlRewrite = intlResponse.headers.get(NEXT_REWRITE_HEADER);
+    const intlRewrite = resolveIntlRewrite(req, intlResponse, routing, site, headers);
     if (intlRewrite) {
-      // next-intl responded with rewrite, so we have to prepend our site
-      const newRewrite = new URL(intlRewrite);
-      newRewrite.pathname = `/${site}${newRewrite.pathname == '/' ? '' : newRewrite.pathname}`;
-      return withCookies(
-        intlResponse,
-        NextResponse.rewrite(newRewrite, { request: { headers } }),
-        req,
-        routing,
-        site,
-        resolvedLocale,
-      );
-    } else {
+      return intlRewrite;
     }
 
-    // Last but not least, we might need a rewrite on our own
-    let siteResponse;
-    if (req.nextUrl.pathname.startsWith(`/${site}`)) {
-      siteResponse = NextResponse.next({ request: { headers } });
-    } else {
-      const rewrite = new URL(req.nextUrl);
-      rewrite.pathname = `/${site}${rewrite.pathname == '/' ? '' : rewrite.pathname}`;
-      siteResponse = NextResponse.rewrite(rewrite, { request: { headers } });
-    }
-    return withCookies(intlResponse, siteResponse, req, routing, site, resolvedLocale);
+    return withCookies(intlResponse, buildSiteResponse(req, site, headers), req, routing, site);
   };
 }

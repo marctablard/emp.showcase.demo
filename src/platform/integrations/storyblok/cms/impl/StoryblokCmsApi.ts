@@ -1,0 +1,94 @@
+import { type ISbStoriesParams, type StoryblokClient, apiPlugin, storyblokInit } from '@storyblok/react/rsc';
+import { inject } from 'inversify';
+import 'server-only';
+import { getStoryblokEnv } from '@/lib/server/storyblok-env';
+import { injectable } from '@/platform/core/di/injectable';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type { StoryblokCmsApi as StoryblokCmsApiContract, StoryblokStoryResult } from '../StoryblokCmsApi';
+
+type StoryblokApiAccessor = () => StoryblokClient | null;
+
+/**
+ * SDK encapsulation for the Storyblok Content-Delivery API.
+ *
+ * Init is lazy: `storyblokInit` is not called at module load nor in the
+ * constructor — only on the first `getStory()` call that has a configured
+ * access token. The resulting accessor is memoised so subsequent calls
+ * reuse a single SDK client. Without a token, `getStory()` resolves to
+ * `null` and `storyblokInit` is never touched, so the app boots cleanly.
+ */
+@injectable('StoryblokCmsApi', 'Singleton')
+export class StoryblokCmsApi implements StoryblokCmsApiContract {
+  private accessor: StoryblokApiAccessor | null = null;
+
+  constructor(@inject('LoggerService') private readonly logger: LoggerService) {}
+
+  hasToken(): boolean {
+    return this.token().length > 0;
+  }
+
+  getSpaceId(): string | null {
+    // A whitespace-only value counts as unset (getStoryblokEnv trims / drops blanks).
+    return getStoryblokEnv('SPACE_ID') ?? null;
+  }
+
+  async getStory(
+    slug: string,
+    locale: string,
+    site?: string,
+    version?: 'draft' | 'published',
+  ): Promise<StoryblokStoryResult | null> {
+    const client = this.client();
+    if (!client) {
+      return null;
+    }
+
+    const fullSlug = this.resolveSlug(slug, site);
+    const resolvedVersion = version ?? (getStoryblokEnv('ACCESS_PREVIEW') === 'true' ? 'draft' : 'published');
+    const params: ISbStoriesParams = {
+      version: resolvedVersion,
+      language: locale,
+    };
+
+    try {
+      const result = await client.getStory(fullSlug, params, { next: { revalidate: 0 } });
+      if (!result?.data?.story) {
+        return null;
+      }
+      return result as unknown as StoryblokStoryResult;
+    } catch (error) {
+      this.logger.warn({ err: error, slug: fullSlug }, `Error fetching Storyblok story '${fullSlug}'`);
+      return null;
+    }
+  }
+
+  private token(): string {
+    return getStoryblokEnv('ACCESS_TOKEN') ?? '';
+  }
+
+  private resolveSlug(slug: string, site?: string): string {
+    if (getStoryblokEnv('MULTI_SITE') === 'true' && site) {
+      return `${site}/${slug}`;
+    }
+    return slug;
+  }
+
+  private client(): StoryblokClient | null {
+    const token = this.token();
+    if (!token) {
+      return null;
+    }
+    this.accessor ??= storyblokInit({
+      accessToken: token,
+      use: [apiPlugin],
+      bridge: true,
+      apiOptions: {
+        maxRetries: 2,
+        cache: { type: 'none' },
+      },
+    }) as unknown as StoryblokApiAccessor;
+    return this.accessor?.() ?? null;
+  }
+}
+
+export default StoryblokCmsApi;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import Recommendations from '@/components/cms/recommendations';
+import Recommendations from '@/components/cms/recommendations/recommendations-carousel';
 import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
 
 interface ProductDetailRecommendationsProps {

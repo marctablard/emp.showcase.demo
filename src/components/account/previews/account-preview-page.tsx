@@ -89,7 +89,7 @@ export const AccountPreviewPage: FC<AccountPreviewPageProps> = ({ category = 'de
                       <TableCell
                         key={column.key}
                         className={cn(
-                          'px-2 py-4 text-sm xl:text-base',
+                          'px-2 py-4 text-sm',
                           column.kind === 'primary' ? 'font-medium text-text-headings' : 'text-text-body',
                           column.align === 'right' && 'text-right tabular-nums',
                         )}

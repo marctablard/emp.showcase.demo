@@ -1,12 +1,23 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { TemplateAttributeValue } from '@/components/product/template-attribute-value';
 import { useL10n } from '@/hooks/useL10n';
 import { type ProductAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
+import {
+  formatTemplateAttributeValue,
+  orderedTemplateAttributeEntries,
+  parseBooleanTemplateAttributeValue,
+  resolveTemplateAttributeLabel,
+  resolveVariantAttributeLabel,
+} from '@/lib/common/product-template-attributes';
+import { L10N_MISSING_LABEL } from '@/lib/l10n';
 import { formatCurrency } from '@/lib/utils';
+import type { LocalizedString } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 
 interface ProductTileProps {
@@ -75,26 +86,66 @@ const markText = (text: unknown, keyword?: string): React.ReactNode => {
   }
 };
 
+type FlyOutAttributeOptions = {
+  maxItems?: number;
+  isBold?: boolean;
+  keyword?: string;
+  locale?: string;
+  variantAttributes?: Product['variantAttributes'];
+  templateAttributeLabels?: Product['templateAttributeLabels'];
+  templateAttributeTypes?: Product['templateAttributeTypes'];
+  l10n?: (value: LocalizedString | string) => string;
+};
+
+function resolveFlyOutAttributeLabel(
+  key: string,
+  attributeType: 'productVariantAttributes' | 'productTemplateAttributes',
+  t: (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
+  options?: FlyOutAttributeOptions,
+): string {
+  if (attributeType === 'productVariantAttributes' && options?.l10n) {
+    const attributeName = options.variantAttributes?.find((attribute) => attribute.key === key)?.name;
+    return resolveVariantAttributeLabel(key, attributeName, options.templateAttributeLabels, options.l10n);
+  }
+  if (attributeType === 'productTemplateAttributes' && options?.l10n) {
+    return resolveTemplateAttributeLabel(key, options.templateAttributeLabels, options.l10n);
+  }
+  return t(dk<ProductAttributeKey>(`filters.mixins.${attributeType}.${key}`), {
+    defaultValue: L10N_MISSING_LABEL,
+  });
+}
+
 // Helper function to render product attributes
 const renderAttributes = (
   attributes: Record<string, string>,
   t: (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
   attributeType: 'productVariantAttributes' | 'productTemplateAttributes',
-  maxItems?: number,
-  isBold?: boolean,
-  keyword?: string,
+  options?: FlyOutAttributeOptions,
 ) => {
   const entries = Object.entries(attributes);
-  const limitedEntries = maxItems ? entries.slice(0, maxItems) : entries;
+  const limitedEntries = options?.maxItems ? entries.slice(0, options.maxItems) : entries;
 
-  return limitedEntries.map(([key, value]) => (
-    <p key={key} className={`text-sm ${isBold ? 'font-bold' : ''}`}>
-      {t(dk<ProductAttributeKey>(`filters.mixins.${attributeType}.${key}`), {
-        defaultValue: formatAttributeKey(key),
-      })}
-      : {markText(value, keyword)}
-    </p>
-  ));
+  return limitedEntries.map(([key, value]) => {
+    const attributeTypeMeta = options?.templateAttributeTypes?.[key];
+    const locale = options?.locale ?? 'en';
+    const isTemplateAttribute = attributeType === 'productTemplateAttributes';
+    const isTemplateBoolean =
+      isTemplateAttribute && parseBooleanTemplateAttributeValue(value, attributeTypeMeta) !== undefined;
+    const label = resolveFlyOutAttributeLabel(key, attributeType, t, options);
+
+    let valueNode: React.ReactNode;
+    if (isTemplateBoolean) {
+      valueNode = <TemplateAttributeValue value={value} type={attributeTypeMeta} locale={locale} />;
+    } else {
+      valueNode = markText(formatTemplateAttributeValue(value, attributeTypeMeta, locale), options?.keyword);
+    }
+
+    return (
+      <p key={key} className={`flex items-center gap-1 text-sm ${options?.isBold ? 'font-bold' : ''}`}>
+        {label}: {valueNode}
+      </p>
+    );
+  });
 };
 
 // Helper function to extract dimensions (height, width, length) from attributes
@@ -118,9 +169,10 @@ const extractDimensions = (attributes: Record<string, string>) => {
 
 export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductTileProps) {
   const t = useTranslations('product');
-  const { l10n } = useL10n();
+  const locale = useLocale();
+  const { l10n, l10nOrEmpty } = useL10n();
   const [image] = product.images || [];
-  const clickable_id = product.id ? product.id.replaceAll(/<\/?mark>/g, '') : '';
+  const clickable_id = clearMarkHighlights(product.id);
   return (
     <Link href={`/product/${clickable_id}`} onClick={onProductClick}>
       <div className="flex">
@@ -165,10 +217,12 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
             // Extract dimensions from template attributes if they exist
             const dimensionsLine = templateAttributes ? extractDimensions(templateAttributes) : null;
 
-            // Create a filtered template attributes object without height, width, length
+            // Filtered attrs without height/width/length, preserving Product Templates `attributes[]` order
             const filteredTemplateAttributes = templateAttributes
               ? Object.fromEntries(
-                  Object.entries(templateAttributes).filter(([key]) => !['height', 'width', 'length'].includes(key)),
+                  orderedTemplateAttributeEntries(templateAttributes, product.templateAttributeOrder).filter(
+                    ([key]) => !['height', 'width', 'length'].includes(key),
+                  ),
                 )
               : undefined;
 
@@ -177,6 +231,14 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
             // Calculate how many template attributes we can show (excluding dimensions which will be shown separately)
             const templateCount = Math.max(0, maxTotalAttributes - variantCount - (dimensionsLine ? 1 : 0));
 
+            // Extract unlabelled specifications from the normalized suggest specs to show values directly.
+            // l10nOrEmpty() returns '' (not the L10N_MISSING_LABEL '-' sentinel) when a locale is
+            // missing, so unlabelled specs are correctly detected and '-' placeholders never leak in.
+            const specsWithoutLabel =
+              product.specifications
+                ?.filter((spec) => !l10nOrEmpty(spec.label) && l10nOrEmpty(spec.value))
+                ?.map((spec) => l10nOrEmpty(spec.value)) || [];
+
             return (
               <>
                 {variantAttributes &&
@@ -184,10 +246,21 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
                     variantAttributes,
                     t as (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
                     'productVariantAttributes',
-                    Math.min(maxTotalAttributes, variantCount),
-                    false,
-                    keyword,
+                    {
+                      maxItems: Math.min(maxTotalAttributes, variantCount),
+                      keyword,
+                      locale,
+                      variantAttributes: product.variantAttributes,
+                      templateAttributeLabels: product.templateAttributeLabels,
+                      templateAttributeTypes: product.templateAttributeTypes,
+                      l10n,
+                    },
                   )}
+                {specsWithoutLabel.slice(0, 3).map((val, idx) => (
+                  <p key={`spec-${idx}`} className="text-sm text-text-muted">
+                    {markText(val, keyword)}
+                  </p>
+                ))}
                 {dimensionsLine && <p className="text-sm">{markText(dimensionsLine, keyword)}</p>}
                 {filteredTemplateAttributes &&
                   Object.keys(filteredTemplateAttributes).length > 0 &&
@@ -196,9 +269,14 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
                     filteredTemplateAttributes,
                     t as (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
                     'productTemplateAttributes',
-                    templateCount,
-                    false,
-                    keyword,
+                    {
+                      maxItems: templateCount,
+                      keyword,
+                      locale,
+                      templateAttributeLabels: product.templateAttributeLabels,
+                      templateAttributeTypes: product.templateAttributeTypes,
+                      l10n,
+                    },
                   )}
               </>
             );

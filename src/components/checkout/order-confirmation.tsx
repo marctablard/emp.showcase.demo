@@ -10,28 +10,83 @@ import useCustomer from '@/hooks/customer/useCustomer';
 import { useOrder } from '@/hooks/order/useOrder';
 import { useL10n } from '@/hooks/useL10n';
 import { type OrderStatusKey, type PaymentModeKey, dk } from '@/i18n/dynamic-key';
+import { orderGoodsSavings } from '@/lib/common/applied-promo-display';
+import { orderShippingListFee } from '@/lib/common/order-overview-summary';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import type { Order } from '@/platform/services/model/order/order';
 import { AddressDisplay } from '../common/address-display';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H1, H2, H3 } from '../ui/h';
-import { isPendingApprovalConfirmationSegment } from './confirmation-constants';
+import { createdApprovalDetailsPath, isPendingApprovalConfirmationSegment } from './confirmation-constants';
+
+function OrderConfirmationShippingValue({ order, freeLabel }: { readonly order: Order; readonly freeLabel: string }) {
+  const currency = order.shipping?.total.currency || order.currency;
+  const discounted = order.shipping?.total.value;
+  const listFee = orderShippingListFee(order.shipping);
+  if (typeof discounted !== 'number' || discounted === 0) {
+    if (typeof listFee === 'number') {
+      return (
+        <span
+          className="flex items-baseline justify-end gap-2 font-medium"
+          data-testid="order-confirmation-shippingFee"
+        >
+          <span className="line-through font-normal">{formatCurrency(listFee, currency)}</span>
+          <span>{freeLabel}</span>
+        </span>
+      );
+    }
+    return <span className="font-medium">{freeLabel}</span>;
+  }
+  if (typeof listFee !== 'number') {
+    return <span className="font-medium">{formatCurrency(discounted, currency)}</span>;
+  }
+  return (
+    <span className="flex items-baseline justify-end gap-2 font-medium" data-testid="order-confirmation-shippingFee">
+      <span className="line-through font-normal">{formatCurrency(listFee, currency)}</span>
+      <span className="font-bold">{formatCurrency(discounted, currency)}</span>
+    </span>
+  );
+}
+
+function OrderConfirmationDiscountRow({ order }: { readonly order: Order }) {
+  const tOrder = useTranslations('orders');
+  const savings = orderGoodsSavings(order);
+  if (!savings) {
+    return null;
+  }
+  return (
+    <div className="flex justify-between mb-2" data-testid="order-confirmation-discount">
+      <span className="text-text-on-disabled">{tOrder('discount')}</span>
+      <span className="font-medium text-text-success">
+        {formatCurrency(-Math.abs(savings.amount), savings.currency || order.currency)}
+      </span>
+    </div>
+  );
+}
 
 interface OrderConfirmationProps {
   orderId: string;
   initialOrder?: Order | null;
   customerEmail?: string;
+  createdApprovalId?: string;
 }
 
 /**
  * Order confirmation component
  * Displays confirmation details after a successful checkout
  */
-const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialOrder, customerEmail }) => {
+const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
+  orderId,
+  initialOrder,
+  customerEmail,
+  createdApprovalId,
+}) => {
   const t = useTranslations('orders.Confirmation');
   const tOrder = useTranslations('orders');
   const tOrderStatus = useTranslations('orders.OrderStatus');
   const tPayment = useTranslations('checkout.PaymentModes');
+  const tProduct = useTranslations('product');
   const { l10n } = useL10n();
   const { customer } = useCustomer();
   const isApprovalPendingConfirmation = isPendingApprovalConfirmationSegment(orderId);
@@ -121,16 +176,18 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
               <CardContent>
                 {order.items.map((item) => (
                   <div key={item.id} className="py-4 flex flex-wrap sm:flex-nowrap">
-                    <div className="sm:w-16 sm:h-16 w-full h-24 bg-surface-image-background rounded-ss-md rounded-ee-md mb-4 sm:mb-0 sm:mr-4 flex-shrink-0">
-                      {item.images && item.images[0] && (
-                        <Image
-                          src={item.images[0]}
-                          alt={item.name || ''}
-                          width={150}
-                          height={150}
-                          className="w-full h-full object-cover rounded-ss-md rounded-ee-md"
-                        />
-                      )}
+                    <div className="mb-4 flex h-24 w-full shrink-0 items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background sm:mb-0 sm:mr-4 sm:h-16 sm:w-16">
+                      <Image
+                        src={resolveProductImageSrc(item.images?.[0])}
+                        alt={
+                          resolveProductImageSrc(item.images?.[0]) === PRODUCT_NO_IMAGE_SRC
+                            ? tProduct('noImage')
+                            : item.name || ''
+                        }
+                        width={150}
+                        height={150}
+                        className="max-h-full max-w-full object-contain"
+                      />
                     </div>
                     <div className="flex-grow">
                       <H3>{item.name || `Product ${item.productId}`}</H3>
@@ -156,22 +213,11 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                   {order.shipping && (
                     <div className="flex justify-between mb-2">
                       <span className="text-text-on-disabled">{tOrder('shipping')}</span>
-                      <span className="font-medium">
-                        {order.shipping.total?.value
-                          ? formatCurrency(order.shipping.total.value, order.shipping.total.currency || order.currency)
-                          : tOrder('free')}
-                      </span>
+                      <OrderConfirmationShippingValue order={order} freeLabel={tOrder('free')} />
                     </div>
                   )}
 
-                  {order.discounts && order.discounts.length > 0 && (
-                    <div className="flex justify-between mb-2">
-                      <span className="text-text-on-disabled">{tOrder('discount')}</span>
-                      <span className="font-medium text-text-success">
-                        -{order.discounts.reduce((sum, discount) => sum + (discount.value || 0), 0)}
-                      </span>
-                    </div>
-                  )}
+                  <OrderConfirmationDiscountRow order={order} />
 
                   <div className="flex justify-between pt-2 border-t border-border-primary">
                     <span className="font-medium">{tOrder('total')}</span>
@@ -266,15 +312,29 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-          <UiLink type="Link" href="/">
+          <UiLink type="Link" href="/" data-testid="confirmation-continueShopping">
             {t('continueShopping')}
           </UiLink>
 
           {customer && (
-            <UiLink type="Link" href={isApprovalPendingConfirmation ? '/account/approvals' : '/account/orders'}>
+            <UiLink
+              type="Link"
+              href={isApprovalPendingConfirmation ? '/account/approvals' : '/account/orders'}
+              data-testid={isApprovalPendingConfirmation ? 'confirmation-viewApprovals' : 'confirmation-viewOrders'}
+            >
               {isApprovalPendingConfirmation ? t('viewApprovals') : t('viewOrders')}
             </UiLink>
           )}
+
+          {isApprovalPendingConfirmation && createdApprovalId ? (
+            <UiLink
+              type="Link"
+              href={createdApprovalDetailsPath(createdApprovalId)}
+              data-testid="confirmation-createdApproval"
+            >
+              {t('createdApproval')}
+            </UiLink>
+          ) : null}
         </div>
       </div>
     </div>

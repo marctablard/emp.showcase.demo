@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "types": ["reflect-metadata", "jest"], // Required for InversifyJS
     "allowJs": true,
@@ -30,5 +30,12 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // Next 16.3 typechecks the full include graph during `next build`.
+    // Jest owns unit/component tests; Playwright owns e2e.
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "e2e"
+  ]
 }

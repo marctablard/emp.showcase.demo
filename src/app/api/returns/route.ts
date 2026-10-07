@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { normalizeReasonCode, normalizeReasonDetails } from '@/lib/common/returns/reason-normalization';
 import { mapReturnCreateError, mapReturnValidationError } from '@/lib/common/returns/return-api-error-mapping';
+import { RETURN_ERROR_CODE } from '@/lib/common/returns/return-error-codes';
 import { computeOrderReturnability } from '@/lib/common/returns/returnability';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -48,7 +49,10 @@ export async function GET(request: NextRequest) {
       },
       'Error fetching returns',
     );
-    return NextResponse.json({ error: 'Failed to fetch returns' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch returns', code: RETURN_ERROR_CODE.RETURNS_FETCH_FAILED },
+      { status: 500 },
+    );
   }
 }
 
@@ -64,39 +68,78 @@ export async function POST(request: NextRequest) {
     const normalizedReasonDetails = normalizeReasonDetails(reasonDetails);
 
     if (!orderId || typeof orderId !== 'string') {
-      return NextResponse.json({ error: 'orderId is required and must be a string' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'orderId is required and must be a string', code: RETURN_ERROR_CODE.ORDER_ID_REQUIRED },
+        { status: 400 },
+      );
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'items array is required and cannot be empty' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'items array is required and cannot be empty', code: RETURN_ERROR_CODE.ITEMS_REQUIRED },
+        { status: 400 },
+      );
     }
 
     if (!normalizedReasonCode) {
-      return NextResponse.json({ error: 'reasonCode is required and must be a string' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'reasonCode is required and must be a string', code: RETURN_ERROR_CODE.REASON_CODE_REQUIRED },
+        { status: 400 },
+      );
     }
     if (!RETURN_REASON_CODES.has(normalizedReasonCode)) {
-      return NextResponse.json({ error: 'reasonCode is invalid' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'reasonCode is invalid', code: RETURN_ERROR_CODE.REASON_CODE_INVALID },
+        { status: 400 },
+      );
     }
     if (reasonDetails !== undefined && typeof reasonDetails !== 'string') {
-      return NextResponse.json({ error: 'reasonDetails must be a string if provided' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'reasonDetails must be a string if provided', code: RETURN_ERROR_CODE.REASON_DETAILS_INVALID },
+        { status: 400 },
+      );
     }
 
     for (const item of items) {
       if (!item.id || typeof item.id !== 'string') {
-        return NextResponse.json({ error: 'Each item must have a valid id' }, { status: 400 });
+        return NextResponse.json(
+          { error: 'Each item must have a valid id', code: RETURN_ERROR_CODE.ITEM_ID_INVALID },
+          { status: 400 },
+        );
       }
       if (typeof item.quantity !== 'number' || !Number.isInteger(item.quantity) || item.quantity <= 0) {
-        return NextResponse.json({ error: 'Each item must have a positive integer quantity' }, { status: 400 });
+        return NextResponse.json(
+          { error: 'Each item must have a positive integer quantity', code: RETURN_ERROR_CODE.ITEM_QUANTITY_INVALID },
+          { status: 400 },
+        );
       }
       if (item.reasonCode !== undefined && typeof item.reasonCode !== 'string') {
-        return NextResponse.json({ error: 'item.reasonCode must be a string if provided' }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: 'item.reasonCode must be a string if provided',
+            code: RETURN_ERROR_CODE.ITEM_REASON_CODE_TYPE_INVALID,
+          },
+          { status: 400 },
+        );
       }
       const normalizedItemReasonCode = normalizeReasonCode(item.reasonCode);
       if (normalizedItemReasonCode && !RETURN_REASON_CODES.has(normalizedItemReasonCode)) {
-        return NextResponse.json({ error: `item.reasonCode is invalid for item ${item.id}` }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: `item.reasonCode is invalid for item ${item.id}`,
+            code: RETURN_ERROR_CODE.ITEM_REASON_CODE_INVALID,
+          },
+          { status: 400 },
+        );
       }
       if (item.reasonDetails !== undefined && typeof item.reasonDetails !== 'string') {
-        return NextResponse.json({ error: 'item.reasonDetails must be a string if provided' }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: 'item.reasonDetails must be a string if provided',
+            code: RETURN_ERROR_CODE.ITEM_REASON_DETAILS_INVALID,
+          },
+          { status: 400 },
+        );
       }
     }
 
@@ -113,11 +156,20 @@ export async function POST(request: NextRequest) {
         const returnability = computeOrderReturnability(orderId, order.items, orderReturns);
 
         const remainingMap = new Map(returnability.orderItemSummaries.map((s) => [s.itemId, s.remaining]));
+        // The shopper only ever sees the article number, never the order-entry id. Same chain as
+        // the item selector; productId is mandatory, so this never falls through to the id.
+        const skuByItemId = new Map(order.items.map((item) => [item.id, item.sku || item.productId]));
 
         for (const item of items) {
           const remaining = remainingMap.get(item.id);
           if (remaining === undefined) {
-            return NextResponse.json({ error: `Item ${item.id} does not belong to order ${orderId}` }, { status: 422 });
+            return NextResponse.json(
+              {
+                error: `Item ${item.id} does not belong to order ${orderId}`,
+                code: RETURN_ERROR_CODE.ITEM_NOT_IN_ORDER,
+              },
+              { status: 422 },
+            );
           }
           if (item.quantity > remaining) {
             const logger = server.get<LoggerService>('LoggerService');
@@ -128,6 +180,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
               {
                 error: `Item ${item.id} exceeds returnable quantity (requested: ${item.quantity}, remaining: ${remaining})`,
+                code: RETURN_ERROR_CODE.ITEM_EXCEEDS_RETURNABLE_QUANTITY,
+                params: { sku: skuByItemId.get(item.id), requested: item.quantity, remaining },
               },
               { status: 422 },
             );

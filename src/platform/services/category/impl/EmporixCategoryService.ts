@@ -1,11 +1,18 @@
 import { inject } from 'inversify';
+import { compareByPosition } from '@/lib/category/category-tree-utils';
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixCatalogApi } from '@/platform/integrations/emporix/catalog/EmporixCatalogApi';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
-import type { EmporixCategory } from '@/platform/integrations/emporix/model';
+import type { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
+import type { CatalogPublishedRootCategoryService } from '@/platform/services/catalog/impl/CatalogPublishedRootCategoryService';
+import { filterEmporixCategoryTreesByCatalogIds } from '@/platform/services/category/impl/filter-emporix-category-trees-for-catalog';
+import {
+  mapListCategoryRowsToNavigationCategories,
+  selectTopLevelCategoryListRows,
+} from '@/platform/services/category/impl/navigation-categories-from-list-response';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Category } from '@/platform/services/model/category';
 import type { CategoryMapper } from '@/platform/services/model/category/CategoryMapper';
+import { mapEmporixCategoryTreeToCategory } from '@/platform/services/model/category/impl/EmporixCategoryMapper';
 import type { CategoryService } from '../CategoryService';
 
 /**
@@ -17,12 +24,12 @@ export class EmporixCategoryService implements CategoryService {
   constructor(
     @inject('EmporixCategoryApi') private categoryApi: EmporixCategoryApi,
     @inject('EmporixCategoryMapper') private categoryMapper: CategoryMapper<EmporixCategory>,
+    @inject('CatalogPublishedRootCategoryService')
+    private catalogPublishedRootCategoryService: CatalogPublishedRootCategoryService,
     @inject('LoggerService') private logger: LoggerService,
-    @inject('EmporixCatalogApi') private catalogApi: EmporixCatalogApi,
   ) {
     this.categoryApi = categoryApi;
     this.categoryMapper = categoryMapper;
-    this.catalogApi = catalogApi;
   }
 
   /**
@@ -40,6 +47,23 @@ export class EmporixCategoryService implements CategoryService {
     } catch (error) {
       this.logger.error({ err: error, categoryId: id }, 'Error fetching category by ID');
       return null;
+    }
+  }
+
+  async getCategoriesByIds(
+    ids: string[],
+    options?: { showRoots?: boolean; showUnpublished?: boolean },
+  ): Promise<Category[]> {
+    try {
+      const items = await this.categoryApi.getCategoriesByIds(ids, {
+        showRoots: options?.showRoots ?? false,
+        showUnpublished: options?.showUnpublished === true,
+        pageSize: Math.max(100, ids.length),
+      });
+      return items.map((c) => this.categoryMapper.mapToService(c));
+    } catch (error) {
+      this.logger.error({ err: error, idCount: ids.length }, 'Error fetching categories by ids');
+      throw error;
     }
   }
 
@@ -212,86 +236,122 @@ export class EmporixCategoryService implements CategoryService {
     }
   }
 
-  /**
-   * Retrieve all category trees for the tenant.
-   */
-  async getCategoryTrees(): Promise<Category[]> {
+  async getNavigationCategoryTrees(siteCode: string, showUnpublished?: boolean): Promise<Category[]> {
     try {
-      const trees = await this.categoryApi.getCategoryTrees();
-      return trees.map((tree) => this.categoryMapper.mapToService(tree));
-    } catch (error) {
-      this.logger.error({ err: error }, 'Error fetching category trees');
+      const catalogIds = await this.catalogPublishedRootCategoryService.getRootCategoryIdsForSite(siteCode);
+      if (catalogIds.length === 0) {
+        return [];
+      }
+
+      const listed = await this.categoryApi.getCategoriesByIds(catalogIds, {
+        // Catalog ids are not always tree roots; showRoots would drop assigned non-roots.
+        showRoots: false,
+        showUnpublished: showUnpublished === true,
+        pageSize: Math.max(100, catalogIds.length),
+      });
+
+      const rootsForTreeApi =
+        listed.length > 0 ? selectTopLevelCategoryListRows(listed).map((row) => row.id) : catalogIds;
+
+      const fetchTreesBatch = async (ids: string[]): Promise<EmporixCategoryTree[]> => {
+        if (ids.length === 0) {
+          return [];
+        }
+        try {
+          return await this.categoryApi.getCategoryTrees(ids, showUnpublished);
+        } catch (err) {
+          this.logger.warn({ err, siteCode, idCount: ids.length }, 'Emporix batch category-trees request failed');
+          return [];
+        }
+      };
+
+      const rootSet = new Set(rootsForTreeApi);
+      const catalogSet = new Set(catalogIds);
+      const sameRootIdSet = rootSet.size === catalogSet.size && catalogIds.every((id) => rootSet.has(id));
+
+      // Prefer catalog ids first: one category-trees round-trip when those ids are valid roots
+      // (avoids a wasted call when list-derived "top" ids do not resolve to trees).
+      let trees: EmporixCategoryTree[] = await fetchTreesBatch(catalogIds);
+
+      if (trees.length === 0 && listed.length > 0 && !sameRootIdSet) {
+        trees = await fetchTreesBatch(rootsForTreeApi);
+      }
+
+      if (trees.length === 0) {
+        this.logger.warn(
+          { siteCode, catalogCategoryIdCount: catalogIds.length },
+          'category-trees batch empty; loading all tenant trees and matching catalog categoryIds (roots or descendants)',
+        );
+        try {
+          const allRoots = await this.categoryApi.getAllCategoryTrees(showUnpublished);
+          trees = filterEmporixCategoryTreesByCatalogIds(allRoots, catalogIds);
+        } catch (err) {
+          this.logger.warn({ err, siteCode }, 'getAllCategoryTrees failed');
+        }
+      }
+
+      if (trees.length > 0) {
+        return trees
+          .slice()
+          .sort(compareByPosition)
+          .map((t) => mapEmporixCategoryTreeToCategory(t));
+      }
+
+      if (listed.length > 0) {
+        return mapListCategoryRowsToNavigationCategories(listed, (row) => this.categoryMapper.mapToService(row));
+      }
+
       return [];
-    }
-  }
-
-  /**
-   * Retrieve category trees scoped to a specific site.
-   * Mirrors the b2b-showcase approach:
-   *   1. Fetch catalogs published for the site → extract root categoryIds
-   *   2. Fetch all category trees
-   *   3. Filter to only the site's root categories
-   */
-  async getCategoryTreesForSite(siteCode: string): Promise<Category[]> {
-    try {
-      const catalogResponse = await this.catalogApi.getCatalogs({
-        size: 100,
-        criteria: { publishedSite: siteCode },
-      });
-      const rootCategoryIds = new Set((catalogResponse.items ?? []).flatMap((c) => c.categoryIds ?? []));
-
-      const allTrees = await this.getCategoryTrees();
-
-      return rootCategoryIds.size > 0 ? allTrees.filter((t) => rootCategoryIds.has(t.id)) : allTrees;
     } catch (error) {
-      this.logger.error({ err: error, siteCode }, 'Error fetching category trees for site');
+      this.logger.error({ err: error, siteCode }, 'Error fetching navigation category trees');
       return [];
-    }
-  }
-
-  /**
-   * Get the product IDs assigned to a category.
-   */
-  async getSiteRootCategoryIds(siteCode: string): Promise<Set<string>> {
-    try {
-      const catalogResponse = await this.catalogApi.getCatalogs({
-        size: 100,
-        criteria: { publishedSite: siteCode },
-      });
-      return new Set((catalogResponse.items ?? []).flatMap((c) => c.categoryIds ?? []));
-    } catch (error) {
-      this.logger.error({ err: error, siteCode }, 'Error fetching site root category IDs');
-      return new Set();
-    }
-  }
-
-  async getProductIdsForCategory(
-    categoryId: string,
-    options?: { page?: number; pageSize?: number; withSubcategories?: boolean; segmentsIds?: string },
-  ): Promise<{ ids: string[]; total: number; page: number; pageSize: number }> {
-    try {
-      const page = options?.page ?? 0;
-      const pageSize = options?.pageSize ?? 20;
-      const response = await this.categoryApi.getCategoryAssignments(categoryId, {
-        page,
-        size: pageSize,
-        criteria: {
-          assignmentType: 'PRODUCT',
-          withSubcategories: options?.withSubcategories ?? true,
-          ...(options?.segmentsIds ? { segmentsIds: options.segmentsIds } : {}),
-        },
-      });
-      const ids = (response.items ?? []).filter((a) => a.ref?.type?.toLowerCase() === 'product').map((a) => a.ref.id);
-      return { ids, total: response.total ?? 0, page, pageSize };
-    } catch (error) {
-      this.logger.error({ err: error, categoryId }, 'Error fetching product IDs for category');
-      return { ids: [], total: 0, page: 0, pageSize: options?.pageSize ?? 20 };
     }
   }
 
   async assignParents(category: Category, parents: Map<string, Category>) {
     if (category.parent && typeof category.parent === 'string') {
       category.parent = parents.get(category.parent);
+    }
+  }
+
+  async getProductCountForCategory(
+    categoryId: string,
+    options?: {
+      withSubcategories?: boolean;
+      hideUnpublishedProducts?: boolean;
+    },
+  ): Promise<number> {
+    const trimmedId = categoryId?.trim();
+    if (!trimmedId) {
+      return 0;
+    }
+
+    const withSubcategories = options?.withSubcategories ?? true;
+    const hideUnpublishedProducts = options?.hideUnpublishedProducts ?? true;
+
+    try {
+      const response = await this.categoryApi.getCategoryAssignments(trimmedId, {
+        page: 1,
+        size: 1,
+        criteria: {
+          assignmentType: 'PRODUCT',
+          withSubcategories,
+          hideUnpublishedProducts,
+        },
+      });
+
+      // Emporix returns -1 from buildPaginatedResponse when X-Total-Count header is missing.
+      const total = response.total;
+      if (typeof total !== 'number' || total < 0) {
+        return 0;
+      }
+      return total;
+    } catch (error) {
+      this.logger.warn(
+        { err: error, categoryId: trimmedId },
+        'Failed to fetch product count for category; returning 0',
+      );
+      return 0;
     }
   }
 }

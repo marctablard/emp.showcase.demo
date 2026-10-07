@@ -4,9 +4,11 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { H6 } from '@/components/ui/h';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { ReturnReasonCode } from '@/lib/client/returns';
+import { resolveProductImageSrc } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import type { OrderItem } from '@/platform/services/model/order/order';
 
@@ -28,11 +30,9 @@ export interface ReturnItemSelectorProps {
   reasonOptions: ReturnReasonCode[];
 }
 
+// Jira overrides Figma blank "img placeholder" — render PDP no_image_alt in the existing frame
 function getItemImage(item: OrderItem): string {
-  if (item.images && item.images.length > 0) {
-    return item.images[0];
-  }
-  return '/images/placeholder.png';
+  return resolveProductImageSrc(item.images?.[0]);
 }
 
 export function ReturnItemSelector({
@@ -54,10 +54,10 @@ export function ReturnItemSelector({
 
   return (
     <div className="py-4 w-full min-w-0">
-      <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 pb-4 text-sm font-medium text-text-on-disabled">
-        <div>{tReturns('productDetails')}</div>
-        <div>{tReturns('quantity')}</div>
-        <div className="text-right">{tReturns('unitPrice')}</div>
+      <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 border-b border-border-primary pb-4">
+        <H6 className="min-w-0">{tReturns('productDetails')}</H6>
+        <H6 className="text-left">{tReturns('quantity')}</H6>
+        <H6 className="min-w-0 text-right">{tReturns('unitPrice')}</H6>
       </div>
 
       <div className="space-y-4 w-full min-w-0">
@@ -71,15 +71,15 @@ export function ReturnItemSelector({
           const priceCurrency = item.price?.currency;
 
           return (
-            <div key={item.id} className="py-4 border-b border-border-secondary w-full min-w-0">
+            <div key={item.id} className="py-4 border-b border-border-primary w-full min-w-0">
               {/* Desktop Layout */}
               <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 items-start">
                 <div className="flex gap-4">
-                  <div className="w-20 h-13 relative flex-shrink-0 bg-surface-image-background rounded">
+                  <div className="relative h-13 w-20 shrink-0 overflow-hidden rounded bg-surface-image-background">
                     <Image src={getItemImage(item)} alt={item.name || ''} fill className="object-contain p-1" />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    {item.sku && <span className="text-sm text-text-on-disabled">{item.sku}</span>}
+                  <div className="flex flex-col gap-1" data-testid={`return-item-product-desktop-${item.id}`}>
+                    {item.vendorName && <span className="text-base font-body text-text-body">{item.vendorName}</span>}
                     <span className="font-medium">{item.name}</span>
                     <span className="text-sm text-text-on-disabled">
                       {t('itemNumber')}: {item.sku || item.productId || '-'}
@@ -144,12 +144,16 @@ export function ReturnItemSelector({
                     onValueChange={(value: string) => onItemReasonChange(item.id, value as ReturnReasonCode)}
                     disabled={loading || currentQty <= 0}
                   >
-                    <SelectTrigger id={`item-reason-${item.id}`} className="w-full">
+                    <SelectTrigger
+                      id={`item-reason-${item.id}`}
+                      className="w-full"
+                      data-testid={`return-item-reason-${item.id}`}
+                    >
                       <SelectValue placeholder={t('selectReason')} />
                     </SelectTrigger>
                     <SelectContent>
                       {reasonOptions.map((reason) => (
-                        <SelectItem key={reason} value={reason}>
+                        <SelectItem key={reason} value={reason} data-testid={`return-item-reason-${item.id}-${reason}`}>
                           {t(`reasons.${reason}`)}
                         </SelectItem>
                       ))}
@@ -171,22 +175,20 @@ export function ReturnItemSelector({
                     disabled={loading || currentQty <= 0}
                     className="min-h-[144px] w-full resize-none"
                     placeholder={t('descriptionPlaceholder' as any)}
+                    data-testid={`return-item-description-${item.id}`}
                   />
-                  <p className="mt-2 text-xs text-text-on-disabled">
-                    {(itemReasonDetails[item.id] || '').length}/{MAX_DESCRIPTION_LENGTH}
-                  </p>
                 </div>
               )}
 
               {/* Mobile Layout */}
               <div className="flex flex-col gap-4 md:hidden w-full min-w-0">
-                <div className="flex flex-col gap-1">
-                  {item.sku && <span className="text-xs text-text-body">{item.sku}</span>}
+                <div className="flex flex-col gap-1" data-testid={`return-item-product-mobile-${item.id}`}>
+                  {item.vendorName && <span className="text-sm font-body text-text-body">{item.vendorName}</span>}
                   <span className="text-sm font-bold text-text-headings">{item.name}</span>
                 </div>
 
                 <div className="flex gap-4 w-full min-w-0">
-                  <div className="w-[100px] h-[65px] relative flex-shrink-0 bg-surface-image-background rounded-tl-lg rounded-br-lg">
+                  <div className="relative h-[65px] w-[100px] shrink-0 overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background">
                     <Image src={getItemImage(item)} alt={item.name || ''} fill className="object-contain p-2" />
                   </div>
 
@@ -258,12 +260,20 @@ export function ReturnItemSelector({
                       onValueChange={(value: string) => onItemReasonChange(item.id, value as ReturnReasonCode)}
                       disabled={loading || currentQty <= 0}
                     >
-                      <SelectTrigger id={`item-reason-mobile-${item.id}`} className="w-full">
+                      <SelectTrigger
+                        id={`item-reason-mobile-${item.id}`}
+                        className="w-full"
+                        data-testid={`return-item-reason-mobile-${item.id}`}
+                      >
                         <SelectValue placeholder={t('selectReason')} />
                       </SelectTrigger>
                       <SelectContent>
                         {reasonOptions.map((reason) => (
-                          <SelectItem key={reason} value={reason}>
+                          <SelectItem
+                            key={reason}
+                            value={reason}
+                            data-testid={`return-item-reason-mobile-${item.id}-${reason}`}
+                          >
                             {t(`reasons.${reason}`)}
                           </SelectItem>
                         ))}
@@ -285,10 +295,8 @@ export function ReturnItemSelector({
                       disabled={loading || currentQty <= 0}
                       className="min-h-[144px] w-full resize-none"
                       placeholder={t('descriptionPlaceholder' as any)}
+                      data-testid={`return-item-description-mobile-${item.id}`}
                     />
-                    <p className="mt-2 text-xs text-text-on-disabled">
-                      {(itemReasonDetails[item.id] || '').length}/{MAX_DESCRIPTION_LENGTH}
-                    </p>
                   </div>
                 )}
               </div>

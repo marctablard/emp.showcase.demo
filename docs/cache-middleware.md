@@ -40,7 +40,7 @@ export const cacheRules: CacheRule[] = [
   {
     url: '/product/(.*)',
     cache: {
-      revalidate: 3600,
+      revalidate: 0,
       tags: ['product-$1'],
     },
   },
@@ -66,32 +66,77 @@ export const cacheRules: CacheRule[] = [
 ## What the middleware sets
 
 - **`Cache-Control`**
-  - includes `s-maxage=<revalidate>` and `stale-while-revalidate=<2x revalidate>`
+  - when `revalidate` is positive: `public, max-age=<revalidate>, s-maxage=<revalidate>` and `stale-while-revalidate=<2x revalidate>`
+  - when `revalidate` is `0` or negative: `private, no-store` (no `s-maxage`, no SWR)
+  - for authenticated requests: always `private, no-store` (see below)
 - **`X-Cache-Tags`**
   - tags after capture group substitution
+  - never set for authenticated requests
+
+### Authenticated requests bypass
+
+Responses for logged-in customers can be personalised (customer-segment scoped catalog, PDP, search suggestions — see [Search Service — Customer segments & products mode](./search-service.md#customer-segments--products-mode-cop-4822), COP-4822). A rule with a positive `revalidate` would otherwise override route-level headers and mark them `public`.
+
+`hasAuthSession(req)` in `src/caching/cache-middleware.ts` therefore checks `NextRequest.cookies` for the Auth.js v5 default session cookie name (`src/auth/auth.config.ts` sets no custom name). A cookie matches only when its name is exactly `authjs.session-token`, the HTTPS form `__Secure-authjs.session-token`, or a numeric chunk of either (`authjs.session-token.0`, `__Secure-authjs.session-token.1`, …) via `isAuthJsSessionCookieName`. Names that merely contain that fragment (for example `xauthjs.session-token` or `authjs.session-token-old`) are ignored, so they follow the rule's `revalidate` instead of the authenticated no-store bypass. When a match is present and a rule matches:
+
+- `Cache-Control` is forced to `private, no-store` regardless of the rule's `revalidate`
+- no `X-Cache-Tags` header is emitted
+
+Anonymous requests are unaffected. Rules that do not match still leave the response unchanged, so API routes that set `Cache-Control: private, no-store` themselves (for example `/api/search` in `assigned` mode) keep their own header.
 
 ## Examples
 
 ### Product pages
 
+The PDP is `force-dynamic`. The matching rule stays in place with `revalidate: 0`, which the middleware turns into `private, no-store` (no `max-age`, no `s-maxage`, no stale-while-revalidate) for anonymous and logged-in requests. Raising `revalidate` turns the public cache back on.
+
 ```ts
 {
   url: '/product/(.*)',
   cache: {
-    revalidate: 3600,
+    revalidate: 0,
     tags: ['product-$1'],
   },
 }
 ```
 
-### Browse API
+Anonymous product responses still receive `X-Cache-Tags`. Logged-in requests do not.
+
+### Product catalog API
+
+Catalog JSON (`/api/products/(.*)`) is `revalidate: 0` so the middleware emits `private, no-store` (no `s-maxage=3600`, no SWR 7200). Variants and availability under that catch-all inherit no-store.
+
+The more specific `/api/products/(.*)/price` rule stays `revalidate: 0` (no-store) and is listed **before** the catch-all so first-match still applies to Price Service.
 
 ```ts
 {
-  url: '/api/browse(.*)',
+  url: '/api/products/(.*)/price',
   cache: {
-    revalidate: 1800,
-    tags: ['browse'],
+    revalidate: 0,
+    tags: [],
+  },
+},
+{
+  url: '/api/products/(.*)',
+  cache: {
+    revalidate: 0,
+    tags: ['product-$1'],
+  },
+},
+```
+
+This HTTP no-store on catalog JSON is independent of `DEFAULT_CACHE_REVALIDATE` / Emporix Product GET Data Cache.
+
+### Search API
+
+Listing cards include prices, so `/api/search` and its subpaths are `revalidate: 0` (`private, no-store`). The rule remains so the window can be turned back on. The pattern includes the handler with no extra path segment; `/api/search/(.*)` never matched that URL.
+
+```ts
+{
+  url: '/api/search(?:/.*)?',
+  cache: {
+    revalidate: 0,
+    tags: ['search'],
   },
 }
 ```
@@ -112,3 +157,10 @@ revalidateTag('product-123');
 - `src/caching/cache-middleware.ts`
 - `src/proxy.ts`
 - `.env.template`
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Rendering: SSR / SSG / ISR](./rendering-ssr-ssg-isr.md)
+- [Site Middleware](./site-middleware.md)
+- [Deployment Process](./deployment-process.md)

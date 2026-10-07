@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { LocationData } from '@/platform/services/model/common';
 import { useAddresses } from '../customer/useAddresses';
@@ -156,9 +157,10 @@ export function useLocation(): UseLocationResult {
   }, [fetchLocationFromBrowser, fetchLocationFromGeoIP, getLocationFromCustomerAddress]);
 
   useEffect(() => {
-    if (location === undefined && !loading && addresses !== undefined && countries !== undefined) {
-      fetchLocation();
+    if (location !== undefined || loading || addresses === undefined || countries === undefined) {
+      return;
     }
+    return startEffectTask(fetchLocation);
   }, [loading, location, addresses, countries, fetchLocation]);
 
   const refetch = async (): Promise<void> => {

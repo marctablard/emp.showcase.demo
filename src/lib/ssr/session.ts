@@ -1,9 +1,36 @@
 import { cache } from 'react';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type { Site } from '@/platform/services/model/common/site';
 import type { Session } from '@/platform/services/model/session';
 import type { SessionService } from '@/platform/services/session';
 import type { SiteService } from '@/platform/services/site/SiteService';
 import ssr from '@/platform/ssr';
+
+/**
+ * Mirrors `EmporixSessionService.isCurrencySupportedOnSite` (defaultCurrency id/code +
+ * `currencies[].id/code`) without importing the service class into SSR.
+ */
+function isCurrencySupportedOnSite(site: Site, currency: string | undefined): boolean {
+  if (!currency) {
+    return false;
+  }
+  const supported = new Set<string>();
+  if (site.defaultCurrency?.id) {
+    supported.add(site.defaultCurrency.id);
+  }
+  if (site.defaultCurrency?.code) {
+    supported.add(site.defaultCurrency.code);
+  }
+  for (const entry of site.currencies ?? []) {
+    if (entry.id) {
+      supported.add(entry.id);
+    }
+    if (entry.code) {
+      supported.add(entry.code);
+    }
+  }
+  return supported.has(currency);
+}
 
 const getSessionService = () => ssr.get<SessionService>('SessionService');
 const getLogger = () => ssr.get<LoggerService>('LoggerService');
@@ -31,7 +58,8 @@ const _getSession = cache(async (): Promise<Session | null | undefined> => {
  *
  * This helper closes that gap at SSR: when `currentSession.siteCode !== urlSiteCode`
  * (and the target site is valid) it calls `SessionService.setSite(...)` with the
- * target site's default currency and re-fetches the session so it can be seeded into
+ * current session currency when the target site lists it, otherwise the target
+ * site's default currency, then re-fetches the session so it can be seeded into
  * the stores already aligned. Never throws — on failure, returns the original session
  * and lets the client-side `SiteSessionAligner` fallback handle reconciliation.
  */
@@ -53,17 +81,19 @@ async function _alignSessionSite(currentSession: Session, urlSiteCode: string): 
       return currentSession;
     }
 
-    const defaultCurrency = targetSite.defaultCurrency?.id;
+    const currency = isCurrencySupportedOnSite(targetSite, currentSession.currency)
+      ? currentSession.currency
+      : targetSite.defaultCurrency?.id;
     logger.info(
       {
         event: 'ssr_session_site_align',
         fromSite: currentSession.siteCode,
         toSite: urlSiteCode,
-        defaultCurrency,
+        currency,
       },
       'SSR aligning session siteCode with URL',
     );
-    await sessionService.setSite(urlSiteCode, defaultCurrency);
+    await sessionService.setSite(urlSiteCode, currency);
     const refreshed = await sessionService.getCurrent();
     return refreshed || currentSession;
   } catch (error) {
@@ -80,6 +110,52 @@ async function _alignSessionSite(currentSession: Session, urlSiteCode: string): 
 }
 
 /**
+ * A `next-currency` cookie that the current site does not list is copied onto the
+ * anonymous session at token issue. Drop that currency back to the site default
+ * so prices and tier rows are matched in a currency the shop actually sells.
+ */
+async function _alignUnsupportedSessionCurrency(currentSession: Session): Promise<Session | null | undefined> {
+  if (!currentSession.siteCode || !currentSession.currency) {
+    return currentSession;
+  }
+
+  const logger = getLogger();
+  try {
+    const siteService = ssr.get<SiteService>('SiteService');
+    const site = await siteService.getSite(currentSession.siteCode);
+    if (!site || isCurrencySupportedOnSite(site, currentSession.currency)) {
+      return currentSession;
+    }
+    const fallback = site.defaultCurrency?.id || site.defaultCurrency?.code;
+    if (!fallback || fallback === currentSession.currency) {
+      return currentSession;
+    }
+    logger.info(
+      {
+        event: 'ssr_session_currency_align',
+        siteCode: currentSession.siteCode,
+        fromCurrency: currentSession.currency,
+        toCurrency: fallback,
+      },
+      'SSR resetting session currency that the site does not list',
+    );
+    await getSessionService().setCurrency(fallback);
+    const refreshed = await getSessionService().getCurrent();
+    return refreshed || { ...currentSession, currency: fallback };
+  } catch (error) {
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        siteCode: currentSession.siteCode,
+        currency: currentSession.currency,
+      },
+      'SSR session currency align failed — returning the current session',
+    );
+    return currentSession;
+  }
+}
+
+/**
  * Fetches the current session and aligns it with the URL-derived `siteCode` when the
  * two disagree (see `_alignSessionSite` for rationale). Returns the possibly-updated
  * session. Cached per-request (same request → same value).
@@ -89,7 +165,11 @@ const _getSessionForSite = cache(async (urlSiteCode: string): Promise<Session | 
   if (!session) {
     return session;
   }
-  return _alignSessionSite(session, urlSiteCode);
+  const siteAligned = await _alignSessionSite(session, urlSiteCode);
+  if (!siteAligned) {
+    return siteAligned;
+  }
+  return _alignUnsupportedSessionCurrency(siteAligned);
 });
 
 const _setSessionLanguage = cache(async (language: string): Promise<void> => {

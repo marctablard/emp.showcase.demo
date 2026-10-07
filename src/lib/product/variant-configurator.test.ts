@@ -81,14 +81,14 @@ describe('isVariantConfiguratorProduct', () => {
     ).toBe(false);
   });
 
-  it('returns true for dynamic variant families', () => {
+  it('returns false for dynamic variant families (family selector)', () => {
     expect(
       isVariantConfiguratorProduct({
         id: 'K10-Mat-10081',
         productType: 'DYNAMIC_VARIANT',
         parentVariantId: 'K10-Mat',
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('returns false for classic parent variant products with template attributes', () => {

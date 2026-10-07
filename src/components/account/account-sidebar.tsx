@@ -68,8 +68,10 @@ export function AccountSidebar({ className, items, groups = [], scrollable = tru
   return (
     <nav
       className={cn(
-        'flex flex-col min-w-[180px] lg:min-w-[288px] items-start rounded-md h-full py-4 shadow-sm',
-        scrollable && 'overflow-y-auto',
+        'flex flex-col min-w-[180px] md:min-w-[288px] items-start rounded-md h-full py-4 shadow-sm',
+        // Cap remaining viewport under the header so the rail can scroll when main is short.
+        scrollable &&
+          'overflow-y-auto min-h-0 overscroll-contain max-h-[calc(100dvh-11rem)] md:max-h-[calc(100dvh-15rem)]',
         className,
       )}
       {...props}

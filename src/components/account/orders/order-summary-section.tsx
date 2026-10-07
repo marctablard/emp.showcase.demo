@@ -1,7 +1,6 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { format } from 'date-fns';
 import {
   AccountSpecTable,
   SpecFullWidthRow,
@@ -12,6 +11,7 @@ import {
 import { AddressDisplay } from '@/components/common/address-display';
 import UiLink from '@/components/ui/link';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
+import { formatDate } from '@/lib/date-utils';
 import type { Order } from '@/platform/services/model/order/order';
 
 interface OrderSummarySectionProps {
@@ -75,11 +75,11 @@ export function OrderSummarySection({ order, siteName }: OrderSummarySectionProp
         <SpecRow
           left={{
             label: tOrder('orderDate'),
-            value: order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-',
+            value: order.createdAt ? formatDate(order.createdAt, locale) : '-',
           }}
           right={{
             label: tOrder('lastUpdated'),
-            value: showLastUpdated ? format(new Date(order.lastStatusChange!), 'PPP') : '-',
+            value: showLastUpdated && order.lastStatusChange ? formatDate(order.lastStatusChange, locale) : '-',
           }}
         />
         <SpecRow
@@ -97,7 +97,13 @@ export function OrderSummarySection({ order, siteName }: OrderSummarySectionProp
             left={{
               label: tOrder('relatedQuote'),
               value: (
-                <UiLink href={`/account/quotes/${order.quoteId}`} type="Link" variant="primary" size="m">
+                <UiLink
+                  href={`/account/quotes/${order.quoteId}`}
+                  type="Link"
+                  variant="primary"
+                  size="m"
+                  data-testid="order-relatedQuote"
+                >
                   #{order.quoteId}
                 </UiLink>
               ),
@@ -135,6 +141,11 @@ export function OrderSummarySection({ order, siteName }: OrderSummarySectionProp
             label: tOrder('shippingMethod'),
             value: shippingMethod || tOrder('shippingMethodUnknown'),
           }}
+          right={
+            order.expectedDeliveryDate
+              ? { label: tOrder('deliveryDate'), value: formatDate(order.expectedDeliveryDate, locale) }
+              : undefined
+          }
         />
         <SpecFullWidthRow label={tOrder('shippingAddress')}>
           {order.shippingAddress ? (

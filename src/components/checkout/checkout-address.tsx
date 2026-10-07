@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { CheckedState } from '@radix-ui/react-checkbox';
 import { isEqual, omit } from 'lodash';
@@ -43,11 +43,17 @@ const CheckoutAddress: React.FC<CheckoutAddressProps> = ({
 
   const [isSame, setIsSame] = useState<boolean>(initialSameState);
 
-  useEffect(() => {
-    if (!sameAs || !address) return;
-    setIsSame(initialSameState);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, sameAs]);
+  // Re-evaluate whether billing still matches shipping whenever either address changes. Adjusted
+  // during render rather than from an effect; compared by content because the parent hands down
+  // fresh address objects, and an identity comparison here would never converge.
+  const addressesKey = JSON.stringify([address, sameAs?.referenceAddress]);
+  const [prevAddressesKey, setPrevAddressesKey] = useState(addressesKey);
+  if (prevAddressesKey !== addressesKey) {
+    setPrevAddressesKey(addressesKey);
+    if (sameAs && address) {
+      setIsSame(initialSameState);
+    }
+  }
 
   const handleSameAddressToggle = (checked: CheckedState) => {
     setIsSame(checked.valueOf() as boolean);

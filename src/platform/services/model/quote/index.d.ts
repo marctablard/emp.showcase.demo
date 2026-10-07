@@ -22,10 +22,32 @@ export interface Quote {
   totalGross: number;
   totalNet: number;
   totalVat: number;
+  /**
+   * Goods-only net from Emporix `subtotalPrice.netValue` when present.
+   * Prefer for Quoted Price “Net value of goods”; `totalNet` may include shipping.
+   */
+  subtotalNet?: number;
+  /** Goods-only tax from Emporix `subtotalPrice.taxValue`. */
+  subtotalVat?: number;
+  /** Single taxAggregate rate when present; display VAT % uses item `taxRate` instead. */
+  vatRate?: number;
+  /** Shipping VAT % from Emporix `shipping.taxRate` (independent of goods item rates). */
+  shippingTaxRate?: number;
+  /** Full VAT breakdown from Emporix. Goods VAT % is taken from item `taxRate` values, not this aggregate. */
+  taxAggregate?: {
+    lines: Array<{
+      name: string;
+      amount: number;
+      rate: number;
+      taxable: number;
+    }>;
+  };
   items: QuoteItem[];
   cartId?: string;
   shippingAddress: CheckoutAddress;
   shippingCost: number;
+  /** Emporix `shipping.grossValue` — used with shippingCost for shipping tax. */
+  shippingGross?: number;
   shippingMethod: string;
   userComment?: string;
 }
@@ -54,9 +76,26 @@ export interface QuoteItem {
 
 export interface QuoteItemProduct {
   quantity: number;
-  itemPrice: ApprovalPrice;
+  itemPrice: QuoteItemPrice;
   id: string;
   name?: string | LocalizedString;
+}
+
+export interface QuoteItemPrice {
+  amount: number;
+  currency: string;
+  baseAmount?: number;
+  tax?: number;
+  grossValue?: number;
+  netValue?: number;
+  /** Original net unit price before quote discount (`unitPrice` from API). */
+  unitPrice?: number;
+  /** Discounted net unit price (`newUnitPrice` from API). */
+  newUnitPrice?: number;
+  /** Discount percentage (e.g. 35 for 35%). */
+  discount?: number;
+  /** Item tax rate percent from `price.tax.taxRate`. */
+  taxRate?: number;
 }
 
 export type CreateQuoteInput = EmporixCreateQuoteRequest;

@@ -76,4 +76,30 @@ describe('EmporixSessionMapper', () => {
       ).toBe('68622659f812a728c0bad17f');
     });
   });
+
+  it('maps an attribute-shaped legalEntityId context value to its string value', () => {
+    const result = mapper.mapToService({
+      sessionId: 'sess-le',
+      siteCode: 'main',
+      currency: 'EUR',
+      context: {
+        legalEntityId: { key: 'legalEntityId', value: 'le-selected' },
+      },
+    });
+
+    expect(result.legalEntityId).toBe('le-selected');
+  });
+
+  it('maps a string legalEntityId context value', () => {
+    const result = mapper.mapToService({
+      sessionId: 'sess-le-string',
+      siteCode: 'main',
+      currency: 'EUR',
+      context: {
+        legalEntityId: 'le-direct',
+      },
+    });
+
+    expect(result.legalEntityId).toBe('le-direct');
+  });
 });

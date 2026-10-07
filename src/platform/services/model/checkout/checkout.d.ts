@@ -57,6 +57,13 @@ export interface OrderShipping {
   methodName: string;
   amount: number;
   taxCode?: string;
+  /**
+   * Quote `shipping.grossValue`. Approval GET has net `amount` only;
+   * QUOTE approvals overlay this from Quote Service (shipping tax = gross − amount).
+   */
+  grossAmount?: number;
+  /** Shipping VAT % from quote `shipping.taxRate` or checkout shipping when present. */
+  taxRate?: number;
 }
 
 /**

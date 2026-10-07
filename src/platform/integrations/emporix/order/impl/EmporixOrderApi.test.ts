@@ -2,7 +2,9 @@ import { Container } from 'inversify';
 import EmporixCartApi from '../../cart/impl/EmporixCartApi';
 import EmporixCheckoutApi from '../../checkout/impl/EmporixCheckoutApi';
 import { EmporixTokenManager } from '../../common/EmporixTokenManager';
+import { retryOnTransientEmporixError } from '../../common/emporix-integration-retry';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
 import EmporixCustomerApi from '../../customer/impl/EmporixCustomerApi';
@@ -125,17 +127,20 @@ const createCheckoutRequest = (
 /**
  * Helper: create a cart, add an item, perform guest checkout, return orderId.
  * Uses the checkout API which is proven to work (see EmporixCheckoutApi.test.ts).
+ * Fresh cart per attempt — a 504/TARGET_READ_TIMEOUT may leave the cart consumed.
  */
 async function createOrderViaCheckout(
   cartApi: EmporixCartApi,
   checkoutApi: EmporixCheckoutApi,
   email: string = 'guest@example.com',
 ): Promise<string> {
-  const cartId = await cartApi.createCart(sampleCreateCartRequest);
-  await cartApi.addItemToCart(cartId, sampleAddItemRequest);
-  const checkoutRequest = createCheckoutRequest(cartId, true, email);
-  const checkoutResponse = await checkoutApi.guestCheckout(checkoutRequest);
-  return checkoutResponse.orderId;
+  return retryOnTransientEmporixError(async () => {
+    const cartId = await cartApi.createCart(sampleCreateCartRequest);
+    await cartApi.addItemToCart(cartId, sampleAddItemRequest);
+    const checkoutRequest = createCheckoutRequest(cartId, true, email);
+    const checkoutResponse = await checkoutApi.guestCheckout(checkoutRequest);
+    return checkoutResponse.orderId;
+  });
 }
 
 describe('EmporixOrderApi', () => {
@@ -159,6 +164,8 @@ describe('EmporixOrderApi', () => {
           new EmporixApiInvoker(
             ctx.get<EmporixConfig>('EmporixConfig'),
             ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
           ),
       )
       .inSingletonScope();
@@ -187,7 +194,7 @@ describe('EmporixOrderApi', () => {
     beforeAll(async () => {
       createdOrderId = await createOrderViaCheckout(cartApi, checkoutApi);
       expect(createdOrderId).toBeDefined();
-    }, 30000);
+    }, 90000);
 
     // Clean up after all tests
     afterAll(async () => {
@@ -303,14 +310,16 @@ describe('EmporixOrderApi', () => {
       await apiInvoker.clearTokens();
       await customerApi.login(username, password);
 
-      // Create a customer-owned order via the checkout flow
-      const customerCartId = await getOrCreateCustomerCartId();
-      await addItemToCustomerCart(customerCartId);
-      const checkoutRequest = createCheckoutRequest(customerCartId, false, username, customerId);
-      const checkoutResponse = await checkoutApi.checkout(checkoutRequest);
-      customerOrderId = checkoutResponse.orderId;
+      // Create a customer-owned order via the checkout flow (retry transient gateway timeouts)
+      customerOrderId = await retryOnTransientEmporixError(async () => {
+        const customerCartId = await getOrCreateCustomerCartId();
+        await addItemToCustomerCart(customerCartId);
+        const checkoutRequest = createCheckoutRequest(customerCartId, false, username, customerId);
+        const checkoutResponse = await checkoutApi.checkout(checkoutRequest);
+        return checkoutResponse.orderId;
+      });
       expect(customerOrderId).toBeDefined();
-    }, 30000);
+    }, 90000);
 
     afterAll(async () => {
       try {
@@ -372,7 +381,7 @@ describe('EmporixOrderApi', () => {
 
       const itemId = await cartApi.addItemToCart(guestCartId, sampleAddItemRequest);
       expect(itemId).toBeDefined();
-    }, 15000);
+    }, 45000);
 
     afterEach(async () => {
       try {
@@ -386,8 +395,19 @@ describe('EmporixOrderApi', () => {
     }, 10000);
 
     it('should create an order via guest checkout and retrieve it in the same session', async () => {
-      const checkoutRequest = createCheckoutRequest(guestCartId, true, guestEmail);
-      const checkoutResponse = await checkoutApi.guestCheckout(checkoutRequest);
+      // Fresh cart per attempt: 504/TARGET_READ_TIMEOUT may leave the cart consumed.
+      const checkoutResponse = await retryOnTransientEmporixError(async () => {
+        if (!guestCartId) {
+          guestCartId = await cartApi.createCart(sampleCreateCartRequest);
+          await cartApi.addItemToCart(guestCartId, sampleAddItemRequest);
+        }
+        try {
+          return await checkoutApi.guestCheckout(createCheckoutRequest(guestCartId, true, guestEmail));
+        } catch (error) {
+          guestCartId = '';
+          throw error;
+        }
+      });
 
       expect(checkoutResponse).toBeDefined();
       expect(checkoutResponse.orderId).toBeDefined();
@@ -409,6 +429,6 @@ describe('EmporixOrderApi', () => {
 
       const foundOrder = customerOrders.find((order) => order.id === guestOrderId);
       expect(foundOrder).toBeDefined();
-    }, 60000);
+    }, 90000);
   });
 });

@@ -100,7 +100,7 @@ Use it to pre-render a limited set of pages that are important for SEO/performan
 
 Example in this project:
 
-- `src/app/[site]/[locale]/(default)/product/[id]/page.tsx`
+- `src/app/[site]/[locale]/(nav-shell)/(default)/product/[id]/page.tsx`
   - uses `generateStaticParams()` to generate a subset of product IDs
   - controlled by `NEXT_SSG_PRODUCT_COUNT`
   - if `NEXT_SSG_PRODUCT_COUNT <= 0`, it returns `[]` (effectively disabling SSG for that route)
@@ -154,3 +154,10 @@ Important:
 - Does `revalidate` match the expected content update frequency?
 - If using `generateStaticParams()`, is the param set bounded and build-time safe?
 - Do we need a cache middleware rule override for this URL pattern?
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Cache Middleware](./cache-middleware.md)
+- [Layered Architecture](./layered-architecture.md)
+- [Site Middleware](./site-middleware.md)

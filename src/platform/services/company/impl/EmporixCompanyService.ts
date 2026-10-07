@@ -22,6 +22,7 @@ import type { SessionService } from '../../session';
 import type { CompanyService } from '../CompanyService';
 
 const PREDEFINED_MANAGED_ROLES: CompanyRole[] = ['ADMIN', 'BUYER', 'REQUESTER'];
+const TEAM_PAGE_SIZE = 200;
 
 @injectable('CompanyService', 'Singleton')
 export class EmporixCompanyService implements CompanyService {
@@ -176,18 +177,21 @@ export class EmporixCompanyService implements CompanyService {
     const groups = await this.getCompanyGroupEntities(resolvedId);
 
     const [assignments, groupUserLists] = await Promise.all([
-      this.customerManagementApi.getContactAssignmentsByLegalEntityId(resolvedId).catch((err) => {
-        this.logger.warn(
-          { err: err instanceof Error ? err : String(err), legalEntityId: resolvedId },
-          'Failed to load contact assignments',
-        );
-        return [] as EmporixContactAssignment[];
-      }),
+      this.customerManagementApi
+        .getContactAssignmentsByLegalEntityId(resolvedId, 1, TEAM_PAGE_SIZE)
+        .then((page) => page.items)
+        .catch((err) => {
+          this.logger.warn(
+            { err: err instanceof Error ? err : String(err), legalEntityId: resolvedId },
+            'Failed to load contact assignments',
+          );
+          return [] as EmporixContactAssignment[];
+        }),
       Promise.all(
         groups.map((group) =>
           this.iamApi
-            .getGroupUsers(group.id)
-            .then((users) => users.map((u) => u.userId))
+            .getGroupUsers(group.id, { size: TEAM_PAGE_SIZE })
+            .then((users) => users.items.map((u) => u.userId).filter((id): id is string => Boolean(id)))
             .catch(() => [] as string[]),
         ),
       ),
@@ -421,7 +425,7 @@ export class EmporixCompanyService implements CompanyService {
 
     for (const group of groups) {
       try {
-        const users = await this.iamApi.getGroupUsers(group.id);
+        const { items: users } = await this.iamApi.getGroupUsers(group.id, { size: TEAM_PAGE_SIZE });
         const isMember = users.some((user) => user.userId === customerId);
         const shouldBeMember = target.has(group.id);
 
@@ -449,7 +453,7 @@ export class EmporixCompanyService implements CompanyService {
 
     for (const group of groups) {
       try {
-        const users = await this.iamApi.getGroupUsers(group.id);
+        const { items: users } = await this.iamApi.getGroupUsers(group.id, { size: TEAM_PAGE_SIZE });
         if (users.some((user) => user.userId === customerId)) {
           await this.iamApi.removeUserFromGroup(group.id, customerId);
         }
@@ -462,7 +466,11 @@ export class EmporixCompanyService implements CompanyService {
     }
 
     try {
-      const assignments = await this.customerManagementApi.getContactAssignmentsByLegalEntityId(resolvedId);
+      const { items: assignments } = await this.customerManagementApi.getContactAssignmentsByLegalEntityId(
+        resolvedId,
+        1,
+        TEAM_PAGE_SIZE,
+      );
       for (const assignment of assignments) {
         if (assignment.customer?.id === customerId && assignment.id) {
           await this.customerManagementApi.deleteContactAssignment(assignment.id);

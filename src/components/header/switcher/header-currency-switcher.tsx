@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import type { IconName } from 'lucide-react/dynamic';
 import { DynamicIcon } from 'lucide-react/dynamic';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
@@ -12,11 +12,16 @@ import { useGlobalSyncReady } from '@/hooks/common/useGlobalSyncReady';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
 import { useL10n } from '@/hooks/useL10n';
+import { usePathname, useRouter } from '@/i18n/navigation';
+import { currencySwitchBlockedCopy } from '@/lib/common/currency-switch-message';
+import { storefrontCurrencyHrefAfterSwitch } from '@/lib/common/currency-url';
 
 function CurrencySwitcherContent() {
   const { session, loading: sessionLoading, setCurrency } = useSession();
   const { l10n } = useL10n();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useTranslations('common.Currencies');
   const tRegions = useTranslations('common.Regions');
   const { currencies, loading: siteLoading, site } = useSite();
@@ -57,15 +62,22 @@ function CurrencySwitcherContent() {
     try {
       const result = await setCurrency(currency);
       if (result.success) {
+        const nextHref = storefrontCurrencyHrefAfterSwitch(pathname, searchParams.toString(), currency);
+        if (nextHref) {
+          router.replace(nextHref, { scroll: false });
+        }
         router.refresh();
       } else if (result.cartCurrencyBlocked) {
+        const blocked = currencySwitchBlockedCopy(fromCurrency, currency, result.couponCodes);
         notify({
-          title: tRegions('currencySwitchCartBlocked', {
-            fromCurrency,
-            toCurrency: currency,
-          }),
+          title: tRegions(blocked.key, blocked.values),
           type: ToastType.Info,
           duration: 8000,
+        });
+      } else {
+        notify({
+          title: t('switchFailed'),
+          type: ToastType.Error,
         });
       }
     } finally {

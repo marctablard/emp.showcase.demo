@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { hasResolvedWidgetPayload } from '@/lib/common/ai-tool-widgets';
+import { UnrecognizedResponseFallback } from './UnrecognizedResponseFallback';
 import { AccountDetailsRenderer } from './renderers/AccountDetailsRenderer';
 import { AddressListRenderer } from './renderers/AddressListRenderer';
 import { CartSummaryRenderer } from './renderers/CartSummaryRenderer';
@@ -16,6 +18,7 @@ import { QuoteListRenderer } from './renderers/QuoteListRenderer';
 import { ReturnDetailsRenderer } from './renderers/ReturnDetailsRenderer';
 import { ReturnListRenderer } from './renderers/ReturnListRenderer';
 import { TableRenderer } from './renderers/TableRenderer';
+import { WidgetSkeleton } from './renderers/WidgetSkeleton';
 import type {
   AccountDetailsData,
   AddressListData,
@@ -34,14 +37,23 @@ import type {
   StructuredDataType,
   TableData,
 } from './types';
+import { UNRECOGNIZED_RESPONSE_TYPE } from './utils/unrecognized-response';
 
 interface StructuredDataRendererProps {
   type: StructuredDataType | string;
   data: any;
   handlers: StructuredDataHandlers;
+  streaming?: boolean;
 }
 
-export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ type, data, handlers }) => {
+export { hasResolvedWidgetPayload } from '@/lib/common/ai-tool-widgets';
+
+export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({
+  type,
+  data,
+  handlers,
+  streaming = false,
+}) => {
   const t = useTranslations('account.AiHelper');
 
   const handleAddToCart = (productId: string, quantity: number) => {
@@ -51,6 +63,14 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
       handlers.handleQuestionSubmit({ question: message });
     });
   };
+
+  if (type === UNRECOGNIZED_RESPONSE_TYPE) {
+    return <UnrecognizedResponseFallback data={data} />;
+  }
+
+  if (type !== 'text' && type !== 'html' && !hasResolvedWidgetPayload(type, data)) {
+    return streaming ? <WidgetSkeleton /> : <UnrecognizedResponseFallback data={data} />;
+  }
 
   switch (type) {
     case 'cart_summary':
@@ -93,19 +113,13 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
       return <HTMLRenderer data={data as HTMLData} />;
 
     case 'text':
-      // For text type, only the message content should be displayed
+      // Intro + nested data.message are rendered by ChatMessage.
       return null;
 
     case 'error':
       return <ErrorRenderer data={data as ErrorData} {...handlers} />;
 
     default:
-      return (
-        <div className="text-sm text-text-body">
-          <pre className="text-sm bg-surface-primary p-3 rounded border overflow-x-auto">
-            {JSON.stringify(data, null, 2)}
-          </pre>
-        </div>
-      );
+      return <UnrecognizedResponseFallback data={data} />;
   }
 };

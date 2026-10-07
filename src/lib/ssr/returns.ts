@@ -7,6 +7,11 @@ import type { OrderService } from '@/platform/services/order/OrderService';
 import type { ReturnService } from '@/platform/services/return/ReturnService';
 import ssr from '@/platform/ssr';
 
+export interface SsrReturnsPageResult {
+  items: Return[];
+  totalCount?: number;
+}
+
 /**
  * Get the return service instance from the platform container
  */
@@ -58,13 +63,21 @@ async function enrichReturnWithOrderData(returnData: Return): Promise<Return> {
       items: returnOrder.items.map((item): ReturnItem => {
         const orderItem = orderItemMap.get(`${returnOrder.id}:${item.id}`);
         if (!orderItem) return item;
+
+        let fallbackNetPrice: ReturnItem['netPrice'];
+        if (orderItem.netUnitValue !== undefined && orderItem.currency) {
+          fallbackNetPrice = { value: orderItem.netUnitValue, currency: orderItem.currency };
+        } else if (orderItem.originalNetUnitValue !== undefined && orderItem.currency) {
+          fallbackNetPrice = { value: orderItem.originalNetUnitValue, currency: orderItem.currency };
+        }
+
         return {
           ...item,
           productId: item.productId ?? orderItem.productId,
           images: item.images ?? orderItem.images,
           itemNumber: item.itemNumber ?? orderItem.sku,
           brand: item.brand ?? orderItem.vendorName,
-          vendorName: orderItem.vendorName,
+          vendorName: item.vendorName ?? orderItem.vendorName,
           calculatedUnitPrice:
             item.calculatedUnitPrice && !item.calculatedUnitPrice.currency && orderItem.currency
               ? { ...item.calculatedUnitPrice, currency: orderItem.currency }
@@ -81,13 +94,7 @@ async function enrichReturnWithOrderData(returnData: Return): Promise<Return> {
             (orderItem.grossValue !== undefined && orderItem.currency
               ? { value: orderItem.grossValue, currency: orderItem.currency }
               : undefined),
-          netPrice:
-            item.netPrice ??
-            (orderItem.netUnitValue !== undefined && orderItem.currency
-              ? { value: orderItem.netUnitValue, currency: orderItem.currency }
-              : orderItem.originalNetUnitValue !== undefined && orderItem.currency
-                ? { value: orderItem.originalNetUnitValue, currency: orderItem.currency }
-                : undefined),
+          netPrice: item.netPrice ?? fallbackNetPrice,
         };
       }),
     }));
@@ -134,3 +141,33 @@ export const getReturns = cache(async (pageNumber?: number, pageSize?: number): 
     return undefined;
   }
 });
+
+/**
+ * Get a paged returns result for SSR with the same shape used by client pagination.
+ */
+export const getReturnsPage = cache(
+  async (
+    pageNumber: number = 1,
+    pageSize: number = 60,
+    sort?: string,
+    query?: string,
+  ): Promise<SsrReturnsPageResult | undefined> => {
+    try {
+      const returnService = getReturnService();
+      const result = await returnService.listReturns(pageNumber, pageSize, sort, query);
+      return result;
+    } catch (error) {
+      getLogger().error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          pageNumber,
+          pageSize,
+          sort,
+          query,
+        },
+        'SSR getReturnsPage failed',
+      );
+      return undefined;
+    }
+  },
+);

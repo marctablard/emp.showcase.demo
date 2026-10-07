@@ -1,7 +1,29 @@
+import { compareByPosition } from '@/lib/category/category-tree-utils';
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixCategory } from '@/platform/integrations/emporix/model';
+import type { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
 import type { Category } from '@/platform/services/model/category';
 import type { CategoryMapper } from '../CategoryMapper';
+
+/**
+ * Maps GET /category-trees nodes (localized* + subcategories) to domain {@link Category}.
+ */
+export function mapEmporixCategoryTreeToCategory(node: EmporixCategoryTree): Category {
+  const sortedSubs = (node.subcategories ?? []).slice().sort(compareByPosition);
+  const children =
+    sortedSubs.length > 0 ? sortedSubs.map((child) => mapEmporixCategoryTreeToCategory(child)) : undefined;
+
+  return {
+    id: node.id,
+    code: node.code,
+    name: node.localizedName,
+    description: node.localizedDescription,
+    slug: node.localizedSlug,
+    published: node.published,
+    parent: node.parentId,
+    position: node.position,
+    ...(children && children.length > 0 ? { children } : {}),
+  };
+}
 
 /**
  * Specialized mapper for transforming Emporix category data to internal Category model.
@@ -9,27 +31,17 @@ import type { CategoryMapper } from '../CategoryMapper';
 @injectable('EmporixCategoryMapper', 'Singleton')
 class EmporixCategoryMapper implements CategoryMapper<EmporixCategory> {
   mapToService(source: EmporixCategory): Category {
-    // /category-trees returns localizedName for the localized map; other endpoints
-    // may return name as a plain string or as a localized map. Prefer localizedName.
-    const name = source.localizedName ?? source.name ?? {};
-    const description = source.localizedDescription ?? source.description;
-    const slug = source.localizedSlug ?? source.slug;
-
-    // /category-trees nests children under "subcategories"; other endpoints use "children"
-    const nested = source.subcategories ?? source.children;
-
     return {
       id: source.id,
       code: source.code,
-      name: name as Category['name'],
-      description: description as Category['description'],
+      name: source.name,
+      description: source.description,
       shortDescription: source.shortDescription,
-      slug: slug as Category['slug'],
+      slug: source.slug,
       published: source.published,
       visible: source.visible,
       parent: source.parentId,
       position: source.position,
-      children: nested?.map((child) => this.mapToService(child)),
       media: source.media,
       metadata: source.metadata,
       mixins: source.mixins,

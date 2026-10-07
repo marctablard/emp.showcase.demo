@@ -218,7 +218,7 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
     const response = await this.apiInvoker.authenticatedFetch(
       url,
       {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',

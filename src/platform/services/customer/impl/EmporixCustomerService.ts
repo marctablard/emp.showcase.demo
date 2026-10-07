@@ -3,7 +3,6 @@ import { isAnonymousProfileCustomerId } from '@/lib/common/customer-identity';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixIamApi } from '@/platform/integrations/emporix/iam/EmporixIamApi';
-import type { EmporixAddress } from '@/platform/integrations/emporix/model';
 import type { EmporixCustomerAddress } from '@/platform/integrations/emporix/model/customer';
 import type { EmporixGroup } from '@/platform/integrations/emporix/model/iam';
 import type { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
@@ -49,8 +48,8 @@ export class EmporixCustomerService implements CustomerService {
       const iamResponse = await this.iamApi.getUserGroups(response.id);
       // TODO more finegrained role-management
       const roles = iamResponse.items
-        .filter((group: EmporixGroup) => group.code)
-        .map((group: EmporixGroup) => group.code);
+        .filter((group: EmporixGroup): group is EmporixGroup & { code: string } => typeof group.code === 'string')
+        .map((group) => group.code);
       roles.push(CustomerRole.CUSTOMER);
       roles.push(response.businessModel ? CustomerRole.B2B : CustomerRole.B2C);
 
@@ -242,9 +241,12 @@ export class EmporixCustomerService implements CustomerService {
     }
   }
 
-  private mapFromCustomerAddress(source: CustomerAddress): EmporixAddress {
-    const emporixAddress = this.addressMapper.mapToSource(source);
+  private mapFromCustomerAddress(source: CustomerAddress): Partial<EmporixCustomerAddress> {
+    const emporixAddress: Partial<EmporixCustomerAddress> = this.addressMapper.mapToSource(source);
     emporixAddress.tags = source.tags || [];
+    if (source.isDefault !== undefined) {
+      emporixAddress.isDefault = source.isDefault;
+    }
     return emporixAddress;
   }
 

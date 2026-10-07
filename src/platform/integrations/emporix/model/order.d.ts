@@ -51,11 +51,13 @@ export interface EmporixOrderEntry {
       netValue: number;
       grossValue: number;
       taxValue: number;
+      taxRate?: number;
     };
     finalPrice: {
       netValue: number;
       grossValue: number;
       taxValue: number;
+      taxRate?: number;
     };
   };
 }
@@ -88,6 +90,15 @@ export interface EmporixShipping {
     description?: string;
     amount: number;
     currency: string;
+    shippingTaxCode?: string;
+    tax?: {
+      rate?: number;
+      total?: {
+        amount: number;
+        currency: string;
+        inclusive?: boolean;
+      };
+    };
   }>;
 }
 
@@ -96,10 +107,24 @@ export interface EmporixShipping {
  */
 export interface EmporixDiscount {
   code: string;
-  amount: number;
+  /** Optional on some coupon rows (`discountRate` only); fall back to calculated applied amounts. */
+  amount?: number;
   currency: string;
   sequenceId?: number;
+  name?: string;
   description?: string;
+  /** YAML `discount.discountType` — `FREE_SHIPPING` coupons often have `amount: 0`. */
+  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+  /** YAML `discount.calculationType` — apply basis when `ApplyDiscountBeforeTax` | `ApplyDiscountAfterTax`. */
+  calculationType?: string;
+}
+
+/** YAML `calculatedAppliedDiscount` — id is optional on some Order API rows. */
+export interface EmporixCalculatedAppliedDiscount {
+  id?: string;
+  value: number;
+  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+  origin?: string;
 }
 
 /**
@@ -110,11 +135,47 @@ export interface EmporixOrderCalculatedPrice {
     netValue: number;
     grossValue: number;
     taxValue: number;
+    taxCode?: string;
+    taxRate?: number;
   };
   finalPrice: {
     netValue: number;
     grossValue: number;
     taxValue: number;
+    taxCode?: string;
+    taxRate?: number;
+  };
+  totalShipping?: {
+    netValue: number;
+    grossValue: number;
+    taxValue?: number;
+    taxCode?: string;
+    taxRate?: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
+  };
+  /** YAML `orderCalculatedPrice.discountedPrice` — goods after discounts. */
+  discountedPrice?: {
+    netValue: number;
+    grossValue: number;
+    taxValue: number;
+    taxCode?: string;
+    taxRate?: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
+  };
+  /** YAML `orderCalculatedPrice.totalFee` — fees after discounts. */
+  totalFee?: {
+    netValue: number;
+    grossValue: number;
+    taxValue?: number;
+    taxCode?: string;
+    taxRate?: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
+  };
+  /** YAML `orderCalculatedPrice.totalDiscount`. */
+  totalDiscount?: {
+    calculationType?: 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
+    value: number;
+    appliedDiscounts?: EmporixCalculatedAppliedDiscount[];
   };
 }
 
@@ -144,6 +205,12 @@ export interface EmporixOrder {
   status: EmporixOrderStatus;
   lastStatusChange?: string;
   creationDate?: string;
+  shipments?: Array<{
+    expectDeliveryOn?: string;
+  }>;
+  deliveryWindow?: {
+    deliveryDate?: string;
+  };
   entries: EmporixOrderEntry[];
   customer: EmporixOrderCustomer;
   billingAddress?: EmporixAddress;
@@ -151,6 +218,14 @@ export interface EmporixOrder {
   payments?: EmporixPayment[];
   discounts?: EmporixDiscount[];
   calculatedPrice?: EmporixOrderCalculatedPrice;
+  taxAggregate?: {
+    lines: Array<{
+      name?: string;
+      amount?: number;
+      rate?: number;
+      taxable?: number;
+    }>;
+  };
   totalAuthorizedAmount?: number;
   siteCode?: string;
   currency?: string;

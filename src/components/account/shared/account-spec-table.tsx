@@ -61,6 +61,22 @@ export function SpecRow({
   );
 }
 
+export type SpecEntry = { key: string; label: string; value: React.ReactNode };
+
+export function SpecPairRows({ entries }: { entries: SpecEntry[] }) {
+  const rows: SpecEntry[][] = [];
+  for (let index = 0; index < entries.length; index += 2) {
+    rows.push(entries.slice(index, index + 2));
+  }
+  return (
+    <>
+      {rows.map(([left, right]) => (
+        <SpecRow key={left.key} left={left} right={right} />
+      ))}
+    </>
+  );
+}
+
 export function SpecFullWidthRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <tr>

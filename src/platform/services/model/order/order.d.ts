@@ -57,6 +57,10 @@ export interface OrderShipping {
   total: {
     value: number;
     currency: string;
+    /** Shipping tax from `calculatedPrice.totalShipping.taxValue` when present. */
+    tax?: number;
+    /** Shipping tax rate (%) from `calculatedPrice.totalShipping.taxRate` or shipping line tax.rate. */
+    taxRate?: number;
   };
   methods?: Array<{
     id: string;
@@ -76,7 +80,12 @@ export interface OrderDiscount {
   value: number;
   currency: string;
   description?: string;
+  /** Published `discount.discountType` / applied-discount type; `FREE_SHIPPING` chips stay visible at 0. */
+  type?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
 }
+
+/** Published `calculatedPrice.totalDiscount.calculationType` — not YAML `discountCalculationType` SUBTOTAL/TOTAL. */
+export type TotalDiscountCalculationType = 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
 
 /**
  * Price information for an order
@@ -87,6 +96,8 @@ export interface OrderPrice {
     gross: number;
     tax: number;
     currency: string;
+    /** Goods tax rate (%) from a shared item `calculatedPrice.price.taxRate`; omit when item rates differ. */
+    taxRate?: number;
   };
   total: {
     net: number;
@@ -105,6 +116,7 @@ export interface Order {
   status: OrderStatus;
   siteCode?: string;
   createdAt?: string;
+  expectedDeliveryDate?: string;
   lastStatusChange?: string;
   items: OrderItem[];
   billingAddress?: Address;
@@ -112,6 +124,12 @@ export interface Order {
   payments?: OrderPayment[];
   shipping?: OrderShipping;
   discounts?: OrderDiscount[];
+  savingsTotal?: number;
+  totalDiscountCalculationType?: TotalDiscountCalculationType;
+  includesTax?: boolean;
+  goodsDiscountedNet?: number;
+  goodsDiscountedGross?: number;
+  goodsDiscountedVat?: number;
   price?: OrderPrice;
   currency?: string;
   customerEmail?: string;

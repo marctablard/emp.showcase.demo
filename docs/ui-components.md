@@ -14,7 +14,7 @@ This project provides a set of reusable UI components located in `src/components
 
 The following are some of the available components:
 
-- `Button`, `Input`, `Card`, `Dialog`, `Checkbox`, `Select`, `Tabs`, `Tooltip`, `Table`, `Accordion`, `Avatar`, `Badge`, `Breadcrumb`, `Carousel`, `DropdownMenu`, `Form`, `Label`, `Popover`, `Progress`, `RadioGroup`, `Rating`, `Separator`, `Sheet`, `Sidebar`, `Skeleton`, `Slider`, `Spinner`, `Switch`, `Textarea`, `ToastNotification`, and more.
+- `Button`, `Input`, `Card`, `Dialog`, `Checkbox`, `Select`, `Tabs`, `Tooltip`, `Table`, `Accordion`, `Avatar`, `Badge`, `Breadcrumb`, `Carousel`, `DropdownMenu`, `Form`, `Label`, `Popover`, `Progress`, `RadioGroup`, `Rating`, `Separator`, `Sheet`, `Sidebar`, `Skeleton`, `SkeletonFrame`, `Slider`, `Spinner`, `Switch`, `Textarea`, `ToastNotification`, and more.
 
 ## Usage Example
 
@@ -50,6 +50,29 @@ Thanks to cva and Tailwind, you can easily extend or customize components by pas
 - Use the variant system instead of custom classes when possible.
 - Refer to the source code for advanced usage or to add new variants.
 
+## Product Detail Page (PDP)
+
+Domain composition for the basic-product PDP lives outside `src/components/ui` but depends on the same tokens and primitives:
+
+| Component | Path | Role |
+|---|---|---|
+| `ProductDetail` | `src/components/product/product-detail.tsx` | Page shell: media, title block, key specs / highlights, purchase column, technical information |
+| `ProductPriceComponent` | `src/components/product/product-price.tsx` | Net-first price row (B2B): large net, small gross + VAT; COP-6239 qty-aware Your Price (`Your price (items {min} - {max})` / `{min}+`) only when the matched price has two or more tiers (a single `1+` row stays “Your price”); via `GET /api/products/{id}/price` with the current quantity (embedded unit price is not reused when quantity changes); discount badge wording; inline list price |
+| `ProductTierPrices` | `src/components/product/product-tier-prices.tsx` | Figma Tier Prices Table (`12799:113152`): Quantity / Price per unit; hidden when fewer than 2 tiers; active row by PDP quantity; net-first unit prices; trailing unit copy from `price.priceModelType` (`TIERED` → for units min–max / min+; `VOLUME` → for each unit) |
+| `ProductTile` | `src/components/product/product-tile.tsx` | PLP card: parent tiles show up to 6 **label-only** variant-axis badges (`+N` overflow); sellable variants show up to 3 value+label pairs (`+N` overflow). Order follows `templateAttributeOrder`. Badge max width is 75% of the image chip stack (`max-w-3/4`). |
+| `ProductVariantSelector` | `src/components/product/product-variant-selector.tsx` | Fetches the family for the **opened** `product.id` (`GET /api/products/{id}/variants`). Dual contract: classic `PARENT_VARIANT` / `VARIANT` via Product search `criteria: { parentVariantId }`; `DYNAMIC_VARIANT` via the root `variants` map. Composes interactive chips + always-shown sellable carousel. |
+| `ProductVariantAttributeGroups` | `src/components/product/product-variant-attribute-groups.tsx` | Figma Variant Selection (`12799:113082`): chips grouped by attribute. The opened product’s value is pinned first (so it stays inside the first 6). Blue background + thicker blue border = opened variant. Thicker black border = shopper filter (several values on one axis are OR; different axes are AND). Both = dashed blue border and dashed black outline. A value with no sellable member under the other axes is disabled. Clear all filters. Labels use localized `attribute.name` / `value.name` (a name that only repeats the key is still shown). A shared `value.unit` is appended as `Width (cm)`. |
+| `ProductVariantCarousel` | `src/components/product/product-variant-carousel.tsx` | Figma Sellable variants (`12799:113107`): always-shown horizontal cards (image or the shared `/images/no_image_alt.png` placeholder, unselected-attribute call-outs, net-first unit price). The opened product is listed first. An empty filter match keeps the panel and shows “There are no sellable variants matching your attribute selection.” Click navigates to `/product/{id}`. Dynamic families list `sellable === true` plus a disabled current non-sellable node. Truncated attribute values expose the full string in a hover tooltip; keyboard focus on the card unwraps the text (the card is already a button, so values are not nested focus targets). |
+| `ProductShippingInfo` | `src/components/product/product-shipping-info.tsx` | Delivery details + USP card |
+| `ProductDescription` | `src/components/product/product-description.tsx` | Sanitized, 3-line-clamped description with animated Show more / Show less |
+| `ProductLabels` | `src/components/product/product-labels.tsx` | Tenant product labels: icon image + name tooltip when `image` URL exists, else text badge |
+
+**Variant family (classic and dynamic):** `GET /api/products/[id]/variants` always takes the opened product id. Classic: `ProductService.getVariantProducts` GETs first, then searches `parentVariantId` (opened id for `PARENT_VARIANT`, the parent id for `VARIANT` so siblings match). Dynamic: resolve the root from `parentVariantPath` (last index) and GET-walk until a `variants` map exists; do not use `ownVariantAttributes` as the selector source. In assigned mode the opened id must be in segment scope before the classic search or that walk, otherwise the family is empty. When the opened product is already the dynamic root, that GET is reused. The sellable list is always shown. Last-seen fly-out (`src/components/product/product-tile-fly-out.tsx`) uses the same COP-6384 display names as PDP chips.
+
+**Key specifications vs Technical Information:** Key specifications shows only `highlight: true` specs (group label + HR when 2+ groups) plus `templateAttributes` as “Basic Specifications”. Technical Information shows all `groupedSpecifications`, with `templateAttributes` as the first “Basic Attributes” column. Template and variant-attribute labels come from Product Templates `attributes[].name` via service-scoped `GET /product/{tenant}/product-templates/{id}` (`product.product_template_read`), using the product’s `template.id` / `template.version`. A localized name is shown as written, including hyphens and underscores (`Number-Attribute`, `Max-Operating-Pressure`), and a name that only repeats the attribute key is shown too. A distinct Product Templates label still wins over that key echo. Display uses `l10n`: current locale → site fallback language (if present) → default locale → `-` only when no name exists. Not i18n keys. DATETIME / ISO and NUMBER values use the shared locale formatters (`formatDate` / `Intl.NumberFormat`). Variant badges and PDP chips follow `templateAttributeOrder`, with the opened product’s value pinned first. PDP chips and sellable-variant cards use localized `name` on the attribute/value (qualifier `ghz` with name “1 GHz” renders “1 GHz”), else Product Templates, never beautified camelCase keys or leaked `filters.mixins…` keys. Chip values with no sellable member under the other selected axes stay visible and disabled.
+
+**Delivery card columns (decision D3):** `ProductShippingInfo` uses one column from 0–1023px and two columns from `md` (1024px) upward (`grid-cols-1 md:grid-cols-2`). This is an intentional ticket-driven override of the Figma tablet frame that shows two columns at 768.
+
 ## References
 - [shadcn/ui Documentation](https://ui.shadcn.com/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
@@ -59,3 +82,10 @@ Thanks to cva and Tailwind, you can easily extend or customize components by pas
 ---
 
 For more details, explore the source files in `src/components/ui` or reach out to the maintainers.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Styling & Theming](./styling-and-theming.md)
+- [Project Structure](./project-structure.md)
+- [Testing Guide](./testing-guide.md)

@@ -125,18 +125,19 @@ export function isColorAttributeKey(key: string): boolean {
 }
 
 /**
- * Dynamic variant families use the configurator UI. Classic PARENT_VARIANT / VARIANT
- * products with template-driven attributes keep the legacy tile/dropdown selectors.
+ * Variant products without template-driven attributes use the configurator UI. Dynamic variant
+ * families and classic PARENT_VARIANT / VARIANT products with template attributes use the
+ * segment-scoped family selector instead.
  */
 export function isVariantConfiguratorProduct(
   product: Pick<Product, 'variantAttributes' | 'parentVariantId' | 'id' | 'productType'>,
 ): boolean {
-  if (product.productType === 'BASIC' || product.productType === 'BUNDLE') {
+  if (
+    product.productType === 'BASIC' ||
+    product.productType === 'BUNDLE' ||
+    product.productType === 'DYNAMIC_VARIANT'
+  ) {
     return false;
-  }
-
-  if (product.productType === 'DYNAMIC_VARIANT') {
-    return true;
   }
 
   if (

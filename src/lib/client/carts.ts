@@ -1,5 +1,9 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
+import type {
+  CartShippingAddress,
+  CartShippingMethodSelection,
+  ModifyCartItemResult,
+} from '@/platform/services/cart/CartService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import { CartErrorCode } from '@/platform/services/model/cart/error-codes';
 
@@ -106,15 +110,11 @@ export async function addItemToCart(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
-    if (errorData?.code === CartErrorCode.PRICE_SITE_INCOMPATIBLE) {
-      throw new Error(errorData.error || 'Product price is not available for this site');
-    }
-    if (errorData?.code === CartErrorCode.PRICE_NOT_AVAILABLE) {
-      throw new Error(errorData.error || "This product's price is not available for the current site.");
-    }
-    if (errorData?.code === CartErrorCode.CART_SITE_MISMATCH) {
-      const err = new Error(errorData.error || 'Your cart belongs to a different site. Please refresh the page.');
-      (err as Error & { code: string }).code = CartErrorCode.CART_SITE_MISMATCH;
+    if (errorData?.error) {
+      const err = new Error(errorData.error);
+      if (errorData.code === CartErrorCode.CART_SITE_MISMATCH) {
+        (err as Error & { code: string }).code = CartErrorCode.CART_SITE_MISMATCH;
+      }
       throw err;
     }
     throw new Error(`Failed to add item to cart: ${response.statusText}`);
@@ -191,39 +191,87 @@ export async function updateShippingInfo(
 }
 
 /**
- * Apply a promo/coupon code to the cart
+ * Persist the selected shipping method on the cart and return the refreshed cart.
  */
-export async function applyPromoCode(cartId: string, code: string): Promise<Cart> {
+export async function updateShippingMethod(cartId: string, method: CartShippingMethodSelection): Promise<Cart> {
+  const response = await fetch(`/api/cart/${cartId}/shipping-method`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(method),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update shipping method: ${response.statusText}`);
+  }
+
+  return (await response.json()) as Cart;
+}
+
+type CartDiscountClientError = Error & {
+  reason?: string;
+  code?: string;
+  apiMessage?: string;
+  status?: number;
+};
+
+function throwCartDiscountClientError(errorData: unknown, fallback: string, status: number): never {
+  const body =
+    errorData && typeof errorData === 'object'
+      ? (errorData as { error?: unknown; reason?: unknown; message?: unknown; code?: unknown })
+      : undefined;
+  const errorText = typeof body?.error === 'string' && body.error.length > 0 ? body.error : fallback;
+  const err: CartDiscountClientError = new Error(errorText);
+  if (typeof body?.reason === 'string') {
+    err.reason = body.reason;
+  }
+  if (typeof body?.code === 'string') {
+    err.code = body.code;
+  }
+  if (typeof body?.message === 'string') {
+    err.apiMessage = body.message;
+  }
+  err.status = status;
+  throw err;
+}
+
+/**
+ * Apply a coupon code to a cart and return the refreshed cart.
+ */
+export async function applyCartDiscount(cartId: string, code: string): Promise<Cart> {
   const response = await fetch(`/api/cart/${cartId}/discounts`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({
+      code,
+    }),
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.error || `Failed to apply promo code: ${response.statusText}`);
+    throwCartDiscountClientError(errorData, `Failed to apply cart discount: ${response.statusText}`, response.status);
   }
 
-  return await response.json();
+  return (await response.json()) as Cart;
 }
 
 /**
- * Remove a promo/coupon code from the cart
+ * Remove one cart discount by index and return the refreshed cart.
  */
-export async function removePromoCode(cartId: string, code: string): Promise<Cart> {
-  const response = await fetch(`/api/cart/${cartId}/discounts?codes=${encodeURIComponent(code)}`, {
+export async function removeCartDiscount(cartId: string, discountIndex: number): Promise<Cart> {
+  const response = await fetch(`/api/cart/${cartId}/discounts/${discountIndex}`, {
     method: 'DELETE',
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.error || `Failed to remove promo code: ${response.statusText}`);
+    throwCartDiscountClientError(errorData, `Failed to remove cart discount: ${response.statusText}`, response.status);
   }
 
-  return await response.json();
+  return (await response.json()) as Cart;
 }
 
 /**
@@ -241,7 +289,8 @@ export async function updateCartCurrency(cartId: string, currency: string): Prom
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update cart currency: ${response.statusText}`);
+    const errorData = await response.json().catch(() => null);
+    throwCartDiscountClientError(errorData, `Failed to update cart currency: ${response.statusText}`, response.status);
   }
 
   return await response.json();

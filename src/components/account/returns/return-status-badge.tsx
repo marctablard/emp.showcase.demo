@@ -15,7 +15,7 @@ export function ReturnStatusBadge({ status, isExpired }: ReturnStatusBadgeProps)
 
   if (isExpired) {
     return (
-      <Badge variant="outline" size="status" className="bg-surface-secondary">
+      <Badge variant="muted" size="status">
         {t('EXPIRED')}
       </Badge>
     );

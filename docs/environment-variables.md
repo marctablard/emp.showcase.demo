@@ -76,6 +76,26 @@ NEXT_LOG_LEVEL=debug
 NEXT_LOG_LEVEL=info
 ```
 
+#### `NEXT_LOG_OTEL_ENABLED` (Server-Side)
+
+Private opt-in for OpenTelemetry-aligned JSON on **Node.js Pino stdout**. Default off.
+
+- Enable only with the exact string `true` (`TRUE`, `1`, `false`, or empty leaves today’s `level` / `time` / `msg` output)
+- Server-only — never `NEXT_PUBLIC_`. Browser Pino and Edge `edgeLog` ignore this flag
+- Restart the Node process after changing it (the logger is configured at process start)
+- Scope: API routes, Server Components / SSR, and platform services that use `LoggerService`
+
+See [Logging Guide](./logging-guide.md) for the stdout field contract (`timestamp`, `severity_text`, `severity_number`, `body`), `exception.*` mapping, and how to verify captured stdout JSON.
+
+**Example:**
+```env
+# Default — current Pino JSON / pino-pretty
+# NEXT_LOG_OTEL_ENABLED=
+
+# Opt in (server-only, restart required)
+NEXT_LOG_OTEL_ENABLED=true
+```
+
 #### `NEXT_PUBLIC_LOG_LEVEL` (Client-Side)
 
 Controls the log level for client-side logging (browser):
@@ -380,7 +400,25 @@ The application supports multiple sites/storefronts:
 
 - `NEXT_PUBLIC_DEFAULT_SITE` — default site identifier (see **Application defaults** above and [Site middleware](./site-middleware.md))
 - `NEXT_PUBLIC_AVAILABLE_SITES` - Comma-separated list of all sites
-- `NEXT_PUBLIC_STORYBLOK_MULTI_SITE` - Enable folder-based multi-site in Storyblok
+- `NEXT_STORYBLOK_MULTI_SITE` - Enable folder-based multi-site in Storyblok (server-only)
+
+### Server-Only Migration: CMS / Storyblok Variables
+
+Storyblok and CMS configuration was previously exposed as `NEXT_PUBLIC_*`. Next.js inlines every `NEXT_PUBLIC_*` read into the browser bundle, which leaked the Storyblok access token and CMS provider IDs into every `.next/static/chunks/*.js` file — readable by any page visitor. All such reads are now **server-only**.
+
+Renamed keys (drop the `_PUBLIC` infix): `NEXT_STORYBLOK_ACCESS_TOKEN`, `NEXT_STORYBLOK_ACCESS_PREVIEW`, `NEXT_STORYBLOK_SPACE_ID`, `NEXT_STORYBLOK_MULTI_SITE`, `NEXT_CMS_PROVIDER`, `NEXT_CMS_FALLBACK_PROVIDER`, `NEXT_CMS_LOCAL_DEFAULT_SITE`, `NEXT_CMS_PAGE_CACHE_TTL_MS`, `NEXT_CMS_LAYOUT_CACHE_TTL_MS`.
+
+**Dual naming (legacy compat):** server code resolves these via [`getStoryblokEnv` / `getCmsEnv`](../src/lib/common/cms-dual-env.ts) (server re-export: [`src/lib/server/storyblok-env.ts`](../src/lib/server/storyblok-env.ts)) — prefer `NEXT_STORYBLOK_*` / `NEXT_CMS_*` when set; otherwise fall back to the matching `NEXT_PUBLIC_STORYBLOK_*` / `NEXT_PUBLIC_CMS_*`. New deploys should use the server-only names; the PUBLIC fallback exists so environments that still have the old keys (e.g. showcasedev) keep working. Prefer the server re-export in app/platform code so `server-only` blocks client imports.
+
+Where the browser legitimately needs a token-dependent value, it now goes through a server-action:
+
+- [`getStoryblokBridgeConfig`](../src/app/_actions/storyblok-bridge.ts) returns the Visual-Editor bridge token only for requests whose `referer` matches `/preview/*`. Browser code calls it from `useEffect`; otherwise the token never crosses the boundary.
+- [`fetchTopBanner`](../src/app/_actions/cms-banner.ts) reads `NEXT_STORYBLOK_ACCESS_TOKEN` server-side, queries Storyblok, and returns the public banner content. The hook [`useBanner`](../src/hooks/banner/use-banner.ts) consumes it.
+
+Two drift guards prevent reintroduction:
+
+- **ESLint** (`eslint.config.mjs`, `no-restricted-syntax`): forbids `process.env.NEXT_PUBLIC_STORYBLOK_*` and `process.env.NEXT_PUBLIC_CMS_*` reads at AST level. String literals (e.g. source-text audits in tests) are not affected.
+- **Browser-bundle smoke** ([`scripts/preview-smoke.sh`](../scripts/preview-smoke.sh)): grep `.next/static/chunks/*.js` per CMS provider for the deprecated prefixes and the `.env.template` demo token. Any hit fails the build.
 
 ### Push Notifications
 
@@ -414,6 +452,31 @@ The Setup API (`NEXT_SETUP_API_*`) provides an endpoint for initial system confi
 |----------|--------|---------|-------------|
 | `NEXT_STARTUP_HEALTHCHECK_ENABLED` | `true` / `false` | `true` | Enable Tier 2 runtime startup healthcheck. When enabled, the server validates configured sites, currencies, and languages against the Emporix API at startup. See [Health Checks — Startup Configuration Validation](health-checks.md#startup-configuration-validation). |
 | `NEXT_PUBLIC_DISABLE_PUSH_NOTIFICATIONS` | `true` / `false` | `false` | Explicitly disable push notifications regardless of VAPID key configuration. |
+| `NEXT_AI_CHAT_STREAMING` | unset / any value other than `false` / `false` | streaming (on) | Optional server-only flag for the account-dashboard AI Helper. Unset means streaming. Set to `false` for batch. Do not use `NEXT_PUBLIC_`. See [AI Helper](./ai-helper.md). |
+| `NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE` | `true` / `false` | `false` | Public. Allows segmented customers to opt into ALL PRODUCTS MODE via the PLP "Assigned / All" products-mode switch (segmented control, `role="radiogroup"`) on every search engine. Only reveals that the switch exists — the mode itself is server-validated. See [Search Service — Customer segments & products mode](./search-service.md#customer-segments--products-mode-cop-4822). |
+
+#### `NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE` (optional, public)
+
+Controls whether a customer with active customer segments may leave the segment-restricted catalog ("Assigned Products") and browse the full catalog like an anonymous / unsegmented customer (COP-4822).
+
+- **Unset / any value other than the exact string `true` (default):** segmented customers always see the assigned assortment; the PLP products-mode switch is hidden and the `next-products-mode` cookie is ignored.
+- **`true`:** the PLP shows the "Assigned / All" products-mode switch (`PlpProductsModeSwitch`, a two-option segmented control) and selecting "All" calls `PUT /api/customer-segment/products-mode`, which may set the opt-in cookie. Effective with both `BatteryIncludedSearchService` and `EmporixSearchService`.
+
+Anonymous and unsegmented customers are unaffected. The variable is `NEXT_PUBLIC_`, so its value is visible to the browser — it only reveals **whether the switch exists**. The mode itself is never trusted from the client: it lives in the server-validated `httpOnly` cookie `next-products-mode`, written only by `PUT /api/customer-segment/products-mode` after `ProductsModeService` re-checked the flag and the customer's segments. `ProductsModeService` reads the flag once at process start; restart the app after changing it.
+
+Mode resolution, caching and the engine differences are documented in [Search Service — Customer segments & products mode](./search-service.md#customer-segments--products-mode-cop-4822).
+
+#### `NEXT_AI_CHAT_STREAMING` (optional, server-only)
+
+Controls whether the BFF calls AI Service streaming `chat-stream` or batch `chat` for the account-dashboard AI Helper.
+
+- **Unset (default):** streaming
+- **Any value other than the string `false`:** streaming
+- **`false`:** batch fallback
+
+This is a server-only variable. Do not prefix it with `NEXT_PUBLIC_`. Restart the app after changing it.
+
+For shopper UX and empty-stream behavior, see [AI Helper](./ai-helper.md).
 
 ## Quick Start Checklist
 
@@ -487,6 +550,8 @@ NEXT_DEBUG_API_PAYLOAD=false
 
 ## Related Documentation
 
+- [Documentation index](./README.md)
+- [AI Helper](./ai-helper.md)
 - [Deployment Process](./deployment-process.md)
 - [Testing Guide](./testing-guide.md)
-- [Storyblok Integration](./storyblok-integration.md)
+- [CMS Framework](./cms-framework.md)

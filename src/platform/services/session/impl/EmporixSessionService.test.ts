@@ -5,6 +5,7 @@ import type {
   EmporixContextAttribute,
   EmporixSessionContext,
 } from '@/platform/integrations/emporix/model/session-context';
+import type { EmporixOAuthApi } from '@/platform/integrations/emporix/oauth/EmporixOAuthApi';
 import { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Session, SessionAttribute } from '@/platform/services/model/session/session';
@@ -18,6 +19,7 @@ describe('EmporixSessionService', () => {
   let mockSessionContextApi: jest.Mocked<EmporixSessionContextApi>;
   let mockSiteService: jest.Mocked<SiteService>;
   let mockTokenManager: jest.Mocked<EmporixTokenManager>;
+  let mockOAuthApi: jest.Mocked<EmporixOAuthApi>;
   let mockConfig: EmporixConfig;
   let mockSessionMapper: jest.Mocked<SessionMapper<EmporixSessionContext, EmporixContextAttribute>>;
   let mockLogger: jest.Mocked<LoggerService>;
@@ -106,8 +108,13 @@ describe('EmporixSessionService', () => {
       getSessionToken: jest.fn(),
       refreshCustomerTokenWithLegalEntity: jest.fn(),
       clearPublicTokenCache: jest.fn(),
+      clearServiceTokenCache: jest.fn(),
+      forceRefreshSessionToken: jest.fn(),
       clearTokens: jest.fn(),
     } as jest.Mocked<EmporixTokenManager>;
+    mockOAuthApi = {
+      validateCustomerToken: jest.fn(),
+    } as unknown as jest.Mocked<EmporixOAuthApi>;
 
     mockConfig = {
       tenant: 'test-tenant',
@@ -133,6 +140,7 @@ describe('EmporixSessionService', () => {
     container.bind<EmporixSessionService>('SessionService').to(EmporixSessionService);
     container.bind<SiteService>('SiteService').toConstantValue(mockSiteService);
     container.bind<EmporixTokenManager>('EmporixTokenManager').toConstantValue(mockTokenManager);
+    container.bind<EmporixOAuthApi>('EmporixOAuthApi').toConstantValue(mockOAuthApi);
     container.bind<EmporixConfig>('EmporixConfig').toConstantValue(mockConfig);
     container.bind<LoggerService>('LoggerService').toConstantValue(mockLogger);
 
@@ -165,6 +173,99 @@ describe('EmporixSessionService', () => {
       expect(mockSessionMapper.mapToService).not.toHaveBeenCalled();
       expect(result).toBeUndefined();
     });
+
+    it('getCurrent swallows a failed lookup, logs it and resolves undefined', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockRejectedValue(new Error('session-context down'));
+
+      await expect(sessionService.getCurrent()).resolves.toBeUndefined();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { error: 'session-context down' },
+        expect.stringContaining('Could not read current session context'),
+      );
+    });
+  });
+
+  describe('getCurrentOrThrow', () => {
+    it('maps the current session context', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(mockSessionContext);
+      mockSessionMapper.mapToService.mockReturnValue(mockSession);
+
+      await expect(sessionService.getCurrentOrThrow()).resolves.toEqual(mockSession);
+    });
+
+    it('resolves undefined when there is no session', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(undefined);
+
+      await expect(sessionService.getCurrentOrThrow()).resolves.toBeUndefined();
+    });
+
+    it('rejects when the session lookup fails (no anonymous fallback)', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockRejectedValue(new Error('session-context down'));
+
+      await expect(sessionService.getCurrentOrThrow()).rejects.toThrow('session-context down');
+    });
+  });
+
+  describe('getCustomerTokenLegalEntityId', () => {
+    it('prefers the validated legal entity without exposing the token', async () => {
+      const payload = Buffer.from(JSON.stringify({ legalEntityId: 'le-selected' })).toString('base64url');
+      mockTokenManager.getCustomerToken.mockResolvedValue({
+        accessToken: `header.${payload}.signature`,
+        sessionId: 'session-1',
+      });
+      mockOAuthApi.validateCustomerToken.mockResolvedValue({ legalEntityId: 'le-validated' });
+
+      await expect(sessionService.getCustomerTokenLegalEntityId()).resolves.toBe('le-validated');
+      expect(mockTokenManager.getCustomerToken).toHaveBeenCalledWith('test-tenant', 'test-client-id');
+      expect(mockOAuthApi.validateCustomerToken).toHaveBeenCalledWith('test-tenant', `header.${payload}.signature`);
+    });
+
+    it('falls back to a nested JWT claim when token validation has no legal entity', async () => {
+      const payload = Buffer.from(JSON.stringify({ context: { legalEntityId: 'le-nested' } })).toString('base64url');
+      mockTokenManager.getCustomerToken.mockResolvedValue({
+        accessToken: `header.${payload}.signature`,
+        sessionId: 'session-1',
+      });
+      mockOAuthApi.validateCustomerToken.mockResolvedValue({});
+
+      await expect(sessionService.getCustomerTokenLegalEntityId()).resolves.toBe('le-nested');
+    });
+  });
+
+  describe('setLegalEntity', () => {
+    it('throws without writing the session attribute when token refresh returns null', async () => {
+      mockTokenManager.refreshCustomerTokenWithLegalEntity.mockResolvedValue(null);
+
+      await expect(sessionService.setLegalEntity('le-selected')).rejects.toThrow(
+        'Failed to scope customer token to the selected legal entity',
+      );
+
+      expect(mockSessionContextApi.addOwnSessionContextAttribute).not.toHaveBeenCalled();
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { legalEntityId: 'le-selected', tokenRefreshSucceeded: false },
+        'Failed to refresh customer token with legal entity',
+      );
+    });
+
+    it('refreshes the token before writing the session attribute', async () => {
+      mockTokenManager.refreshCustomerTokenWithLegalEntity.mockResolvedValue({
+        accessToken: 'header.payload.signature',
+        sessionId: 'session-1',
+      });
+
+      await expect(sessionService.setLegalEntity('le-selected')).resolves.toEqual({
+        tokenRefreshSucceeded: true,
+        tokenLooksLikeJwt: true,
+      });
+
+      expect(mockTokenManager.refreshCustomerTokenWithLegalEntity.mock.invocationCallOrder[0]).toBeLessThan(
+        mockSessionContextApi.addOwnSessionContextAttribute.mock.invocationCallOrder[0]!,
+      );
+      expect(mockSessionContextApi.addOwnSessionContextAttribute).toHaveBeenCalledWith({
+        key: 'legalEntityId',
+        value: 'le-selected',
+      });
+    });
   });
 
   describe('updateCurrentSession', () => {
@@ -183,6 +284,61 @@ describe('EmporixSessionService', () => {
       await sessionService.setCurrency('EUR');
       expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledTimes(1);
       expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith(mappedPartialContext);
+    });
+
+    it('should not include language on a currency PATCH when session language is already de', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue({
+        sessionId: 'test-session',
+        siteCode: 'main',
+        currency: 'EUR',
+        language: 'de',
+        metadata: { version: 4 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      await sessionService.setCurrency('USD');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledTimes(1);
+      const [patchCall] = mockSessionContextApi.updateOwnSessionContext.mock.calls[0];
+      expect(patchCall).toEqual({
+        currency: 'USD',
+        metadata: { version: 4 },
+      });
+      expect(patchCall).not.toHaveProperty('language');
+    });
+
+    it('retries a currency PATCH once after a stale session version', async () => {
+      mockSessionContextApi.getOwnSessionContext
+        .mockResolvedValueOnce({
+          sessionId: 'test-session',
+          siteCode: 'main',
+          currency: 'EUR',
+          metadata: { version: 2 },
+        })
+        .mockResolvedValueOnce({
+          sessionId: 'test-session',
+          siteCode: 'main',
+          currency: 'EUR',
+          metadata: { version: 3 },
+        });
+      mockSessionContextApi.updateOwnSessionContext
+        .mockRejectedValueOnce(
+          new Error(
+            'Failed to update own session context: Not Found - {"message":"The context with sessionId test-session and version 2 has not been found."}',
+          ),
+        )
+        .mockResolvedValueOnce();
+
+      await sessionService.setCurrency('USD');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenNthCalledWith(1, {
+        currency: 'USD',
+        metadata: { version: 2 },
+      });
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenNthCalledWith(2, {
+        currency: 'USD',
+        metadata: { version: 3 },
+      });
     });
   });
 
@@ -210,6 +366,34 @@ describe('EmporixSessionService', () => {
         language: 'en',
         metadata: { version: 4 },
       });
+    });
+  });
+
+  describe('setCountry', () => {
+    it('persists a trimmed uppercase country code', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue({
+        sessionId: 'test-session',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      await sessionService.setCountry(' ch ');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
+    });
+
+    it('does not PATCH when the country is blank', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue({
+        sessionId: 'test-session',
+        metadata: { version: 1 },
+      });
+
+      await sessionService.setCountry('   ');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).not.toHaveBeenCalled();
     });
   });
 
@@ -274,6 +458,76 @@ describe('EmporixSessionService', () => {
       });
       expect(mockSessionContextApi.removeOwnSessionContextAttribute).not.toHaveBeenCalled();
       expect(mockSiteService.invalidateSiteCache).not.toHaveBeenCalled();
+    });
+
+    it('should PATCH targetLocation when the raw country only differs by casing or whitespace', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
+        sessionId: 'test-session',
+        siteCode: 'main',
+        targetLocation: ' ch ',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+
+      await sessionService.setSite('fw-site', 'CHF');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        siteCode: 'fw-site',
+        currency: 'CHF',
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
+    });
+
+    it('should PATCH targetLocation when the current country is not allowed on the new site', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
+        sessionId: 'test-session',
+        siteCode: 'main',
+        targetLocation: 'RO',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+
+      await sessionService.setSite('fw-site', 'CHF');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        siteCode: 'fw-site',
+        currency: 'CHF',
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
     });
 
     it('should not update currency when defaultCurrency is not provided (backward compatibility)', async () => {
@@ -705,6 +959,155 @@ describe('EmporixSessionService', () => {
       expect(result).toBeDefined();
       expect(result?.currency).toBe('CHF');
       expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalled();
+    });
+
+    it('should snap a disallowed session country to site.defaultCountry', async () => {
+      const fullyPopulatedContext: EmporixSessionContext = {
+        sessionId: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        targetLocation: 'RO',
+        context: {
+          language: { key: 'language', value: 'en' },
+          region: { key: 'region', value: 'Europe' },
+        },
+        metadata: { version: 2 },
+      };
+      const mappedSession: Session = {
+        id: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        country: 'RO',
+        language: 'en',
+        region: 'Europe',
+      };
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(fullyPopulatedContext);
+      mockSessionMapper.mapToService.mockReturnValue(mappedSession);
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      const result = await sessionService.getCurrent();
+
+      expect(result?.country).toBe('CH');
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith(
+        expect.objectContaining({ targetLocation: 'CH' }),
+      );
+    });
+
+    it('should PATCH a lowercase or whitespace country to the normalized allowed code', async () => {
+      const fullyPopulatedContext: EmporixSessionContext = {
+        sessionId: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        targetLocation: ' ch ',
+        context: {
+          language: { key: 'language', value: 'en' },
+          region: { key: 'region', value: 'Europe' },
+        },
+        metadata: { version: 2 },
+      };
+      const mappedSession: Session = {
+        id: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        country: ' ch ',
+        language: 'en',
+        region: 'Europe',
+      };
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(fullyPopulatedContext);
+      mockSessionMapper.mapToService.mockReturnValue(mappedSession);
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      const result = await sessionService.getCurrent();
+
+      expect(result?.country).toBe('CH');
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith(
+        expect.objectContaining({ targetLocation: 'CH' }),
+      );
+    });
+
+    it('should not include language on a currency PATCH when session language is already de', async () => {
+      const fullyPopulatedContext: EmporixSessionContext = {
+        sessionId: 'test-session',
+        currency: 'EUR',
+        language: 'de',
+        siteCode: 'ch-site',
+        targetLocation: 'DE',
+        context: {
+          region: { key: 'region', value: 'Europe' },
+        },
+        metadata: { version: 2 },
+      };
+      const mappedSession: Session = {
+        id: 'test-session',
+        currency: 'EUR',
+        siteCode: 'ch-site',
+        country: 'DE',
+        language: 'de',
+        region: 'Europe',
+      };
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(fullyPopulatedContext);
+      mockSessionMapper.mapToService.mockReturnValue(mappedSession);
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'ch-site',
+        name: 'CH',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en', 'de'],
+        defaultLanguage: 'de',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      const result = await sessionService.getCurrent();
+
+      expect(result?.language).toBe('de');
+      expect(result?.currency).toBe('CHF');
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledTimes(1);
+      const [patchCall] = mockSessionContextApi.updateOwnSessionContext.mock.calls[0];
+      expect(patchCall).toMatchObject({ currency: 'CHF' });
+      expect(patchCall).not.toHaveProperty('language');
     });
 
     it('should call getSite when region is missing from session', async () => {

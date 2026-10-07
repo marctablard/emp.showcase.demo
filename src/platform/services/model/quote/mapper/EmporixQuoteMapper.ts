@@ -1,9 +1,25 @@
 import { inject } from 'inversify';
+import { resolveSingleTaxRate } from '@/lib/common/tax-aggregate';
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixQuote } from '@/platform/integrations/emporix/model/quote';
+import type { EmporixQuote, EmporixQuoteShipping } from '@/platform/integrations/emporix/model/quote';
 import type { SiteService } from '@/platform/services/site/SiteService';
 import type { Quote, QuoteStatus } from '..';
 import type { QuoteMapper } from './QuoteMapper';
+
+/**
+ * Prefer a localized shipping method name when Emporix provides `methodName`;
+ * fall back to `methodId` when the name map is absent or empty.
+ */
+function resolveQuoteShippingMethodName(shipping?: EmporixQuoteShipping): string {
+  const methodName = shipping?.methodName;
+  if (methodName && typeof methodName === 'object') {
+    const localized = Object.values(methodName).find((value) => typeof value === 'string' && value.trim());
+    if (localized) {
+      return localized.trim();
+    }
+  }
+  return shipping?.methodId || '';
+}
 
 /**
  * Implementation of QuoteMapper for Emporix quotes.
@@ -47,6 +63,10 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
       totalGross: emporixQuote.totalPrice?.grossValue || 0,
       totalNet: emporixQuote.totalPrice.netValue,
       totalVat: emporixQuote.totalPrice.taxValue,
+      subtotalNet: emporixQuote.subtotalPrice?.netValue,
+      subtotalVat: emporixQuote.subtotalPrice?.taxValue,
+      vatRate: resolveSingleTaxRate(emporixQuote.taxAggregate?.lines),
+      taxAggregate: emporixQuote.taxAggregate,
       items: (emporixQuote.items || []).map((item) => ({
         product: {
           id: item.product.productId,
@@ -57,6 +77,12 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
             currency: emporixQuote.currency,
             baseAmount: item.price?.totalNetValue || 0,
             tax: (item.price?.tax?.prices?.grossValue || 0) - (item.price?.totalNetValue || 0),
+            grossValue: item.price?.tax?.prices?.grossValue,
+            netValue: item.price?.tax?.prices?.netValue,
+            unitPrice: item.price?.unitPrice,
+            newUnitPrice: item.price?.newUnitPrice,
+            discount: item.price?.discount,
+            taxRate: item.price?.tax?.taxRate,
           },
         },
         quantity: {
@@ -67,15 +93,22 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
       shippingAddress: {
         type: 'SHIPPING',
         contactName: shippingAddress?.name || '',
-        street: shippingAddress?.addressLine1 + ' ' + shippingAddress?.addressLine2,
+        // Omit missing addressLine2 — string concat would render the literal "undefined"
+        street: [shippingAddress?.addressLine1, shippingAddress?.addressLine2]
+          .map((part) => part?.trim())
+          .filter((part): part is string => Boolean(part))
+          .join(' '),
         zipCode: shippingAddress?.postcode || '',
         city: shippingAddress?.city || '',
         country: countryName,
       },
       shippingCost: emporixQuote.shipping?.value || 0,
-      shippingMethod: emporixQuote.shipping?.methodId || '',
-      reference: emporixQuote.mixins?.additionalInfo?.reference,
-      userComment: emporixQuote.mixins?.additionalInfo?.userComment,
+      shippingGross: emporixQuote.shipping?.grossValue,
+      shippingTaxRate: emporixQuote.shipping?.taxRate,
+      // Prefer localized methodName over methodId (OQ6 / Task 3.1)
+      shippingMethod: resolveQuoteShippingMethodName(emporixQuote.shipping),
+      reference: emporixQuote.customerReference || emporixQuote.mixins?.additionalInfo?.reference,
+      userComment: emporixQuote.customerComment || emporixQuote.mixins?.additionalInfo?.userComment,
     };
   }
 }

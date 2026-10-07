@@ -46,7 +46,7 @@ export function AccountProductLines({ lines }: { lines: AccountProductLine[] }) 
             const total = line.unitPrice != null ? line.unitPrice * line.quantity : undefined;
 
             return (
-              <TableRow key={`${line.id}-${index}`} className="text-sm xl:text-base">
+              <TableRow key={`${line.id}-${index}`} className="text-sm">
                 <TableCell className="px-2 py-3">
                   <div className="flex items-center gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden border border-border-primary bg-surface-image-background">

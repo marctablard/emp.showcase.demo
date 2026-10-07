@@ -78,6 +78,61 @@ export interface EmporixCustomerSignupDto {
   b2b?: Omit<EmporixB2Binfo, 'legalEntities'>;
 }
 
+/**
+ * Tenant-managed customer list/get DTO (Customer Service seller APIs).
+ * `customerNumber` is the GET/PATCH/DELETE path identifier; `id` is ResourceLocation from create.
+ */
+export interface EmporixCustomerAdmin {
+  id: string;
+  customerNumber: string;
+  title?: string;
+  firstName?: string;
+  lastName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  company?: string;
+  preferredLanguage?: string;
+  preferredCurrency?: string;
+  preferredSite?: string;
+  active?: boolean;
+  metadataCreatedAt?: string;
+  metadata?: EmporixMetadata;
+  b2b?: EmporixB2Binfo;
+  businessModel?: 'B2B' | 'B2C';
+}
+
+/**
+ * Invite-create body for POST /customer/{tenant}/customers.
+ * Password is omitted so the API sends a reset-notification email instead.
+ * The acting customer token determines the automatically assigned legal entity.
+ */
+export interface EmporixCustomerAdminCreateRequest {
+  title?: string;
+  firstName?: string;
+  lastName?: string;
+  contactEmail: string;
+  contactPhone?: string;
+  company?: string;
+  preferredLanguage?: string;
+  preferredCurrency?: string;
+  preferredSite?: string;
+}
+
+/**
+ * PATCH body for /customer/{tenant}/customers/{customerNumber}.
+ */
+export interface EmporixCustomerAdminUpdateRequest {
+  title?: string;
+  firstName?: string;
+  lastName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  preferredLanguage?: string;
+  preferredCurrency?: string;
+  preferredSite?: string;
+  active?: boolean;
+}
+
 export interface EmporixLegalEntity {
   id?: string;
   name: string;
@@ -106,7 +161,9 @@ export interface EmporixContactAssignmentCustomer extends EmporixResourceId {
 
 export interface EmporixContactAssignment {
   id?: string;
-  legalEntity: EmporixResourceId;
+  legalEntity: EmporixResourceId & {
+    customerGroups?: EmporixCustomerGroup[];
+  };
   customer: EmporixContactAssignmentCustomer;
   type: 'PRIMARY' | 'BILLING' | 'LOGISTICS' | 'CONTACT';
   primary?: boolean;

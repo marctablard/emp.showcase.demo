@@ -1,4 +1,7 @@
 import { updateSessionContext } from '@/lib/client/session';
+import { CART_API_REASON } from '@/lib/common/cart-api-error-mapping';
+import { getLocaleCookieName } from '@/lib/common/locale-cookie';
+import { CART_CURRENCY_UPDATE_ERROR_CODE } from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Session } from '@/platform/services/model/session/session';
@@ -59,8 +62,25 @@ type CartStoreState = {
   syncCurrencyWithSession: jest.Mock<Promise<void>, [string, string]>;
   setError: jest.Mock<void, [Error | null]>;
   currentCart?: Cart | null | undefined;
+  error?: Error | null;
   loading?: boolean;
 };
+
+function stubDocumentCookie(): { cookieHolder: { value: string } } {
+  const cookieHolder = { value: '' };
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: {
+      get cookie() {
+        return cookieHolder.value;
+      },
+      set cookie(next: string) {
+        cookieHolder.value = next;
+      },
+    },
+  });
+  return { cookieHolder };
+}
 
 function createLogger(): jest.Mocked<LoggerService> {
   return {
@@ -128,6 +148,7 @@ function buildStores(options: BuildStoresOptions = {}): {
     syncCurrencyWithSession: jest.fn<Promise<void>, [string, string]>(() => Promise.resolve()),
     setError: jest.fn<void, [Error | null]>(),
     currentCart: options.currentCart,
+    error: null,
     loading: false,
   };
   const cartSetState = jest.fn();
@@ -172,7 +193,6 @@ describe('performSiteSwitch', () => {
       });
 
       const navigateTo = jest.fn();
-      const getRedirectPath = jest.fn(() => '/b-path');
       const refresh = jest.fn();
       const getSiteByCode = jest.fn(() => Promise.resolve({ languages: ['en'], currencies: ['EUR'] }));
       const logger = createLogger();
@@ -181,7 +201,6 @@ describe('performSiteSwitch', () => {
         source: 'user',
         locale: 'en',
         navigateTo,
-        getRedirectPath,
         getSiteByCode,
         router: { refresh },
         logger,
@@ -208,7 +227,7 @@ describe('performSiteSwitch', () => {
 
       expect(siteState.resetSite).toHaveBeenCalledTimes(1);
 
-      expect(navigateTo).toHaveBeenCalledWith('/b-path');
+      expect(navigateTo).toHaveBeenCalledWith('/', expect.objectContaining({ locale: 'en', site: 'b' }));
       expect(refresh).not.toHaveBeenCalled();
       jest.advanceTimersByTime(NAVIGATION_REFRESH_DELAY_MS);
       expect(refresh).toHaveBeenCalledTimes(1);
@@ -216,6 +235,36 @@ describe('performSiteSwitch', () => {
       expect(logger.info).toHaveBeenCalledWith(
         expect.objectContaining({ event: 'site_switch', outcome: 'success', upstreamCalls: 2 }),
         expect.any(String),
+      );
+    });
+
+    it('snaps session country to the site default when the previous country is not allowed', async () => {
+      const { stores } = buildStores({
+        session: { siteCode: 'main', currency: 'EUR', language: 'en', country: 'RO', metadata: { version: 3 } },
+      });
+      mockedUpdateSessionContext.mockResolvedValue({
+        siteCode: 'fw-site',
+        currency: 'CHF',
+        language: 'en',
+        country: 'CH',
+        metadata: { version: 4 },
+      });
+
+      await performSiteSwitch('fw-site', stores, {
+        source: 'deep-link',
+        getSiteByCode: () =>
+          Promise.resolve({
+            languages: ['en'],
+            currencies: ['CHF'],
+            defaultCurrency: 'CHF',
+            defaultCountry: 'CH',
+            countries: [{ code: 'CH' }, { code: 'DE' }],
+          }),
+      });
+
+      expect(mockedUpdateSessionContext).toHaveBeenCalledWith(
+        expect.objectContaining({ siteCode: 'fw-site', country: 'CH' }),
+        3,
       );
     });
 
@@ -415,19 +464,16 @@ describe('performSiteSwitch', () => {
       });
 
       const navigateTo = jest.fn();
-      const getRedirectPath = jest.fn();
       const refresh = jest.fn();
 
       await performSiteSwitch('b', stores, {
         source: 'deep-link',
         navigateTo,
-        getRedirectPath,
         router: { refresh },
       });
 
       jest.advanceTimersByTime(NAVIGATION_REFRESH_DELAY_MS * 5);
       expect(navigateTo).not.toHaveBeenCalled();
-      expect(getRedirectPath).not.toHaveBeenCalled();
       expect(refresh).not.toHaveBeenCalled();
     });
 
@@ -464,23 +510,97 @@ describe('performSiteSwitch', () => {
       });
 
       const navigateTo = jest.fn();
-      const getRedirectPath = jest.fn(() => '/us');
       const refresh = jest.fn();
 
       const result = await performSiteSwitch('us', stores, {
         source: 'user',
         locale: 'de',
         navigateTo,
-        getRedirectPath,
         getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD'] }),
         router: { refresh },
       });
 
       expect(result.success).toBe(true);
-      expect(getRedirectPath).toHaveBeenCalledWith(
-        expect.objectContaining({ locale: 'en', site: 'us', forcePrefix: true }),
-      );
-      expect(navigateTo).toHaveBeenCalledWith('/us');
+      expect(navigateTo).toHaveBeenCalledWith('/', expect.objectContaining({ locale: 'en', site: 'us' }));
+      expect(navigateTo).not.toHaveBeenCalledWith(expect.stringMatching(/^\/us/));
+    });
+  });
+
+  describe('locale cookie persistence', () => {
+    const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
+
+    afterEach(() => {
+      if (originalDocumentDescriptor === undefined) {
+        Reflect.deleteProperty(globalThis, 'document');
+      } else {
+        Object.defineProperty(globalThis, 'document', originalDocumentDescriptor);
+      }
+    });
+
+    it('writes the fallback locale cookie when the target site does not list de', async () => {
+      const { cookieHolder } = stubDocumentCookie();
+      const { stores } = buildStores({
+        session: { siteCode: 'main', currency: 'USD', language: 'de', metadata: { version: 1 } },
+      });
+      mockedUpdateSessionContext.mockResolvedValue({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        metadata: { version: 2 },
+      });
+
+      await performSiteSwitch('us-branch', stores, {
+        source: 'user',
+        locale: 'de',
+        navigateTo: jest.fn(),
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(cookieHolder.value).toContain(`${getLocaleCookieName()}=en`);
+    });
+
+    it('overwrites the locale cookie even when opts.locale is already the supported fallback', async () => {
+      const { cookieHolder } = stubDocumentCookie();
+      const { stores } = buildStores({
+        session: { siteCode: 'main', currency: 'USD', language: 'en', metadata: { version: 1 } },
+      });
+      mockedUpdateSessionContext.mockResolvedValue({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        metadata: { version: 2 },
+      });
+
+      await performSiteSwitch('us-branch', stores, {
+        source: 'user',
+        locale: 'en',
+        navigateTo: jest.fn(),
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(cookieHolder.value).toContain(`${getLocaleCookieName()}=en`);
+    });
+
+    it('does not write the locale cookie on deep-link source', async () => {
+      const { cookieHolder } = stubDocumentCookie();
+      const { stores } = buildStores({
+        session: { siteCode: 'main', currency: 'USD', language: 'de', metadata: { version: 1 } },
+      });
+      mockedUpdateSessionContext.mockResolvedValue({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        metadata: { version: 2 },
+      });
+
+      await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        locale: 'de',
+        navigateTo: jest.fn(),
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(cookieHolder.value).toBe('');
     });
   });
 
@@ -882,13 +1002,253 @@ describe('performSiteSwitch', () => {
         source: 'user',
         locale: 'de',
         navigateTo: jest.fn(),
-        getRedirectPath: jest.fn(() => '/us-branch'),
         router: { refresh: jest.fn() },
         getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
       });
 
       expect(result.success).toBe(true);
       expect(result.currencyFallback).toEqual({ from: 'CHF', to: 'USD' });
+    });
+
+    it('does not attach couponCodes on a generic reprice fallback even when the cart has coupons', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'USD' }],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.error = Object.assign(new Error('Failed to update cart currency'), {
+        reason: CART_API_REASON.CONTEXT_MISMATCH,
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({ from: 'CHF', to: 'USD' });
+    });
+
+    it('attaches couponCodes when the swallowed reprice error is classified by code only', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'USD' }],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.error = Object.assign(new Error('Cart currency update failed'), {
+        code: CART_CURRENCY_UPDATE_ERROR_CODE.COUPON_CURRENCY_CONFLICT,
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({
+        from: 'CHF',
+        to: 'USD',
+        couponCodes: ['ACCESSORIES15'],
+      });
+    });
+
+    it('attaches couponCodes only when the swallowed reprice error is a coupon-currency conflict', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'USD' }],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.error = Object.assign(new Error('Coupon blocks currency update'), {
+        reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({
+        from: 'CHF',
+        to: 'USD',
+        couponCodes: ['ACCESSORIES15'],
+      });
+    });
+
+    it('does not attach invalid coupon codes on a classified coupon-currency conflict', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [
+          { code: 'STALE10', discountIndex: 0, amount: 0, currency: 'USD', valid: false },
+          { code: 'ACCESSORIES15', discountIndex: 1, amount: 1.5, currency: 'USD' },
+        ],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.error = Object.assign(new Error('Coupon blocks currency update'), {
+        reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({
+        from: 'CHF',
+        to: 'USD',
+        couponCodes: ['ACCESSORIES15'],
+      });
+    });
+
+    it('attaches couponCodes when syncCurrencyWithSession rejects with a classified coupon conflict', async () => {
+      const staleUsBranchCart = {
+        id: 'us-cart',
+        site: 'us-branch',
+        currency: 'USD',
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'USD' }],
+      } as Cart;
+      const { stores, cartState } = buildStores({
+        session: {
+          siteCode: 'fw-site',
+          currency: 'CHF',
+          language: 'de',
+          cartId: 'fw-cart',
+          metadata: { version: 20 },
+        },
+        currentCart: staleUsBranchCart,
+      });
+      cartState.syncCurrencyWithSession.mockRejectedValueOnce(
+        Object.assign(new Error('Coupon blocks currency update'), {
+          reason: CART_API_REASON.COUPON_CURRENCY_CONFLICT,
+        }),
+      );
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'CHF',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 21 },
+      });
+      mockedUpdateSessionContext.mockResolvedValueOnce({
+        siteCode: 'us-branch',
+        currency: 'USD',
+        language: 'en',
+        cartId: 'us-cart',
+        metadata: { version: 22 },
+      });
+
+      const result = await performSiteSwitch('us-branch', stores, {
+        source: 'deep-link',
+        getSiteByCode: () => Promise.resolve({ languages: ['en'], currencies: ['USD', 'CHF'], defaultCurrency: 'USD' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.currencyFallback).toEqual({
+        from: 'CHF',
+        to: 'USD',
+        couponCodes: ['ACCESSORIES15'],
+      });
     });
   });
 

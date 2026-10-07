@@ -142,6 +142,8 @@ Add:
 - `src/hooks/wishlist/useWishlist.ts`
 - `src/hooks/wishlist/useWishlistAction.ts`
 
+`useWishlist` must not call `GET /api/wishlist` unless next-auth is `authenticated`. Skip the call while status is `loading` or `unauthenticated`.
+
 The wishlist store should mirror the cart store style:
 
 - `currentWishlist: Wishlist | null | undefined`
@@ -201,7 +203,7 @@ Behavior:
 
 ### Account Wishlist View
 
-Replace `src/app/[site]/[locale]/(default)/account/wishlists/page.tsx` placeholder with a real view using `AccountLayout`.
+Replace `src/app/[site]/[locale]/(nav-shell)/(default)/account/wishlists/page.tsx` placeholder with a real view using `AccountLayout`.
 
 Breadcrumb:
 
@@ -387,3 +389,11 @@ The exact unit, component and E2E tests should be selected during implementation
    - Add wishlist item counter in the header.
    - Add English and German translations.
    - Add targeted tests and run the existing checks.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Dependency Injection](./dependency-injection.md)
+- [Zustand State Management](./zustand-state-management.md)
+- [Internationalization (i18n)](./i18n-implementation.md)
+- [API Security](./api-security.md)

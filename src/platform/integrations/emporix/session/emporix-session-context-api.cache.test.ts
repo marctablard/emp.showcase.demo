@@ -107,4 +107,11 @@ describe('EmporixSessionContextApi own-context cache (keyed)', () => {
 
     expect(keyedInvoker.authenticatedFetch).toHaveBeenCalledTimes(3);
   });
+
+  it('returns undefined without fetching when SSR has no session token', async () => {
+    getSessionTokenMock.mockRejectedValue(new Error('No valid Session Token found in SSR context'));
+
+    await expect(api.getOwnSessionContext()).resolves.toBeUndefined();
+    expect(keyedInvoker.authenticatedFetch).not.toHaveBeenCalled();
+  });
 });

@@ -1,8 +1,10 @@
-import { useTranslations } from 'next-intl';
-import type { Product } from '@platform/services/model/product';
-import { ProductTileListItemSkeleton } from '@/components/product/product-tile-list-item-skeleton';
-import { SearchNoResults } from '@/components/search/search-no-results';
-import { Skeleton } from '@/components/ui/skeleton';
+'use client';
+
+import { PlpListLayout } from '@/components/search/list-view/plp-list-layout';
+import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
+import type { Category } from '@/platform/services/model/category';
+import type { BatteryIncludedFacet, SearchFilterValue, SearchSortOption } from '@/platform/services/model/common';
+import type { Product } from '@/platform/services/model/product';
 
 interface SearchResultsListProps {
   products: Product[];
@@ -11,52 +13,82 @@ interface SearchResultsListProps {
   pageSize: number;
   total: number;
   loading: boolean;
+  pendingCursor?: boolean;
+  hasMore: boolean;
+  loadingMore: boolean;
+  loadMore: () => void | Promise<void>;
+  activeFilters?: Record<string, SearchFilterValue>;
+  availableSorts?: SearchSortOption[];
+  batteryIncludedFacets?: BatteryIncludedFacet[];
+  currentSort?: string;
+  applyFacet: (facetId: string, value: string | string[]) => void;
+  applyRangeFacet: (facetId: string, min: string, max: string) => void;
+  changeSort: (sort?: string) => void;
+  resetFacet: (facetId: string) => void;
+  resetAllFacets?: () => void;
+  categoryFilterLabelsById?: Record<string, string>;
+  searchQuery?: string;
+  /**
+   * Site-scoped navigation root categories rendered in the PLP thumbnail carousel and left-column
+   * tree. Optional so legacy call sites that do not plumb the forest keep rendering a slim layout.
+   */
+  navigationRoots?: Category[];
+  topControlsNode?: React.ReactNode;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function SearchResultsList({ products, locale, currentPage, pageSize, total, loading }: SearchResultsListProps) {
-  const t = useTranslations('search');
+export function SearchResultsList({
+  products,
+  locale,
+  currentPage: _currentPage,
+  pageSize,
+  total,
+  loading,
+  pendingCursor,
+  hasMore,
+  loadingMore,
+  loadMore,
+  activeFilters,
+  availableSorts,
+  batteryIncludedFacets,
+  currentSort,
+  applyFacet,
+  applyRangeFacet,
+  changeSort,
+  resetFacet,
+  resetAllFacets,
+  categoryFilterLabelsById,
+  navigationRoots,
+  topControlsNode,
+  searchQuery,
+}: SearchResultsListProps) {
+  const rootCategories = navigationRoots ?? [];
+  const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);
 
   return (
-    <>
-      {loading ? (
-        <>
-          <Skeleton className="mb-4 h-5 w-[180px]" />
-          <div className="flex flex-col gap-4">
-            {Array.from({ length: Math.min(pageSize, products.length) }).map((_, i) => (
-              <ProductTileListItemSkeleton key={i} />
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          {products.length === 0 ? (
-            <SearchNoResults />
-          ) : (
-            <>
-              <div className="mb-4">
-                <p className="text-text-placeholders text-sm">
-                  {t('searchResults.showing', {
-                    start: 1,
-                    end: products.length,
-                    total: total,
-                  })}
-                </p>
-              </div>
-
-              {/* Client-side rendered products - this will replace the server-rendered ones */}
-              <div className="flex flex-col gap-4">
-                <p>List view currently not available. Please select grid view.</p>
-                {/*{products.map((product) => (*/}
-                {/*  <div key={product.id} className="h-full">*/}
-                {/*    <ProductTileListItem product={product} locale={locale} />*/}
-                {/*  </div>*/}
-                {/*))}*/}
-              </div>
-            </>
-          )}
-        </>
-      )}
-    </>
+    <PlpListLayout
+      products={products}
+      locale={locale}
+      pageSize={pageSize}
+      total={total}
+      loading={loading}
+      pendingCursor={pendingCursor}
+      navigationRoots={rootCategories}
+      selectedCategoryId={selectedCategoryId}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      loadMore={loadMore}
+      availableSorts={availableSorts}
+      batteryIncludedFacets={batteryIncludedFacets}
+      activeFilters={activeFilters ?? {}}
+      currentSort={currentSort}
+      applyFacet={applyFacet}
+      applyRangeFacet={applyRangeFacet}
+      changeSort={changeSort}
+      resetFacet={resetFacet}
+      resetAllFacets={resetAllFacets}
+      categoryFilterLabelsById={categoryFilterLabelsById}
+      topControlsNode={topControlsNode}
+      searchQuery={searchQuery}
+    />
   );
 }

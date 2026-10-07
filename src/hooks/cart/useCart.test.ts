@@ -1,6 +1,6 @@
-import { act } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import type { Cart } from '@/platform/services/model/cart/cart';
-import { createCartStore } from '@/stores/cart-store';
+import { CartMutationCancelledError, createCartStore } from '@/stores/cart-store';
 
 function fcResult(cart: Cart | null): { cart: Cart | null; sessionSiteCode: string | null } {
   if (!cart) return { cart: null, sessionSiteCode: null };
@@ -15,6 +15,9 @@ jest.mock('@/lib/client/carts', () => ({
   updateCartItemQuantity: jest.fn(),
   updateCartCurrency: jest.fn(),
   updateShippingInfo: jest.fn(),
+  updateShippingMethod: jest.fn(),
+  applyCartDiscount: jest.fn(),
+  removeCartDiscount: jest.fn(),
   loadSavedCart: jest.fn(),
   clearCartSession: jest.fn(),
 }));
@@ -33,6 +36,22 @@ const mockCreateCart = require('@/lib/client/carts').createCart;
 const mockAddItemToCart = require('@/lib/client/carts').addItemToCart;
 const mockClearCartSession = require('@/lib/client/carts').clearCartSession;
 const mockUpdateCartCurrency = require('@/lib/client/carts').updateCartCurrency;
+const mockUpdateShippingInfo = require('@/lib/client/carts').updateShippingInfo;
+const mockApplyCartDiscount = require('@/lib/client/carts').applyCartDiscount;
+const mockUpdateCartItemQuantity = require('@/lib/client/carts').updateCartItemQuantity;
+const mockRemoveCartItem = require('@/lib/client/carts').removeCartItem;
+const mockRemoveCartDiscount = require('@/lib/client/carts').removeCartDiscount;
+
+/** Manually settled promise so a test can hold an API call in flight. */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+const flushMicrotasks = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe('CartStore - Site Validation', () => {
   let store: ReturnType<typeof createCartStore>;
@@ -603,6 +622,7 @@ describe('CartStore - Fetch Deduplication', () => {
       lastLegalEntityId: null,
       pendingCurrencySync: null,
       isSettling: false,
+      mutating: false,
     });
 
     const createdCart = {
@@ -656,6 +676,7 @@ describe('CartStore - Fetch Deduplication', () => {
       lastLegalEntityId: null,
       pendingCurrencySync: null,
       isSettling: false,
+      mutating: false,
     });
     const updatedCart = {
       ...existingCart,
@@ -730,5 +751,704 @@ describe('CartStore - fetchCart loading gap with pendingCurrencySync', () => {
 
     expect(store.getState().loading).toBe(false);
     expect(store.getState().currentCart).toEqual(cart);
+  });
+});
+
+describe('CartStore - shipping destination debounce', () => {
+  const shipping = { country: 'CH', zipCode: '6300', city: 'Zug', street: 'Bahnstrasse' };
+
+  const buildCart = (id: string): Cart =>
+    ({
+      id,
+      currency: 'CHF',
+      site: 'main',
+      items: [{ id: 'item-1', quantity: 1, price: { amount: 10, currency: 'CHF' } }],
+      totalPrice: { amount: 10, currency: 'CHF' },
+      subTotalPrice: { amount: 10, currency: 'CHF' },
+      tax: { amount: 0, currency: 'CHF', netValue: 0, grossValue: 0 },
+    }) as Cart;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUpdateShippingInfo.mockResolvedValue(undefined);
+    mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-1')));
+  });
+
+  it('still PATCHes the same country+zip when the cart id changed', async () => {
+    const store = createCartStore({
+      currentCart: buildCart('cart-1'),
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: null,
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+      mutating: false,
+    });
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    act(() => {
+      store.getState().setCurrentCart(buildCart('cart-2'));
+    });
+    mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-2')));
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    expect(mockUpdateShippingInfo).toHaveBeenCalledTimes(2);
+    expect(mockUpdateShippingInfo).toHaveBeenLastCalledWith('cart-2', shipping, undefined);
+  });
+
+  it('skips a repeat PATCH on the same cart within the debounce window', async () => {
+    const store = createCartStore({
+      currentCart: buildCart('cart-1'),
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: null,
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+      mutating: false,
+    });
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    expect(mockUpdateShippingInfo).toHaveBeenCalledTimes(1);
+    expect(mockUpdateShippingInfo).toHaveBeenCalledWith('cart-1', shipping, undefined);
+  });
+
+  it('skips a repeat PATCH after fetchCart resolves the same cart id', async () => {
+    const store = createCartStore({
+      currentCart: buildCart('cart-1'),
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: null,
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+      mutating: false,
+    });
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    act(() => {
+      store.getState().setCurrentCart(null);
+    });
+    mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-1')));
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    expect(mockUpdateShippingInfo).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CartStore - mutation gate, reset epoch and deferred currency flush', () => {
+  const buildCart = (id: string, overrides: Partial<Cart> = {}): Cart =>
+    ({
+      id,
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+      ...overrides,
+    }) as unknown as Cart;
+
+  const seedStore = (cart: Cart | null) =>
+    createCartStore({
+      currentCart: cart,
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: 'authenticated',
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+      mutating: false,
+    });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClearCartSession.mockResolvedValue(undefined);
+  });
+
+  it('serializes cart writes so the second API call starts only after the first has settled', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const first = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(first.promise);
+    mockApplyCartDiscount.mockResolvedValueOnce(buildCart('cart-1', { currency: 'USD' }));
+
+    const firstApply = store.getState().applyDiscount('FIRST');
+    const secondApply = store.getState().applyDiscount('SECOND');
+    await flushMicrotasks();
+
+    expect(mockApplyCartDiscount).toHaveBeenCalledTimes(1);
+
+    first.resolve(buildCart('cart-1', { currency: 'CHF' }));
+    await act(async () => {
+      await Promise.all([firstApply, secondApply]);
+    });
+
+    expect(mockApplyCartDiscount).toHaveBeenCalledTimes(2);
+    expect(mockApplyCartDiscount.mock.calls[1]).toEqual(['cart-1', 'SECOND']);
+    // The later response wins — the slower first response cannot overwrite it.
+    expect(store.getState().currentCart?.currency).toBe('USD');
+  });
+
+  it('drops a discount snapshot that resolves after clearCart() so the cleared cart is not resurrected', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pendingApply = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+
+    const applyPromise = store.getState().applyDiscount('LATE');
+    await flushMicrotasks();
+
+    act(() => {
+      store.getState().clearCart({ deleteCart: true });
+    });
+    expect(store.getState().currentCart).toBeNull();
+
+    pendingApply.resolve(buildCart('cart-1', { currency: 'USD' }));
+    await act(async () => {
+      await expect(applyPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+    });
+
+    expect(store.getState().currentCart).toBeNull();
+    expect(store.getState().loading).toBe(false);
+    expect(store.getState().error).toBeNull();
+  });
+
+  it('skips the follow-up refetch of a line-item write that completes after an auth reset', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pendingUpdate = deferred<void>();
+    mockUpdateCartItemQuantity.mockReturnValueOnce(pendingUpdate.promise);
+    // The reset's own fetch resolves to "no cart" for the new session.
+    mockFetchCurrentCart.mockResolvedValue(fcResult(null));
+
+    const updatePromise = store.getState().updateItemQuantity('item-1', 3);
+    await flushMicrotasks();
+    expect(store.getState().loading).toBe(true);
+
+    await act(async () => {
+      await store.getState().validateCart('unauthenticated');
+    });
+    const fetchesAfterReset = mockFetchCurrentCart.mock.calls.length;
+
+    pendingUpdate.resolve();
+    await act(async () => {
+      await updatePromise;
+    });
+
+    expect(mockFetchCurrentCart).toHaveBeenCalledTimes(fetchesAfterReset);
+    expect(store.getState().currentCart).toBeNull();
+    expect(store.getState().loading).toBe(false);
+  });
+
+  it('drops a refetch response that was issued before clearCart() but resolves after it', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    mockUpdateCartItemQuantity.mockResolvedValueOnce(undefined);
+    const pendingGet = deferred<ReturnType<typeof fcResult>>();
+    mockFetchCurrentCart.mockReturnValueOnce(pendingGet.promise);
+
+    // PATCH resolves immediately; the follow-up GET is now in flight under the pre-reset epoch.
+    const updatePromise = store.getState().updateItemQuantity('item-1', 2);
+    await flushMicrotasks();
+    expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      store.getState().clearCart({ deleteCart: true });
+    });
+
+    pendingGet.resolve(fcResult(buildCart('cart-1', { currency: 'USD' })));
+    await act(async () => {
+      await updatePromise;
+    });
+
+    expect(store.getState().currentCart).toBeNull();
+    expect(store.getState().loading).toBe(false);
+  });
+
+  it('lets the reset fetch win over a slower pre-reset GET after an auth transition', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    mockUpdateCartItemQuantity.mockResolvedValueOnce(undefined);
+    const staleGet = deferred<ReturnType<typeof fcResult>>();
+    mockFetchCurrentCart.mockReturnValueOnce(staleGet.promise);
+    // The reset's own GET: new session has no cart.
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(null));
+
+    const updatePromise = store.getState().updateItemQuantity('item-1', 2);
+    await flushMicrotasks();
+
+    await act(async () => {
+      await store.getState().validateCart('unauthenticated');
+    });
+    expect(store.getState().currentCart).toBeNull();
+
+    staleGet.resolve(fcResult(buildCart('cart-1')));
+    await act(async () => {
+      await updatePromise;
+    });
+
+    expect(store.getState().currentCart).toBeNull();
+    expect(store.getState().loading).toBe(false);
+  });
+
+  it('never writes a stale addToCart to the pre-reset cart; it retries once against the fresh cart', async () => {
+    const store = seedStore(null);
+    const pendingGet = deferred<ReturnType<typeof fcResult>>();
+    mockFetchCurrentCart.mockReturnValueOnce(pendingGet.promise);
+    const freshCart = buildCart('cart-fresh');
+    mockCreateCart.mockResolvedValueOnce(freshCart);
+    mockAddItemToCart.mockResolvedValueOnce({ cart: freshCart });
+
+    // Cart unknown: addToCart waits for the in-flight fetch first.
+    const fetchPromise = store.getState().fetchCart();
+    const addPromise = store.getState().addToCart('product-1', 1);
+    await flushMicrotasks();
+
+    act(() => {
+      store.getState().clearCart();
+    });
+    pendingGet.resolve(fcResult(buildCart('cart-old')));
+    await fetchPromise;
+    await act(async () => {
+      await addPromise;
+    });
+
+    // The retried attempt creates the fresh cart; nothing was ever written to `cart-old`.
+    expect(mockCreateCart).toHaveBeenCalledTimes(1);
+    expect(mockAddItemToCart).toHaveBeenCalledTimes(1);
+    expect(mockAddItemToCart).toHaveBeenCalledWith('cart-fresh', expect.anything(), expect.anything());
+    expect(store.getState().currentCart?.id).toBe('cart-fresh');
+    expect(store.getState().error).toBeNull();
+  });
+
+  it('surfaces CartMutationCancelledError when a second reset cancels the retried addToCart', async () => {
+    const store = seedStore(null);
+    const pendingGet = deferred<ReturnType<typeof fcResult>>();
+    const pendingCreate = deferred<Cart>();
+    mockFetchCurrentCart.mockReturnValueOnce(pendingGet.promise);
+    mockCreateCart.mockReturnValueOnce(pendingCreate.promise);
+
+    const fetchPromise = store.getState().fetchCart();
+    const addPromise = store.getState().addToCart('product-1', 1);
+    await flushMicrotasks();
+    act(() => {
+      store.getState().clearCart();
+    });
+    pendingGet.resolve(fcResult(buildCart('cart-old')));
+    await fetchPromise;
+    await flushMicrotasks();
+
+    // The retry is now creating a cart; a second reset lands before the create resolves.
+    expect(mockCreateCart).toHaveBeenCalledTimes(1);
+    act(() => {
+      store.getState().clearCart();
+    });
+    pendingCreate.resolve(buildCart('cart-fresh'));
+
+    await expect(addPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+    expect(mockAddItemToCart).not.toHaveBeenCalled();
+    expect(store.getState().currentCart).toBeNull();
+    expect(store.getState().error).toBeNull();
+  });
+
+  it('skips an id-bound write that was queued behind another mutation when a reset happens meanwhile', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pendingApply = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+    mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-new')));
+
+    const applyPromise = store.getState().applyDiscount('HOLD');
+    const removePromise = store.getState().removeItem('item-from-old-cart');
+    await flushMicrotasks();
+
+    await act(async () => {
+      await store.getState().validateCart('unauthenticated');
+    });
+
+    pendingApply.resolve(buildCart('cart-1'));
+    await act(async () => {
+      await expect(removePromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+      await expect(applyPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+    });
+
+    expect(mockRemoveCartItem).not.toHaveBeenCalled();
+    expect(store.getState().currentCart?.id).toBe('cart-new');
+    expect(store.getState().error).toBeNull();
+  });
+
+  type SeededStore = ReturnType<typeof seedStore>;
+  const queuedWrites: Array<[string, (store: SeededStore) => Promise<void>, () => jest.Mock]> = [
+    ['applyDiscount', (store) => store.getState().applyDiscount('QUEUED'), () => mockApplyCartDiscount],
+    ['removeDiscount', (store) => store.getState().removeDiscount(0), () => mockRemoveCartDiscount],
+    [
+      'updateShippingInfo',
+      (store) => store.getState().updateShippingInfo({ country: 'DE', zipCode: '10115' }),
+      () => mockUpdateShippingInfo,
+    ],
+  ];
+
+  it.each(queuedWrites)(
+    'discards a %s queued before a reset instead of replaying it on the re-resolved cart',
+    async (_name, start, api) => {
+      const store = seedStore(buildCart('cart-1'));
+      const pendingApply = deferred<Cart>();
+      mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+      mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-new')));
+
+      const holdPromise = store.getState().applyDiscount('HOLD');
+      const queuedPromise = start(store);
+      await flushMicrotasks();
+
+      await act(async () => {
+        await store.getState().validateCart('unauthenticated');
+      });
+
+      pendingApply.resolve(buildCart('cart-1'));
+      await act(async () => {
+        if (_name === 'applyDiscount' || _name === 'removeDiscount') {
+          await expect(queuedPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+          await expect(holdPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+          return;
+        }
+        await expect(holdPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+        await queuedPromise;
+      });
+
+      expect(api().mock.calls.filter((call: unknown[]) => call[0] === 'cart-new')).toHaveLength(0);
+      expect(mockApplyCartDiscount).toHaveBeenCalledTimes(1);
+      expect(store.getState().currentCart?.id).toBe('cart-new');
+      expect(store.getState().error).toBeNull();
+    },
+  );
+
+  it('still reprices the re-resolved cart when a currency change was queued before a reset', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pendingApply = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+    mockUpdateCartCurrency.mockResolvedValue(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-new')));
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-new', { currency: 'CHF' })));
+
+    const holdPromise = store.getState().applyDiscount('HOLD');
+    const currencyPromise = store.getState().updateCurrency('CHF');
+    await flushMicrotasks();
+
+    await act(async () => {
+      await store.getState().validateCart('unauthenticated');
+    });
+
+    pendingApply.resolve(buildCart('cart-1'));
+    await act(async () => {
+      await expect(holdPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+      await currencyPromise;
+    });
+
+    // Currency is session intent, not bound to the old cart id: it must land on the new cart.
+    expect(mockUpdateCartCurrency).toHaveBeenCalledTimes(1);
+    expect(mockUpdateCartCurrency).toHaveBeenCalledWith('cart-new', 'CHF');
+    expect(store.getState().currentCart?.currency).toBe('CHF');
+    expect(store.getState().loading).toBe(false);
+  });
+
+  it('issues a fresh GET for a refetch after a write instead of deduping onto a pre-write GET', async () => {
+    const store = seedStore(buildCart('cart-1', { items: [{ id: 'item-1' }] as Cart['items'] }));
+    const staleGet = deferred<ReturnType<typeof fcResult>>();
+    mockFetchCurrentCart.mockReturnValueOnce(staleGet.promise);
+    mockApplyCartDiscount.mockResolvedValueOnce(buildCart('cart-1', { items: [{ id: 'item-1' }] as Cart['items'] }));
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-1', { items: [] })));
+
+    const fetchPromise = store.getState().fetchCart();
+    await act(async () => {
+      await store.getState().applyDiscount('FAST');
+      await store.getState().removeItem('item-1');
+    });
+
+    // The post-remove refetch must not reuse the pre-write GET that is still in flight.
+    expect(mockFetchCurrentCart).toHaveBeenCalledTimes(2);
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+
+    staleGet.resolve(fcResult(buildCart('cart-1', { items: [{ id: 'item-1' }] as Cart['items'] })));
+    await act(async () => {
+      await fetchPromise;
+    });
+
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+    expect(store.getState().loading).toBe(false);
+  });
+
+  it('strips leftover coupons after the last line item is removed', async () => {
+    const emptiedWithCoupon = buildCart('cart-1', {
+      items: [],
+      discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+    });
+    const emptiedClean = buildCart('cart-1', { items: [] });
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+      }),
+    );
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithCoupon));
+    mockRemoveCartDiscount.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedClean));
+
+    let result: { leftoverCouponsCleared: boolean } | undefined;
+    await act(async () => {
+      result = await store.getState().removeItem('item-1');
+    });
+
+    expect(result).toEqual({ leftoverCouponsCleared: true });
+    expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 0);
+    expect(store.getState().currentCart?.discounts).toBeUndefined();
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+  });
+
+  it('does not DELETE the TOTAL rollup when stripping leftover coupons from an empty cart', async () => {
+    const emptiedWithRollup = buildCart('cart-1', {
+      items: [],
+      discounts: [
+        { code: 'TOTAL', discountIndex: 0, amount: 1.5, currency: 'EUR' },
+        { code: 'ACCESSORIES15', discountIndex: 1, amount: 1.5, currency: 'EUR' },
+      ],
+    });
+    const emptiedClean = buildCart('cart-1', { items: [] });
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: emptiedWithRollup.discounts,
+      }),
+    );
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithRollup));
+    mockRemoveCartDiscount.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedClean));
+
+    await act(async () => {
+      await store.getState().removeItem('item-1');
+    });
+
+    expect(mockRemoveCartDiscount).toHaveBeenCalledTimes(1);
+    expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 1);
+  });
+
+  it('does not report leftoverCouponsCleared when the emptied cart snapshot is missing', async () => {
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+      }),
+    );
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(null));
+
+    let result: { leftoverCouponsCleared: boolean } | undefined;
+    await act(async () => {
+      result = await store.getState().removeItem('item-1');
+    });
+
+    expect(mockRemoveCartDiscount).not.toHaveBeenCalled();
+    expect(result).toEqual({ leftoverCouponsCleared: false });
+  });
+
+  it('still completes removeItem when leftover coupon cleanup fails', async () => {
+    const emptiedWithCoupon = buildCart('cart-1', {
+      items: [],
+      discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+    });
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+      }),
+    );
+    mockRemoveCartItem.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithCoupon));
+    mockRemoveCartDiscount.mockRejectedValueOnce(new Error('coupon cleanup failed'));
+
+    let result: { leftoverCouponsCleared: boolean } | undefined;
+    await act(async () => {
+      result = await store.getState().removeItem('item-1');
+    });
+
+    expect(result).toEqual({ leftoverCouponsCleared: false });
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+    expect(store.getState().error).toBeNull();
+  });
+
+  it('still completes updateItemQuantity when leftover coupon cleanup fails', async () => {
+    const emptiedWithCoupon = buildCart('cart-1', {
+      items: [],
+      discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+    });
+    const store = seedStore(
+      buildCart('cart-1', {
+        items: [{ id: 'item-1' }] as Cart['items'],
+        discounts: [{ code: 'ACCESSORIES15', discountIndex: 0, amount: 1.5, currency: 'EUR' }],
+      }),
+    );
+    mockUpdateCartItemQuantity.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(emptiedWithCoupon));
+    mockRemoveCartDiscount.mockRejectedValueOnce(new Error('coupon cleanup failed'));
+
+    await act(async () => {
+      await store.getState().updateItemQuantity('item-1', 0);
+    });
+
+    expect(store.getState().currentCart?.items).toHaveLength(0);
+    expect(store.getState().error).toBeNull();
+  });
+
+  it('sets mutating while a snapshot mutation is in flight without flipping loading', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pending = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pending.promise);
+
+    const apply = store.getState().applyDiscount('CODE');
+    expect(store.getState().mutating).toBe(true);
+    expect(store.getState().loading).toBe(false);
+
+    pending.resolve(buildCart('cart-1'));
+    await act(async () => {
+      await apply;
+    });
+    expect(store.getState().mutating).toBe(false);
+  });
+
+  it('re-resolves a queued remove to the coupon code after an earlier write reindexes discounts', async () => {
+    const store = seedStore(
+      buildCart('cart-1', {
+        discounts: [
+          { code: 'GOODS10', discountIndex: 0, amount: 10, currency: 'EUR' },
+          { code: 'FREESHIP', discountIndex: 1, amount: 0, currency: 'EUR', type: 'FREE_SHIPPING' },
+        ],
+      }),
+    );
+    const pendingApply = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+    mockRemoveCartDiscount.mockResolvedValueOnce(
+      buildCart('cart-1', { discounts: [{ code: 'GOODS10', discountIndex: 0, amount: 10, currency: 'EUR' }] }),
+    );
+
+    const applyPromise = store.getState().applyDiscount('OTHER');
+    const removePromise = store.getState().removeDiscount(1);
+    await flushMicrotasks();
+
+    pendingApply.resolve(
+      buildCart('cart-1', {
+        discounts: [{ code: 'FREESHIP', discountIndex: 0, amount: 0, currency: 'EUR', type: 'FREE_SHIPPING' }],
+      }),
+    );
+    await act(async () => {
+      await Promise.all([applyPromise, removePromise]);
+    });
+
+    expect(mockRemoveCartDiscount).toHaveBeenCalledWith('cart-1', 0);
+  });
+
+  it('drops a GET issued before a discount write that resolves after the write published its snapshot', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const staleGet = deferred<ReturnType<typeof fcResult>>();
+    mockFetchCurrentCart.mockReturnValueOnce(staleGet.promise);
+    mockApplyCartDiscount.mockResolvedValueOnce(buildCart('cart-1', { currency: 'USD' }));
+
+    const fetchPromise = store.getState().fetchCart();
+    await act(async () => {
+      await store.getState().applyDiscount('FAST');
+    });
+    expect(store.getState().currentCart?.currency).toBe('USD');
+
+    staleGet.resolve(fcResult(buildCart('cart-1', { currency: 'EUR' })));
+    await act(async () => {
+      await fetchPromise;
+    });
+
+    // The pre-write GET must not roll the snapshot back to the pre-discount cart.
+    expect(store.getState().currentCart?.currency).toBe('USD');
+    expect(store.getState().loading).toBe(false);
+  });
+
+  it('drains a reprice recorded during a reset fetch once the busy gate releases', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pendingApply = deferred<Cart>();
+    mockApplyCartDiscount.mockReturnValueOnce(pendingApply.promise);
+    const resetGet = deferred<ReturnType<typeof fcResult>>();
+    mockFetchCurrentCart.mockReturnValueOnce(resetGet.promise);
+    mockUpdateCartCurrency.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-2', { site: 'other', currency: 'CHF' })));
+
+    const applyPromise = store.getState().applyDiscount('HOLD');
+    await flushMicrotasks();
+
+    const validatePromise = store.getState().validateSite('other');
+    await flushMicrotasks();
+    // Session currency changes while the reset fetch is loading: recorded as pending intent.
+    await store.getState().syncCurrencyWithSession('CHF', 'other');
+    expect(store.getState().pendingCurrencySync).toEqual({ currency: 'CHF', siteCode: 'other', attempts: 1 });
+
+    resetGet.resolve(fcResult(buildCart('cart-2', { site: 'other', currency: 'EUR' })));
+    await act(async () => {
+      await validatePromise;
+    });
+    // The gate is still held by applyDiscount, so the reset fetch must not await the reprice.
+    expect(store.getState().currentCart?.id).toBe('cart-2');
+    expect(mockUpdateCartCurrency).not.toHaveBeenCalled();
+
+    pendingApply.resolve(buildCart('cart-1'));
+    await act(async () => {
+      await expect(applyPromise).rejects.toBeInstanceOf(CartMutationCancelledError);
+    });
+
+    await waitFor(() => expect(mockUpdateCartCurrency).toHaveBeenCalledWith('cart-2', 'CHF'));
+    await waitFor(() => expect(store.getState().currentCart?.currency).toBe('CHF'));
+    expect(store.getState().pendingCurrencySync).toBeNull();
+  });
+
+  it('does not deadlock when a session currency change arrives while updateCurrency holds the gate', async () => {
+    const store = seedStore(buildCart('cart-1'));
+    const pendingCurrencyUpdate = deferred<void>();
+    mockUpdateCartCurrency.mockReturnValueOnce(pendingCurrencyUpdate.promise);
+    mockUpdateCartCurrency.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-1', { currency: 'USD' })));
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(buildCart('cart-1', { currency: 'CHF' })));
+
+    const updatePromise = store.getState().updateCurrency('USD');
+    await flushMicrotasks();
+    expect(store.getState().loading).toBe(true);
+
+    // Arrives mid-flight: the store records it as pending instead of mutating right away.
+    await store.getState().syncCurrencyWithSession('CHF', 'main');
+    expect(store.getState().pendingCurrencySync).toEqual({ currency: 'CHF', siteCode: 'main', attempts: 1 });
+
+    pendingCurrencyUpdate.resolve();
+    // Previously hung forever: fetchCart flushed the pending sync inside the held gate.
+    await act(async () => {
+      await updatePromise;
+    });
+
+    await waitFor(() => expect(mockUpdateCartCurrency).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(store.getState().currentCart?.currency).toBe('CHF'));
+    expect(mockUpdateCartCurrency.mock.calls.map((call: unknown[]) => call[1])).toEqual(['USD', 'CHF']);
+    expect(store.getState().pendingCurrencySync).toBeNull();
+    expect(store.getState().loading).toBe(false);
   });
 });

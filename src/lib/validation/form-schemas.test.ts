@@ -1,4 +1,4 @@
-import { AddressFormSchema, ProfileEditSchema } from './form-schemas';
+import { AddressFormSchema, PasswordChangeSchema, ProfileEditSchema } from './form-schemas';
 
 describe('AddressFormSchema', () => {
   const baseValid = {
@@ -95,6 +95,58 @@ describe('ProfileEditSchema - phone validation', () => {
     if (!result.success) {
       const messages = result.error.issues.map((issue) => issue.message);
       expect(messages).toContain('profile.form.phone.invalid');
+    }
+  });
+});
+
+describe('PasswordChangeSchema', () => {
+  const baseValid = {
+    currentPassword: 'OldPassword1',
+    newPassword: 'NewPassword1',
+    confirmPassword: 'NewPassword1',
+  };
+
+  it('accepts a valid password with all character classes', () => {
+    const result = PasswordChangeSchema.safeParse(baseValid);
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a password missing a lowercase letter', () => {
+    const result = PasswordChangeSchema.safeParse({
+      ...baseValid,
+      newPassword: 'NEWPASSWORD1',
+      confirmPassword: 'NEWPASSWORD1',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const messages = result.error.issues.map((issue) => issue.message);
+      expect(messages).toContain('password.newPassword.lowercase');
+    }
+  });
+
+  it('rejects a password missing an uppercase letter', () => {
+    const result = PasswordChangeSchema.safeParse({
+      ...baseValid,
+      newPassword: 'newpassword1',
+      confirmPassword: 'newpassword1',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const messages = result.error.issues.map((issue) => issue.message);
+      expect(messages).toContain('password.newPassword.uppercase');
+    }
+  });
+
+  it('rejects a password missing a digit', () => {
+    const result = PasswordChangeSchema.safeParse({
+      ...baseValid,
+      newPassword: 'NewPassword',
+      confirmPassword: 'NewPassword',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const messages = result.error.issues.map((issue) => issue.message);
+      expect(messages).toContain('password.newPassword.number');
     }
   });
 });

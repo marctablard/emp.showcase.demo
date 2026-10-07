@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: package-lock.json
       - name: Align npm with packageManager
@@ -36,10 +36,16 @@ jobs:
         run: |
           npm i -g @aikidosec/safe-chain
           safe-chain setup-ci
+      # Dev-preview age-gate skip only: same policy as
+      # `npm run verify:ci-install:preview-override`
+      # (`SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1`). Malware checks stay on.
+      # Production workflows keep the unmodified minimum-package-age gate.
       - name: Install Vercel CLI
-        run: npm i -g vercel
+        run: npm i -g vercel --safe-chain-skip-minimum-package-age
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --safe-chain-skip-minimum-package-age
+      - name: Run npm audit
+        run: npm audit --audit-level=high
       # - name: Install Playwright Browsers
       #   run: npx playwright install --with-deps
       - name: Pull Vercel environment information

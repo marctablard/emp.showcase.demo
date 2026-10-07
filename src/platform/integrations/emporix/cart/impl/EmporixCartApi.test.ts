@@ -2,6 +2,7 @@ import { Container, inject } from 'inversify';
 import { StoredToken } from '@/platform/integrations/types/auth';
 import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTokenManagerAbstract, TokenStore } from '../../common/impl/EmporixTokenManagerAbstract';
 import type { EmporixTokenType } from '../../common/token-types';
 import { EmporixConfig } from '../../config';
@@ -27,6 +28,18 @@ class TestEmporixConfig implements EmporixConfig {
 class TestTokenManager extends EmporixTokenManagerAbstract {
   constructor(@inject('EmporixOAuthApi') oauthApi: EmporixOAuthApi) {
     super(oauthApi);
+  }
+  public readonly skippedRefreshLogs: Array<{
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }> = [];
+  protected override logCustomerTokenRefreshSkipped(context: {
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }): void {
+    this.skippedRefreshLogs.push(context);
   }
   protected readTokens(): Promise<TokenStore> {
     throw new Error('Method not implemented.');
@@ -107,6 +120,8 @@ describe('EmporixCartApi', () => {
           new EmporixApiInvoker(
             ctx.get<EmporixConfig>('EmporixConfig'),
             ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
           ),
       )
       .inSingletonScope();

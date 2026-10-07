@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Heading } from '@/components/ui/h';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import type { SearchSuggestions } from '@/platform/services/model/search';
 
 export interface NoResultsProps {
@@ -27,9 +28,10 @@ export function NoResults({ queryCompletions, setQuery, onQuerySelect }: NoResul
           {queryCompletions.map((completion) => (
             <Button
               onClick={() => {
-                setQuery(completion);
+                const plainCompletion = clearMarkHighlights(completion);
+                setQuery(plainCompletion);
                 if (onQuerySelect) {
-                  onQuerySelect(completion);
+                  onQuerySelect(plainCompletion);
                 }
               }}
               key={completion}

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { toDisplayString } from '@/lib/common/ai-tool-widgets';
 import type { Product } from '../types';
 import { formatPrice, handleImageError } from '../utils';
 
@@ -27,11 +28,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
     setQuantity((prev) => Math.max(1, prev - 1));
   };
 
+  const name = toDisplayString(product.name) ?? product.productId;
+  const brand = toDisplayString(product.brand);
+  const description = toDisplayString(product.description);
   const price = typeof product.price === 'number' ? product.price : parseFloat(String(product.price || 0));
   const originalPrice =
     product.originalPrice && typeof product.originalPrice === 'number'
       ? product.originalPrice
       : parseFloat(String(product.originalPrice || 0));
+
+  const hasPrice = product.price != null && product.price !== '';
+  const hasOriginalPrice = product.originalPrice != null && product.originalPrice !== '';
 
   return (
     <div className="p-4 bg-surface-primary rounded-xl border border-border-primary shadow-sm hover:shadow-md transition-all duration-200">
@@ -39,7 +46,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
         {product.image && (
           <Image
             src={product.image}
-            alt={product.name}
+            alt={name}
             width={80}
             height={80}
             className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
@@ -48,16 +55,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           />
         )}
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-text-headings text-base mb-1">{product.name}</div>
-          {product.brand && <div className="text-sm text-text-body mb-2">{product.brand}</div>}
-          {product.description && <div className="text-sm text-text-body mb-3 line-clamp-2">{product.description}</div>}
+          <div className="font-semibold text-text-headings text-base mb-1">{name}</div>
+          {brand && <div className="text-sm text-text-body mb-2">{brand}</div>}
+          {description && <div className="text-sm text-text-body mb-3 line-clamp-2">{description}</div>}
           <div className="flex items-center space-x-3 mb-3">
-            {product.price ? (
+            {hasPrice ? (
               <span className="font-semibold text-text-headings text-base">{formatPrice(price, product.currency)}</span>
             ) : (
               <span className="text-base text-text-placeholders">{t('priceOnRequest')}</span>
             )}
-            {product.originalPrice && (
+            {hasOriginalPrice && (
               <span className="text-sm text-text-disabled line-through">
                 {formatPrice(originalPrice, product.currency)}
               </span>

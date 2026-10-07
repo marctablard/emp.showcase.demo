@@ -35,3 +35,21 @@ export interface EmporixShippingMethod {
   fees: EmporixShippingFee[];
   shippingTaxCode?: string;
 }
+
+/** GET /shipping/{tenant}/actualDeliveryWindows/{cartId} */
+export interface EmporixActualDeliveryWindow {
+  id?: string;
+  deliveryDate: string;
+  deliveryTimeRange?: {
+    startTime?: string;
+    endTime?: string;
+  };
+  deliveryCycle?: string;
+  zoneId?: string;
+  /** Shipping method name (or id) for this window. May be a localized map. */
+  deliveryMethod?: string | Record<string, string>;
+  shippingMethod?: string | Record<string, string>;
+  methodId?: string;
+  cutOffTime?: string;
+  slotId?: string;
+}

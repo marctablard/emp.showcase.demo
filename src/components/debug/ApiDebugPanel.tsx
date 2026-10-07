@@ -137,7 +137,8 @@ function logEventToConsole(event: ApiDebugEvent): void {
   const labelStyle = isInternal ? STYLES.internalLabel : STYLES.externalLabel;
   const arrow = isInternal ? '⬇' : '⬆';
 
-  const groupLabel = `%c ${badgeLabel} %c ${arrow} API %c${event.method} %c${event.status ?? '?'} %c${prefixStr}${event.url}%c${durationStr}`;
+  const hopLabel = isInternal ? 'Next.js route' : 'Upstream';
+  const groupLabel = `%c ${badgeLabel} %c ${arrow} ${hopLabel} %c${event.method} %c${event.status ?? '?'} %c${prefixStr}${event.url}%c${durationStr}`;
 
   // Use groupCollapsed for non-errors, group for errors
   const groupFn = event.isError ? console.group : console.groupCollapsed;
@@ -152,12 +153,21 @@ function logEventToConsole(event: ApiDebugEvent): void {
   // Request body (payload)
   if (browserDetails.has('payload') && event.requestBody) {
     const parsed = tryParseJson(event.requestBody);
+    const isGetLike = event.method === 'GET' || event.method === 'HEAD';
+    const payloadGroupTitle =
+      parsed !== null
+        ? isInternal && isGetLike
+          ? 'Request query (JSON)'
+          : 'Request body (JSON)'
+        : isInternal && isGetLike
+          ? 'Request query string'
+          : 'Request body (text)';
     if (parsed !== null) {
-      console.groupCollapsed('%cRequest Payload (JSON)', STYLES.label);
+      console.groupCollapsed(`%c${payloadGroupTitle}`, STYLES.label);
       console.dir(parsed, { depth: 10 });
       console.groupEnd();
     } else {
-      console.groupCollapsed('%cRequest Payload (text)', STYLES.label);
+      console.groupCollapsed(`%c${payloadGroupTitle}`, STYLES.label);
       console.log(event.requestBody);
       console.groupEnd();
     }
@@ -189,8 +199,8 @@ function logEventToConsole(event: ApiDebugEvent): void {
 
 /**
  * Invisible component that connects to the server-side debug
- * event stream (SSE) and pretty-prints upstream API calls in the
- * browser DevTools console.
+ * event stream (SSE) and pretty-prints Next.js API route traffic and
+ * upstream (e.g. Emporix) calls in the browser DevTools console.
  *
  * Renders nothing to the DOM.
  *
@@ -222,7 +232,7 @@ export function ApiDebugPanel(): null {
           .join(', ');
         const filterStr = filters ? ` | Filters: ${filters}` : '';
         console.log(
-          `%c🔌 API Debug Stream connected — upstream API calls will appear here\n   Details: ${details}${filterStr}`,
+          `%c🔌 API Debug Stream connected — INT = browser→/api, EXT = server→upstream\n   Details: ${details}${filterStr}`,
           'color: #50fa7b; font-weight: bold',
         );
       });

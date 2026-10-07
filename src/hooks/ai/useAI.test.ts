@@ -117,6 +117,158 @@ describe('useAI hook', () => {
       await result.current.sendMessageWithContext('Hello', context);
     });
 
-    expect(mockSendAIChatMessageWithContext).toHaveBeenCalledWith('Hello', context);
+    expect(mockSendAIChatMessageWithContext).toHaveBeenCalledWith('Hello', context, expect.any(Function));
+  });
+
+  it('should expose chunkCount and streamingPreview from stream progress', async () => {
+    let resolveRequest: ((value: { message: string }) => void) | undefined;
+    mockSendAIChatMessageWithContext.mockImplementation(
+      async (
+        _message: string,
+        _context: unknown,
+        onProgress?: (progress: { chunks: number; preview?: { kind: 'text'; content: string } }) => void,
+      ) => {
+        onProgress?.({ chunks: 0 });
+        onProgress?.({ chunks: 7, preview: { kind: 'text', content: 'Typing' } });
+        return new Promise((resolve) => {
+          resolveRequest = resolve;
+        });
+      },
+    );
+
+    const { result } = renderHook(() => useAI());
+
+    act(() => {
+      void result.current.sendMessageWithContext('Hello', { siteId: 'test', currency: 'EUR', language: 'en' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+      expect(result.current.chunkCount).toBe(7);
+      expect(result.current.streamingPreview).toEqual({ kind: 'text', content: 'Typing' });
+    });
+
+    await act(async () => {
+      resolveRequest?.({ message: 'streamed' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.chunkCount).toBeNull();
+      expect(result.current.streamingPreview).toBeNull();
+    });
+  });
+
+  it('should expose widget preview and thinking from stream progress', async () => {
+    let resolveRequest: ((value: { message: string }) => void) | undefined;
+    mockSendAIChatMessageWithContext.mockImplementation(
+      async (
+        _message: string,
+        _context: unknown,
+        onProgress?: (progress: {
+          chunks: number;
+          preview?: { kind: 'widget'; type: string; message: string; data: unknown };
+          thinking?: string;
+        }) => void,
+      ) => {
+        onProgress?.({
+          chunks: 2,
+          thinking: 'active',
+          preview: {
+            kind: 'widget',
+            type: 'quote_list',
+            message: '',
+            data: {},
+          },
+        });
+        return new Promise((resolve) => {
+          resolveRequest = resolve;
+        });
+      },
+    );
+
+    const { result } = renderHook(() => useAI());
+
+    act(() => {
+      void result.current.sendMessageWithContext('Hello', { siteId: 'test', currency: 'EUR', language: 'en' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.streamingThinking).toBe('active');
+      expect(result.current.streamingPreview).toEqual({
+        kind: 'widget',
+        type: 'quote_list',
+        message: '',
+        data: {},
+      });
+    });
+
+    await act(async () => {
+      resolveRequest?.({ message: 'streamed' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.streamingPreview).toBeNull();
+      expect(result.current.streamingThinking).toBeNull();
+    });
+  });
+
+  it('passes the last stream preview into onSuccess', async () => {
+    const cartPreview = {
+      kind: 'widget' as const,
+      type: 'cart_summary',
+      message: 'Added to cart.',
+      data: { items: [{ productId: 'P1' }] },
+    };
+    mockSendAIChatMessageWithContext.mockImplementation(
+      async (
+        _message: string,
+        _context: unknown,
+        onProgress?: (progress: { chunks: number; preview?: typeof cartPreview }) => void,
+      ) => {
+        onProgress?.({ chunks: 1, preview: cartPreview });
+        return { message: '{"type":"text","message":"done"}' };
+      },
+    );
+
+    const onSuccess = jest.fn();
+    const { result } = renderHook(() => useAI());
+
+    await act(async () => {
+      await result.current.sendMessageWithContext(
+        'Add to cart',
+        { siteId: 'test', currency: 'EUR', language: 'en' },
+        onSuccess,
+      );
+    });
+
+    expect(onSuccess).toHaveBeenCalledWith({ message: '{"type":"text","message":"done"}' }, cartPreview);
+  });
+
+  it('does not expose a handshake chunk count of 0', async () => {
+    let resolveRequest: ((value: { message: string }) => void) | undefined;
+    mockSendAIChatMessageWithContext.mockImplementation(
+      async (_message: string, _context: unknown, onProgress?: (progress: { chunks: number }) => void) => {
+        onProgress?.({ chunks: 0 });
+        return new Promise((resolve) => {
+          resolveRequest = resolve;
+        });
+      },
+    );
+
+    const { result } = renderHook(() => useAI());
+
+    act(() => {
+      void result.current.sendMessageWithContext('Hello', { siteId: 'test', currency: 'EUR', language: 'en' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+      expect(result.current.chunkCount).toBeNull();
+    });
+
+    await act(async () => {
+      resolveRequest?.({ message: 'streamed' });
+    });
   });
 });

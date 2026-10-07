@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import {
+  OrderAccessDeniedError,
   fetchOrderById as apiFetchOrderById,
   fetchOrderStatusTransitions as apiFetchOrderStatusTransitions,
 } from '@/lib/client/orders';
@@ -18,6 +19,16 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
 }));
 
 jest.mock('@/lib/client/orders', () => ({
+  OrderAccessDeniedError: class OrderAccessDeniedError extends Error {
+    readonly status: number;
+
+    constructor(status: number) {
+      super("You don't have permission to view this order.");
+      this.name = 'OrderAccessDeniedError';
+      this.status = status;
+    }
+  },
+  isOrderAccessDeniedError: (error: unknown) => error instanceof Error && error.name === 'OrderAccessDeniedError',
   fetchOrderById: jest.fn(),
   fetchOrderStatusTransitions: jest.fn(),
   postCustomerOrderDecline: jest.fn(),
@@ -108,5 +119,42 @@ describe('useOrder', () => {
 
     expect(mockFetchStatusTransitions).toHaveBeenCalledWith('real-order-123');
     expect(mockFetchOrderById).not.toHaveBeenCalled();
+  });
+
+  it('preserves access denied errors from order fetches', async () => {
+    mockFetchOrderById.mockRejectedValueOnce(new OrderAccessDeniedError(403));
+
+    const { result } = renderHook(() =>
+      useOrder({
+        orderId: 'real-order-123',
+        autoFetchStatusTransitions: false,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(OrderAccessDeniedError);
+    });
+
+    expect(result.current.error?.message).toBe("You don't have permission to view this order.");
+  });
+
+  it('preserves access denied errors when order and status transition fetches fail concurrently', async () => {
+    mockFetchOrderById.mockRejectedValueOnce(new OrderAccessDeniedError(403));
+    mockFetchStatusTransitions.mockRejectedValueOnce(new Error('Failed to fetch status transitions'));
+
+    const { result } = renderHook(() =>
+      useOrder({
+        orderId: 'real-order-123',
+        autoFetchStatusTransitions: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(OrderAccessDeniedError);
+    });
+
+    expect(mockFetchOrderById).toHaveBeenCalledWith('real-order-123');
+    expect(mockFetchStatusTransitions).toHaveBeenCalledWith('real-order-123');
+    expect(result.current.error?.message).toBe("You don't have permission to view this order.");
   });
 });

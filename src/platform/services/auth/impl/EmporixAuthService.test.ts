@@ -16,7 +16,7 @@ describe('EmporixAuthService', () => {
   let authService: EmporixAuthService;
 
   let mockSessionContextApi: { getOwnSessionContext: jest.Mock };
-  let mockCustomerApi: { login: jest.Mock; logout: jest.Mock };
+  let mockCustomerApi: { login: jest.Mock; logout: jest.Mock; signup: jest.Mock };
   let mockAddressMapper: { mapToSource: jest.Mock };
   let mockCartMigrationService: jest.Mocked<CartMigrationService>;
   let mockSessionService: jest.Mocked<SessionService>;
@@ -162,6 +162,7 @@ describe('EmporixAuthService', () => {
       currency: 'EUR',
       targetLocation: 'DE',
     });
+    delete loginSessionContext.context;
 
     container = new Container();
 
@@ -172,6 +173,8 @@ describe('EmporixAuthService', () => {
     mockCustomerApi = {
       login: jest.fn(),
       logout: jest.fn(),
+      signup: jest.fn(),
+      getCustomerProfile: jest.fn().mockResolvedValue({}),
     };
 
     mockAddressMapper = {
@@ -184,6 +187,7 @@ describe('EmporixAuthService', () => {
 
     mockSessionService = {
       getCurrent: jest.fn(),
+      getCurrentOrThrow: jest.fn(),
       getById: jest.fn(),
       setLanguage: jest.fn(),
       setCurrency: jest.fn(),
@@ -193,6 +197,7 @@ describe('EmporixAuthService', () => {
       setCart: jest.fn(),
       clearCart: jest.fn(),
       setLegalEntity: jest.fn(),
+      getCustomerTokenLegalEntityId: jest.fn(),
       clearLegalEntity: jest.fn(),
       updateContext: jest.fn(),
     };
@@ -206,9 +211,10 @@ describe('EmporixAuthService', () => {
       removeCartItem: jest.fn(),
       deleteCart: jest.fn(),
       updateShippingInfo: jest.fn(),
-      applyPromoCode: jest.fn(),
-      removePromoCode: jest.fn(),
+      updateShippingMethod: jest.fn(),
       updateCurrency: jest.fn(),
+      applyDiscount: jest.fn(),
+      removeDiscount: jest.fn(),
       getSavedCarts: jest.fn(),
       saveCart: jest.fn(),
       loadCart: jest.fn(),
@@ -1233,6 +1239,58 @@ describe('EmporixAuthService', () => {
       expect(mockSessionService.setCurrency).not.toHaveBeenCalled();
     });
 
+    it('keeps a pre-login country allowed on the target site', async () => {
+      const shopperSession: ServiceSession = {
+        ...oldServiceSession,
+        country: 'DE',
+      };
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue({
+        ...loginSessionContext,
+        targetLocation: 'US',
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({ country: 'DE' }),
+        expect.any(Object),
+      );
+    });
+
+    it('snaps a pre-login country that the target site does not list to site.defaultCountry', async () => {
+      const shopperSession: ServiceSession = {
+        ...oldServiceSession,
+        country: 'RO',
+      };
+      mockSiteService.getSite.mockResolvedValue({
+        ...mainSite,
+        defaultCountry: 'DE',
+        countries: [
+          { code: 'DE', name: 'Germany' },
+          { code: 'CH', name: 'Switzerland' },
+        ],
+      });
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue({
+        ...loginSessionContext,
+        targetLocation: 'US',
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({ country: 'DE' }),
+        expect.any(Object),
+      );
+    });
+
     it('swallows combined PATCH failures, logs them, and still returns a usable Session', async () => {
       // Scenario 6: updateContext rejects → login result is still returned
       // with the Emporix-migrated siteCode (so the redirect guard takes over),
@@ -1304,6 +1362,209 @@ describe('EmporixAuthService', () => {
       ).rejects.toThrow('Failed to establish assisted buying session');
 
       expect(tokenManager.clearCustomerToken).toHaveBeenCalledWith('test-tenant');
+    });
+  });
+
+  describe('login - assigned legal entity', () => {
+    it('applies the first assigned legal entity before binding the customer cart', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(oldServiceSession);
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCustomerApi.getCustomerProfile.mockResolvedValue({
+        b2b: {
+          legalEntities: [
+            { id: '  le-first  ', name: '  The LA La Ride  ' },
+            { id: 'le-second', name: 'Darina Company LTD' },
+            { id: 'le-nameless', name: '   ' },
+          ],
+        },
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSessionService.setLegalEntity.mockResolvedValue({ tokenRefreshSucceeded: true, tokenLooksLikeJwt: true });
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.setLegalEntity).toHaveBeenCalledWith('le-first');
+      expect(mockSessionService.setLegalEntity.mock.invocationCallOrder[0]).toBeLessThan(
+        mockCartService.getCart.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('keeps a legal entity already present on the login session', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(oldServiceSession);
+      mockCustomerApi.login.mockResolvedValue({
+        ...loginSessionContext,
+        context: { legalEntityId: { key: 'legalEntityId', value: 'le-existing' } },
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+
+      await authService.login(credentials);
+
+      expect(mockCustomerApi.getCustomerProfile).not.toHaveBeenCalled();
+      expect(mockSessionService.setLegalEntity).not.toHaveBeenCalled();
+    });
+
+    it('still completes login when applying the legal entity fails', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(oldServiceSession);
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCustomerApi.getCustomerProfile.mockResolvedValue({
+        b2b: { legalEntities: [{ id: 'le-first', name: 'The LA La Ride' }] },
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSessionService.setLegalEntity.mockRejectedValue(new Error('token refresh failed'));
+
+      const result = await authService.login(credentials);
+
+      expect(result.customerId).toBe('customer-123');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ legalEntityId: 'le-first', customerId: 'customer-123' }),
+        'Failed to apply assigned legal entity after login',
+      );
+    });
+  });
+
+  describe('register', () => {
+    const originalPublicEnv = {
+      NEXT_PUBLIC_DEFAULT_LANGUAGE: process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE,
+      NEXT_PUBLIC_DEFAULT_CURRENCY: process.env.NEXT_PUBLIC_DEFAULT_CURRENCY,
+      NEXT_PUBLIC_DEFAULT_SITE: process.env.NEXT_PUBLIC_DEFAULT_SITE,
+    };
+
+    const registration = {
+      credentials,
+      customer: {
+        email: 'test@example.com',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        language: 'de',
+        currency: 'USD',
+      },
+    };
+
+    beforeEach(() => {
+      process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE = 'en';
+      process.env.NEXT_PUBLIC_DEFAULT_CURRENCY = 'EUR';
+      process.env.NEXT_PUBLIC_DEFAULT_SITE = 'main';
+      mockCustomerApi.signup.mockResolvedValue({ id: 'new-customer' });
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+    });
+
+    afterEach(() => {
+      process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE = originalPublicEnv.NEXT_PUBLIC_DEFAULT_LANGUAGE;
+      process.env.NEXT_PUBLIC_DEFAULT_CURRENCY = originalPublicEnv.NEXT_PUBLIC_DEFAULT_CURRENCY;
+      process.env.NEXT_PUBLIC_DEFAULT_SITE = originalPublicEnv.NEXT_PUBLIC_DEFAULT_SITE;
+    });
+
+    it('signs up without a session context using registration language and currency', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(undefined);
+
+      await authService.register(registration);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith({}, 'Registration proceeding without session context');
+      expect(mockCustomerApi.signup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: credentials.username,
+          customerDetails: expect.objectContaining({
+            preferredLanguage: 'de',
+            preferredCurrency: 'USD',
+            preferredSite: 'main',
+          }),
+        }),
+      );
+      expect(mockCustomerApi.login).toHaveBeenCalledWith(credentials.username, credentials.password);
+    });
+
+    it('falls back to public defaults when session and registration preferences are missing', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(undefined);
+
+      await authService.register({ credentials });
+
+      expect(mockCustomerApi.signup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customerDetails: expect.objectContaining({
+            preferredLanguage: 'en',
+            preferredCurrency: 'EUR',
+            preferredSite: 'main',
+          }),
+        }),
+      );
+    });
+
+    it('prefers live session language, currency, and site when a session exists', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        ...oldServiceSession,
+        language: 'fr',
+        currency: 'GBP',
+        siteCode: 'uk-branch',
+      });
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.register(registration);
+
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+      expect(mockCustomerApi.signup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customerDetails: expect.objectContaining({
+            preferredLanguage: 'fr',
+            preferredCurrency: 'GBP',
+            preferredSite: 'uk-branch',
+          }),
+        }),
+      );
+    });
+
+    it('forwards mapped address companyName and tags on signup customerAddress', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(undefined);
+      mockAddressMapper.mapToSource.mockReturnValue({
+        contactName: 'Ada Lovelace',
+        companyName: 'Emporix GmbH',
+        street: 'StreetShipping',
+        streetNumber: '1',
+        zipCode: '10115',
+        city: 'Berlin',
+        country: 'DE',
+        tags: [],
+      });
+
+      await authService.register({
+        ...registration,
+        customer: {
+          ...registration.customer,
+          company: 'Emporix GmbH',
+        },
+        address: {
+          contactName: 'Ada Lovelace',
+          companyName: 'Emporix GmbH',
+          street: 'StreetShipping',
+          streetNumber: '1',
+          zipCode: '10115',
+          city: 'Berlin',
+          country: 'DE',
+          tags: ['SHIPPING'],
+          source: 'customer',
+        },
+      });
+
+      expect(mockCustomerApi.signup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customerDetails: expect.objectContaining({
+            company: 'Emporix GmbH',
+            businessModel: 'B2B',
+          }),
+          customerAddress: expect.objectContaining({
+            companyName: 'Emporix GmbH',
+            tags: ['SHIPPING'],
+          }),
+        }),
+      );
+    });
+
+    it('still rejects registration without a password', async () => {
+      await expect(authService.register({ credentials: { username: 'test@example.com' } })).rejects.toThrow(
+        'Missing Password',
+      );
+      expect(mockCustomerApi.signup).not.toHaveBeenCalled();
     });
   });
 });

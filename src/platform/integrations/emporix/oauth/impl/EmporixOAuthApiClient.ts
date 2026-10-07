@@ -134,6 +134,26 @@ class EmporixOAuthApiClient implements IEmporixOAuthApi {
     return (await response.json()) as EmporixCustomerTokenResponse;
   }
 
+  async validateCustomerToken(tenant: string, accessToken: string): Promise<{ legalEntityId?: string }> {
+    const url = `${this.baseUrl}/customer/${encodeURIComponent(tenant)}/validateauthtoken`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to validate customer token: ${response.statusText}`);
+    }
+
+    const body = (await response.json()) as { legalEntityId?: unknown };
+    return typeof body.legalEntityId === 'string' && body.legalEntityId.trim()
+      ? { legalEntityId: body.legalEntityId.trim() }
+      : {};
+  }
+
   async getServiceAccessToken(
     _tenant: string,
     _clientId: string,

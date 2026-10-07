@@ -8,6 +8,7 @@ import {
   isOrderStatusValue,
   isQuoteStatusValue,
   isReturnStatusValue,
+  normalizeStatusKey,
 } from '@/lib/common/status-tag-variants';
 
 /**
@@ -34,55 +35,65 @@ export const formatTimestamp = (date: Date): string => {
   return date.toLocaleTimeString();
 };
 
+function toValidDate(value: unknown): Date | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+}
+
 /**
  * Formats a date to a localized date string (e.g., "Jan 15, 2024")
  */
-export const formatDate = (date: Date | string, _locale: string = 'en-US'): string => {
+export const formatDate = (date: unknown, _locale: string = 'en-US'): string => {
+  const dateObj = toValidDate(date);
+  if (!dateObj) {
+    return typeof date === 'string' && date.length > 0 ? date : 'N/A';
+  }
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
     return format(dateObj, 'MMM d, yyyy');
   } catch {
-    return typeof date === 'string' ? date : date.toISOString();
+    return typeof date === 'string' ? date : 'N/A';
   }
 };
 
 /**
  * Formats a date with time to a localized string (e.g., "January 15, 2024 2:30 PM")
  */
-export const formatDateTime = (date: Date | string | undefined | null, _locale: string = 'en-US'): string => {
-  if (!date) {
-    return 'N/A';
+export const formatDateTime = (date: unknown, _locale: string = 'en-US'): string => {
+  const dateObj = toValidDate(date);
+  if (!dateObj) {
+    return typeof date === 'string' && date.length > 0 ? date : 'N/A';
   }
 
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
     return format(dateObj, 'MMMM d, yyyy h:mm a');
   } catch {
     return typeof date === 'string' ? date : 'N/A';
   }
 };
 
-function normalizeEnumKey(status: string): string {
-  return (status || '').toUpperCase().replace(/-/g, '_');
-}
-
 /** Maps AI / API order status strings to the same variants as {@link OrderStatusBadge}. */
-export function getOrderStatusBadgeVariantForAi(status: string): BadgeVariant {
-  const key = normalizeEnumKey(status);
+export function getOrderStatusBadgeVariantForAi(status: unknown): BadgeVariant {
+  const key = normalizeStatusKey(status);
   if (!isOrderStatusValue(key)) return 'outline';
   return getOrderStatusVariant(key);
 }
 
 /** Maps AI / API quote status strings to the same variants as {@link QuoteStatusBadge}. */
-export function getQuoteStatusBadgeVariantForAi(status: string): BadgeVariant {
-  const key = normalizeEnumKey(status);
+export function getQuoteStatusBadgeVariantForAi(status: unknown): BadgeVariant {
+  const key = normalizeStatusKey(status);
   if (!isQuoteStatusValue(key)) return 'outline';
   return getQuoteStatusVariant(key);
 }
 
 /** Maps AI / API return status strings to the same variants as {@link ReturnStatusBadge}. */
-export function getReturnStatusBadgeVariantForAi(status: string): BadgeVariant {
-  const key = normalizeEnumKey(status);
+export function getReturnStatusBadgeVariantForAi(status: unknown): BadgeVariant {
+  const key = normalizeStatusKey(status);
   if (!isReturnStatusValue(key)) return 'default';
   return getReturnStatusVariant(key);
 }
@@ -114,7 +125,7 @@ export const extractPrice = (priceObj: any): { net: number; gross: number; tax: 
   let net = priceObj.net ?? priceObj.netValue ?? priceObj.finalNetValue;
   let gross = priceObj.gross ?? priceObj.grossValue ?? priceObj.finalGrossValue;
   let tax = priceObj.tax ?? priceObj.taxValue ?? priceObj.finalTaxValue;
-  const value = priceObj.value ?? 0;
+  const value = priceObj.value ?? priceObj.amount ?? priceObj.effectiveAmount ?? 0;
 
   // Calculate missing values from available ones
   if (gross != null && tax != null && net == null) {

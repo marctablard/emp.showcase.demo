@@ -1,80 +1,249 @@
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Package } from 'lucide-react';
+import { H5, H6 } from '@/components/ui/h';
+import { Link } from '@/i18n/navigation';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
-import { Button } from '../ui/button';
-import type { ProductListItem } from './product-list';
+import {
+  type ProductListItem,
+  type ProductListPresentationConfig,
+  resolveProductDesktopGridCols,
+} from './product-list';
 
 interface ProductItemRowProps {
-  item: ProductListItem;
-  showNetUnderGross?: boolean;
+  readonly item: ProductListItem;
+  readonly locale?: string;
+  readonly presentationConfig?: ProductListPresentationConfig;
+  readonly showGrossUnderNet?: boolean;
 }
 
-export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemRowProps) {
-  const t = useTranslations('cart');
+function renderOmittedMobileUnitPrice(
+  item: ProductListItem,
+  hasTrailingDesktopAmount: boolean,
+  presentationConfig?: ProductListPresentationConfig,
+) {
+  if (!hasTrailingDesktopAmount) {
+    return null;
+  }
+  return presentationConfig?.trailingDesktopAmount?.(item) ?? null;
+}
+
+function renderMobileUnitPriceStack(
+  netPrice: number,
+  currency: string,
+  locale: string | undefined,
+  showGrossSecondary: boolean,
+  grossPriceLabel: string,
+  grossPrefix: string,
+) {
   return (
-    <div className="py-6 first:border-none border-t border-border-primary sm:first:border-solid">
-      <div className="grid grid-cols-[1fr_2fr] sm:grid-cols-[120px_2fr_1fr_1fr] md:grid-cols-[120px_3fr_11fr_1fr]">
-        <div className="col-start-1 row-start-2 sm:row-start-1 row-end-3">
-          <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] sm:w-[120px] sm:h-[78px] object-fit overflow-hidden bg-surface-image-background">
-            {item.imageUrl ? (
-              <Image
-                width={120}
-                height={78}
-                src={String(item.imageUrl)}
-                alt={String(item.name)}
-                className="rounded-ss-[inherit] rounded-ee-[inherit] w-[100px] h-[65px] sm:w-[120px] sm:h-[78px] object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-text-placeholders text-sm">
-                {item.itemNumber || 'Item'}
-              </div>
+    <div className="flex flex-col gap-1">
+      <span className="text-2xl font-bold font-headlines text-text-headings">
+        {formatCurrency(netPrice, currency, locale)}
+      </span>
+      {showGrossSecondary ? (
+        <span className="text-sm font-body text-text-on-disabled">
+          {grossPrefix.trim()} {grossPriceLabel}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function ProductNameHeading({
+  item,
+  variant,
+}: {
+  readonly item: ProductListItem;
+  readonly variant: 'mobile' | 'desktop';
+}) {
+  // Mobile / smaller: H5 (text-3xl). Largest desktop: H6 (text-2xl) — Figma heading tokens.
+  const Heading = variant === 'mobile' ? H5 : H6;
+  const testId = `product-name-${variant}-${item.id}`;
+  const nameContent = item.href ? (
+    <Link href={item.href} className="hover:underline">
+      {item.name}
+    </Link>
+  ) : (
+    item.name
+  );
+
+  return (
+    <Heading className="min-w-0 break-words font-bold" data-testid={testId}>
+      {nameContent}
+    </Heading>
+  );
+}
+
+function formatDiscountPercent(discountPercent: number | undefined): string {
+  if (typeof discountPercent !== 'number' || discountPercent <= 0) {
+    return '—';
+  }
+  return `${discountPercent}%`;
+}
+
+function resolveDesktopItemsAlignClass(hasProductColumnMetadata: boolean): string {
+  return hasProductColumnMetadata ? 'sm:items-start' : 'sm:items-center';
+}
+
+function resolveDesktopGridLayoutClass(desktopGridCols: string, hasProductColumnMetadata: boolean): string {
+  const alignClass = resolveDesktopItemsAlignClass(hasProductColumnMetadata);
+  return `hidden min-w-0 sm:grid ${desktopGridCols} ${alignClass} gap-4 lg:gap-6`;
+}
+
+export function ProductItemRow({ item, locale, presentationConfig, showGrossUnderNet = false }: ProductItemRowProps) {
+  const t = useTranslations('cart');
+  const tOrders = useTranslations('orders');
+  const tProduct = useTranslations('product');
+  const netPrice = item.netUnitPrice ?? item.unitPrice;
+  const showGrossSecondary = presentationConfig?.showGrossSecondary ?? showGrossUnderNet;
+  // Missing gross is rendered as a literal '-' secondary value; it is never derived from net/unit price.
+  const grossPriceLabel =
+    item.grossUnitPrice === undefined ? '-' : formatCurrency(item.grossUnitPrice, item.currency, locale);
+  const mobileMetadataSlots = presentationConfig?.mobileMetadataSlots ?? [];
+  const productColumnMetadataSlots = presentationConfig?.productColumnMetadataSlots ?? [];
+  const inlineMetadataSlots = presentationConfig?.inlineMetadataSlots ?? [];
+  const omitMobileUnitPrice = presentationConfig?.omitMobileUnitPrice ?? false;
+  const showDiscountColumns = Boolean(presentationConfig?.showDiscountColumns);
+  const hasTrailingDesktopAmount = Boolean(
+    presentationConfig?.showTrailingDesktopAmount && presentationConfig?.trailingDesktopAmount,
+  );
+  const desktopGridCols = resolveProductDesktopGridCols(presentationConfig);
+  const baseNetLabel =
+    typeof item.baseNetUnitPrice === 'number' ? formatCurrency(item.baseNetUnitPrice, item.currency, locale) : '—';
+  const discountLabel = formatDiscountPercent(item.discountPercent);
+  const hasProductColumnMetadata = productColumnMetadataSlots.length > 0;
+
+  const imageSrc = resolveProductImageSrc(item.imageUrl);
+  const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : String(item.name);
+
+  // Mobile keeps 120×78; from sm (table) match Figma 80×52 so narrow sidebar columns fit.
+  // Jira overrides Figma’s blank rectangle — PDP no_image_alt stays inside this frame.
+  const productImage = (
+    <div
+      className="flex h-[78px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background sm:h-[52px] sm:w-[80px]"
+      data-testid={`product-image-wrapper-${item.id}`}
+    >
+      <Image width={120} height={78} src={imageSrc} alt={imageAlt} className="max-h-full max-w-full object-contain" />
+    </div>
+  );
+
+  return (
+    // Figma mobile products: no extra top pad on first row (card p-4 is enough); subsequent
+    // rows keep py-4. Table (sm+) keeps py-6 with first:pt-4 under the column header.
+    <div className="py-4 first:pt-0 sm:py-6 sm:first:pt-4" data-testid={`product-item-row-${item.id}`}>
+      {/* Stacked cards below sm (768px): brand/name above the thumbnail; thumbnail beside the
+          value stack (price, item number, quantity); Quantity label omitted. */}
+      <div className="flex flex-col gap-3 sm:hidden" data-testid={`product-item-mobile-${item.id}`}>
+        <div className="flex min-w-0 flex-col gap-1">
+          {item.brand && <p className="text-sm font-body text-text-body">{item.brand}</p>}
+          <ProductNameHeading item={item} variant="mobile" />
+        </div>
+        <div className="flex items-start gap-4">
+          {productImage}
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            {omitMobileUnitPrice
+              ? renderOmittedMobileUnitPrice(item, hasTrailingDesktopAmount, presentationConfig)
+              : renderMobileUnitPriceStack(
+                  netPrice,
+                  item.currency,
+                  locale,
+                  showGrossSecondary,
+                  grossPriceLabel,
+                  t('gross').trim(),
+                )}
+            {item.itemNumber && (
+              <p className="break-all text-sm font-body text-text-body">
+                {tOrders('itemNumber')}: {item.itemNumber}
+              </p>
             )}
+            {mobileMetadataSlots.map((slot) => {
+              const rendered = slot.render(item);
+              return rendered == null ? null : <div key={slot.key}>{rendered}</div>;
+            })}
+            <span className="text-base font-body">{item.quantity}</span>
+            {showDiscountColumns ? (
+              <>
+                <p className="text-sm font-body text-text-body" data-testid={`product-base-net-mobile-${item.id}`}>
+                  {presentationConfig?.labels?.baseNetUnitPrice}: {baseNetLabel}
+                </p>
+                <p className="text-sm font-body text-text-body" data-testid={`product-discount-mobile-${item.id}`}>
+                  {presentationConfig?.labels?.discount}: {discountLabel}
+                </p>
+              </>
+            ) : null}
           </div>
         </div>
+      </div>
 
-        <div className="col-start-1 col-end-3 row-start-1 sm:col-start-2 flex flex-col gap-1 mb-4 sm:mb-0 sm:mx-4">
-          {item.brand && <p className="text-sm sm:text-base">{item.brand}</p>}
-          {item.href ? (
-            <a
-              href={item.href}
-              className="font-bold text-base font-headlines text-text-action hover:underline hover:text-text-action-hover"
-            >
-              {item.name}
-            </a>
-          ) : (
-            <p className="font-bold text-base font-headlines">{item.name}</p>
-          )}
-          {item.itemNumber && <p className="text-sm text-text-placeholders">{item.itemNumber}</p>}
-          <div className="flex flex-col gap-1 mt-1">
-            <div className="flex items-center gap-1">
-              <div className="text-text-success">
-                <Package className="h-4 w-4" />
-              </div>
-              <p className="text-sm text-text-success">{t('available')}</p>
+      {/* Table from sm (768px): product column holds brand/name/item number (+ optional return
+          reason under SKU). Compact Quantity; prices net-first with gross secondary. */}
+      <div
+        className={resolveDesktopGridLayoutClass(desktopGridCols, hasProductColumnMetadata)}
+        data-testid={`product-item-desktop-${item.id}`}
+      >
+        <div className="flex min-w-0 items-start gap-4">
+          {productImage}
+          {/* Figma 11936:190938 Details: gap-2; brand/name body/sm + heading/h6; item # body/sm. */}
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-1">
+              {item.brand && <p className="truncate text-sm font-body text-text-body">{item.brand}</p>}
+              <ProductNameHeading item={item} variant="desktop" />
             </div>
-            <Button
-              variant="link"
-              size="small"
-              className="normal-case text-sm tracking-normal p-0 justify-start self-start"
-            >
-              {t('addToWishlist')}
-            </Button>
+            {item.itemNumber && (
+              <p className="break-all text-sm font-body text-text-body">
+                {tOrders('itemNumber')}: {item.itemNumber}
+              </p>
+            )}
+            {productColumnMetadataSlots.map((slot) => {
+              const rendered = slot.render(item);
+              return rendered == null ? null : (
+                <div key={slot.key} className="min-w-0" data-testid={`product-column-meta-${slot.key}-${item.id}`}>
+                  {rendered}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="col-start-2 row-start-4 sm:col-start-3 sm:col-end-3 sm:row-start-1 md:col-start-3 flex items-start sm:items-center sm:justify-start">
-          <p className="text-sm sm:text-base">{item.quantity}</p>
+        <div className="min-w-0 text-left" data-testid={`product-quantity-cell-${item.id}`}>
+          <span className="text-base font-body tabular-nums">{item.quantity}</span>
         </div>
 
-        <div className="col-start-2 row-start-2 sm:col-start-4 sm:row-start-1 sm:row-end-3 md:col-start-4 flex flex-col gap-1 ps-4 sm:ps-0">
-          <div className="font-bold sm:text-end">{formatCurrency(item.unitPrice, item.currency)}</div>
-          {showNetUnderGross && (
-            <span className="text-sm text-text-placeholders sm:text-end">
-              {/* Placeholder for net value if caller wants to provide it in future */}
+        {showDiscountColumns ? (
+          <>
+            <div className="min-w-0 text-right" data-testid={`product-base-net-cell-${item.id}`}>
+              <span className="break-words text-base font-body text-text-body">{baseNetLabel}</span>
+            </div>
+            <div className="min-w-0 text-right" data-testid={`product-discount-cell-${item.id}`}>
+              <span className="break-words text-base font-body text-text-body">{discountLabel}</span>
+            </div>
+          </>
+        ) : null}
+
+        <div className="min-w-0 text-right">
+          <div className="flex min-w-0 flex-col sm:items-end">
+            <span className="break-words text-2xl font-bold font-headlines text-text-headings">
+              {formatCurrency(netPrice, item.currency, locale)}
             </span>
-          )}
+            {showGrossSecondary && (
+              <span className="break-words text-sm font-body text-text-on-disabled">
+                {/* Secondary price: "Gross $…" / "Brutto …" — space, no colon (Figma). */}
+                {t('gross').trim()} {grossPriceLabel}
+              </span>
+            )}
+            {inlineMetadataSlots.map((slot) => {
+              const rendered = slot.render(item);
+              return rendered == null ? null : <div key={slot.key}>{rendered}</div>;
+            })}
+          </div>
         </div>
+
+        {hasTrailingDesktopAmount ? (
+          <div className="min-w-0 text-right" data-testid={`product-trailing-amount-cell-${item.id}`}>
+            {presentationConfig?.trailingDesktopAmount?.(item)}
+          </div>
+        ) : null}
       </div>
     </div>
   );

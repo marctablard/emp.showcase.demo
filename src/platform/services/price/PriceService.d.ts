@@ -5,8 +5,11 @@ export interface PriceFetchOptions {
   siteCode: string;
   currency?: string;
   country?: string;
+  customerId?: string;
   /** B2B company context — includes price lists assigned to this legal entity. */
   legalEntityId?: string;
+  /** When omitted, storefront matching does not fall back to the main site. */
+  useFallback?: boolean;
 }
 
 /**

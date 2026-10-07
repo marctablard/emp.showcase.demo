@@ -1,9 +1,20 @@
 {
+  "errors": {
+    "missingSite": "Products cannot be loaded because the shop context is missing. Try reloading the page or picking a site from the menu.",
+    "generic": "Products could not be loaded. Please try again."
+  },
   "searchResults": {
     "showing": "Showing {start}-{end} of {total} products",
+    "productCount": "({count, plural, one {# Product} other {# Products}})",
     "noProductsFound": "No products found",
     "tryAdjusting": "Try adjusting your search or filters",
     "allProducts": "All Products",
+    "assignedProducts": "Assigned Products",
+    "allProductsShort": "All",
+    "assignedProductsShort": "Assigned",
+    "productsModeSwitchLabel": "Switch between assigned and all products",
+    "searchResults": "Search Results",
+    "allCategories": "All categories",
     "resultsFor": "Results for \"{query}\"",
     "resetFilter": "Clear filter",
     "categoryFilter": "Category",
@@ -13,5 +24,25 @@
   "layoutToggle": {
     "list": "List view",
     "grid": "Grid view"
+  },
+  "sort": {
+    "placeholder": "Sort by",
+    "clear": "Clear sort",
+    "name": "Product name",
+    "price": "Price",
+    "direction": {
+      "asc": "ascending",
+      "desc": "descending"
+    }
+  },
+  "plpCategoryCarousel": {
+    "title": "Categories"
+  },
+  "plpCategoryTree": {
+    "title": "Categories",
+    "totalProducts": "— {total} Products",
+    "expand": "Expand {name}",
+    "collapse": "Collapse {name}",
+    "subcategoriesHeading": "Subcategories"
   }
 }

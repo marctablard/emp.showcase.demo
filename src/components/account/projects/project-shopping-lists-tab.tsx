@@ -76,9 +76,10 @@ function resolveLocalized(val: unknown, locale: string): string {
   return '';
 }
 
-async function searchProducts(query: string, locale: string, site: string): Promise<ProductSearchResult[]> {
+async function searchProducts(query: string, locale: string, site?: string): Promise<ProductSearchResult[]> {
   if (!query.trim()) return [];
-  const res = await fetch(`/api/search?query=${encodeURIComponent(query)}&size=10&locale=${locale}&site=${site}`);
+  const siteParam = site ? `&site=${encodeURIComponent(site)}` : '';
+  const res = await fetch(`/api/search?query=${encodeURIComponent(query)}&size=10&locale=${locale}${siteParam}`);
   if (!res.ok) throw new Error(`Search failed: ${res.status} ${res.statusText}`);
   const data = await res.json();
   return (data.items ?? []).map((p: any) => ({
@@ -394,10 +395,7 @@ function ListItemsPanel({
             return (
               <TableRow
                 key={itemKey}
-                className={cn(
-                  'text-sm xl:text-base',
-                  idx % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                )}
+                className={cn('text-sm', idx % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background')}
               >
                 {/* Thumbnail */}
                 <TableCell className="pl-4 py-3">

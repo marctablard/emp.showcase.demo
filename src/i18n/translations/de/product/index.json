@@ -64,7 +64,22 @@
     "includingTax": "inkl. {taxRate}% MwSt",
     "excludingTax": "exkl. {taxRate}% MwSt",
     "net": "netto",
-    "gross": "brutto"
+    "gross": "brutto",
+    "yourPriceItemsRange": "Ihr Preis (Artikel {min} - {max})",
+    "yourPriceItemsFrom": "Ihr Preis (Artikel {min}+)",
+    "amountForItemsRange": "{amount} für Artikel {min} - {max}",
+    "amountForItemsFrom": "{amount} für Artikel {min}+",
+    "discount": "Rabatt",
+    "plusTax": "zzgl. {taxRate}% MwSt",
+    "tiers": {
+      "quantity": "Menge",
+      "pricePerUnit": "Preis pro Einheit",
+      "buyRange": "Kauf {min}-{max}",
+      "buyFrom": "Kauf {min}+",
+      "forUnitsRange": "für Einheiten {min}-{max}",
+      "forUnitsFrom": "für Einheiten {min}+",
+      "forEachUnit": "für jede Einheit"
+    }
   },
   "filters": {
     "mixins": {
@@ -99,7 +114,15 @@
     },
     "filterButton": "Filter",
     "clearFilter": "Filter löschen",
-    "applyFilters": "Filter anwenden"
+    "applyFilters": "Filter anwenden",
+    "categoryIds": "Kategorie",
+    "close": "Schließen",
+    "activeFiltersTitle": "Aktive Filter",
+    "productCount": "({count} Produkte)",
+    "showProducts": "{count} Produkte anzeigen",
+    "from": "Von",
+    "till": "Bis",
+    "clearAllFilters": "Filter löschen"
   },
   "tabs": {
     "description": "Beschreibung",
@@ -176,5 +199,22 @@
   "cartTooltipNotPurchasable": "Dieses Produkt ist nicht zum Kauf verfügbar.",
   "cartTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht in den Warenkorb gelegt werden.",
   "wishlistTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht zur Wunschliste hinzugefügt werden.",
-  "inComparisonList": "In der Vergleichsliste"
+  "inComparisonList": "In der Vergleichsliste",
+  "primaryImageAltUnlabeled": "Produktansicht (ID: {id})",
+  "itemNumberCopied": "Artikelnummer wurde kopiert",
+  "basicSpecifications": "Basis-Spezifikationen",
+  "basicAttributes": "Basis-Attribute",
+  "showMore": "Mehr anzeigen…",
+  "showLess": "Weniger anzeigen",
+  "clearAllFilters": "Alle Filter löschen",
+  "variants": {
+    "sellableVariants": "verkäufliche Variante",
+    "count": "({count, plural, one {# Variante} other {# Varianten}})",
+    "noMatchingSellableVariants": "Es gibt keine verkäuflichen Varianten, die zu Ihrer Attributauswahl passen."
+  },
+  "variantAttributeSelectViaListTooltip": "Bitte wählen Sie eine Variante über die Liste der verkäuflichen Produktvarianten",
+  "cartTooltipNotSellable": "Dieses Produkt ist nicht verkäuflich und kann nicht in den Warenkorb gelegt werden.",
+  "notFoundTitle": "Produkt nicht gefunden",
+  "notFoundBody": "Das angeforderte Produkt wurde nicht gefunden. Bitte schauen Sie im Katalog nach anderen Produkten.",
+  "notFoundHome": "Zurück zur Startseite"
 }

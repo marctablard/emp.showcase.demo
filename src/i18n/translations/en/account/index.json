@@ -296,7 +296,9 @@
       "accountSettings": "Account Settings",
       "approvals": "Approvals",
       "tasks": "Tasks",
-      "myProjects": "My Projects"
+      "myProjects": "My Projects",
+      "companyManagement": "Company Management",
+      "userManagement": "User Management"
     }
   },
   "projects": {
@@ -551,8 +553,40 @@
         "CHANGED_MIND": "Changed Mind",
         "SIZE_FIT": "Size/Fit Issue",
         "OTHER": "Other"
-      }
-    }
+      },
+      "submitErrorGeneric": "Please try again. If the problem persists, reload the page."
+    },
+    "apiError": {
+      "RETURNS_FETCH_FAILED": "Your returns could not be loaded. Please try again.",
+      "RETURN_FETCH_FAILED": "This return could not be loaded. Please try again.",
+      "RETURN_NOT_FOUND": "This return does not exist.",
+      "ORDER_ID_REQUIRED": "The order is missing from this request. Please reload the page.",
+      "ITEMS_REQUIRED": "Please select at least one item.",
+      "REASON_CODE_REQUIRED": "Please select a return reason.",
+      "REASON_CODE_INVALID": "That return reason is not allowed. Please pick another one.",
+      "REASON_DETAILS_INVALID": "The description could not be accepted. Please reload the page.",
+      "ITEM_ID_INVALID": "One of the selected items is invalid. Please reload the page.",
+      "ITEM_QUANTITY_INVALID": "Please enter a valid quantity for every item.",
+      "ITEM_REASON_CODE_TYPE_INVALID": "A per-item return reason could not be accepted. Please reload the page.",
+      "ITEM_REASON_CODE_INVALID": "One of the selected return reasons is not allowed. Please pick another one.",
+      "ITEM_REASON_DETAILS_INVALID": "A per-item description could not be accepted. Please reload the page.",
+      "ITEM_NOT_IN_ORDER": "One of the selected items does not belong to this order. Please reload the page.",
+      "ITEM_EXCEEDS_RETURNABLE_QUANTITY": "{remaining, plural, =0 {Item {sku} has already been returned in full.} one {Only 1 left to return for item {sku}, but {requested} were requested.} other {Only # left to return for item {sku}, but {requested} were requested.}} Please reload the page.",
+      "UPSTREAM_SESSION_EXPIRED": "Your session has expired. Please sign in again and retry.",
+      "UPSTREAM_FORBIDDEN": "Your account is not allowed to create returns. Please contact your representative.",
+      "VALIDATION_UNAVAILABLE": "We could not check your return just now. Please try again shortly.",
+      "UPSTREAM_REJECTED": "Your return was not accepted. Please check your details.",
+      "UPSTREAM_UNAVAILABLE": "The return could not be created. Please try again.",
+      "UPSTREAM_FAILURE": "The returns service is temporarily unavailable. Please try again shortly."
+    },
+    "errorLoadingSearch": "The search for “{term}” could not be run. Please change the search term.",
+    "customer": "Customer",
+    "netReturnValue": "Net Return Value",
+    "action": "Action",
+    "viewReturnAriaLabel": "View return {id}",
+    "reasonLabel": "Reason",
+    "gross": "Gross",
+    "netValueOfGoods": "Net value of goods"
   },
   "approvals": "Approvals",
   "ordersInProgress": "{count} in progress",
@@ -606,7 +640,7 @@
     "quantity": "Quantity",
     "price": "Price",
     "quotationDate": "Quotation Date",
-    "totalAmount": "Total Amount",
+    "totalAmount": "Total net amount",
     "editor": "Editor",
     "action": "Action",
     "comment": "Comment",
@@ -621,7 +655,7 @@
     "transport": "Transport",
     "transportCondition": "Transport condition",
     "deliveryAddress": "Delivery address",
-    "netValue": "Net Value of Goods",
+    "netValue": "Net value of goods",
     "vat": "VAT",
     "deliveryCosts": "Delivery costs",
     "baseTotal": "Base total",
@@ -673,7 +707,22 @@
     "relatedOrder": "Related Order",
     "quotedProducts": "Quoted Products",
     "history": "History",
-    "quoteActions": "Quote Actions"
+    "quoteActions": "Quote Actions",
+    "headerTitle": "Quote",
+    "unitPrice": "Unit price",
+    "quoteHistory": "Quote History",
+    "changeDate": "Change Date",
+    "event": "Event",
+    "changedBy": "Changed By",
+    "shipping": "Shipping",
+    "shippingFee": "Shipping fee",
+    "goToApproval": "GO TO APPROVAL",
+    "shippingMethod": "Shipping method",
+    "shippingAddress": "Shipping address",
+    "shippingVat": "Shipping VAT",
+    "free": "Free",
+    "baseNetUnitPrice": "Base Net Unit Price",
+    "discount": "Discount"
   },
   "quotesList": {
     "title": "Quotes",
@@ -698,7 +747,10 @@
     "viewQuote": "View quote",
     "next": "Next",
     "previous": "Previous",
-    "pageIndicator": "Page {current} / {total}"
+    "pageIndicator": "Page {current} / {total}",
+    "netValue": "Net Value",
+    "action": "Action",
+    "viewQuoteAriaLabel": "View quote {id}"
   },
   "productBreakdown": {
     "product": "Product",
@@ -809,7 +861,11 @@
       "openQuotes": "Do I have any open quotes?",
       "showProfile": "Show my profile",
       "pendingOrders": "Show all pending orders"
-    }
+    },
+    "thinkingWithChunks": "AI is thinking [{numberOfChunks}]",
+    "unrecognizedResponseHint": "This reply could not be displayed. Open the browser console to see the full response.",
+    "emptyValue": "-",
+    "noDataAvailable": "No data available"
   },
   "Tickets": {
     "title": "Support Tickets",

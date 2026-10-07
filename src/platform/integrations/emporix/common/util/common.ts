@@ -53,6 +53,25 @@ export function buildSearchQuery<T>(
 }
 
 /**
+ * Emporix list endpoints may return a JSON array or a wrapper `{ items: [...] }`.
+ * Using a non-array as `items` breaks `.map()` downstream.
+ */
+export function extractItemsFromPaginatedJsonBody<T>(body: unknown): T[] {
+  if (Array.isArray(body)) {
+    return body as T[];
+  }
+  if (
+    body !== null &&
+    typeof body === 'object' &&
+    'items' in body &&
+    Array.isArray((body as { items: unknown }).items)
+  ) {
+    return (body as { items: T[] }).items;
+  }
+  return [];
+}
+
+/**
  * Builds a PaginatedResponse object from a HTTP Response object
  * @param params search parameters
  * @param response HTTP response object
@@ -63,13 +82,29 @@ export async function buildPaginatedResponse<T>(
   response: Response,
 ): Promise<EmporixPaginatedResponse<T>> {
   const total: number = Number(response.headers.get('x-total-count')) || -1;
-  const raw = (await response.json()) as T[] | { items?: T[]; page?: number; size?: number; total?: number };
-  const data = Array.isArray(raw) ? raw : (raw.items ?? []);
+  const body: unknown = await response.json();
+  const items = extractItemsFromPaginatedJsonBody<T>(body);
+
+  if (Array.isArray(body)) {
+    return {
+      items,
+      page: params.page || 0,
+      size: params.size || 20,
+      total,
+    };
+  }
+
+  const paginatedBody = body as {
+    page?: number;
+    size?: number;
+    total?: number;
+  };
+
   return {
-    items: data,
-    page: Array.isArray(raw) ? params.page || 0 : (raw.page ?? (params.page || 0)),
-    size: Array.isArray(raw) ? params.size || 20 : (raw.size ?? (params.size || 20)),
-    total: Array.isArray(raw) ? total : (raw.total ?? total),
+    items,
+    page: paginatedBody.page ?? (params.page || 0),
+    size: paginatedBody.size ?? (params.size || 20),
+    total: paginatedBody.total ?? total,
   };
 }
 
@@ -81,4 +116,49 @@ export function checkTokenValidity(token?: string, expiryAt?: number, threshold:
     return true;
   }
   return Date.now() <= expiryAt - threshold;
+}
+
+function decodeBase64Payload(base64: string): string {
+  if (typeof globalThis.atob === 'function') {
+    return globalThis.atob(base64);
+  }
+  return Buffer.from(base64, 'base64').toString('utf8');
+}
+
+/**
+ * Reads the legal-entity claim without validating or exposing the JWT.
+ * Token signature validation remains the responsibility of the OAuth/API layer.
+ */
+export function decodeTokenLegalEntityId(...tokens: Array<string | undefined>): string | undefined {
+  for (const token of tokens) {
+    if (!token) {
+      continue;
+    }
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) {
+        continue;
+      }
+      const base64 = payload
+        .replaceAll('-', '+')
+        .replaceAll('_', '/')
+        .padEnd(Math.ceil(payload.length / 4) * 4, '=');
+      const decoded = JSON.parse(decodeBase64Payload(base64)) as {
+        legalEntityId?: unknown;
+        legal_entity_id?: unknown;
+        context?: unknown;
+      };
+      const context =
+        decoded.context && typeof decoded.context === 'object'
+          ? (decoded.context as { legalEntityId?: unknown })
+          : undefined;
+      const candidate = decoded.legalEntityId ?? decoded.legal_entity_id ?? context?.legalEntityId;
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    } catch {
+      // A missing or malformed claim keeps the existing unscoped refresh behavior.
+    }
+  }
+  return undefined;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { requiresApproval as apiRequiresApproval } from '@/lib/client/approval';
 
 /**
@@ -21,9 +22,13 @@ interface UseApprovalCheckReturn {
  */
 export function useApprovalCheckout(initialCartId?: string): UseApprovalCheckReturn {
   const [cartId, setCartId] = useState<string | undefined>(initialCartId);
-  const [requiresApproval, setRequiresApproval] = useState<boolean>(false);
+  const [approvalRequired, setApprovalRequired] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Without a cart there is nothing to approve. Derived during render rather than reset from
+  // an effect, so no cascading render is needed to clear a stale value.
+  const requiresApproval = cartId ? approvalRequired : false;
 
   const checkApproval = useCallback(async (): Promise<boolean> => {
     if (!cartId) return false;
@@ -33,11 +38,11 @@ export function useApprovalCheckout(initialCartId?: string): UseApprovalCheckRet
       setError(null);
 
       const result = await apiRequiresApproval(cartId);
-      setRequiresApproval(result);
+      setApprovalRequired(result);
       return result;
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
-      setRequiresApproval(false);
+      setApprovalRequired(false);
       return false;
     } finally {
       setLoading(false);
@@ -46,11 +51,10 @@ export function useApprovalCheckout(initialCartId?: string): UseApprovalCheckRet
 
   // Check approval requirement when cartId changes
   useEffect(() => {
-    if (cartId) {
-      checkApproval();
-    } else {
-      setRequiresApproval(false);
+    if (!cartId) {
+      return;
     }
+    return startEffectTask(checkApproval);
   }, [cartId, checkApproval]);
 
   return {

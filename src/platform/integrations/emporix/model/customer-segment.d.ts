@@ -15,6 +15,44 @@ export interface ItemAssignmentResponse {
   type: ItemAssignmentType;
 }
 
+/**
+ * One page of `GET /customer-segment/{tenant}/segments/items`.
+ * `totalCount` comes from the opt-in `X-Total-Count` response header; when the header is
+ * missing it falls back to `items.length` (pagination then stops after the first page).
+ */
+export interface ItemAssignmentPageResponse {
+  items: ItemAssignmentResponse[];
+  totalCount: number;
+}
+
+/**
+ * One page of `GET /customer-segment/{tenant}/segments`.
+ * `totalCount` comes from the opt-in `X-Total-Count` response header; when the header is
+ * missing it falls back to `items.length` (pagination then stops after the first page).
+ */
+export interface SegmentPageResponse {
+  items: SegmentResponse[];
+  totalCount: number;
+}
+
+/**
+ * Customer segment as returned by `GET /customer-segment/{tenant}/segments` and
+ * `GET /customer-segment/{tenant}/segments/me`. Kept tolerant: only `id` is required and
+ * unknown fields are preserved.
+ * Observed on `GET /segments` (api-develop, 2026-09-10): `id`, `name`, `description`,
+ * `siteCode`, `status`, `metadata`.
+ */
+export interface SegmentResponse {
+  id: string;
+  name?: EmporixLocalizedString;
+  description?: EmporixLocalizedString;
+  status?: string;
+  siteCode?: string;
+  validity?: { from?: string; to?: string };
+  metadata?: EmporixMetadata;
+  [key: string]: unknown;
+}
+
 export interface CategoryTreeItemResponse {
   id: string;
   code?: string;
@@ -22,8 +60,8 @@ export interface CategoryTreeItemResponse {
   localizedDescription?: EmporixLocalizedString;
   localizedSlug?: EmporixLocalizedString;
   parentId?: string;
-  position?: number;
   published?: boolean;
+  position?: number;
   isSegmentAssigned?: boolean;
   subcategories?: CategoryTreeItemResponse[];
 }

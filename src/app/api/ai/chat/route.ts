@@ -1,15 +1,91 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { getPublicDefaultCurrency, getPublicDefaultLanguage } from '@/lib/common/public-default-env';
+import { routing } from '@/i18n/routing';
+import { type AIChatStreamEvent, encodeAiChatSse } from '@/lib/common/ai-chat-stream';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import type { AIChatContext } from '@/platform/integrations/ai/model';
 import server from '@/platform/server';
 import type { AIService } from '@/platform/services/ai';
+import { isAiChatStreamingEnabled } from '@/platform/services/ai/isAiChatStreamingEnabled';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SessionService } from '@/platform/services/session';
 import { AIChatRequestSchema } from './schema';
 
 export const revalidate = 0;
 export const maxDuration = 120;
+
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream; charset=utf-8',
+  'Cache-Control': 'no-cache, no-transform',
+  Connection: 'keep-alive',
+  'X-Accel-Buffering': 'no',
+};
+
+function isRetryableError(error: unknown): boolean {
+  return error instanceof Error && (error.message.includes('timeout') || error.message.includes('network'));
+}
+
+function logChatError(error: unknown, retryable: boolean): void {
+  const logger = server.get<LoggerService>('LoggerService');
+  logger.error(
+    {
+      err: error instanceof Error ? error : new Error(String(error)),
+      path: '/api/ai/chat',
+      method: 'POST',
+      retryable,
+    },
+    'Error processing AI chat request',
+  );
+}
+
+function createChatSseResponse(run: (send: (event: AIChatStreamEvent) => void) => Promise<void>): Response {
+  const encoder = new TextEncoder();
+  let cancelled = false;
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: AIChatStreamEvent) => {
+        if (cancelled) {
+          return;
+        }
+        try {
+          controller.enqueue(encoder.encode(encodeAiChatSse(event)));
+        } catch {
+          cancelled = true;
+        }
+      };
+
+      try {
+        await run(send);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        const retryable = isRetryableError(error);
+        logChatError(error, retryable);
+        send({
+          type: 'error',
+          code: 'AI_SERVICE_ERROR',
+          error: 'Failed to process AI chat request',
+          retryable,
+        });
+      } finally {
+        if (!cancelled) {
+          try {
+            controller.close();
+          } catch {
+            cancelled = true;
+          }
+        }
+      }
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+
+  return new Response(stream, { headers: SSE_HEADERS });
+}
 
 /**
  * POST /api/ai/chat
@@ -45,34 +121,31 @@ export async function POST(request: NextRequest) {
       ...requestContext,
       siteId: requestContext.siteId || session.siteCode || 'default',
       currency: requestContext.currency || session.currency || getPublicDefaultCurrency(),
-      language: requestContext.language || session.language || getPublicDefaultLanguage(),
+      language: requestContext.language || session.language || routing.defaultLocale,
       sessionId: requestContext.sessionId,
       cartId: requestContext.cartId,
     };
 
+    if (isAiChatStreamingEnabled()) {
+      return createChatSseResponse(async (send) => {
+        const response = await aiService.sendChatMessageWithContext(userMessage, context, (progress) => {
+          send({ type: 'progress', ...progress });
+        });
+        send({ type: 'complete', ...response });
+      });
+    }
+
     const response = await aiService.sendChatMessageWithContext(userMessage, context);
     return NextResponse.json(response);
   } catch (error) {
-    const logger = server.get<LoggerService>('LoggerService');
-    const isRetryable =
-      error instanceof Error && (error.message.includes('timeout') || error.message.includes('network'));
-
-    logger.error(
-      {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        path: '/api/ai/chat',
-        method: 'POST',
-        retryable: isRetryable,
-      },
-      'Error processing AI chat request',
-    );
+    const retryable = isRetryableError(error);
+    logChatError(error, retryable);
 
     return NextResponse.json(
       {
         error: 'Failed to process AI chat request',
         code: 'AI_SERVICE_ERROR',
-        retryable: isRetryable,
+        retryable,
         timestamp: new Date().toISOString(),
       },
       { status: 500 },

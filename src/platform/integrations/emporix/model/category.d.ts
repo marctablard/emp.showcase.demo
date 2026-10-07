@@ -3,24 +3,16 @@ import { EmporixLocalizedString, EmporixMedia, EmporixMetadata, EmporixMixins } 
 export interface EmporixCategory {
   id: string;
   code?: string;
-  /** Plain string name (e.g. "ProductRoot") or localized map from some endpoints */
-  name?: string | EmporixLocalizedString;
-  /** Localized name map returned by the /category-trees endpoint — preferred over name */
-  localizedName?: EmporixLocalizedString;
-  description?: string | EmporixLocalizedString;
-  localizedDescription?: EmporixLocalizedString;
+  subcategories?: EmporixCategory[];
+  name: EmporixLocalizedString;
+  description?: EmporixLocalizedString;
   shortDescription?: EmporixLocalizedString;
-  slug?: string | EmporixLocalizedString;
-  localizedSlug?: EmporixLocalizedString;
+  slug?: EmporixLocalizedString;
   published?: boolean;
   visible?: boolean;
   position?: number;
   parentId?: string;
   supercategoriesIds?: string[];
-  /** Nested categories from the /category-trees endpoint */
-  subcategories?: EmporixCategory[];
-  /** Nested categories from other tree endpoints */
-  children?: EmporixCategory[];
   media?: EmporixMedia[];
   metadata?: EmporixMetadata;
   mixins?: EmporixMixins;
@@ -33,7 +25,7 @@ export interface EmporixCategoryParent extends EmporixCategory {
   level?: number;
 }
 
-export type EmporixCategoryAssignmentType = 'product';
+export const EmporixCategoryAssignmentType = 'PRODUCT';
 
 export interface EmporixCategoryAssignment {
   id: string;
@@ -52,4 +44,26 @@ export interface EmporixCategoryAssignmentQuery {
   withSubcategories?: boolean;
   segmentsIds?: string;
   hideUnpublishedProducts?: boolean;
+}
+
+export interface EmporixCategoryTreeValidity {
+  from?: string;
+  to?: string;
+}
+
+export interface EmporixCategoryTree {
+  id: string;
+  localizedName: EmporixLocalizedString;
+  localizedSlug?: EmporixLocalizedString;
+  localizedDescription?: EmporixLocalizedString;
+  code?: string;
+  position: number;
+  published: boolean;
+  parentId?: string;
+  subcategories?: EmporixCategoryTree[];
+  validity?: EmporixCategoryTreeValidity;
+  /** @deprecated Prefer localizedName */
+  name?: string;
+  /** @deprecated Prefer localizedDescription */
+  description?: string;
 }

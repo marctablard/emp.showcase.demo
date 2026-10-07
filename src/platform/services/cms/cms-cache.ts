@@ -1,0 +1,114 @@
+import 'server-only';
+import { getCmsEnv } from '@/lib/server/storyblok-env';
+import type { CMSLayout, CMSPage } from '../model/cms';
+
+/**
+ * Read-through cache for rendered CMS content, backed by `globalThis`.
+ *
+ * Why `globalThis` and not a DI singleton: Next.js / Turbopack can evaluate the
+ * `@/platform/ssr` module under separate module graphs (see `getCmsService()`),
+ * so a per-container instance field would not be shared between the
+ * render-graph read path and the route-handler write path. Anchoring the store
+ * on `globalThis` (the same pattern as the Emporix token cache) makes a single
+ * store visible to every container instance in the process.
+ *
+ * Two independent stores — `page-cache` and `layout-cache` — each with its own
+ * TTL (default 1h), overridable via env. `{ notfound: true }` results are never
+ * cached (only `set*` is called by the facade, and only for hits); the
+ * write/invalidation path is driven by `mapWebhookPayload` output.
+ */
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+interface CmsCacheStore {
+  pages: Map<string, CacheEntry<CMSPage>>;
+  layouts: Map<string, CacheEntry<CMSLayout>>;
+}
+
+const CMS_CACHE_KEY = '__cms_content_cache' as const;
+
+/** Fallback TTL when the env override is absent or invalid: 1 hour. */
+const DEFAULT_TTL_MS = 3_600_000;
+
+function getStore(): CmsCacheStore {
+  const g = globalThis as unknown as Record<string, CmsCacheStore | undefined>;
+  if (!g[CMS_CACHE_KEY]) {
+    g[CMS_CACHE_KEY] = { pages: new Map(), layouts: new Map() };
+  }
+  return g[CMS_CACHE_KEY]!;
+}
+
+function parseTtlMs(raw: string | undefined): number {
+  if (raw === undefined) {
+    return DEFAULT_TTL_MS;
+  }
+  const parsed = Number(raw);
+  // Non-numeric, non-positive, or NaN values fall back to the default so a
+  // typo in the env never disables caching with a 0/negative TTL.
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TTL_MS;
+}
+
+function pageTtlMs(): number {
+  return parseTtlMs(getCmsEnv('PAGE_CACHE_TTL_MS'));
+}
+
+function layoutTtlMs(): number {
+  return parseTtlMs(getCmsEnv('LAYOUT_CACHE_TTL_MS'));
+}
+
+function pageKey(slug: string, locale: string, site: string): string {
+  return `${site}${locale}${slug}`;
+}
+
+function layoutKey(layoutId: string, locale: string, site: string): string {
+  return `${site}${locale}${layoutId}`;
+}
+
+function read<T>(map: Map<string, CacheEntry<T>>, key: string): T | undefined {
+  const entry = map.get(key);
+  if (!entry) {
+    return undefined;
+  }
+  if (Date.now() >= entry.expiresAt) {
+    map.delete(key);
+    return undefined;
+  }
+  return entry.value;
+}
+
+export function getCachedPage(slug: string, locale: string, site: string): CMSPage | undefined {
+  return read(getStore().pages, pageKey(slug, locale, site));
+}
+
+export function setCachedPage(slug: string, locale: string, site: string, page: CMSPage): void {
+  getStore().pages.set(pageKey(slug, locale, site), { value: page, expiresAt: Date.now() + pageTtlMs() });
+}
+
+export function getCachedLayout(layoutId: string, locale: string, site: string): CMSLayout | undefined {
+  return read(getStore().layouts, layoutKey(layoutId, locale, site));
+}
+
+export function setCachedLayout(layoutId: string, locale: string, site: string, layout: CMSLayout): void {
+  getStore().layouts.set(layoutKey(layoutId, locale, site), { value: layout, expiresAt: Date.now() + layoutTtlMs() });
+}
+
+export function invalidatePage(slug: string, locale: string, site: string): void {
+  getStore().pages.delete(pageKey(slug, locale, site));
+}
+
+export function invalidateLayout(layoutId: string, locale: string, site: string): void {
+  getStore().layouts.delete(layoutKey(layoutId, locale, site));
+}
+
+/**
+ * Test-only: drop both stores so a fresh `globalThis` cache is materialised on
+ * the next access. Production code never needs to clear the whole cache —
+ * invalidation is always key-scoped via the webhook path.
+ */
+export function __resetCmsCache(): void {
+  const g = globalThis as unknown as Record<string, CmsCacheStore | undefined>;
+  g[CMS_CACHE_KEY] = { pages: new Map(), layouts: new Map() };
+}

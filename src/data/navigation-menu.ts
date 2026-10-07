@@ -1,3 +1,5 @@
+export const ALL_PRODUCTS_NAVIGATION_ITEM_ID = 'all-products';
+
 export interface MenuItem {
   id: string;
   labelKey: string; // Translation key
@@ -7,6 +9,7 @@ export interface MenuItem {
 }
 
 export interface SubMenuItem {
+  id?: string;
   label: string;
   href: string;
   hasSubmenu?: boolean;
@@ -15,40 +18,9 @@ export interface SubMenuItem {
 
 export const navigationMenuItems: MenuItem[] = [
   {
-    id: 'all-products',
+    id: ALL_PRODUCTS_NAVIGATION_ITEM_ID,
     labelKey: 'allProducts',
     hasSubmenu: true,
-    submenuItems: [
-      {
-        label: 'Solar Panel',
-        href: '/product/victron-bluesolar-55w',
-        hasSubmenu: true,
-        submenuItems: [
-          { label: 'Solar type 1', href: '/product/victron-bluesolar-55w' },
-          { label: 'Solar type 2', href: '/product/victron-bluesolar-55w' },
-          { label: 'Solar type 3', href: '/product/victron-bluesolar-55w' },
-          { label: 'Solar type 4', href: '/product/victron-bluesolar-55w' },
-        ],
-      },
-      {
-        label: 'Accessories',
-        href: '/product/enjoysolar-200w-module',
-        hasSubmenu: false,
-        submenuItems: [],
-      },
-      {
-        label: 'Power Generators',
-        href: '/product/ecoflow-extension-cable',
-        hasSubmenu: false,
-        submenuItems: [],
-      },
-      {
-        label: 'Cables',
-        href: '/product/ecoflow-extension-cable',
-        hasSubmenu: false,
-        submenuItems: [],
-      },
-    ],
   },
   {
     id: 'services',
@@ -93,28 +65,11 @@ export const navigationMenuItems: MenuItem[] = [
     href: '/online-planer',
   },
   {
-    id: 'configurator',
-    labelKey: 'configurator',
-    href: '/configurator',
-  },
-  {
     id: 'about-us',
     labelKey: 'aboutUs',
     href: '/about-us',
   },
 ];
-
-/**
- * Returns a copy of navigationMenuItems where the "all-products" entry has its
- * submenuItems replaced by the dynamic category items fetched from Emporix.
- * If no category items are available the original hardcoded items are preserved.
- */
-export function buildNavigationMenuItems(categoryItems: SubMenuItem[]): MenuItem[] {
-  if (categoryItems.length === 0) return navigationMenuItems;
-  return navigationMenuItems.map((item) =>
-    item.id === 'all-products' ? { ...item, submenuItems: categoryItems } : item,
-  );
-}
 
 export const serviceMenuItems: MenuItem[] = [
   {

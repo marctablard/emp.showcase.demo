@@ -1,4 +1,3 @@
-// src/hooks/cart/store-synchronizer.test.ts
 import { act, waitFor } from '@testing-library/react';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Site } from '@/platform/services/model/common/site';
@@ -680,6 +679,67 @@ describe('Store Synchronizer', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(resetSiteSpy).not.toHaveBeenCalled();
+    });
+
+    it('keeps previously used checkout addresses when only session currency changes', async () => {
+      const leftover = {
+        type: 'SHIPPING' as const,
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
+        country: 'CH',
+        zipCode: '6300',
+        city: 'Zug',
+      };
+      checkoutStore.getState().setShippingAddress(leftover);
+      checkoutStore.getState().setShippingMethod({ methodId: 'm1', zoneId: 'z1', methodName: 'Standard', amount: 5 });
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+        checkoutStore,
+      });
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ siteCode: 'main', currency: 'EUR' }),
+        });
+      });
+
+      expect(checkoutStore.getState().shippingAddress).toEqual(leftover);
+      expect(checkoutStore.getState().shippingMethod).toBeNull();
+    });
+
+    it('clears checkout addresses when the session site changes', async () => {
+      checkoutStore.getState().setShippingAddress({
+        type: 'SHIPPING',
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
+        country: 'CH',
+        zipCode: '6300',
+        city: 'Zug',
+      });
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+        checkoutStore,
+      });
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ siteCode: 'other', currency: 'USD' }),
+        });
+      });
+
+      expect(checkoutStore.getState().shippingAddress).toBeNull();
     });
   });
 });

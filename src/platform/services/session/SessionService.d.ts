@@ -5,9 +5,17 @@ import { Session, SessionAttribute } from '@/platform/services/model/session/ses
  */
 export interface SessionService {
   /**
-   * Get the current session context
+   * Get the current session context. Resolves `undefined` both when there is no session and when
+   * the session lookup fails (best-effort read for SSR / display paths).
    */
   getCurrent(): Promise<Session | undefined>;
+
+  /**
+   * Get the current session context; `undefined` only when there is no session. A failed lookup
+   * rejects so access-gating callers (e.g. `ProductsModeService`) can fail closed instead of
+   * mistaking an outage for an anonymous visitor.
+   */
+  getCurrentOrThrow(): Promise<Session | undefined>;
 
   /**
    * Get the current session context
@@ -55,9 +63,17 @@ export interface SessionService {
 
   /**
    * Set the legal entity (company) for the current session context
-   * This will refresh the customer token with the new legal entity ID
+   * This refreshes the customer token first and fails without changing session context
+   * when the token cannot be reminted with the requested legal entity.
    */
-  setLegalEntity(legalEntityId: string): Promise<void>;
+  setLegalEntity(legalEntityId: string): Promise<{ tokenRefreshSucceeded: true; tokenLooksLikeJwt: boolean }>;
+
+  /**
+   * Read the validated legal-entity scope from the current customer token, falling
+   * back to supported JWT claim shapes when validation is unavailable.
+   * The token itself is never returned or logged.
+   */
+  getCustomerTokenLegalEntityId(): Promise<string | undefined>;
 
   /**
    * Clear the legal entity (company) reference from the current session context.

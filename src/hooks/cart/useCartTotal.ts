@@ -1,31 +1,63 @@
 'use client';
 
+import {
+  type CheckoutOrderSummaryBreakdown,
+  buildCheckoutOrderSummaryFromCart,
+} from '@/lib/common/checkout-order-summary';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
-import { useCheckout } from '../checkout/useCheckout';
+import { useSelectedShippingMethod } from '../checkout/useSelectedShippingMethod';
 import { useSession } from '../session/useSession';
 import { useSite } from '../site/useSite';
 import { useCart } from './useCart';
 
 interface UseCartTotal {
+  /** Cart `calculatedPrice` total, with the picked checkout shipping fee overlaid when it differs. */
   cartTotal: number;
+  /**
+   * Goods gross on the same basis as `goodsNet` / `goodsVat`: discounted when a goods coupon
+   * applied, otherwise `cart.subTotalPrice`.
+   */
+  goodsGross: number;
+  /** Goods net after coupons when `goodsDiscountedNet` is present; otherwise `cart.tax.netValue`. */
+  goodsNet: number;
+  /** Goods VAT after coupons when `goodsDiscountedVat` is present; otherwise `cart.tax.amount`. */
+  goodsVat: number;
+  /** Cart shipping net, or the picked checkout method fee when it differs. */
   shippingCosts?: number;
-  discountAmount?: number;
-  feesAmount?: number;
+  shippingVat: number;
+  showShippingVat: boolean;
   currency: string;
+  /** Same coupon breakdown checkout uses, so the cart summary can mirror it. */
+  breakdown: CheckoutOrderSummaryBreakdown;
+}
+
+function displayGoodsGross(
+  breakdown: ReturnType<typeof buildCheckoutOrderSummaryFromCart>,
+  cartSubtotal: number | undefined,
+): number {
+  if (breakdown.hasAppliedCoupons === true && breakdown.goodsDiscounted === true) {
+    if (typeof breakdown.goodsDiscountedGross === 'number') {
+      return breakdown.goodsDiscountedGross;
+    }
+    return Math.round((breakdown.goodsNet + breakdown.goodsVat) * 100) / 100;
+  }
+  return cartSubtotal ?? 0;
 }
 
 export const useCartTotal = (): UseCartTotal => {
-  const { shippingMethod } = useCheckout();
   const { cart } = useCart();
+  const selectedShipping = useSelectedShippingMethod();
   const { session } = useSession();
   const { site } = useSite();
 
-  const discountAmount = cart?.totalDiscount?.amount ?? 0;
-  const feesAmount = cart?.fees?.amount ?? 0;
-  const cartShippingAmount = cart?.shippingCosts?.amount;
-  const hasSelectedShipping = shippingMethod != null;
-  const shippingAmount = hasSelectedShipping ? shippingMethod.amount : undefined;
-
+  const breakdown = buildCheckoutOrderSummaryFromCart(cart, selectedShipping);
+  const cartTotal = breakdown.total;
+  const goodsGross = displayGoodsGross(breakdown, cart?.subTotalPrice?.amount);
+  const goodsNet = breakdown.goodsNet;
+  const goodsVat = breakdown.goodsVat;
+  const shippingCosts = breakdown.shippingFee;
+  const shippingVat = breakdown.shippingVat;
+  const showShippingVat = breakdown.showShippingVat;
   const supportedSiteCurrencies = new Set(
     site?.currencies?.flatMap((currency) => [currency.id, currency.code].filter(Boolean) as string[]) ?? [],
   );
@@ -41,30 +73,15 @@ export const useCartTotal = (): UseCartTotal => {
       ? sessionBackedCurrency
       : (cartCurrency ?? fallbackCurrency);
 
-  let cartTotal = 0;
-  if (cart?.totalPrice?.amount) {
-    if (hasSelectedShipping) {
-      const includedShipping = cartShippingAmount ?? 0;
-      if (shippingMethod.amount !== includedShipping) {
-        cartTotal = cart.totalPrice.amount - includedShipping + shippingMethod.amount;
-      } else {
-        cartTotal = cart.totalPrice.amount;
-      }
-    } else if (cartShippingAmount !== undefined && cartShippingAmount > 0) {
-      cartTotal = cart.totalPrice.amount - cartShippingAmount;
-    } else {
-      cartTotal = cart.totalPrice.amount;
-    }
-  } else {
-    const subtotalAmount = cart?.subTotalPrice?.amount ?? 0;
-    cartTotal = Math.max(0, subtotalAmount - discountAmount + feesAmount + (shippingAmount ?? 0));
-  }
-
   return {
     cartTotal,
-    shippingCosts: shippingAmount,
-    discountAmount: discountAmount > 0 ? discountAmount : undefined,
-    feesAmount: feesAmount > 0 ? feesAmount : undefined,
+    goodsGross,
+    goodsNet,
+    goodsVat,
+    shippingCosts,
+    shippingVat,
+    showShippingVat,
     currency,
+    breakdown,
   };
 };

@@ -1,9 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import type { CMSService } from '@/platform/services/cms/CMSService';
+import { getCmsService } from '@/platform/services/cms/get-cms-service';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import ssr from '@/platform/ssr';
 
 /**
  * GET /api/cms
@@ -18,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Create CMS service instance
-    const cmsService = ssr.get<CMSService>('CMSService');
+    const cmsService = await getCmsService();
 
     // Get page data
     const pageData = await cmsService.getPage(slug, locale, site);

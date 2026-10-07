@@ -23,3 +23,12 @@ export interface ShippingZone {
   postalCodes?: string[];
   methods: ShippingMethod[];
 }
+
+/** Cart-scoped delivery window from Shipping Service `actualDeliveryWindows`. */
+export interface DeliveryWindow {
+  id: string;
+  slotId?: string;
+  deliveryDate: string;
+  zoneId?: string;
+  deliveryMethod?: string;
+}

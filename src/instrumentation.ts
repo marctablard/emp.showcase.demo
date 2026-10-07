@@ -39,6 +39,20 @@ export async function register() {
       logger.info('Metrics disabled (NEXT_METRICS_ENABLED is not "true")');
     }
 
+    // Bind the active CmsAdapter alias on both server- and ssr-side containers.
+    // `CmsAdapter:<id>` implementations declare themselves via @injectable; this
+    // step decides which one `CmsAdapter` resolves to at runtime, driven by env.
+    // The alias-vs-composite decision (incl. the optional default-content
+    // fallback wrap and the `CmsAdapter:none` degrade-path) lives in the shared
+    // `bindActiveCmsAdapter` helper — the same one `getCmsService()` uses on the
+    // render graph — so the binding stays symmetric across both module graphs
+    // (see ADR 0001).
+    const ssr = await import('@/platform/ssr');
+    const { bindActiveCmsAdapter } = await import('@/platform/services/cms/bind-active-cms-adapter');
+    for (const c of [server.default, ssr.default]) {
+      bindActiveCmsAdapter(c);
+    }
+
     // Tier 2: Runtime configuration healthcheck (sites, currencies, languages vs Emporix API)
     const { runStartupHealthcheck } = await import('@/platform/healthcheck/startup-healthcheck');
     await runStartupHealthcheck(server.default);

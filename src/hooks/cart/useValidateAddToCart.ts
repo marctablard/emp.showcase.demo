@@ -13,8 +13,9 @@ export interface AddToCartValidation {
 }
 
 /**
- * Shared validation for "add to cart" and "add to wishlist": master products and unpriced
- * products are blocked in both flows. Pass `scope: 'wishlist'` to get wishlist-worded tooltips.
+ * Shared validation for "add to cart" and "add to wishlist": non-sellable hierarchy nodes,
+ * master products, and unpriced products are blocked in both flows. Pass `scope: 'wishlist'`
+ * to get wishlist-worded tooltips where those keys exist.
  */
 export function useValidateAddToCart(
   product: Product | undefined,
@@ -27,6 +28,12 @@ export function useValidateAddToCart(
 
   if (!product) {
     return { disabled: true, tooltip: undefined };
+  }
+
+  // COP-5507: sellable === false before the master-product test so a DYNAMIC_VARIANT
+  // grouping node with union axes does not show cartTooltipMasterProduct.
+  if (product.sellable === false) {
+    return { disabled: true, tooltip: t('cartTooltipNotSellable') };
   }
 
   const isMasterProduct = (product.variantAttributes?.length ?? 0) > 0 && !product.purchasable;

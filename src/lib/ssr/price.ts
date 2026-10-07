@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { ProductPrice } from '@/platform/services/model/price/price';
 import type { PriceService } from '@/platform/services/price';
@@ -14,11 +15,17 @@ const _getPrice = cache(
     try {
       const session = await getSessionService().getCurrent();
       const price = session
-        ? await getPriceService().getProductPrice(id, quantity, unitCode, {
-            siteCode: session.siteCode,
-            currency: session.currency,
-            country: session.country,
-          })
+        ? await getPriceService().getProductPrice(
+            id,
+            quantity,
+            unitCode,
+            priceFetchOptionsFromSession(session) ?? {
+              siteCode: session.siteCode,
+              currency: session.currency,
+              country: session.country,
+              useFallback: false,
+            },
+          )
         : await getPriceService().getProductPrice(id, quantity, unitCode);
       return price;
     } catch (error) {

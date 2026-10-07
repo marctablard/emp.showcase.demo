@@ -1,0 +1,30 @@
+# Dependabot configuration for emporix-showcase.
+# Keeps npm dependencies and GitHub Actions versions up to date automatically.
+# Minor and patch updates are grouped into a single PR to reduce noise.
+# A 7-day cooldown delays version-update PRs until a release has been public for
+# at least 7 days, mirroring the `.npmrc` `min-release-age=7` supply-chain policy.
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 10
+    labels:
+      - 'dependencies'
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types:
+          - 'patch'
+          - 'minor'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    labels:
+      - 'dependencies'
+    cooldown:
+      default-days: 7

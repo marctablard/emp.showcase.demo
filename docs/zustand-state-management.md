@@ -40,6 +40,14 @@ The store maintains:
 - A reference to the currently selected product
 - Actions to get, add, and set products
 
+### Store Provider Hierarchy
+
+Nesting order in `src/providers/StoreProvider.tsx` matters — a store may only read from ancestors that wrap it:
+
+1. Site → 2. ShippingMethods → 3. Product → 4. Customer → 5. Order → 6. Cart → 7. Wishlist → 8. Checkout → 9. History → 10. Comparison → 11. Dashboard → 12. Session → 13. Notification → 14. Availability
+
+Components should use domain hooks (`@/hooks/**`), not raw store contexts.
+
 ### Store Provider
 
 The `StoreProvider` in `src/providers/StoreProvider.tsx` creates and provides the Zustand stores to the application:
@@ -80,6 +88,16 @@ This implementation:
 - Provides stores through React Context
 - Sets up cross-store synchronization (session ↔ cart) via `setupStoreSynchronization`
 - Exposes store hooks (e.g., `useProductStore`) for components to access state
+
+### Cart Store write serialization
+
+`src/stores/cart-store.ts` runs every cart write (`addToCart`, `updateItemQuantity`, `removeItem`, `applyDiscount`, `removeDiscount`, `updateShippingMethod`, `updateShippingInfo`, `updateCurrency`) through a single `CartMutationQueue`:
+
+- Writes are serialized: the next API call starts only after the previous one has settled, so two rapid clicks can never race on the server cart.
+- Every cart reset (`clearCart`, `validateCart`, `validateSite`, `validateLegalEntity`) bumps an **epoch**. A mutation that already started can no longer commit state or refetch; any response it already has is dropped instead of resurrecting the pre-reset cart.
+- Id-bound / snapshot writes that were still queued when the reset happened (`applyDiscount`, `removeDiscount`, `updateShippingMethod`, line-item updates) are skipped and never replayed on the re-resolved cart. Promo apply/remove **throw** `CartMutationCancelledError` so callers do not treat a cancelled apply as success. Shipping-method and shipping-info skips resolve without throwing.
+- `addToCart` retries once after a cancellation, since the click is still valid against the re-resolved cart; a second reset surfaces `CartMutationCancelledError` to the caller.
+- `fetchCart` never runs a pending currency reprice while the queue is busy (that would deadlock on re-entry); the reprice is drained once the queue becomes idle.
 
 ## API Layer
 
@@ -173,7 +191,7 @@ This hook:
 
 ### Server Component (Product Page)
 
-In `src/app/[site]/[locale]/(default)/product/[id]/page.tsx`, the server component:
+In `src/app/[site]/[locale]/(nav-shell)/(default)/product/[id]/page.tsx`, the server component:
 
 ```typescript
 export default async function ProductPage({ params }: { params: Promise<{ id: string; locale: string; site: string }> }) {
@@ -249,3 +267,10 @@ The Zustand implementation in the Emporix Showcase project demonstrates a clean 
 - Store Limitation (Threshold to reduce memory-usage)
 - Improved handling for multiple Stores
 - Store-Invalidation after TTL
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Dependency Injection](./dependency-injection.md)
+- [Rendering: SSR / SSG / ISR](./rendering-ssr-ssg-isr.md)
+- [Project Structure](./project-structure.md)

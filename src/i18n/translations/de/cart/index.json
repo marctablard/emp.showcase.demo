@@ -35,17 +35,14 @@
     "shippingCosts": "Versandkosten",
     "fees": "Zusatzkosten",
     "untilFreeShipping": " € bis gratis Versand",
-    "promoCode": "Promo Code",
-    "apply": "Anwenden",
-    "discount": "Rabatt",
-    "promoCodeApplied": "Promo Code angewendet",
-    "promoCodeRemoved": "Promo Code entfernt",
-    "promoCodeError": "Promo Code konnte nicht aktualisiert werden",
-    "removePromoCode": "Promo Code {code} entfernen",
     "freeShippingOn": "Gratisversand bei Bestellungen über 400.00 €!",
     "goToCheckout": "Zur Kasse",
     "calculatedAtCheckout": "im Checkout ermittelt",
-    "dataTransmittedSecure": "Ihre Daten werden verschlüsselt und sicher transportiert"
+    "dataTransmittedSecure": "Ihre Daten werden verschlüsselt und sicher transportiert",
+    "shippingVat": "Versand-MwSt.",
+    "promoCodeInfo": "Promo Codes können im Checkout-Prozess eingegeben werden.",
+    "promoAppliedTitle": "Ihre Bestellübersicht zeigt bereits den rabattierten Preis.",
+    "promoAppliedInfo": "Promo-Codes wurden bereits im Checkout hinzugefügt. Sie können Promo-Codes auf der Checkout-Seite hinzufügen oder entfernen."
   },
   "requestQuote": "Angebot anfragen",
   "requestQuoteTitle": "Für ein Angebot werden die Produkte in Ihrem Warenkorb übermittelt:",
@@ -89,7 +86,8 @@
     "failedTitle": "Übermittlung des Angebots fehlgeschlagen",
     "failedDescription": "Bitte versuchen Sie es später erneut",
     "partialFailureDescription": "Das Angebot wurde erstellt, aber die Genehmigungsanfrage konnte nicht verknüpft werden. Öffnen Sie das erstellte Angebot, um die manuelle Nachbearbeitung fortzusetzen, ohne die Anfrage erneut zu senden.",
-    "viewCreatedQuote": "Erstelltes Angebot öffnen"
+    "viewCreatedQuote": "Erstelltes Angebot öffnen",
+    "totalChanged": "Der Gesamtpreis hat sich für die neu gewählte Adresse geändert, jetzt: {total}."
   },
   "selectShippingAddress": "Lieferadresse auswählen",
   "priceChange": {
@@ -167,5 +165,6 @@
   },
   "fees": "Zusatzkosten",
   "freeShippingOn": "Gratisversand bei Bestellungen über {threshold}!",
-  "untilFreeShipping": " bis gratis Versand"
+  "untilFreeShipping": " bis gratis Versand",
+  "couponsRemovedFromEmptyCart": "Promo-Codes {codes} wurden entfernt, weil der Warenkorb leer ist."
 }

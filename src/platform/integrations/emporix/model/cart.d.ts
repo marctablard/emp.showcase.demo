@@ -43,29 +43,22 @@ export interface EmporixCartItem {
 }
 
 export interface EmporixCalculatedAppliedDiscount {
-  id: string;
+  /** Discount identifier — optional in the Cart API `calculatedAppliedDiscount` schema. */
+  id?: string;
   value: number;
   discountType: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
   origin: 'INTERNAL' | 'EXTERNAL';
 }
 
-export interface EmporixAppliedDiscount {
-  yrn: string;
-  discountId: string;
-  discountIndex: number;
-}
-
-export interface EmporixDiscountResponse {
+export interface EmporixCartDiscount {
   id?: string;
-  yrn?: string;
-  couponYrn?: string;
   code: string;
+  name?: string;
+  discountIndex?: number;
+  valid?: boolean;
   amount?: number;
   currency?: string;
   discountRate?: number;
-  name?: string;
-  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
-  discountCalculationType?: 'SUBTOTAL' | 'TOTAL';
 }
 
 export interface EmporixTaxInfo {
@@ -107,24 +100,33 @@ export interface EmporixCart {
   countryCode?: string;
   /** @deprecated Use addresses[] instead. Kept for deserialization of existing carts. */
   zipCode?: string;
+  /** @deprecated Use `deliveryWindow`. Still accepted on cart PUT. */
+  deliveryWindowId?: string;
+  deliveryWindow?: {
+    id?: string;
+    slotId?: string;
+    deliveryDate?: string;
+  };
   addresses?: EmporixCartAddress[];
   type?: string;
   status?: string;
   items?: CartItem[];
-  discounts?: EmporixDiscountResponse[];
   calculatedPrice?: {
     price: EmporixCartPrice;
     finalPrice: EmporixCartPrice;
+    /** Pre-discount shipping. Prefer `totalShipping` when both are present. */
+    shipping?: EmporixCartPrice;
     upliftValue: EmporixCartPrice;
     discountedPrice: EmporixCartPrice;
     totalFee: EmporixCartPrice;
-    totalShipping: EmporixCartPrice;
+    totalShipping?: EmporixCartPrice;
     totalDiscount: {
       calculationType: 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
       value: number;
       appliedDiscounts: EmporixCalculatedAppliedDiscount[];
     };
   };
+  discounts?: EmporixCartDiscount[];
   totalUnitsCount?: number;
   metadata?: EmporixMetadata;
   mixins?: Mixins;
@@ -134,6 +136,7 @@ export interface EmporixCreateCartRequest {
   customerId?: string;
   siteCode: string;
   currency: string;
+  countryCode?: string;
   type?: string;
   channel?: {
     name: string;

@@ -46,6 +46,10 @@ describe('extractPrice', () => {
     expect(extractPrice({ net: 100, tax: 19 })).toEqual({ net: 100, gross: 119, tax: 19 });
   });
 
+  it('should use amount as gross fallback', () => {
+    expect(extractPrice({ amount: 99, currency: 'EUR' })).toEqual({ net: 0, gross: 99, tax: 0 });
+  });
+
   it('should use value as gross fallback when no other values', () => {
     expect(extractPrice({ value: 100 })).toEqual({ net: 0, gross: 100, tax: 0 });
   });
@@ -102,6 +106,17 @@ describe('formatDate', () => {
 
   it('should handle ISO date strings', () => {
     expect(formatDate('2024-01-15T10:30:00Z')).toBe('Jan 15, 2024');
+  });
+
+  it('should return N/A when the date is missing or not a date', () => {
+    expect(formatDate(undefined)).toBe('N/A');
+    expect(formatDate(null)).toBe('N/A');
+    expect(formatDate({ iso: '2024-01-15' })).toBe('N/A');
+    expect(formatDate(new Date('invalid'))).toBe('N/A');
+  });
+
+  it('should return the raw string when it cannot be parsed', () => {
+    expect(formatDate('not-a-date')).toBe('not-a-date');
   });
 });
 
@@ -174,6 +189,16 @@ describe('getQuoteStatusBadgeVariantForAi', () => {
 
   it('should return outline for unknown status', () => {
     expect(getQuoteStatusBadgeVariantForAi('UNKNOWN')).toBe('outline');
+  });
+
+  it('should return outline when status is not a string', () => {
+    expect(getQuoteStatusBadgeVariantForAi(2)).toBe('outline');
+    expect(getQuoteStatusBadgeVariantForAi({ code: 'OPEN' })).toBe('outline');
+    expect(getQuoteStatusBadgeVariantForAi(null)).toBe('outline');
+  });
+
+  it('should read Emporix status objects', () => {
+    expect(getQuoteStatusBadgeVariantForAi({ value: 'OPEN' })).toBe('information');
   });
 });
 

@@ -1,0 +1,47 @@
+---
+description: Test locations and mandatory local gates before commit/push
+alwaysApply: true
+---
+
+# Testing & Local Validation
+
+## Test locations
+
+| Kind | Location |
+|---|---|
+| Hooks | `src/hooks/**/*.test.tsx` (jsdom + @swc/jest) |
+| Components | `src/components/**/*.test.tsx` |
+| Platform | `src/platform/**/*.test.ts` |
+| E2E | `e2e/*.spec.ts` (Playwright) |
+
+Hook tests wrap with `StoreProvider` via `@testing-library/react` `renderHook`.
+
+Commands: `npm run jest` · `npm run e2e` · `npm run test` · `npm run jest:coverage`
+
+## Mandatory before commit/push (agent policy)
+
+Stop on first failure:
+
+1. `npm run jest`
+2. `npm run build`
+
+Run `npm audit --audit-level=high` only when the user asks for audit, or before a release/security change.
+
+## SonarQube — CI only for the official scan
+
+Do **not** run `sonarqube-scanner` / a repo `sonar:pr` helper for `jest`, `build`, commit, or push. That uploads a project analysis and waits on the quality gate (minutes, scanner quota).
+
+Official analysis is `.github/workflows/sonarqube-scan.yml` (internal host + `SONAR_LOGIN`). It still runs on PRs to `develop`. If the secret is missing, the scan step no-ops so client copies do not 401.
+
+### Cheap local checks (no upload)
+
+Obvious maintainability smells (`replaceAll`, nested ternary, consecutive `push`, …) should be fixed in the editor, not after a server scan.
+
+1. **SonarQube for IDE** (extension `SonarSource.sonarlint-vscode`, recommended in `.vscode/extensions.json`) — same SonarJS rules, local squiggles in Problems like TypeScript. Does **not** upload a project report. Optional connected mode (user token, local only) matches the server quality profile.
+2. **ESLint** — existing repo lint rules in the editor and on pre-commit (lint-staged on staged JS/TS). Do not enable Sonar’s full smell set in ESLint repo-wide; that is a large cleanup, not a cheap gate.
+
+Do not use Sonar MCP `analyze_code_snippet` as a pre-commit stand-in — that calls the server.
+
+CI note: PR preview runs `audit → generate → lint → jest` (no build/Sonar).
+
+BugBug `data-testid` on actionable controls is a coding rule (`.cursor/rules/data-testid-bugbug.mdc`), not a committed scanner.

@@ -6,6 +6,7 @@ import { QuantityStepper } from '@/components/ui/molecules/quantity-stepper';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';
 import { Link } from '@/i18n/navigation';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 import { HighlightedText } from './highlighted-text';
@@ -21,20 +22,23 @@ export function QuickOrderProductCard({ product, quantity, onRemove, onUpdateQua
   const { l10n } = useL10n();
   const tCart = useTranslations('cart');
   const tA11y = useTranslations('quick-order.accessibility');
-  const { availability } = useAvailability(product.id);
+  const productId = clearMarkHighlights(product.id);
+  const productSku = clearMarkHighlights(product.sku ?? '');
+  const { availability } = useAvailability(productId);
   const image = product.images?.[0];
   const brandName = l10n(product.brand?.name || '');
   const productName = l10n(product.name) || '';
-  const itemNumber = product.sku || product.id;
+  const plainProductName = clearMarkHighlights(productName);
+  const itemNumber = productSku || productId;
 
   return (
-    <div className="py-4 border-b border-border-primary first:border-t-0" data-testid={`product-card-${product.id}`}>
+    <div className="py-4 border-b border-border-primary first:border-t-0" data-testid={`product-card-${productId}`}>
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 w-[100px] h-[65px] rounded-ss-md rounded-ee-md overflow-hidden bg-surface-image-background flex items-center justify-center">
           {image?.url ? (
             <Image
               src={image.url}
-              alt={l10n(image.altText || '') || productName}
+              alt={clearMarkHighlights(l10n(image.altText || '')) || plainProductName}
               width={100}
               height={65}
               className="object-contain w-[100px] h-[65px]"
@@ -42,7 +46,7 @@ export function QuickOrderProductCard({ product, quantity, onRemove, onUpdateQua
           ) : (
             <Image
               src="/images/no_image_alt.png"
-              alt={productName}
+              alt={plainProductName}
               width={100}
               height={65}
               className="object-contain"
@@ -52,12 +56,12 @@ export function QuickOrderProductCard({ product, quantity, onRemove, onUpdateQua
 
         <div className="flex-1 min-w-0">
           {brandName && (
-            <p className="text-sm text-text-placeholders">
+            <p className="text-sm font-body text-text-body">
               <HighlightedText text={brandName} />
             </p>
           )}
           <Link
-            href={`/product/${product.id}`}
+            href={`/product/${productId}`}
             className="text-sm font-headlines font-bold text-text-body hover:underline line-clamp-2"
           >
             <HighlightedText text={productName} />

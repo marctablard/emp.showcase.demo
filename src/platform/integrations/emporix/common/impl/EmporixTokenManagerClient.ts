@@ -1,3 +1,4 @@
+import { getLogger } from '@/lib/logger/use-logger-client';
 import { injectable } from '@/platform/core/di/injectable';
 import { decryptOrParseLegacy, encryptClientPayload } from '../util/token-encryption-client';
 import type { TokenStore } from './EmporixTokenManagerAbstract';
@@ -9,6 +10,13 @@ import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
  */
 @injectable('EmporixTokenManager', 'Singleton')
 class EmporixTokenManagerClient extends EmporixTokenManagerAbstract {
+  protected override logCustomerTokenRefreshSkipped(context: {
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }): void {
+    getLogger().warn(context, 'Customer token refresh skipped');
+  }
   protected async customerAuthAllowed(): Promise<boolean> {
     return true;
   }

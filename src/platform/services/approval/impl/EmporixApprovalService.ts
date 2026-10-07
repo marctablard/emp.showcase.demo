@@ -19,7 +19,12 @@ import type {
   ApprovalStatus,
   ApprovalUser,
 } from '@/platform/services/model/approval';
+import {
+  applyQuoteSnapshotToApproval,
+  quoteApprovalNeedsSnapshot,
+} from '@/platform/services/model/approval/apply-quote-snapshot';
 import type { EmporixApprovalMapper } from '@/platform/services/model/approval/impl/EmporixApprovalMapper';
+import type { QuoteService } from '@/platform/services/quote/QuoteService';
 import type { CustomerService } from '../../customer/CustomerService';
 import type { ApprovalService } from '../ApprovalService';
 
@@ -32,6 +37,7 @@ export class EmporixApprovalService implements ApprovalService {
     @inject('EmporixIamApi') private iamApi: EmporixIamApi,
     @inject('EmporixApprovalApi') private approvalApi: EmporixApprovalApi,
     @inject('EmporixApprovalMapper') private approvalMapper: EmporixApprovalMapper,
+    @inject('QuoteService') private readonly quoteService: QuoteService,
     @inject('CustomerService') private customerService: CustomerService,
     @inject('LoggerService') private logger: LoggerService,
   ) {}
@@ -73,16 +79,21 @@ export class EmporixApprovalService implements ApprovalService {
    * @param pageSize Optional page size (default: 60)
    * @param sort Optional sort parameter
    * @param query Optional query parameter for filtering
-   * @returns Promise with array of approvals
+   * @returns Promise with the approval items and, when available, the server-authoritative total count
    */
   async getApprovals(
     pageNumber: number = 1,
     pageSize: number = 60,
     sort?: string,
     query?: string,
-  ): Promise<Approval[]> {
+  ): Promise<{ items: Approval[]; totalCount?: number }> {
     // Call the API
-    const emporixApprovals = await this.approvalApi.getApprovals(pageNumber, pageSize, sort, query);
+    const { items: emporixApprovals, totalCount } = await this.approvalApi.getApprovals(
+      pageNumber,
+      pageSize,
+      sort,
+      query,
+    );
 
     this.logger.info(
       {
@@ -97,7 +108,10 @@ export class EmporixApprovalService implements ApprovalService {
     );
 
     // Map each approval to service model
-    return emporixApprovals.map((approval) => this.approvalMapper.mapToService(approval));
+    return {
+      items: emporixApprovals.map((approval) => this.approvalMapper.mapToService(approval)),
+      totalCount,
+    };
   }
 
   /**
@@ -114,8 +128,32 @@ export class EmporixApprovalService implements ApprovalService {
       return undefined;
     }
 
-    // Map to service model
-    return this.approvalMapper.mapToService(emporixApproval);
+    const approval = this.approvalMapper.mapToService(emporixApproval);
+    return this.enrichQuoteApproval(approval);
+  }
+
+  /**
+   * QUOTE approvals omit `details` (Approval API). Load the quote so shipping / taxAggregate are available.
+   */
+  private async enrichQuoteApproval(approval: Approval): Promise<Approval> {
+    if (!quoteApprovalNeedsSnapshot(approval)) {
+      return approval;
+    }
+
+    try {
+      const quote = await this.quoteService.getQuote(approval.resource.id);
+      return applyQuoteSnapshotToApproval(approval, quote);
+    } catch (error) {
+      this.logger.warn(
+        {
+          approvalId: approval.id,
+          quoteId: approval.resource.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to enrich quote approval from Quote Service',
+      );
+      return approval;
+    }
   }
 
   /**

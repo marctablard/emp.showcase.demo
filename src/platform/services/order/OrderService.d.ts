@@ -1,5 +1,10 @@
 import { Order } from '@/platform/services/model/order/order';
 
+export interface OrderPageResponse {
+  items: Order[];
+  totalCount?: number;
+}
+
 /**
  * Service interface for order management operations.
  * Provides methods to create, retrieve, and update orders.
@@ -46,10 +51,23 @@ export interface OrderService {
    * @param pageSize - Optional number of orders to retrieve per page
    * @param pageNumber - Optional page number to retrieve
    * @param sort - Optional sort criteria (e.g. 'created:DESC')
-   * @param query - Optional query filter (e.g. 'id:~(partial)')
+   * @param query - Optional query filter (e.g. 'id:~(partial)'). When the session
+   *   has a selected legal entity, `legalEntityId:{id}` is ANDed onto this `q`.
    * @returns A promise that resolves to an array of orders
    */
   getCustomerOrders(pageSize?: number, pageNumber?: number, sort?: string, query?: string): Promise<Order[]>;
+
+  /**
+   * Retrieves customer-managed orders with pagination metadata.
+   * When the session has a selected legal entity, the list `q` includes
+   * `legalEntityId:{id}` so results are that company's orders only.
+   */
+  getCustomerOrdersPage(
+    pageSize?: number,
+    pageNumber?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<OrderPageResponse>;
 
   /**
    * Updates the status of an order.
