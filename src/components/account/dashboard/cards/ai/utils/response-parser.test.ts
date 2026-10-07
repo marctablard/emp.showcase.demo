@@ -245,4 +245,30 @@ describe('parseAIResponse', () => {
     expect(((committed.data as { previewJson: string }).previewJson.match(/\n/g) ?? []).length).toBeLessThan(5);
     expect(mockLogger.warn).toHaveBeenCalled();
   });
+
+  it('commits a complete text envelope as plain text', () => {
+    const raw = JSON.stringify({
+      agentId: 'frontendAgent',
+      sessionId: 'abc',
+      message: 'The health status of your inverter is 45%.',
+      type: 'text',
+      data: { message: 'The health status of your inverter is 45%.', formatting: 'plain' },
+    });
+    const committed = resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw);
+    expect(committed.type).toBe('text');
+    expect(committed.message).toBe('The health status of your inverter is 45%.');
+  });
+
+  it('commits a text envelope whose sentence is only in data.message', () => {
+    const raw = JSON.stringify({ type: 'text', data: { message: 'Your order has been placed.', formatting: 'plain' } });
+    const committed = resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw);
+    expect(committed.type).toBe('text');
+    expect((committed.data as { message: string }).message).toBe('Your order has been placed.');
+  });
+
+  it('still falls back for a JSON dump without a shopper sentence', () => {
+    const raw = JSON.stringify({ orders: [{ id: 'EON1' }] });
+    const committed = resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw);
+    expect(committed.type).toBe('unrecognized');
+  });
 });

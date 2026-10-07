@@ -1,162 +1,145 @@
 'use client';
 
-import React from 'react';
-import { useTranslations } from 'next-intl';
-import Image from 'next/image';
+import React, { Fragment, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { OrderStatusBadge } from '@/components/account/orders/order-status-badge';
+import {
+  AccountListContainer,
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableCellClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+  shortenId,
+} from '@/components/account/shared/account-list';
+import { type AccountProductLine, AccountProductLines } from '@/components/account/shared/account-product-lines';
+import { AccountProductThumbnails } from '@/components/account/shared/account-product-thumbnails';
 import { Badge } from '@/components/ui/badge';
+import UiLink from '@/components/ui/link';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useRouter } from '@/i18n/navigation';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
+import { isOrderStatusValue, normalizeStatusKey } from '@/lib/common/status-tag-variants';
+import { formatDate } from '@/lib/date-utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import type { OrderData, OrderItemData, OrderListData } from '../types';
-import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi, handleImageError } from '../utils';
+import { extractPrice } from '../utils';
 import { widgetOrSkeleton } from './WidgetSkeleton';
 
 interface OrderListRendererProps {
   data: OrderListData;
 }
 
+const COLUMN_COUNT = 5;
+
+function toProductLine(item: OrderItemData, index: number, currency: string): AccountProductLine {
+  const quantity = item.quantity || 0;
+  const unitNet = item.unitPrice ? extractPrice(item.unitPrice).net : 0;
+  const totalNet = item.totalPrice ? extractPrice(item.totalPrice).net : 0;
+  const unitPrice = unitNet || (totalNet && quantity ? totalNet / quantity : undefined);
+
+  return {
+    id: item.productId || String(index + 1),
+    imageUrl: item.image,
+    name: item.name,
+    quantity,
+    unitPrice,
+    currency: item.unitPrice?.currency || item.totalPrice?.currency || currency,
+  };
+}
+
+function OrderStatus({ status }: Readonly<{ status: string }>) {
+  const key = normalizeStatusKey(status);
+  if (isOrderStatusValue(key)) {
+    return <OrderStatusBadge status={key} />;
+  }
+  return (
+    <Badge variant="outline" size="status">
+      {status}
+    </Badge>
+  );
+}
+
 export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) => {
-  const t = useTranslations('account.AiHelper');
-  const tCommon = useTranslations('common');
+  const t = useTranslations('orders');
+  const locale = useLocale();
+  const router = useRouter();
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const orders = data.orders?.filter((order: OrderData) => Boolean(order?.orderId)) ?? [];
+
+  const toggle = (orderId: string) => setExpanded((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
 
   return widgetOrSkeleton(
     data.orders,
-    <div className="space-y-3">
-      {orders.map((order: OrderData, index: number) => {
-        const orderCurrency = order.currency || getPublicDefaultCurrency();
-        const totalPrice = extractPrice(order.total);
-        const totalGross = totalPrice.gross || 0;
-        const totalNet = totalPrice.net || 0;
-        const totalTax = totalPrice.tax || 0;
+    <AccountListContainer className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className={accountTableHeadRowClass}>
+            <TableHead className={accountTableHeadClass}>{t('columns.orderNumber')}</TableHead>
+            <TableHead className={accountTableHeadClass}>{t('columns.orderDate')}</TableHead>
+            <TableHead className={accountTableHeadClass}>{t('columns.products')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('columns.orderValue')}</TableHead>
+            <TableHead className={accountTableBadgeHeadClass}>{t('columns.status')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {orders.map((order: OrderData, index: number) => {
+            const currency = order.currency || getPublicDefaultCurrency();
+            const net = extractPrice(order.total).net;
+            const items = order.items ?? [];
+            const isExpanded = Boolean(expanded[order.orderId]);
 
-        return (
-          <div
-            key={index}
-            className="bg-surface-primary rounded-xl border border-border-primary shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
-          >
-            <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-4">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <a
-                      href={`/account/orders/${order.orderId}`}
-                      className="text-text-on-action hover:text-text-on-action/80 font-semibold text-base underline truncate"
-                    >
-                      #{order.orderId}
-                    </a>
-                    <Badge
-                      variant={getOrderStatusBadgeVariantForAi(order.status)}
-                      size="status"
-                      className="flex-shrink-0 max-w-full truncate"
-                    >
-                      {order.status}
-                    </Badge>
-                    {order.siteCode && (
-                      <span className="text-xs font-medium text-text-on-action bg-surface-action/30 px-2.5 py-1 rounded-full flex-shrink-0">
-                        {order.siteCode}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-4 text-xs text-text-on-action/90">
-                    <div className="flex items-center space-x-1">
-                      <span>📅</span>
-                      <span>{formatDate(order.date)}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <span>📦</span>
-                      <span>
-                        {order.totalItems || order.itemCount || 0} {t('items')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right ml-4 flex-shrink-0">
-                  <div className="text-lg font-bold text-text-on-action">{formatPrice(totalGross, orderCurrency)}</div>
-                  {(totalNet > 0 || totalTax > 0) && (
-                    <div className="text-xs text-text-on-action/90">
-                      {totalNet > 0 && (
-                        <>
-                          {t('net')} {formatPrice(totalNet, orderCurrency)}
-                        </>
-                      )}
-                      {totalNet > 0 && totalTax > 0 && ' • '}
-                      {totalTax > 0 && (
-                        <>
-                          {tCommon('tax')} {formatPrice(totalTax, orderCurrency)}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {order.items && order.items.length > 0 && (
-              <div className="p-3 bg-surface-primary">
-                <div className="text-sm font-semibold text-text-body mb-2">{t('previewItems')}</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-sm text-text-body">
-                  {order.items.map((item: OrderItemData, itemIndex: number) => {
-                    const itemPrice = item.totalPrice
-                      ? extractPrice(item.totalPrice)
-                      : item.unitPrice && item.quantity
-                        ? {
-                            net: (item.unitPrice.net || 0) * item.quantity,
-                            gross: (item.unitPrice.gross || item.unitPrice.value || 0) * item.quantity,
-                            tax: (item.unitPrice.tax || 0) * item.quantity,
-                          }
-                        : { net: 0, gross: 0, tax: 0 };
-
-                    const itemCurrency = item.totalPrice?.currency || item.unitPrice?.currency || orderCurrency;
-
-                    return (
-                      <div key={itemIndex} className="flex items-start space-x-2">
-                        {item.image && (
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            width={40}
-                            height={40}
-                            className="w-10 h-10 object-cover rounded flex-shrink-0"
-                            onError={handleImageError}
-                            unoptimized
-                          />
-                        )}
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <div className="font-medium text-text-body break-words">{item.name}</div>
-                          <div className="text-xs text-text-placeholders">
-                            {t('quantity')} {item.quantity}
-                            {(itemPrice.net > 0 || itemPrice.gross > 0 || itemPrice.tax > 0) && (
-                              <>
-                                {' • '}
-                                {itemPrice.net > 0 && (
-                                  <>
-                                    {t('net')} {formatPrice(itemPrice.net, itemCurrency)}
-                                  </>
-                                )}
-                                {itemPrice.net > 0 && itemPrice.tax > 0 && ' • '}
-                                {itemPrice.tax > 0 && (
-                                  <>
-                                    {tCommon('tax')} {formatPrice(itemPrice.tax, itemCurrency)}
-                                  </>
-                                )}
-                                {(itemPrice.net > 0 || itemPrice.tax > 0) && itemPrice.gross > 0 && ' • '}
-                                {itemPrice.gross > 0 && (
-                                  <>
-                                    {t('gross')} {formatPrice(itemPrice.gross, itemCurrency)}
-                                  </>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>,
+            return (
+              <Fragment key={order.orderId}>
+                <TableRow
+                  className={accountTableRowClass(index, { clickable: true })}
+                  data-testid={`aiOrders-row-${order.orderId}`}
+                  onClick={() => router.push(`/account/orders/${order.orderId}`)}
+                >
+                  <TableCell className={cn(accountTableCellClass, 'font-medium')}>
+                    <span title={`#${order.orderId}`} onClick={(event) => event.stopPropagation()}>
+                      <UiLink
+                        type="Link"
+                        href={`/account/orders/${order.orderId}`}
+                        variant="primary"
+                        data-testid={`aiOrders-id-${order.orderId}`}
+                      >
+                        #{shortenId(order.orderId)}
+                      </UiLink>
+                    </span>
+                  </TableCell>
+                  <TableCell className={cn(accountTableCellClass, 'whitespace-nowrap')}>
+                    {order.date ? formatDate(order.date, locale) : '-'}
+                  </TableCell>
+                  <TableCell className={accountTableCellClass} onClick={(event) => event.stopPropagation()}>
+                    <AccountProductThumbnails
+                      items={items.map((item) => ({ imageUrl: item.image, name: item.name }))}
+                      onToggle={() => toggle(order.orderId)}
+                      expanded={isExpanded}
+                      toggleLabel={t('columns.products')}
+                      data-testid={`aiOrders-products-${order.orderId}`}
+                    />
+                  </TableCell>
+                  <TableCell className={cn(accountTableCellClass, 'whitespace-nowrap text-right font-medium')}>
+                    {net > 0 ? formatCurrency(net, currency, locale) : '-'}
+                  </TableCell>
+                  <TableCell className={accountTableBadgeCellClass}>
+                    <OrderStatus status={order.status} />
+                  </TableCell>
+                </TableRow>
+                {isExpanded ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={COLUMN_COUNT} className="border-t border-border-primary p-0">
+                      <AccountProductLines lines={items.map((item, i) => toProductLine(item, i, currency))} />
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </AccountListContainer>,
   );
 };

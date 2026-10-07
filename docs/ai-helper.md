@@ -29,10 +29,9 @@ When streaming is on, `POST /api/ai/chat` is an SSE response. Each `progress` ev
 
 - `{ kind: "text", content }` — plain text or a `type: "text"` body as the `"message"` string arrives
 - `{ kind: "html", html }` — sanitized HTML from a `type: "html"` envelope as it arrives
-- `{ kind: "widget", type, message, data }` — a storefront card as soon as it can be typed:
-  - `tool_start` shows one empty skeleton for known tools (`get-quotes` → quote list, `get-customer-info` → account, …) and for indexed search tools whose canonical name starts with `indexed` (e.g. `search_*__indexedProducts` → product list, `indexedOrders` → order list)
-  - `tool_result` fills the same renderer from JSON (`get-quotes` with two quotes → two cards; indexed hits from `results[].metadata`). Tool-message wrappers (`name`/`type: tool`/`artifact`) are unwrapped first so a tool name like `get-customer-info` is never painted as the shopper's name.
-  - token JSON is a fallback: incomplete widget envelopes show the skeleton plus caption; a complete envelope paints the card before `complete`
+- `{ kind: "widget", type, message, data }` — a storefront card, only once the agent's answer declares its widget `type`:
+  - `tool_start` / `tool_result` frames paint nothing on their own. Agents often call lookup tools first (for example `get-customer-info` to read owned products or product rules before `get-products`), so painting each tool's card would flash the wrong widget.
+  - When the token envelope names a `type`, the card is filled from the matching `tool_result` (`get-quotes` with two quotes → two cards; indexed hits from `results[].metadata`), or a skeleton is shown until it is. Tool-message wrappers (`name`/`type: tool`/`artifact`) are unwrapped first so a tool name like `get-customer-info` is never painted as the shopper's name.
 - `thinking: "active"` — opaque presence flag only. The Helper shows translated “thinking” status; **raw model chain-of-thought is never forwarded to the browser or painted**. It is **not** written into `complete.message` or `localStorage`.
 
 The thinking line stays visible for the whole in-flight turn. It uses “AI is thinking…” until the first processed payload, then “AI is thinking [n]” as `chunks` increments. A handshake `chunks: 0` is not shown. While Sending is disabled, the chat card and message log use `cursor-progress`. Incomplete widgets render `SkeletonFrame` bars (pulse plus two white/primary-blue cones circling the border).
@@ -77,6 +76,12 @@ Logout / login also drop unscoped keys immediately. Order links in any leftover 
 ## Agent contract
 
 Typed widgets should come from tool artifacts, not from the model re-serializing arrays. `frontendAgent` `outputFormat` can stay a small envelope (`message`, `type`, optional `data` for html/text). List payloads (`orders`, `products`, `quotes`, …) are projected in the Showcase BFF (`adaptToolResult`) from allowlisted tool results — MCP-style `get-*` tools and indexed search tools whose canonical name starts with `indexed` (hits from `results[].metadata`). For quotes, the BFF extracts list/singleton JSON shape; locale flattening happens in renderers (`mapAiQuote` / `mapAiQuoteList`), not in `adaptToolResult`. Do not ask the model to emit raw HTML for orders or products.
+
+The model sets `data: null` for these widgets; the BFF fills them from the tool result. When a turn calls several tools (for example `get-customer-info` to read rules or owned products, then `get-products`), the widget type named in the agent's envelope wins over the last tool that ran. If no tool result matches that type, the agent's own envelope is used. An envelope that answers with `text` or `html` always wins over tool cards: reading `get-customer-info` to answer a rule or device question must not paint the account card.
+
+The current `frontendAgent` prompt is kept in [`agents/frontendAgent.userPrompt.md`](./agents/frontendAgent.userPrompt.md). It is applied to the tenant through the AI Service `PATCH /ai-service/{tenant}/agentic/agents/frontendAgent` endpoint (scope `ai.agent_manage`, header `Content-Language: *`). Update the file whenever you change the prompt in the tenant.
+
+Keep `maxRecursionLimit` at 20 or higher. Each tool call costs several agent steps, so flows that chain tools (owned products: `get-customer-info` then `get-products`; recommendations add `productsRagTool`) stop with an upstream `Recursion limit reached` error at 10, which the shopper sees as a failed request.
 
 ## Quality examples
 

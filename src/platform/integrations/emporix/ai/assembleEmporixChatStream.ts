@@ -187,6 +187,7 @@ function createAssemblyState(): AssemblyState {
     capturedResponse: null,
     identityOverlay: EMPTY_IDENTITY,
     widget: null,
+    widgetsByType: new Map(),
     pendingWidget: null,
     thinking: false,
     cachedPreviewSource: '',
@@ -196,8 +197,15 @@ function createAssemblyState(): AssemblyState {
 
 export type ChatStreamProgressHandler = (progress: AIChatStreamProgressUpdate) => void;
 
+/**
+ * Tools are often context lookups (customer rules, owned products) before the tool that feeds the
+ * answer, so no card is painted until the agent's envelope declares its widget type.
+ */
 function previewFromAssemblyState(state: AssemblyState): StreamPreview {
   const tokenPreview = tokenPreviewFromState(state);
+  if (tokenPreview.kind !== 'widget') {
+    return tokenPreview;
+  }
   const tokenIntro = captionFromPreview(tokenPreview);
   const resolved = resolvedWidget(state, tokenPreview);
 
@@ -207,19 +215,6 @@ function previewFromAssemblyState(state: AssemblyState): StreamPreview {
       type: resolved.type,
       message: tokenIntro,
       data: resolved.data,
-    };
-  }
-
-  if (state.pendingWidget && WIDGET_TYPES.has(state.pendingWidget)) {
-    const data =
-      tokenPreview.kind === 'widget' && tokenPreview.type === state.pendingWidget
-        ? (tokenPreview.data as Record<string, unknown>)
-        : {};
-    return {
-      kind: 'widget',
-      type: state.pendingWidget,
-      message: tokenIntro,
-      data,
     };
   }
 
@@ -529,6 +524,7 @@ type AssemblyState = {
   capturedResponse: EmporixAIChatResponse | null;
   identityOverlay: StreamIdentity;
   widget: WidgetState | null;
+  widgetsByType: Map<string, WidgetState>;
   pendingWidget: string | null;
   thinking: boolean;
   cachedPreviewSource: string;
@@ -607,6 +603,7 @@ function consumeToolResult(state: AssemblyState, payload: string): void {
       return;
     }
     state.widget = adapted;
+    state.widgetsByType.set(adapted.type, adapted);
   } catch {
     // Tool results must be JSON.
   }
@@ -686,7 +683,42 @@ function tokenWidgetData(tokenPreview: StreamPreview, type: string): Record<stri
   return tokenPreview.data;
 }
 
+const TOOL_WIDGET_FALLBACK: Record<string, string> = {
+  product_selection: 'product_list',
+  order_summary: 'order_list',
+  return_details: 'return_list',
+};
+
+/**
+ * When the agent's envelope names a widget type, that intent wins over the last tool that ran:
+ * a turn that reads the customer (rules, owned products) and then lists products must not paint
+ * the account card.
+ */
+function widgetForDeclaredType(state: AssemblyState, tokenPreview: StreamPreview): WidgetState | null | undefined {
+  if (tokenPreview.kind !== 'widget' || !WIDGET_TYPES.has(tokenPreview.type)) {
+    return undefined;
+  }
+  const declared = tokenPreview.type;
+  if (!state.widget || state.widget.type === declared) {
+    return undefined;
+  }
+  const tokenData = tokenWidgetData(tokenPreview, declared);
+  if (tokenData && widgetHasItems(tokenData)) {
+    return { type: declared, data: tokenData };
+  }
+  const toolWidget = state.widgetsByType.get(declared);
+  if (toolWidget) {
+    return toolWidget;
+  }
+  const fallbackType = TOOL_WIDGET_FALLBACK[declared];
+  return (fallbackType && state.widgetsByType.get(fallbackType)) || null;
+}
+
 function resolvedWidget(state: AssemblyState, tokenPreview = tokenPreviewFromState(state)): WidgetState | null {
+  const declaredWidget = widgetForDeclaredType(state, tokenPreview);
+  if (declaredWidget !== undefined) {
+    return declaredWidget;
+  }
   const tokenDataForPending = state.pendingWidget ? tokenWidgetData(tokenPreview, state.pendingWidget) : undefined;
   if (!state.widget || !WIDGET_TYPES.has(state.widget.type)) {
     if (state.pendingWidget && tokenDataForPending && widgetHasItems(tokenDataForPending)) {
@@ -770,8 +802,29 @@ function pickRicherResponse(
   if (!fromTokens) {
     return fromWidget;
   }
+  if (declaresPlainAnswer(fromTokens)) {
+    return fromTokens;
+  }
   // Prefer tool-adapted widget over raw token envelopes that may carry unnormalized fields.
   return fromWidget;
+}
+
+/**
+ * The agent reads tools such as `get-customer-info` to answer a question (a purchasing rule, a
+ * device status); an envelope that explicitly answers with `text` / `html` must not be replaced by
+ * that tool's card.
+ */
+function declaresPlainAnswer(response: EmporixAIChatResponse): boolean {
+  try {
+    const parsed = JSON.parse(response.message) as unknown;
+    if (!isStreamObject(parsed) || (parsed.type !== 'text' && parsed.type !== 'html')) {
+      return false;
+    }
+    const data = isStreamObject(parsed.data) ? parsed.data : {};
+    return [parsed.message, data.message, data.html].some((value) => typeof value === 'string' && value.trim() !== '');
+  } catch {
+    return false;
+  }
 }
 
 function envelopeDataScore(response: EmporixAIChatResponse): number {

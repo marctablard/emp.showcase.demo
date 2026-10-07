@@ -20,6 +20,7 @@ interface AccountProductThumbnailsProps {
   expanded?: boolean;
   /** Accessible label for the toggle button. */
   toggleLabel?: string;
+  'data-testid'?: string;
 }
 
 /**
@@ -39,6 +40,7 @@ export function AccountProductThumbnails({
   onToggle,
   expanded = false,
   toggleLabel,
+  'data-testid': testId,
 }: AccountProductThumbnailsProps) {
   if (!items || items.length === 0) {
     return <span className="text-text-placeholders">–</span>;
@@ -85,6 +87,7 @@ export function AccountProductThumbnails({
         type="button"
         aria-label={toggleLabel}
         aria-expanded={expanded}
+        data-testid={testId}
         title={title || toggleLabel}
         onClick={(event) => {
           event.stopPropagation();

@@ -131,6 +131,10 @@ const shopperCaption = (value: string | null | undefined): string => {
   return sanitizeCompletedShopperText(value);
 };
 
+const textDataMessage = (data: unknown): string => {
+  return isRecord(data) && typeof data.message === 'string' ? data.message : '';
+};
+
 const isKnownRenderableType = (type: string): boolean => {
   return WIDGET_TYPES.has(type) || type === 'html';
 };
@@ -182,11 +186,18 @@ export const resolveCommittedChatPayload = (
     return { message: caption, data: parsed.data, type: 'html' };
   }
 
+  const isTextEnvelope =
+    !parsed.unparsedRaw &&
+    (parsed.type === 'text' || parsed.type === 'complete') &&
+    !looksLikeStructuredCaption(parsed.message) &&
+    Boolean(caption || shopperCaption(textDataMessage(parsed.data)));
+
   const looksUnrecognized =
-    Boolean(parsed.unparsedRaw) ||
-    looksLikeStructuredCaption(parsed.message) ||
-    looksLikeStructuredCaption(sourceRaw) ||
-    (parsed.type !== 'text' && parsed.type !== 'complete' && !parsedHasResolvedWidget);
+    !isTextEnvelope &&
+    (Boolean(parsed.unparsedRaw) ||
+      looksLikeStructuredCaption(parsed.message) ||
+      looksLikeStructuredCaption(sourceRaw) ||
+      (parsed.type !== 'text' && parsed.type !== 'complete' && !parsedHasResolvedWidget));
 
   if (looksUnrecognized) {
     return toUnrecognizedPayload(caption, sourceRaw, parsed.data ?? (preview?.kind === 'widget' ? preview.data : null));

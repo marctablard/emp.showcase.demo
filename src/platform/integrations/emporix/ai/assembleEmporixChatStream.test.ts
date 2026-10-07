@@ -470,7 +470,103 @@ describe('assembleEmporixChatStream', () => {
     expect(parsed.data.orders[0]).not.toHaveProperty('mixins');
   });
 
-  it('shows a quote-list skeleton on get-quotes tool_start, then fills two quotes', async () => {
+  describe('when the agent reads the customer before listing products', () => {
+    const customerResult = toNamedSseEvent(
+      'tool_result',
+      JSON.stringify({
+        tool_name: 'get-customer-info',
+        tool_call_id: 'call-customer',
+        output: {
+          id: 'C1',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          contactEmail: 'ada@example.com',
+          mixins: { ownedproducts: { ownedproducts: [{ productid: 'P1' }] } },
+        },
+      }),
+    );
+    const productsResult = toNamedSseEvent(
+      'tool_result',
+      JSON.stringify({
+        tool_name: 'get-products',
+        tool_call_id: 'call-products',
+        output: { products: [{ id: 'P1', name: { en: 'Inverter X1' } }] },
+      }),
+    );
+    const envelope = (type: string) =>
+      toContentToken(JSON.stringify({ agentId: 'frontendAgent', message: 'Here you go.', type }));
+
+    it('shows the product list the agent declared even when get-customer-info ran last', async () => {
+      const assembled = await assembleEmporixChatStream(
+        [productsResult, customerResult, envelope('product_list')].join(''),
+      );
+      const parsed = JSON.parse(assembled.message);
+
+      expect(parsed.type).toBe('product_list');
+      expect(parsed.data.products).toHaveLength(1);
+    });
+
+    it('fills a declared product_selection from the get-products result', async () => {
+      const assembled = await assembleEmporixChatStream(
+        [customerResult, productsResult, customerResult, envelope('product_selection')].join(''),
+      );
+      const parsed = JSON.parse(assembled.message);
+
+      expect(parsed.type).toBe('product_list');
+      expect(parsed.data.products).toHaveLength(1);
+    });
+
+    it('does not paint the account card when the declared widget has no matching tool result', async () => {
+      const assembled = await assembleEmporixChatStream([customerResult, envelope('product_list')].join(''));
+      const parsed = JSON.parse(assembled.message);
+
+      expect(parsed.type).toBe('product_list');
+      expect(parsed.message).toBe('Here you go.');
+    });
+
+    it('never previews the account card while the agent is still looking up products', async () => {
+      const progressUpdates: AIChatStreamProgressUpdate[] = [];
+      await assembleEmporixChatStream([customerResult, productsResult, envelope('product_list')].join(''), (progress) =>
+        progressUpdates.push(progress),
+      );
+      const widgetTypes = progressUpdates
+        .map((update) => (update.preview?.kind === 'widget' ? update.preview.type : null))
+        .filter(Boolean);
+
+      expect(widgetTypes.length).toBeGreaterThan(0);
+      expect(new Set(widgetTypes)).toEqual(new Set(['product_list']));
+      expect(widgetData<ProductListWidgetData>(progressUpdates.at(-1)!)?.products).toHaveLength(1);
+    });
+
+    it('answers in text when the agent read the customer only to look up a rule', async () => {
+      const assembled = await assembleEmporixChatStream(
+        [
+          customerResult,
+          toContentToken(
+            JSON.stringify({
+              agentId: 'frontendAgent',
+              message: 'Coolants must be ordered in 20 l containers.',
+              type: 'text',
+              data: null,
+            }),
+          ),
+        ].join(''),
+      );
+      const parsed = JSON.parse(assembled.message);
+
+      expect(parsed.type).toBe('text');
+      expect(parsed.message).toBe('Coolants must be ordered in 20 l containers.');
+      expect(assembled.message).not.toContain('Lovelace');
+    });
+
+    it('keeps the account card when the agent declares account_details', async () => {
+      const assembled = await assembleEmporixChatStream([customerResult, envelope('account_details')].join(''));
+
+      expect(JSON.parse(assembled.message).type).toBe('account_details');
+    });
+  });
+
+  it('paints no card from get-quotes tool frames before the agent declares a widget, then returns two quotes', async () => {
     const progressUpdates: AIChatStreamProgressUpdate[] = [];
     const streamBody = [
       toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-quotes', tool_call_id: 'call-1' })),
@@ -494,17 +590,12 @@ describe('assembleEmporixChatStream', () => {
       progressUpdates.push(progress);
     });
 
-    expect(progressUpdates[0]?.preview).toEqual({
-      kind: 'widget',
-      type: 'quote_list',
-      message: '',
-      data: {},
-    });
-    const filled = progressUpdates
-      .map((update) => widgetData<QuoteListWidgetData>(update))
-      .find((data) => Array.isArray(data?.quotes) && data.quotes.length === 2);
-    expect(filled?.quotes?.map((quote) => quote.id ?? quote.quoteId)).toEqual(['Q1', 'Q2']);
+    expect(progressUpdates.some((update) => update.preview?.kind === 'widget')).toBe(false);
     const parsed = JSON.parse(assembled.message);
+    expect(parsed.data.quotes.map((quote: { id?: string; quoteId?: string }) => quote.id ?? quote.quoteId)).toEqual([
+      'Q1',
+      'Q2',
+    ]);
     expect(parsed.type).toBe('quote_list');
     expect(parsed.message).toBe('Here are your quotes.');
     expect(parsed.data.quotes).toHaveLength(2);
@@ -530,7 +621,7 @@ describe('assembleEmporixChatStream', () => {
     expect(parsed.data.orders[0].orderId).toBe('EON1');
   });
 
-  it('shows an account skeleton on get-customer-info tool_start', async () => {
+  it('shows no account skeleton on get-customer-info tool_start', async () => {
     const progressUpdates: Array<{ chunks: number; preview?: { kind: string; type?: string; data?: unknown } }> = [];
     const streamBody = toNamedSseEvent(
       'tool_start',
@@ -542,12 +633,7 @@ describe('assembleEmporixChatStream', () => {
     }).catch(() => undefined);
 
     expect(assembled).toBeUndefined();
-    expect(progressUpdates[0]?.preview).toEqual({
-      kind: 'widget',
-      type: 'account_details',
-      message: '',
-      data: {},
-    });
+    expect(progressUpdates.some((update) => update.preview?.kind === 'widget')).toBe(false);
   });
 
   it('maps get-customer-info tool_result onto personalInfo', async () => {
@@ -839,9 +925,7 @@ describe('assembleEmporixChatStream', () => {
           },
         }),
       ),
-      toContentToken(
-        '```json\n{"message":"Here are similar products.","type":"product_list","data":{"products":[]}}\n',
-      ),
+      toContentToken('{"message":"Here are similar products.","type":"product_list","data":{"products":[]}}'),
     ].join('');
 
     const assembled = await assembleEmporixChatStream(streamBody, (progress) => {
