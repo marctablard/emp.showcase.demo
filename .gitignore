@@ -137,3 +137,6 @@ next-env.d.ts
 
 # Extensions (local only)
 /extensions/*/
+
+# Figma design source (too large for git)
+*.fig
