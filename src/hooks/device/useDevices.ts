@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useLogger } from '@/hooks/common/useLogger';
 import { fetchDevices } from '@/lib/client/devices';
 import type { Device } from '@/types/device';
@@ -32,9 +33,10 @@ export function useDevices(initialDevices?: Device[]): UseDevicesResult {
   }, [logger]);
 
   useEffect(() => {
-    if (!initialDevices) {
-      loadDevices();
+    if (initialDevices) {
+      return;
     }
+    return startEffectTask(loadDevices);
   }, [initialDevices, loadDevices]);
 
   const refreshDevices = useCallback(async () => {

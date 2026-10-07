@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import type { ProjectMediaAsset, ProjectUpdateDto } from '@/platform/services/model/project/project';
 import type { Project } from '@/platform/services/model/project/project';
 import type { ShoppingList, ShoppingListItem } from '@/platform/services/model/shopping-list/shopping-list';
@@ -39,9 +40,7 @@ export function useProject(projectId: string) {
     }
   }, [projectId]);
 
-  useEffect(() => {
-    fetchProject();
-  }, [fetchProject]);
+  useEffect(() => startEffectTask(fetchProject), [fetchProject]);
 
   const updateProject = useCallback(
     async (data: ProjectUpdateDto): Promise<Project> => {

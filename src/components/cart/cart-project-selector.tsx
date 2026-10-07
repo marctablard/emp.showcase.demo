@@ -33,12 +33,10 @@ export function CartProjectSelector({ cartId, initialProjectId, onProjectSelecte
     return null;
   });
 
-  // Sync initialProjectId changes (e.g. cart data loads asynchronously after mount)
-  useEffect(() => {
-    if (initialProjectId && !selectedId) {
-      setSelectedId(initialProjectId);
-    }
-  }, [initialProjectId, selectedId]);
+  // Adopt initialProjectId when it arrives after mount (cart data loads asynchronously).
+  if (initialProjectId && !selectedId) {
+    setSelectedId(initialProjectId);
+  }
 
   useEffect(() => {
     fetch('/api/projects')

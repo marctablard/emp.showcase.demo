@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import type { Project, ProjectCreateDto } from '@/platform/services/model/project/project';
 
 export function useProjects() {
@@ -23,9 +24,7 @@ export function useProjects() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+  useEffect(() => startEffectTask(fetchProjects), [fetchProjects]);
 
   const createProject = useCallback(async (data: ProjectCreateDto): Promise<Project> => {
     const response = await fetch('/api/projects', {

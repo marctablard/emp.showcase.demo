@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSession as useAuthSession } from 'next-auth/react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useSession } from '@/hooks/session/useSession';
 import { fetchCompanyDetails, updateCompanyDetails } from '@/lib/client/company';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -63,8 +64,8 @@ export function useCompanyDetails(): CompanyDetailsHook {
     if (status !== 'authenticated') {
       return;
     }
-    fetchCompany();
     // Re-fetch when the selected company changes.
+    return startEffectTask(fetchCompany);
   }, [status, legalEntityId, fetchCompany]);
 
   return { company, loading, error, fetchCompany, updateCompany };

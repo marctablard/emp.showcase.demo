@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { Pencil, X } from 'lucide-react';
@@ -33,14 +33,17 @@ export function ProjectOverviewTab({ project, onSave }: ProjectOverviewTabProps)
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<'success' | 'error' | null>(null);
 
-  useEffect(() => {
+  const [formSource, setFormSource] = useState(project);
+
+  if (project !== formSource) {
+    setFormSource(project);
     setNameEn((project.name as Record<string, string>)?.en ?? (project.name as Record<string, string>)?.de ?? '');
     setStatus(project.status);
     setStartDate(project.startDate ? project.startDate.split('T')[0] : '');
     setEndDate(project.endDate ? project.endDate.split('T')[0] : '');
     setComment(project.comment ?? '');
     setEditing(false);
-  }, [project]);
+  }
 
   const handleCancel = () => {
     setNameEn((project.name as Record<string, string>)?.en ?? (project.name as Record<string, string>)?.de ?? '');

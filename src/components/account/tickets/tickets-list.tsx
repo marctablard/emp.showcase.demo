@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight, Inbox, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -62,10 +62,6 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
     }
   }, [locale]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, search]);
-
   const filteredTickets = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     return tickets.filter((ticket) => {
@@ -111,7 +107,10 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
             <button
               key={filter}
               type="button"
-              onClick={() => setStatusFilter(filter)}
+              onClick={() => {
+                setStatusFilter(filter);
+                setCurrentPage(1);
+              }}
               className={cn(
                 'rounded-sm px-4 py-1.5 text-sm font-medium transition-colors',
                 statusFilter === filter
@@ -126,7 +125,10 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
         <div className="relative w-full min-[768px]:max-w-[320px]">
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder={t('searchPlaceholder')}
             endIcon={loading ? undefined : Search}
             aria-label={t('searchPlaceholder')}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Building2, MapPin, Pencil } from 'lucide-react';
 import {
@@ -61,12 +61,12 @@ export function CompanyDetails() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<CompanyFormState | null>(null);
+  const [formSource, setFormSource] = useState<typeof company>(null);
 
-  useEffect(() => {
-    if (company) {
-      setForm(toFormState(company));
-    }
-  }, [company]);
+  if (company && company !== formSource) {
+    setFormSource(company);
+    setForm(toFormState(company));
+  }
 
   const setField = (key: keyof CompanyFormState, value: string) =>
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));

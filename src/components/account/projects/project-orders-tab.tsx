@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Order } from '@/platform/services/model/order/order';
 
@@ -46,9 +47,7 @@ export function ProjectOrdersTab({ projectId }: ProjectOrdersTabProps) {
     }
   }, [projectId]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  useEffect(() => startEffectTask(fetchOrders), [fetchOrders]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredOrders = normalizedQuery
