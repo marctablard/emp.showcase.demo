@@ -8,6 +8,7 @@ import 'react-resizable/css/styles.css';
 import { isEqual } from 'lodash';
 import { breakpoints } from '@/lib/breakpoints';
 import { useLocalDashboardStore } from '@/lib/client/dashboard';
+import { cn } from '@/lib/utils';
 import { AiHelperCard } from './cards/ai-helper-card';
 import { DocumentsCard } from './cards/documents-card';
 import { MyInvoicesCard } from './cards/my-invoices-card';
@@ -51,31 +52,34 @@ export default function Dashboard({ isCustomizable, layouts, layoutChanged }: Da
     [layouts, layoutChanged, setCurrentLayout],
   );
 
+  // GridItem only re-renders when its children change, so a toggle of isDraggable/isResizable alone
+  // never reaches the items: the children must depend on isCustomizable. Same keys keep card state.
   const layoutItems = useMemo(() => {
+    const itemClass = cn('h-full relative', isCustomizable && 'cursor-move');
     return [
-      <div key="ai-helper" className="h-full relative">
+      <div key="ai-helper" className={itemClass}>
         <AiHelperCard className="h-full" />
       </div>,
-      <div key="weather" className="h-full overflow-auto relative">
+      <div key="weather" className={cn(itemClass, 'overflow-auto')}>
         <WeatherCard className="h-full" />
       </div>,
-      <div key="notification" className="h-full relative">
+      <div key="notification" className={itemClass}>
         <NotificationCard className="h-full" />
       </div>,
-      <div key="ticket" className="h-full relative">
+      <div key="ticket" className={itemClass}>
         <TicketCard className="h-full" />
       </div>,
-      <div key="orders" className="h-full relative">
+      <div key="orders" className={itemClass}>
         <MyOrdersCard className="h-full" />
       </div>,
-      <div key="invoices" className="h-full relative">
+      <div key="invoices" className={itemClass}>
         <MyInvoicesCard className="h-full" />
       </div>,
-      <div key="documents" className="h-full relative">
+      <div key="documents" className={itemClass}>
         <DocumentsCard className="h-full" />
       </div>,
     ];
-  }, []);
+  }, [isCustomizable]);
 
   return (
     <div className="relative">
