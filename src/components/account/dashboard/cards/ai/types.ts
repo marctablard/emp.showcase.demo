@@ -32,6 +32,7 @@ export interface NormalizedPrice {
 // ============================================================================
 
 export interface AddressData {
+  id?: string;
   name: string;
   company?: string;
   addressLine1: string;
@@ -86,8 +87,11 @@ export interface ErrorData {
 }
 
 export interface AddressListData {
-  addresses: AddressData[];
+  addresses?: AddressData[];
   message?: string;
+  /** Set when the agent named the widget without data: render the checkout address book instead. */
+  loadFromAccount?: boolean;
+  addressType?: 'SHIPPING' | 'BILLING';
 }
 
 // ============================================================================

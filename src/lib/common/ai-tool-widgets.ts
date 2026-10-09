@@ -895,7 +895,8 @@ function stringTags(value: unknown): string[] | undefined {
 
 function adaptAddress(item: unknown): Record<string, unknown> | null {
   const record = isRecord(item) ? item : {};
-  const nested = isRecord(record.address) ? record.address : record;
+  const location = isRecord(record.address) ? record.address : record;
+  const nested = isRecord(location.contactDetails) ? location.contactDetails : location;
   const streetLine = joinAddressParts(readString(nested.street), readString(nested.streetNumber));
   const extraLines = joinAddressParts(
     readString(nested.streetAppendix),
@@ -905,9 +906,15 @@ function adaptAddress(item: unknown): Record<string, unknown> | null {
     readString(nested.extraLine4),
     streetLine ? readString(nested.addressLine2) : undefined,
   );
-  const displayName = readString(nested.contactName) ?? readString(nested.name) ?? readString(record.companyName);
+  const displayName =
+    readString(nested.contactName) ??
+    readString(nested.name) ??
+    readString(location.name) ??
+    readString(record.name) ??
+    readString(record.companyName);
   const displayCompany = readString(nested.companyName) ?? readString(nested.company) ?? readString(record.companyName);
   const mapped = compactRecord({
+    id: readString(location.id) ?? readString(record.id),
     name: displayName,
     company: displayCompany && displayCompany !== displayName ? displayCompany : undefined,
     addressLine1: streetLine ?? readString(nested.addressLine1),
@@ -915,7 +922,7 @@ function adaptAddress(item: unknown): Record<string, unknown> | null {
     city: readString(nested.city),
     state: readString(nested.state),
     postalCode: readString(nested.zipCode) ?? readString(nested.postalCode) ?? readString(nested.postcode),
-    country: readString(nested.country),
+    country: readString(nested.country) ?? readString(nested.countryCode),
     tags: stringTags(nested.tags),
   });
   return Object.keys(mapped).length > 0 ? mapped : null;

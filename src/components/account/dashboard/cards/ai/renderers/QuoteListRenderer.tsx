@@ -2,13 +2,23 @@
 
 import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import Image from 'next/image';
-import { Badge } from '@/components/ui/badge';
-import { getQuoteStatusDisplayLabel } from '@/lib/common/quote-status-message-keys';
-import type { QuoteData, QuoteListData, QuotePreviewItemData } from '../types';
-import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi, handleImageError } from '../utils';
+import { accountTableRowClass, shortenId } from '@/components/account/shared/account-list';
+import { AccountProductThumbnails } from '@/components/account/shared/account-product-thumbnails';
+import UiLink from '@/components/ui/link';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useRouter } from '@/i18n/navigation';
+import { formatDate } from '@/lib/date-utils';
+import { cn } from '@/lib/utils';
+import type { QuoteData, QuoteListData } from '../types';
+import { formatPrice } from '../utils';
 import { mapAiQuoteList } from '../utils/map-ai-quote';
 import { WidgetSkeleton } from './WidgetSkeleton';
+import {
+  AiQuoteStatus,
+  AiWidgetFrame,
+  aiTableCellClass as cellClass,
+  aiTableHeadClass as headClass,
+} from './ai-widget-kit';
 
 interface QuoteListRendererProps {
   data: QuoteListData;
@@ -16,9 +26,9 @@ interface QuoteListRendererProps {
 
 export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
-  const tCommon = useTranslations('common');
-  const tQuoteStatus = useTranslations('account.quoteStatus');
+  const tList = useTranslations('account.quotesList');
   const locale = useLocale();
+  const router = useRouter();
 
   if (data.quotes == null) {
     return <WidgetSkeleton />;
@@ -27,107 +37,72 @@ export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) =>
   const list = mapAiQuoteList(data, locale);
 
   return (
-    <div className="space-y-4">
-      {list.message && <div className="text-text-body mb-3 text-base">{list.message}</div>}
-      {list.quotes.map((quote: QuoteData, index: number) => (
-        <div
-          key={index}
-          className="bg-surface-primary rounded-xl border border-border-primary shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
-        >
-          <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-4 rounded-t-xl">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-3">
-                  <a
-                    href={`/account/quotes/${quote.quoteId}`}
-                    className="text-text-on-action hover:text-text-on-action/80 font-semibold text-lg underline"
-                  >
-                    {quote.reference || `#${quote.quoteId}`}
-                  </a>
-                  <Badge variant={getQuoteStatusBadgeVariantForAi(quote.status)} size="status">
-                    {getQuoteStatusDisplayLabel(quote.status, tQuoteStatus)}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm text-text-on-action/90">
-                  <div className="flex items-center space-x-2">
-                    <span>📅</span>
-                    <span className="font-medium">{formatDate(quote.submittedDate)}</span>
-                  </div>
-                  {quote.validTo && (
-                    <div className="flex items-center space-x-2">
-                      <span>⏰</span>
-                      <span className="font-medium">
-                        {t('validUntil')} {formatDate(quote.validTo)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center space-x-2">
-                    <span>📦</span>
-                    <span className="font-medium">
-                      {quote.itemCount || 0} {t('items')}
+    <div className="space-y-2">
+      {list.message ? <p className="px-1 text-sm text-text-body">{list.message}</p> : null}
+      <AiWidgetFrame className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="text-xs">
+              <TableHead className={cn(headClass, 'pl-4')}>{tList('quoteId')}</TableHead>
+              <TableHead className={headClass}>{tList('quotationDate')}</TableHead>
+              <TableHead className={headClass}>{tList('products')}</TableHead>
+              <TableHead className={cn(headClass, 'text-right')}>{tList('netValue')}</TableHead>
+              <TableHead className={cn(headClass, 'pr-4 text-center')}>{tList('status')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {list.quotes.map((quote: QuoteData, index: number) => {
+              const href = `/account/quotes/${quote.quoteId}`;
+              return (
+                <TableRow
+                  key={quote.quoteId || index}
+                  className={accountTableRowClass(index, { clickable: true })}
+                  data-testid={`aiQuotes-row-${quote.quoteId}`}
+                  onClick={() => router.push(href)}
+                >
+                  <TableCell className={cn(cellClass, 'pl-4 font-medium')}>
+                    <span onClick={(event) => event.stopPropagation()}>
+                      <UiLink type="Link" href={href} variant="primary" data-testid={`aiQuotes-id-${quote.quoteId}`}>
+                        {quote.reference || `#${shortenId(quote.quoteId)}`}
+                      </UiLink>
                     </span>
-                  </div>
-                  {quote.customerName && (
-                    <div className="flex items-center space-x-2">
-                      <span>👤</span>
-                      <span className="font-medium">{quote.customerName}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-text-on-action">
-                  {formatPrice(quote.totalGross || 0, quote.currency)}
-                </div>
-                {quote.totalNet && (
-                  <div className="text-sm text-text-on-action/90">
-                    {t('net')} {formatPrice(quote.totalNet, quote.currency)}
-                    {quote.totalVat && ` | ${tCommon('tax')} ${formatPrice(quote.totalVat, quote.currency)}`}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {quote.previewItems && quote.previewItems.length > 0 && (
-            <div className="p-3 bg-surface-primary">
-              <div className="text-sm font-semibold text-text-body mb-2">{t('previewItems')}</div>
-              <div className="flex flex-wrap gap-2">
-                {quote.previewItems.map((item: QuotePreviewItemData, itemIndex: number) => (
-                  <div key={itemIndex} className="flex items-center space-x-2 text-sm text-text-body">
-                    {item.image && (
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 object-cover rounded"
-                        onError={handleImageError}
-                        unoptimized
-                      />
-                    )}
-                    <span>
-                      {item.name} (x{item.quantity})
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-
-      {list.pagination && (
-        <div className="flex justify-between items-center pt-4 border-t border-border-primary">
-          <div className="text-sm text-text-body">
+                    {quote.validTo ? (
+                      <p className="text-xs font-normal text-text-placeholders">
+                        {t('validUntil')} {formatDate(quote.validTo, locale)}
+                      </p>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className={cn(cellClass, 'whitespace-nowrap')}>
+                    {quote.submittedDate ? formatDate(quote.submittedDate, locale) : '-'}
+                  </TableCell>
+                  <TableCell className={cellClass}>
+                    <AccountProductThumbnails
+                      items={(quote.previewItems ?? []).map((item) => ({ imageUrl: item.image, name: item.name }))}
+                    />
+                  </TableCell>
+                  <TableCell className={cn(cellClass, 'whitespace-nowrap text-right font-medium')}>
+                    {quote.totalNet || quote.totalGross
+                      ? formatPrice(quote.totalNet || quote.totalGross || 0, quote.currency)
+                      : '-'}
+                  </TableCell>
+                  <TableCell className={cn(cellClass, 'pr-4 text-center [&>*]:mx-auto')}>
+                    <AiQuoteStatus status={quote.status} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        {list.pagination ? (
+          <p className="border-t border-border-primary px-4 py-2 text-xs text-text-placeholders">
             {t('page', {
               page: list.pagination.page,
               totalPages: list.pagination.totalPages,
               totalItems: list.pagination.totalItems,
             })}
-          </div>
-        </div>
-      )}
+          </p>
+        ) : null}
+      </AiWidgetFrame>
     </div>
   );
 };

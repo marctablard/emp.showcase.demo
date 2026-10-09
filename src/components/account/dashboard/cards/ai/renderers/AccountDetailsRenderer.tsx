@@ -2,9 +2,16 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import type { AccountDetailsData, AddressData } from '../types';
+import type { AccountDetailsData } from '../types';
 import { formatDateTime } from '../utils';
-import { AddressCard } from './AddressCard';
+import {
+  AiAddressList,
+  AiSectionLabel,
+  AiSpecGrid,
+  AiWidgetFrame,
+  AiWidgetHeader,
+  AiWidgetSection,
+} from './ai-widget-kit';
 
 interface AccountDetailsRendererProps {
   data: AccountDetailsData;
@@ -14,116 +21,45 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
   const t = useTranslations('account.AiHelper');
   const personalInfo = data.personalInfo;
   const addresses = Array.isArray(data.addresses) ? data.addresses : [];
-  const hasPersonalInfo = personalInfo != null;
-  const hasAddresses = addresses.length > 0;
 
-  if (!hasPersonalInfo && !hasAddresses) {
-    return (
-      <div className="rounded-lg border border-border-primary bg-surface-primary px-4 py-6 text-center text-sm text-text-body">
-        {t('noDataAvailable')}
-      </div>
-    );
+  if (personalInfo == null && addresses.length === 0) {
+    return <p className="px-1 text-sm text-text-placeholders">{t('noDataAvailable')}</p>;
   }
 
   return (
-    <div className="space-y-4">
-      {hasPersonalInfo && (
-        <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
-          <div className="flex items-center space-x-2 mb-4">
-            <h3 className="text-base font-semibold text-text-headings">{t('accountInformation')}</h3>
-          </div>
+    <AiWidgetFrame>
+      {personalInfo ? (
+        <>
+          <AiWidgetHeader
+            eyebrow={t('accountInformation')}
+            title={personalInfo.name || personalInfo.email}
+            meta={[personalInfo.company, personalInfo.customerNumber]}
+          />
+          <AiWidgetSection>
+            <AiSpecGrid
+              entries={[
+                { key: 'email', label: t('email'), value: personalInfo.email },
+                { key: 'businessModel', label: t('businessModel'), value: personalInfo.businessModel },
+                { key: 'language', label: t('preferredLanguage'), value: personalInfo.preferredLanguage },
+                { key: 'currency', label: t('preferredCurrency'), value: personalInfo.preferredCurrency },
+                { key: 'site', label: t('preferredSite'), value: personalInfo.preferredSite },
+                {
+                  key: 'lastLogin',
+                  label: t('lastLogin'),
+                  value: personalInfo.lastLogin ? formatDateTime(personalInfo.lastLogin) : undefined,
+                },
+              ]}
+            />
+          </AiWidgetSection>
+        </>
+      ) : null}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">👤</div>
-              <div>
-                <div className="text-xs text-text-body">{t('name')}</div>
-                <div className="text-sm font-medium text-text-headings">{personalInfo?.name}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">✉️</div>
-              <div>
-                <div className="text-xs text-text-body">{t('email')}</div>
-                <div className="text-sm font-medium text-text-headings">{personalInfo?.email}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">🏢</div>
-              <div>
-                <div className="text-xs text-text-body">{t('company')}</div>
-                <div className="text-sm font-medium text-text-headings">{personalInfo?.company}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">💳</div>
-              <div>
-                <div className="text-xs text-text-body">{t('customerNumber')}</div>
-                <div className="text-sm font-medium text-text-headings">{personalInfo?.customerNumber}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">🌐</div>
-              <div>
-                <div className="text-xs text-text-body">{t('businessModel')}</div>
-                <div className="text-sm font-medium text-text-headings">{personalInfo?.businessModel}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">Az</div>
-              <div>
-                <div className="text-xs text-text-body">{t('preferredLanguage')}</div>
-                <div className="text-sm font-medium text-text-headings">{personalInfo?.preferredLanguage}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">$</div>
-              <div>
-                <div className="text-xs text-text-body">{t('preferredCurrency')}</div>
-                <div className="text-sm font-medium text-text-headings">{personalInfo?.preferredCurrency}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">📍</div>
-              <div>
-                <div className="text-xs text-text-body">{t('preferredSite')}</div>
-                <div className="text-sm font-medium text-text-headings">
-                  {personalInfo?.preferredSite || t('emptyValue')}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 text-text-body">🕐</div>
-              <div>
-                <div className="text-xs text-text-body">{t('lastLogin')}</div>
-                <div className="text-sm font-medium text-text-headings">{formatDateTime(personalInfo?.lastLogin)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {hasAddresses && (
-        <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
-          <div className="flex items-center space-x-2 mb-4">
-            <h3 className="text-base font-semibold text-text-headings">{t('savedAddresses')}</h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
-            {addresses.map((address: AddressData, index: number) => (
-              <AddressCard key={index} address={address} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+      {addresses.length > 0 ? (
+        <section className={personalInfo ? 'border-t border-border-primary' : undefined}>
+          <AiSectionLabel className="mb-0 px-4 pt-3">{t('savedAddresses')}</AiSectionLabel>
+          <AiAddressList addresses={addresses} />
+        </section>
+      ) : null}
+    </AiWidgetFrame>
   );
 };

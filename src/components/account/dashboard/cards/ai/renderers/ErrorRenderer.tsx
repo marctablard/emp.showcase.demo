@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { ErrorData, StructuredDataHandlers } from '../types';
 
 interface ErrorRendererProps {
@@ -22,26 +24,24 @@ export const ErrorRenderer: React.FC<ErrorRendererProps> = ({ data, setQuestionV
   };
 
   return (
-    <div className="p-4 bg-surface-error border border-border-error rounded-lg">
-      <div className="flex items-start space-x-3">
-        <div className="flex-shrink-0">
-          <div className="w-6 h-6 bg-surface-error rounded-full flex items-center justify-center">
-            <span className="text-text-error text-sm">⚠️</span>
-          </div>
-        </div>
-        <div className="flex-1">
-          <div className="font-semibold text-text-error text-base mb-1">{data.errorCode || t('error')}</div>
-          <div className="text-text-error text-sm mb-2">{data.message}</div>
-          {data.details && <div className="text-text-error text-sm mb-3">{data.details}</div>}
-          {data.canRetry && (
-            <button
-              onClick={handleRetry}
-              className="px-3 py-1 bg-surface-error text-text-error text-sm rounded hover:bg-surface-error/80 transition-colors"
-            >
-              {t('retry')}
-            </button>
-          )}
-        </div>
+    <div className="flex items-start gap-3 border-l-2 border-border-error bg-surface-error px-4 py-3 text-sm">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-text-error" aria-hidden="true" />
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="font-semibold text-text-error">{data.errorCode || t('error')}</p>
+        <p className="text-text-body">{data.message}</p>
+        {data.details ? <p className="text-xs text-text-placeholders">{data.details}</p> : null}
+        {data.canRetry ? (
+          <Button
+            type="button"
+            variant="outlineError"
+            size="small"
+            className="mt-1 h-7 px-3 text-xs"
+            onClick={handleRetry}
+            data-testid="aiError-retryButton"
+          >
+            {t('retry')}
+          </Button>
+        ) : null}
       </div>
     </div>
   );

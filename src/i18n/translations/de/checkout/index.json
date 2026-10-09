@@ -169,5 +169,25 @@
     "sprel": "Sprel",
     "cash_on_delivery": "Nachnahme",
     "unzer": "Unzer"
+  },
+  "aiAddressSelect": {
+    "use": "Diese Adresse verwenden",
+    "message": "Verwende die Adresse {id} ({address}) für meine Bestellung."
+  },
+  "aiCheckout": {
+    "title": "Bestellung prüfen und absenden",
+    "shippingAddress": "Lieferadresse",
+    "billingAddress": "Rechnungsadresse",
+    "missingAddresses": "Wähle zuerst eine Liefer- und eine Rechnungsadresse.",
+    "shippingMethod": "Versandart",
+    "paymentMethod": "Zahlungsart",
+    "loading": "Versandarten werden geladen…",
+    "noShippingMethods": "Für diese Adresse sind keine Versandarten verfügbar.",
+    "placeOrder": "Bestellung absenden",
+    "placing": "Bestellung wird gesendet…",
+    "error": "Die Bestellung konnte nicht abgeschlossen werden. Bitte prüfe deine Auswahl oder öffne den vollständigen Checkout.",
+    "success": "Bestellung {orderId} wurde aufgegeben",
+    "viewOrder": "Bestellung ansehen",
+    "openCheckout": "Vollständigen Checkout öffnen"
   }
 }

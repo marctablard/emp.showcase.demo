@@ -135,6 +135,30 @@ const textDataMessage = (data: unknown): string => {
   return isRecord(data) && typeof data.message === 'string' ? data.message : '';
 };
 
+/** The agent names the role it wants (shipping first, then billing) in its sentence. */
+export const addressRoleFromCaption = (caption: string): 'SHIPPING' | 'BILLING' | undefined => {
+  const text = caption.toLowerCase();
+  if (/billing|invoice|rechnung/.test(text)) {
+    return 'BILLING';
+  }
+  if (/shipping|delivery|liefer|versand/.test(text)) {
+    return 'SHIPPING';
+  }
+  return undefined;
+};
+
+const ADDRESS_PROMPT =
+  /\b(select|choose|pick|wähle|wählen|auswählen)\b.*\b(shipping|billing|delivery|invoice)?\s*address|(liefer|rechnungs)adresse.*\b(wähle|wählen|auswählen)/i;
+
+/** Checkout turns often come back as plain text ("Please select a shipping address …"). */
+export const asksForAddressSelection = (caption: string): boolean =>
+  ADDRESS_PROMPT.test(caption) && addressRoleFromCaption(caption) !== undefined;
+
+const compactAddressBookRequest = (caption: string): Record<string, unknown> => {
+  const addressType = addressRoleFromCaption(caption);
+  return addressType ? { loadFromAccount: true, addressType } : { loadFromAccount: true };
+};
+
 const isKnownRenderableType = (type: string): boolean => {
   return WIDGET_TYPES.has(type) || type === 'html';
 };
@@ -191,6 +215,31 @@ export const resolveCommittedChatPayload = (
     (parsed.type === 'text' || parsed.type === 'complete') &&
     !looksLikeStructuredCaption(parsed.message) &&
     Boolean(caption || shopperCaption(textDataMessage(parsed.data)));
+
+  // A complete envelope that names a widget the storefront could not fill (no matching tool result)
+  // still carries a shopper sentence; show it rather than the raw JSON.
+  const isEmptyWidgetEnvelope =
+    !parsed.unparsedRaw &&
+    WIDGET_TYPES.has(parsed.type) &&
+    parsed.data == null &&
+    !looksLikeStructuredCaption(parsed.message) &&
+    Boolean(caption);
+
+  if (isEmptyWidgetEnvelope) {
+    // The storefront can load the shopper's own address book, so the address picker still renders.
+    if (parsed.type === 'address_list') {
+      return { message: caption, data: compactAddressBookRequest(caption), type: 'address_list' };
+    }
+    // The order review reads the storefront checkout state, so it needs no agent data.
+    if (parsed.type === 'checkout_confirm') {
+      return { message: caption, data: { checkout: true }, type: 'checkout_confirm' };
+    }
+    return { message: caption, data: null, type: 'text' };
+  }
+
+  if (isTextEnvelope && asksForAddressSelection(caption)) {
+    return { message: caption, data: compactAddressBookRequest(caption), type: 'address_list' };
+  }
 
   const looksUnrecognized =
     !isTextEnvelope &&

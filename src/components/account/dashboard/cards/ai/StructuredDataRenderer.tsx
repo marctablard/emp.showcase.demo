@@ -7,6 +7,7 @@ import { UnrecognizedResponseFallback } from './UnrecognizedResponseFallback';
 import { AccountDetailsRenderer } from './renderers/AccountDetailsRenderer';
 import { AddressListRenderer } from './renderers/AddressListRenderer';
 import { CartSummaryRenderer } from './renderers/CartSummaryRenderer';
+import { CheckoutConfirmRenderer } from './renderers/CheckoutConfirmRenderer';
 import { ErrorRenderer } from './renderers/ErrorRenderer';
 import { HTMLRenderer } from './renderers/HTMLRenderer';
 import { OrderListRenderer } from './renderers/OrderListRenderer';
@@ -44,6 +45,8 @@ interface StructuredDataRendererProps {
   data: any;
   handlers: StructuredDataHandlers;
   streaming?: boolean;
+  /** Agent sentence shown with the widget; tells the address picker which checkout step it serves. */
+  caption?: string;
 }
 
 export { hasResolvedWidgetPayload } from '@/lib/common/ai-tool-widgets';
@@ -53,6 +56,7 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({
   data,
   handlers,
   streaming = false,
+  caption,
 }) => {
   const t = useTranslations('account.AiHelper');
 
@@ -92,7 +96,10 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({
       return <ProductSelection data={data as ProductSelectionData} {...handlers} />;
 
     case 'address_list':
-      return <AddressListRenderer data={data as AddressListData} />;
+      return <AddressListRenderer data={data as AddressListData} handlers={handlers} caption={caption} />;
+
+    case 'checkout_confirm':
+      return <CheckoutConfirmRenderer />;
 
     case 'quote_list':
       return <QuoteListRenderer data={data as QuoteListData} />;

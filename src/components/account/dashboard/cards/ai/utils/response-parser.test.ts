@@ -266,6 +266,57 @@ describe('parseAIResponse', () => {
     expect((committed.data as { message: string }).message).toBe('Your order has been placed.');
   });
 
+  it('turns an empty address_list envelope into the address picker for the requested role', () => {
+    const raw = JSON.stringify({
+      agentId: 'frontendAgent',
+      message: 'Please select a shipping address for your order.',
+      type: 'address_list',
+      data: null,
+    });
+    const committed = resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw);
+    expect(committed).toEqual({
+      message: 'Please select a shipping address for your order.',
+      data: { loadFromAccount: true, addressType: 'SHIPPING' },
+      type: 'address_list',
+    });
+  });
+
+  it('shows the address picker when a checkout step asks for an address in plain text', () => {
+    const raw = JSON.stringify({
+      message: 'Shipping address set to World Company HQ. Please select a billing address for your order.',
+      type: 'text',
+      data: null,
+    });
+    const committed = resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw);
+    expect(committed.type).toBe('address_list');
+    expect(committed.data).toEqual({ loadFromAccount: true, addressType: 'BILLING' });
+  });
+
+  it('keeps plain text that only mentions addresses', () => {
+    const raw = JSON.stringify({ message: 'Billing address set. Please select a payment method.', type: 'text' });
+    expect(resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw).type).toBe('text');
+  });
+
+  it('shows the sentence of another widget envelope the storefront could not fill', () => {
+    const raw = JSON.stringify({ message: 'Here are your quotes.', type: 'quote_list', data: null });
+    const committed = resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw);
+    expect(committed).toEqual({ message: 'Here are your quotes.', data: null, type: 'text' });
+  });
+
+  it('turns an empty checkout_confirm envelope into the storefront order review', () => {
+    const raw = JSON.stringify({
+      message: 'Please review and place your order.',
+      type: 'checkout_confirm',
+      data: null,
+    });
+    const committed = resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw);
+    expect(committed).toEqual({
+      message: 'Please review and place your order.',
+      data: { checkout: true },
+      type: 'checkout_confirm',
+    });
+  });
+
   it('still falls back for a JSON dump without a shopper sentence', () => {
     const raw = JSON.stringify({ orders: [{ id: 'EON1' }] });
     const committed = resolveCommittedChatPayload(parseAIResponse(raw), undefined, raw);

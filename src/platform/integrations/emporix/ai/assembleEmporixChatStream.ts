@@ -711,7 +711,19 @@ function widgetForDeclaredType(state: AssemblyState, tokenPreview: StreamPreview
     return toolWidget;
   }
   const fallbackType = TOOL_WIDGET_FALLBACK[declared];
-  return (fallbackType && state.widgetsByType.get(fallbackType)) || null;
+  return (fallbackType && state.widgetsByType.get(fallbackType)) || derivedWidget(state, declared);
+}
+
+/** Checkout may read addresses from the customer profile instead of the company address tool. */
+function derivedWidget(state: AssemblyState, declared: string): WidgetState | null {
+  if (declared === 'checkout_confirm') {
+    return { type: declared, data: { checkout: true } };
+  }
+  if (declared !== 'address_list') {
+    return null;
+  }
+  const addresses = state.widgetsByType.get('account_details')?.data.addresses;
+  return Array.isArray(addresses) && addresses.length > 0 ? { type: declared, data: { addresses } } : null;
 }
 
 function resolvedWidget(state: AssemblyState, tokenPreview = tokenPreviewFromState(state)): WidgetState | null {

@@ -12,6 +12,7 @@ export const WIDGET_TYPES = new Set([
   'product_list',
   'product_selection',
   'address_list',
+  'checkout_confirm',
   'quote_list',
   'quote_details',
   'return_list',

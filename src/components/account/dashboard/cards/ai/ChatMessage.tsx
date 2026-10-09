@@ -32,21 +32,14 @@ const getNestedText = (data: unknown): string | undefined => {
 };
 
 const getMessageContainerClasses = (isUser: boolean, hasStructuredData: boolean): string => {
-  const baseClasses = 'rounded-lg px-3 py-1.5 shadow-sm';
-
   if (isUser) {
-    return cn(
-      baseClasses,
-      'bg-surface-action text-text-on-action max-w-[80%] hover:bg-surface-action-hover transition-colors',
-    );
+    return 'max-w-[80%] rounded-lg bg-surface-action px-3 py-1.5 text-text-on-action';
   }
-
-  const aiBaseClasses = 'bg-surface-primary border border-border-primary';
+  // A widget is its own frame; wrapping it in a bubble would nest boxes.
   if (hasStructuredData) {
-    return cn(baseClasses, aiBaseClasses, 'w-full max-w-none');
+    return 'w-full max-w-none';
   }
-
-  return cn(baseClasses, aiBaseClasses, 'max-w-[80%]');
+  return 'max-w-[80%] rounded-lg border border-border-primary bg-surface-page px-3 py-1.5';
 };
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers, streaming = false }) => {
@@ -77,16 +70,24 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers, str
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div className={getMessageContainerClasses(isUser, hasStructuredData)}>
         {hasStructuredData && (
-          <div className={cn('w-full max-w-none', (shouldShowContent || Boolean(textBody)) && 'mb-2')}>
-            <StructuredDataRenderer type={displayType!} data={displayData} handlers={handlers} streaming={streaming} />
+          <div className={cn('w-full max-w-none', (shouldShowContent || Boolean(textBody)) && 'mb-1.5')}>
+            <StructuredDataRenderer
+              type={displayType!}
+              data={displayData}
+              handlers={handlers}
+              streaming={streaming}
+              caption={displayContent}
+            />
           </div>
         )}
 
         {shouldShowContent && (
           <div
             className={cn(
-              'text-base whitespace-pre-wrap font-medium',
-              isUser ? 'text-text-on-action' : 'text-text-headings',
+              'whitespace-pre-wrap',
+              isUser && 'text-base text-text-on-action',
+              !isUser && hasStructuredData && 'px-1 text-sm text-text-body',
+              !isUser && !hasStructuredData && 'text-base text-text-headings',
             )}
           >
             {displayContent}
@@ -104,7 +105,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers, str
           </div>
         )}
 
-        <div className={cn('text-[10px] mt-0.5 opacity-70', isUser ? 'text-text-on-action' : 'text-text-placeholders')}>
+        <div
+          className={cn(
+            'text-[10px] mt-0.5 opacity-70',
+            isUser ? 'text-text-on-action' : 'text-text-placeholders',
+            !isUser && hasStructuredData && 'px-1',
+          )}
+        >
           {formatTimestamp(message.timestamp)}
         </div>
       </div>

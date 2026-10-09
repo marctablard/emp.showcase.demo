@@ -559,6 +559,26 @@ describe('assembleEmporixChatStream', () => {
       expect(assembled.message).not.toContain('Lovelace');
     });
 
+    it('builds a declared address_list from the customer addresses when no address tool ran', async () => {
+      const customerWithAddress = toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-customer-info',
+          tool_call_id: 'call-customer',
+          output: {
+            id: 'C1',
+            firstName: 'Ada',
+            addresses: [{ id: 'A1', street: 'Main St', streetNumber: '1', zipCode: '10115', city: 'Berlin' }],
+          },
+        }),
+      );
+      const assembled = await assembleEmporixChatStream([customerWithAddress, envelope('address_list')].join(''));
+      const parsed = JSON.parse(assembled.message);
+
+      expect(parsed.type).toBe('address_list');
+      expect(parsed.data.addresses).toEqual([expect.objectContaining({ id: 'A1', city: 'Berlin' })]);
+    });
+
     it('keeps the account card when the agent declares account_details', async () => {
       const assembled = await assembleEmporixChatStream([customerResult, envelope('account_details')].join(''));
 

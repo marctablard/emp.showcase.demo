@@ -1,256 +1,123 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
-import { Badge } from '@/components/ui/badge';
+import { useLocale, useTranslations } from 'next-intl';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
+import { formatDate } from '@/lib/date-utils';
 import type { OrderItemData, OrderSummaryData } from '../types';
-import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi } from '../utils';
-import { ItemsListRenderer } from './ItemsListRenderer';
+import { extractPrice, formatPrice } from '../utils';
+import {
+  AiAddress,
+  AiOrderStatus,
+  AiProductLines,
+  AiSpecGrid,
+  type AiTotalRow,
+  AiTotals,
+  AiWidgetFooterLink,
+  AiWidgetFrame,
+  AiWidgetHeader,
+  AiWidgetSection,
+  orderItemToLine,
+} from './ai-widget-kit';
 
 interface OrderSummaryRendererProps {
   data: OrderSummaryData;
 }
 
+function itemsNetTotal(items: OrderItemData[]): number {
+  return items.reduce((sum, item) => {
+    if (item.totalPrice) {
+      return sum + (extractPrice(item.totalPrice).net || 0);
+    }
+    if (item.unitPrice) {
+      return sum + (extractPrice(item.unitPrice).net || 0) * (item.quantity || 1);
+    }
+    return sum;
+  }, 0);
+}
+
 export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
   const tCommon = useTranslations('common');
+  const tOrders = useTranslations('orders');
+  const locale = useLocale();
 
-  const displayCurrency = data.currency || data.total?.currency || getPublicDefaultCurrency();
+  const currency = data.currency || data.total?.currency || getPublicDefaultCurrency();
+  const items = data.items ?? [];
+  const total = extractPrice(data.total || {});
+  const shipping = extractPrice(data.shipping || {});
+  const subtotalNet = extractPrice(data.subtotal || {}).net || itemsNetTotal(items);
 
-  const total = data.total || {};
-  const totalPrice = extractPrice(total);
-  const totalValue = totalPrice.gross;
-  const totalNet = totalPrice.net;
-  const totalTax = totalPrice.tax;
+  const totals: AiTotalRow[] = [
+    { key: 'subtotal', label: t('subtotal'), value: formatPrice(subtotalNet, currency) },
+    ...(shipping.gross > 0 || shipping.net > 0
+      ? [{ key: 'shipping', label: t('shipping'), value: formatPrice(shipping.net || shipping.gross, currency) }]
+      : []),
+    ...(total.tax > 0 ? [{ key: 'tax', label: tCommon('tax'), value: formatPrice(total.tax, currency) }] : []),
+    { key: 'total', label: t('total'), value: formatPrice(total.gross || total.net, currency), emphasized: true },
+  ];
 
-  const subtotal = data.subtotal || {};
-  let subtotalPrice = extractPrice(subtotal);
-
-  if (subtotalPrice.net === 0 && subtotalPrice.gross === 0 && data.items && data.items.length > 0) {
-    let itemsNet = 0;
-    let itemsGross = 0;
-    let itemsTax = 0;
-
-    data.items.forEach((item: OrderItemData) => {
-      if (item.totalPrice) {
-        const itemPrice = extractPrice(item.totalPrice);
-        itemsNet += itemPrice.net || 0;
-        itemsGross += itemPrice.gross || 0;
-        itemsTax += itemPrice.tax || 0;
-      } else if (item.unitPrice && item.quantity) {
-        const unitPrice = extractPrice(item.unitPrice);
-        const qty = item.quantity || 1;
-        itemsNet += (unitPrice.net || 0) * qty;
-        itemsGross += (unitPrice.gross || 0) * qty;
-        itemsTax += (unitPrice.tax || 0) * qty;
-      }
-    });
-
-    if (itemsGross > 0 || itemsNet > 0) {
-      subtotalPrice = { net: itemsNet, gross: itemsGross, tax: itemsTax };
-    }
-  }
-
-  const subtotalNet = subtotalPrice.net;
-  const subtotalTax = subtotalPrice.tax;
-  const subtotalGross = subtotalPrice.gross;
-
-  const shipping = data.shipping || {};
-  const shippingPrice = extractPrice(shipping);
-  const shippingValue = shippingPrice.gross;
-  const shippingNet = shippingPrice.net;
-  const shippingTax = shippingPrice.tax;
+  const hasAddresses = Boolean(data.shippingAddress || data.billingAddress);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-6 rounded-xl border border-border-primary shadow-lg">
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-border-primary/30">
-          <div className="flex-1">
-            <div className="flex items-center space-x-3 mb-3">
-              <a
-                href={`/account/orders/${data.orderId}`}
-                className="text-text-on-action hover:text-text-on-action/80 font-semibold text-xl underline"
-              >
-                #{data.orderId}
-              </a>
-              <Badge variant={getOrderStatusBadgeVariantForAi(data.status)} size="status">
-                {data.status}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-sm text-text-on-action/90">
-              <div className="flex items-center space-x-2">
-                <span>📅</span>
-                <span className="font-medium">{formatDate(data.date)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span>📦</span>
-                <span className="font-medium">
-                  {data.totalItems} {t('items')}
-                </span>
-              </div>
-            </div>
-          </div>
-          {data.siteCode && (
-            <span className="text-xs font-medium text-text-on-action bg-surface-action/30 px-2.5 py-1 rounded-full">
-              {data.siteCode}
-            </span>
-          )}
-        </div>
+    <AiWidgetFrame>
+      <AiWidgetHeader
+        eyebrow={t('orderSummary')}
+        title={`#${data.orderId}`}
+        aside={<AiOrderStatus status={data.status} />}
+        meta={[
+          data.date ? formatDate(data.date, locale) : null,
+          data.totalItems ? `${data.totalItems} ${t('items')}` : null,
+          data.siteCode ?? null,
+        ]}
+      />
 
-        <div>
-          <h3 className="text-lg font-bold text-text-on-action mb-4">{t('orderSummary')}</h3>
-
-          <div className="grid grid-cols-4 gap-4 mb-3 pb-2 border-b border-border-primary/30">
-            <div className="text-sm font-semibold text-text-on-action/80"></div>
-            <div className="text-sm font-semibold text-text-on-action text-center">{t('net')}</div>
-            <div className="text-sm font-semibold text-text-on-action text-center">{tCommon('tax')}</div>
-            <div className="text-sm font-semibold text-text-on-action text-center">{t('gross')}</div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="grid grid-cols-4 gap-4">
-              <div className="text-sm text-text-on-action/90">{t('subtotal')}</div>
-              <div className="text-sm font-medium text-text-on-action text-center">
-                {formatPrice(subtotalNet, displayCurrency)}
-              </div>
-              <div className="text-sm font-medium text-text-on-action text-center">
-                {formatPrice(subtotalTax, displayCurrency)}
-              </div>
-              <div className="text-sm font-medium text-text-on-action text-center">
-                {formatPrice(subtotalGross, displayCurrency)}
-              </div>
-            </div>
-
-            {shippingValue > 0 && (
-              <div className="grid grid-cols-4 gap-4">
-                <div className="text-sm text-text-on-action/90">{t('shipping')}</div>
-                <div className="text-sm font-medium text-text-on-action text-center">
-                  {formatPrice(shippingNet, displayCurrency)}
-                </div>
-                <div className="text-sm font-medium text-text-on-action text-center">
-                  {formatPrice(shippingTax, displayCurrency)}
-                </div>
-                <div className="text-sm font-medium text-text-on-action text-center">
-                  {formatPrice(shippingValue, displayCurrency)}
-                </div>
-              </div>
-            )}
-
-            <div className="pt-3 mt-3 border-t-2 border-border-primary/50">
-              <div className="grid grid-cols-4 gap-4 items-center">
-                <div className="text-base font-semibold text-text-on-action">{t('total')}</div>
-                <div className="text-lg font-bold text-text-on-action text-center">
-                  {formatPrice(totalNet, displayCurrency)}
-                </div>
-                <div className="text-lg font-bold text-text-on-action text-center">
-                  {formatPrice(totalTax, displayCurrency)}
-                </div>
-                <div className="text-lg font-bold text-text-on-action text-center">
-                  {formatPrice(totalValue, displayCurrency)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {(data.shippingAddress || data.billingAddress || data.payment) && (
-        <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
-          {(data.shippingAddress || data.billingAddress) && (
-            <>
-              <div className="text-sm font-semibold text-text-body mb-3">{t('addresses')}</div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                {data.shippingAddress && (
-                  <div className="bg-surface-image-background rounded-lg border border-border-primary p-3">
-                    <div className="text-sm font-medium text-text-headings mb-2">{t('shippingAddress')}</div>
-                    <div className="text-sm text-text-body space-y-1">
-                      {data.shippingAddress.name && <div>{data.shippingAddress.name}</div>}
-                      {data.shippingAddress.company && <div>{data.shippingAddress.company}</div>}
-                      <div>{data.shippingAddress.addressLine1}</div>
-                      {data.shippingAddress.addressLine2 && <div>{data.shippingAddress.addressLine2}</div>}
-                      <div>
-                        {data.shippingAddress.city}
-                        {data.shippingAddress.state && `, ${data.shippingAddress.state}`}{' '}
-                        {data.shippingAddress.postalCode}
-                      </div>
-                      <div>{data.shippingAddress.country}</div>
-                    </div>
-                  </div>
-                )}
-                {data.billingAddress && (
-                  <div className="bg-surface-image-background rounded-lg border border-border-primary p-3">
-                    <div className="text-sm font-medium text-text-headings mb-2">{t('billingAddress')}</div>
-                    <div className="text-sm text-text-body space-y-1">
-                      {data.billingAddress.name && <div>{data.billingAddress.name}</div>}
-                      {data.billingAddress.company && <div>{data.billingAddress.company}</div>}
-                      <div>{data.billingAddress.addressLine1}</div>
-                      {data.billingAddress.addressLine2 && <div>{data.billingAddress.addressLine2}</div>}
-                      <div>
-                        {data.billingAddress.city}
-                        {data.billingAddress.state && `, ${data.billingAddress.state}`} {data.billingAddress.postalCode}
-                      </div>
-                      <div>{data.billingAddress.country}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {data.payment && (
-            <>
-              {(data.shippingAddress || data.billingAddress) && (
-                <div className="border-t border-border-primary pt-4 mb-3"></div>
-              )}
-              <div className="text-sm font-semibold text-text-body mb-3">{t('paymentInformation')}</div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-text-body">
-                  <span className="font-medium">{t('method')}</span> {data.payment.method}
-                </div>
-                <div className="text-sm font-medium">
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                      data.payment.status === 'PAID'
-                        ? 'bg-surface-success text-text-success'
-                        : data.payment.status === 'PENDING'
-                          ? 'bg-surface-warning text-text-warning'
-                          : data.payment.status === 'FAILED'
-                            ? 'bg-surface-error text-text-error'
-                            : 'bg-surface-disabled text-text-body'
-                    }`}
-                  >
-                    {data.payment.status}
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {data.items && data.items.length > 0 && (
-        <div className="space-y-4">
-          <div className="text-sm font-semibold text-text-body mb-3">{t('orderItems')}</div>
-          <ItemsListRenderer
-            items={data.items}
-            currency={displayCurrency}
-            extractPrice={extractPrice}
-            showImages={true}
-            showDescription={false}
-            linkToProduct={true}
+      {items.length > 0 ? (
+        <div className="border-b border-border-primary">
+          <AiProductLines
+            testIdPrefix={`aiOrderSummary-${data.orderId}`}
+            lines={items.map((item) => orderItemToLine(item, currency))}
           />
         </div>
-      )}
+      ) : null}
 
-      <div className="mt-4 flex justify-center">
-        <a
-          href={`/account/orders/${data.orderId}`}
-          className="px-6 py-3 bg-surface-action text-text-on-action font-semibold rounded-lg hover:bg-surface-action-hover transition-colors shadow-sm hover:shadow-md"
-        >
-          {t('viewFullOrderDetails')}
-        </a>
-      </div>
-    </div>
+      <AiWidgetSection>
+        <AiTotals rows={totals} />
+      </AiWidgetSection>
+
+      {hasAddresses ? (
+        <AiWidgetSection label={t('addresses')}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {data.shippingAddress ? (
+              <div>
+                <p className="mb-1 text-xs text-text-placeholders">{t('shippingAddress')}</p>
+                <AiAddress address={data.shippingAddress} />
+              </div>
+            ) : null}
+            {data.billingAddress ? (
+              <div>
+                <p className="mb-1 text-xs text-text-placeholders">{t('billingAddress')}</p>
+                <AiAddress address={data.billingAddress} />
+              </div>
+            ) : null}
+          </div>
+        </AiWidgetSection>
+      ) : null}
+
+      {data.payment ? (
+        <AiWidgetSection label={t('paymentInformation')}>
+          <AiSpecGrid
+            entries={[
+              { key: 'method', label: t('method'), value: data.payment.method },
+              { key: 'status', label: tOrders('columns.status'), value: data.payment.status },
+            ]}
+          />
+        </AiWidgetSection>
+      ) : null}
+
+      <AiWidgetFooterLink href={`/account/orders/${data.orderId}`} testId="aiOrderSummary-viewDetails">
+        {t('viewFullOrderDetails')}
+      </AiWidgetFooterLink>
+    </AiWidgetFrame>
   );
 };

@@ -2,11 +2,21 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
+import { cn } from '@/lib/utils';
 import type { CartItemData, CartSummaryData, ShopData } from '../types';
 import { extractPrice, formatPrice } from '../utils';
-import { ItemsListRenderer } from './ItemsListRenderer';
+import {
+  type AiProductLine,
+  AiProductLines,
+  type AiTotalRow,
+  AiTotals,
+  AiWidgetFooterLink,
+  AiWidgetFrame,
+  AiWidgetHeader,
+  AiWidgetSection,
+  aiWidgetPaddingX,
+} from './ai-widget-kit';
 
 interface CartSummaryRendererProps {
   data: CartSummaryData;
@@ -79,6 +89,21 @@ const priceFromCalculated = (
   return extracted;
 };
 
+const cartItemToLine = (item: CartItemData, currency: string): AiProductLine => {
+  const unitNet = item.unitPrice ? extractPrice(item.unitPrice).net : 0;
+  const totalNet = item.totalPrice ? extractPrice(item.totalPrice).net : 0;
+  return {
+    id: item.productId,
+    name: item.name,
+    imageUrl: item.image,
+    quantity: item.quantity,
+    unitPrice: unitNet || item.unitNetValue || item.price,
+    totalPrice: totalNet || undefined,
+    currency: item.currency || item.unitPrice?.currency || item.totalPrice?.currency || currency,
+    href: item.productId ? `/product/${item.productId}` : undefined,
+  };
+};
+
 export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
   const tCommon = useTranslations('common');
@@ -94,111 +119,66 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data }
     fromItems,
   );
 
-  const totalValue = totalPrice.gross;
-  const totalNet = totalPrice.net;
-  const totalTax = totalPrice.tax;
-  const subtotalNet = subtotalPrice.net;
-  const subtotalTax = subtotalPrice.tax;
-  const subtotalGross = subtotalPrice.gross;
+  const itemCount = (data.items ?? []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const totals: AiTotalRow[] = [
+    { key: 'subtotal', label: t('subtotal'), value: formatPrice(subtotalPrice.net, displayCurrency) },
+    ...(totalPrice.tax > 0
+      ? [{ key: 'tax', label: tCommon('tax'), value: formatPrice(totalPrice.tax, displayCurrency) }]
+      : []),
+    {
+      key: 'total',
+      label: t('grandTotal'),
+      value: formatPrice(totalPrice.gross || totalPrice.net, displayCurrency),
+      emphasized: true,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-6 rounded-xl border border-border-primary shadow-lg">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-text-on-action">{t('cartSummary')}</h3>
-          {data.siteCode && (
-            <span className="text-xs font-medium text-text-on-action bg-surface-action/30 px-2.5 py-1 rounded-full">
-              {data.siteCode}
-            </span>
-          )}
-        </div>
+    <AiWidgetFrame>
+      <AiWidgetHeader
+        eyebrow={data.siteCode}
+        title={t('cartSummary')}
+        meta={[itemCount > 0 ? `${itemCount} ${t('items')}` : null]}
+      />
 
-        <div className="grid grid-cols-4 gap-4 mb-3 pb-2 border-b border-border-primary/30">
-          <div className="text-sm font-semibold text-text-on-action/80"></div>
-          <div className="text-sm font-semibold text-text-on-action text-center">{t('net')}</div>
-          <div className="text-sm font-semibold text-text-on-action text-center">{tCommon('tax')}</div>
-          <div className="text-sm font-semibold text-text-on-action text-center">{t('gross')}</div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="grid grid-cols-4 gap-4">
-            <div className="text-sm text-text-on-action/90">{t('subtotal')}</div>
-            <div className="text-sm font-medium text-text-on-action text-center">
-              {formatPrice(subtotalNet, displayCurrency)}
-            </div>
-            <div className="text-sm font-medium text-text-on-action text-center">
-              {formatPrice(subtotalTax, displayCurrency)}
-            </div>
-            <div className="text-sm font-medium text-text-on-action text-center">
-              {formatPrice(subtotalGross, displayCurrency)}
-            </div>
-          </div>
-
-          <div className="pt-3 mt-3 border-t-2 border-border-primary/50">
-            <div className="grid grid-cols-4 gap-4 items-center">
-              <div className="text-base font-semibold text-text-on-action">{t('total')}</div>
-              <div className="text-lg font-bold text-text-on-action text-center">
-                {formatPrice(totalNet, displayCurrency)}
-              </div>
-              <div className="text-lg font-bold text-text-on-action text-center">
-                {formatPrice(totalTax, displayCurrency)}
-              </div>
-              <div className="text-lg font-bold text-text-on-action text-center">
-                {formatPrice(totalValue, displayCurrency)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {data.items && data.items.length > 0 && (
-        <div className="space-y-4">
-          <ItemsListRenderer
-            items={data.items}
-            currency={displayCurrency}
-            extractPrice={extractPrice}
-            showImages={true}
-            showDescription={false}
-            linkToProduct={false}
+      {data.items && data.items.length > 0 ? (
+        <div className="border-b border-border-primary">
+          <AiProductLines
+            testIdPrefix="aiCart"
+            lines={data.items.map((item) => cartItemToLine(item, displayCurrency))}
           />
         </div>
-      )}
+      ) : null}
 
-      {data.shops && data.shops.length > 0 && (
-        <div className="space-y-4">
-          {data.shops.map((shop: ShopData, shopIndex: number) => (
-            <div key={shopIndex} className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-surface-image-background rounded-lg border">
-                <div className="font-semibold text-text-body text-base">{shop.shopName}</div>
-                <div className="text-sm font-medium text-text-body">
-                  {t('subtotal')} {formatPrice(shop.subtotal || 0, shop.currency)}
-                </div>
-              </div>
-
-              {shop.items && shop.items.length > 0 && (
-                <ItemsListRenderer
-                  items={shop.items}
-                  currency={shop.currency || displayCurrency}
-                  extractPrice={extractPrice}
-                  showImages={true}
-                  showDescription={false}
-                  linkToProduct={false}
-                />
-              )}
-            </div>
-          ))}
+      {data.shops?.map((shop: ShopData, shopIndex: number) => (
+        <div key={`${shop.shopName}-${shopIndex}`} className="border-b border-border-primary">
+          <div
+            className={cn(
+              'flex items-baseline justify-between gap-3 bg-surface-image-background py-2 text-xs',
+              aiWidgetPaddingX,
+            )}
+          >
+            <span className="font-bold uppercase tracking-[0.08em] text-text-headings">{shop.shopName}</span>
+            <span className="tabular-nums text-text-body">
+              {t('subtotal')} {formatPrice(shop.subtotal || 0, shop.currency || displayCurrency)}
+            </span>
+          </div>
+          {shop.items && shop.items.length > 0 ? (
+            <AiProductLines
+              testIdPrefix={`aiCart-shop${shopIndex}`}
+              lines={shop.items.map((item) => cartItemToLine(item, shop.currency || displayCurrency))}
+            />
+          ) : null}
         </div>
-      )}
+      ))}
 
-      <div className="mt-4 flex justify-center">
-        <Link
-          href="/cart"
-          data-testid="aiHelper-goToCart"
-          className="px-6 py-3 bg-surface-action text-text-on-action font-semibold rounded-lg hover:bg-surface-action-hover transition-colors shadow-sm hover:shadow-md"
-        >
-          {t('goToCheckout')}
-        </Link>
-      </div>
-    </div>
+      <AiWidgetSection>
+        <AiTotals rows={totals} />
+      </AiWidgetSection>
+
+      <AiWidgetFooterLink href="/cart" testId="aiHelper-goToCart">
+        {t('goToCheckout')}
+      </AiWidgetFooterLink>
+    </AiWidgetFrame>
   );
 };

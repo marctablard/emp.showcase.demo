@@ -142,6 +142,42 @@ describe('ai-tool-widgets', () => {
     ]);
   });
 
+  it('maps legal-entity locations whose address sits in contactDetails', () => {
+    const adapted = adaptToolResult('get-companies-addresses', {
+      is_success: true,
+      data: [
+        {
+          companyId: 'le-1',
+          companyName: 'World Company',
+          address: {
+            id: 'loc-1',
+            name: 'World Company HQ',
+            type: 'OFFICE',
+            contactDetails: {
+              addressLine1: 'Hauptstrasse 10',
+              city: 'Berlin',
+              postcode: '10501',
+              countryCode: 'DE',
+              tags: ['BILLING', 'SHIPPING'],
+            },
+          },
+        },
+      ],
+    });
+    expect(adapted?.data.addresses).toEqual([
+      {
+        id: 'loc-1',
+        name: 'World Company HQ',
+        company: 'World Company',
+        addressLine1: 'Hauptstrasse 10',
+        city: 'Berlin',
+        postalCode: '10501',
+        country: 'DE',
+        tags: ['BILLING', 'SHIPPING'],
+      },
+    ]);
+  });
+
   it('reads structured_content from a tool artifact wrapper', () => {
     const adapted = adaptToolResult('get-customer-info', {
       name: 'get-customer-info',

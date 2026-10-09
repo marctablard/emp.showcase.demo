@@ -2,64 +2,31 @@
 
 import React, { Fragment, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { OrderStatusBadge } from '@/components/account/orders/order-status-badge';
-import {
-  AccountListContainer,
-  accountTableBadgeCellClass,
-  accountTableBadgeHeadClass,
-  accountTableCellClass,
-  accountTableHeadClass,
-  accountTableHeadRowClass,
-  accountTableRowClass,
-  shortenId,
-} from '@/components/account/shared/account-list';
-import { type AccountProductLine, AccountProductLines } from '@/components/account/shared/account-product-lines';
+import { accountTableRowClass, shortenId } from '@/components/account/shared/account-list';
 import { AccountProductThumbnails } from '@/components/account/shared/account-product-thumbnails';
-import { Badge } from '@/components/ui/badge';
 import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRouter } from '@/i18n/navigation';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
-import { isOrderStatusValue, normalizeStatusKey } from '@/lib/common/status-tag-variants';
 import { formatDate } from '@/lib/date-utils';
 import { cn, formatCurrency } from '@/lib/utils';
-import type { OrderData, OrderItemData, OrderListData } from '../types';
+import type { OrderData, OrderListData } from '../types';
 import { extractPrice } from '../utils';
 import { widgetOrSkeleton } from './WidgetSkeleton';
+import {
+  AiOrderStatus,
+  AiProductLines,
+  AiWidgetFrame,
+  aiTableCellClass as cellClass,
+  aiTableHeadClass as headClass,
+  orderItemToLine,
+} from './ai-widget-kit';
 
 interface OrderListRendererProps {
   data: OrderListData;
 }
 
 const COLUMN_COUNT = 5;
-
-function toProductLine(item: OrderItemData, index: number, currency: string): AccountProductLine {
-  const quantity = item.quantity || 0;
-  const unitNet = item.unitPrice ? extractPrice(item.unitPrice).net : 0;
-  const totalNet = item.totalPrice ? extractPrice(item.totalPrice).net : 0;
-  const unitPrice = unitNet || (totalNet && quantity ? totalNet / quantity : undefined);
-
-  return {
-    id: item.productId || String(index + 1),
-    imageUrl: item.image,
-    name: item.name,
-    quantity,
-    unitPrice,
-    currency: item.unitPrice?.currency || item.totalPrice?.currency || currency,
-  };
-}
-
-function OrderStatus({ status }: Readonly<{ status: string }>) {
-  const key = normalizeStatusKey(status);
-  if (isOrderStatusValue(key)) {
-    return <OrderStatusBadge status={key} />;
-  }
-  return (
-    <Badge variant="outline" size="status">
-      {status}
-    </Badge>
-  );
-}
 
 export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) => {
   const t = useTranslations('orders');
@@ -72,15 +39,15 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
 
   return widgetOrSkeleton(
     data.orders,
-    <AccountListContainer className="overflow-x-auto">
+    <AiWidgetFrame className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow className={accountTableHeadRowClass}>
-            <TableHead className={accountTableHeadClass}>{t('columns.orderNumber')}</TableHead>
-            <TableHead className={accountTableHeadClass}>{t('columns.orderDate')}</TableHead>
-            <TableHead className={accountTableHeadClass}>{t('columns.products')}</TableHead>
-            <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('columns.orderValue')}</TableHead>
-            <TableHead className={accountTableBadgeHeadClass}>{t('columns.status')}</TableHead>
+          <TableRow className="text-xs">
+            <TableHead className={cn(headClass, 'pl-4')}>{t('columns.orderNumber')}</TableHead>
+            <TableHead className={headClass}>{t('columns.orderDate')}</TableHead>
+            <TableHead className={headClass}>{t('columns.products')}</TableHead>
+            <TableHead className={cn(headClass, 'text-right')}>{t('columns.orderValue')}</TableHead>
+            <TableHead className={cn(headClass, 'pr-4 text-center')}>{t('columns.status')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -97,7 +64,7 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
                   data-testid={`aiOrders-row-${order.orderId}`}
                   onClick={() => router.push(`/account/orders/${order.orderId}`)}
                 >
-                  <TableCell className={cn(accountTableCellClass, 'font-medium')}>
+                  <TableCell className={cn(cellClass, 'pl-4 font-medium')}>
                     <span title={`#${order.orderId}`} onClick={(event) => event.stopPropagation()}>
                       <UiLink
                         type="Link"
@@ -109,10 +76,10 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
                       </UiLink>
                     </span>
                   </TableCell>
-                  <TableCell className={cn(accountTableCellClass, 'whitespace-nowrap')}>
+                  <TableCell className={cn(cellClass, 'whitespace-nowrap')}>
                     {order.date ? formatDate(order.date, locale) : '-'}
                   </TableCell>
-                  <TableCell className={accountTableCellClass} onClick={(event) => event.stopPropagation()}>
+                  <TableCell className={cellClass} onClick={(event) => event.stopPropagation()}>
                     <AccountProductThumbnails
                       items={items.map((item) => ({ imageUrl: item.image, name: item.name }))}
                       onToggle={() => toggle(order.orderId)}
@@ -121,17 +88,20 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
                       data-testid={`aiOrders-products-${order.orderId}`}
                     />
                   </TableCell>
-                  <TableCell className={cn(accountTableCellClass, 'whitespace-nowrap text-right font-medium')}>
+                  <TableCell className={cn(cellClass, 'whitespace-nowrap text-right font-medium')}>
                     {net > 0 ? formatCurrency(net, currency, locale) : '-'}
                   </TableCell>
-                  <TableCell className={accountTableBadgeCellClass}>
-                    <OrderStatus status={order.status} />
+                  <TableCell className={cn(cellClass, 'pr-4 text-center [&>*]:mx-auto')}>
+                    <AiOrderStatus status={order.status} />
                   </TableCell>
                 </TableRow>
                 {isExpanded ? (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={COLUMN_COUNT} className="border-t border-border-primary p-0">
-                      <AccountProductLines lines={items.map((item, i) => toProductLine(item, i, currency))} />
+                      <AiProductLines
+                        testIdPrefix={`aiOrders-${order.orderId}`}
+                        lines={items.map((item) => orderItemToLine(item, currency))}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : null}
@@ -140,6 +110,6 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
           })}
         </TableBody>
       </Table>
-    </AccountListContainer>,
+    </AiWidgetFrame>,
   );
 };

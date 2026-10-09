@@ -13,9 +13,9 @@ export const WidgetSkeleton: React.FC<WidgetSkeletonProps> = ({ rows = 2 }) => {
 
   return (
     <>
-      <div className="space-y-3" aria-hidden="true">
+      <div className="space-y-2" aria-hidden="true">
         {Array.from({ length: rows }, (_, index) => (
-          <SkeletonFrame key={index} className="h-24" rounded="xl" />
+          <SkeletonFrame key={index} className="h-16" rounded="sm" />
         ))}
       </div>
       <output className="sr-only">{t('aiProcessing')}</output>

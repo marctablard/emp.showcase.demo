@@ -1,4 +1,4 @@
-import { hasResolvedWidgetPayload } from './StructuredDataRenderer';
+import { hasResolvedWidgetPayload } from '@/lib/common/ai-tool-widgets';
 
 describe('hasResolvedWidgetPayload', () => {
   it('treats error message as resolved payload', () => {

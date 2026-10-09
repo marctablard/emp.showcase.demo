@@ -7,13 +7,10 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCheckoutAddressBook } from '@/hooks/checkout/useCheckoutAddressBook';
 import { useAddresses } from '@/hooks/customer/useAddresses';
-import useCustomer from '@/hooks/customer/useCustomer';
 import { useLegalEntityCheckoutAddresses } from '@/hooks/customer/useLegalEntityCheckoutAddresses';
-import { useSession as useShopSession } from '@/hooks/session/useSession';
 import { ADDRESS_TYPE } from '@/lib/common/address-type-constants';
-import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
-import { resolveAutoCheckoutAddressBook } from '@/lib/common/resolve-auto-checkout-address-book';
 import { cn } from '@/lib/utils';
 import type { Address, AddressType } from '@/platform/services/model/common';
 import type { CustomerAddress } from '@/platform/services/model/customer/customer';
@@ -252,17 +249,6 @@ function AddressSelectorLegalEntityBook(props: Omit<AddressSelectorProps, 'addre
   return <AddressSelectorInner {...props} flatAddresses={filtered} loading={loading} />;
 }
 
-function useIsB2BWithLegalEntity(): boolean {
-  const { status } = useSession();
-  const { customer } = useCustomer();
-  const { session: shopSession } = useShopSession();
-  return (
-    status === 'authenticated' &&
-    customer?.businessModel === 'B2B' &&
-    Boolean(resolveLegalEntityIdFromSessionAndCustomer(shopSession, customer))
-  );
-}
-
 /**
  * `auto` book: always load the customer book and the legal-entity book (skip LE
  * fetch when not B2B+LE). Empty filtered LE books fall back to customer rows;
@@ -270,17 +256,7 @@ function useIsB2BWithLegalEntity(): boolean {
  * relevant loads before showing the empty state.
  */
 function AddressSelectorAutoBook(props: Omit<AddressSelectorProps, 'addressBook'>) {
-  const isB2B = useIsB2BWithLegalEntity();
-  const { addresses: customerAddresses, loading: customerLoading } = useAddresses();
-  const { addresses: legalEntityAddresses, loading: legalEntityLoading } = useLegalEntityCheckoutAddresses(!isB2B);
-  const { addresses, loading } = resolveAutoCheckoutAddressBook({
-    isB2BWithLegalEntity: isB2B,
-    addressType: props.addressType,
-    customerAddresses,
-    customerLoading,
-    legalEntityAddresses,
-    legalEntityLoading,
-  });
+  const { addresses, loading } = useCheckoutAddressBook(props.addressType);
   return <AddressSelectorInner {...props} flatAddresses={addresses} loading={loading} />;
 }
 

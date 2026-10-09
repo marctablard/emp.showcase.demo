@@ -175,5 +175,25 @@
     "unzer": "Unzer"
   },
   "step3": "Additional Information",
-  "orderNotes": "Order Notes"
+  "orderNotes": "Order Notes",
+  "aiAddressSelect": {
+    "use": "Use this address",
+    "message": "Use address {id} ({address}) for my order."
+  },
+  "aiCheckout": {
+    "title": "Review and place your order",
+    "shippingAddress": "Shipping address",
+    "billingAddress": "Billing address",
+    "missingAddresses": "Select a shipping and a billing address first.",
+    "shippingMethod": "Shipping method",
+    "paymentMethod": "Payment method",
+    "loading": "Loading shipping methods…",
+    "noShippingMethods": "No shipping methods are available for this address.",
+    "placeOrder": "Place order",
+    "placing": "Placing order…",
+    "error": "The order could not be placed. Please check your selection or open the full checkout.",
+    "success": "Order {orderId} has been placed",
+    "viewOrder": "View order",
+    "openCheckout": "Open full checkout"
+  }
 }
