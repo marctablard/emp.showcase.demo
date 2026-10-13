@@ -133,3 +133,48 @@ describe('getProductById', () => {
     await expect(getProductById('missing', options, 'en', 'main')).resolves.toBeNull();
   });
 });
+
+describe('getEmporixProductById', () => {
+  async function loadModule() {
+    jest.resetModules();
+    const services = new Map<string, unknown>();
+    jest.doMock('react', () => ({
+      __esModule: true,
+      cache: jest.fn((loader: (...args: unknown[]) => Promise<unknown>) => loader),
+    }));
+    jest.doMock('@/platform/ssr', () => ({
+      __esModule: true,
+      default: { get: jest.fn((id: string) => services.get(id)) },
+    }));
+    const { getEmporixProductById } = await import('./products');
+    return { getEmporixProductById, services };
+  }
+
+  const options = { prices: true, variants: true, categories: true };
+
+  it('loads the product from ProductService without the catalog-scoped search lookup', async () => {
+    const { getEmporixProductById, services } = await loadModule();
+    const product = { id: 'cpq-1', name: { en: 'Garage Door' } };
+    const getProductById = jest.fn().mockResolvedValue(product);
+    const getCatalogProductById = jest.fn();
+    services.set('ProductService', { getProductById });
+    services.set('SearchService', { getCatalogProductById });
+    services.set('LoggerService', { error: jest.fn() });
+
+    await expect(getEmporixProductById('cpq-1', options)).resolves.toBe(product);
+    expect(getProductById).toHaveBeenCalledWith('cpq-1', options);
+    expect(getCatalogProductById).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the product does not exist and undefined when the lookup fails', async () => {
+    const { getEmporixProductById, services } = await loadModule();
+    const error = jest.fn();
+    const getProductById = jest.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('boom'));
+    services.set('ProductService', { getProductById });
+    services.set('LoggerService', { error });
+
+    await expect(getEmporixProductById('missing')).resolves.toBeNull();
+    await expect(getEmporixProductById('broken')).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalledWith(expect.objectContaining({ productId: 'broken' }), 'SSR getProductById failed');
+  });
+});

@@ -68,6 +68,29 @@ export function getProductById(
   return _getProduct(id, optionsJson, locale, site);
 }
 
+const _getEmporixProduct = cache(async (id: string, optionsJson: string): Promise<Product | null | undefined> => {
+  try {
+    const options: ProductFetchOptions | undefined = optionsJson ? JSON.parse(optionsJson) : undefined;
+    const product = await getProductService().getProductById(id, options);
+    return product || null;
+  } catch (error) {
+    getLogger().error(
+      { err: error instanceof Error ? error : new Error(String(error)), productId: id },
+      'SSR getProductById failed',
+    );
+    return undefined;
+  }
+});
+
+/**
+ * Loads a product straight from Emporix, bypassing the search index and the shopper's catalog scope.
+ * Only for fixed demo products (e.g. the CPQ configurator) that sit outside the navigation categories.
+ */
+export function getEmporixProductById(id: string, options?: ProductFetchOptions): Promise<Product | null | undefined> {
+  const optionsJson = options ? JSON.stringify(options) : '';
+  return _getEmporixProduct(id, optionsJson);
+}
+
 export function getProducts(page?: number, size?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {
   const optionsJson = options ? JSON.stringify(options) : '';
   return _getProducts(page || 0, size || 20, optionsJson);

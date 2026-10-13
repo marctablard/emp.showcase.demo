@@ -4,7 +4,7 @@ import ProductDetailConfigurator from '@/components/product/product-detail-confi
 import { JsonLd } from '@/components/seo/json-ld';
 import { UiBreadcrumb } from '@/components/ui/molecules/ui-breadcrumb';
 import { generateBreadcrumbForProduct } from '@/lib/breadcrumb';
-import { getProductById } from '@/lib/ssr/products';
+import { getEmporixProductById } from '@/lib/ssr/products';
 import { generateProductJsonLd, generateProductMetadata } from '@/lib/ssr/seo';
 
 interface ConfiguratorPageProps {
@@ -26,7 +26,7 @@ export async function generateMetadata(
   const { locale } = await params;
 
   // Fetch product data
-  const product = await getProductById(PRODUCT_ID, PRODUCT_FETCH_OPTIONS);
+  const product = await getEmporixProductById(PRODUCT_ID, PRODUCT_FETCH_OPTIONS);
 
   // If product not found, return basic metadata
   if (!product) {
@@ -42,7 +42,7 @@ export default async function ConfiguratorPage({ params }: { params: Promise<Con
   const { locale } = await params;
 
   // Fetch product data
-  const product = await getProductById(PRODUCT_ID, PRODUCT_FETCH_OPTIONS);
+  const product = await getEmporixProductById(PRODUCT_ID, PRODUCT_FETCH_OPTIONS);
 
   // If product not found, show 404 page
   if (!product) {
