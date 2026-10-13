@@ -3,6 +3,7 @@ import 'server-only';
 import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
 import { injectable } from '@/platform/core/di/injectable';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import type {
@@ -21,6 +22,7 @@ class EmporixAIApi implements IEmporixAIApi {
   constructor(
     @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
     @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('LoggerService') private logger?: LoggerService,
   ) {}
 
   private async sendChatMessage(request: EmporixAIChatRequest, sessionId?: string): Promise<EmporixAIChatResponse> {
@@ -89,7 +91,9 @@ class EmporixAIApi implements IEmporixAIApi {
         throw new Error('Emporix AI service stream response body is missing');
       }
 
-      return await assembleEmporixChatStream(response.body, onProgress);
+      return await assembleEmporixChatStream(response.body, onProgress, (summary) => {
+        this.logger?.info({ ...summary, path: '/agentic/chat-stream' }, 'AI chat stream summary');
+      });
     } catch (error) {
       throw new Error(`Failed to send chat message: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

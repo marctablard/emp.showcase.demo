@@ -972,4 +972,52 @@ describe('assembleEmporixChatStream', () => {
       },
     ]);
   });
+
+  it('reports a shape-only stream summary without payload values', async () => {
+    const onSummary = jest.fn();
+    const streamBody = [
+      toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-customer-orders', tool_call_id: 'call-1' })),
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-customer-orders',
+          tool_call_id: 'call-1',
+          output: JSON.stringify({ orders: [{ id: 'order-secret-1' }, { id: 'order-secret-2' }] }),
+        }),
+      ),
+      toNamedSseEvent(
+        'token',
+        JSON.stringify({ content: '{"message":"Here are your orders.","type":"order_list","data":null}' }),
+      ),
+    ].join('');
+
+    await assembleEmporixChatStream(streamBody, undefined, onSummary);
+
+    const summary = onSummary.mock.calls[0][0];
+    expect(summary).toEqual({
+      events: { tool_start: 1, tool_result: 1, token: 1 },
+      tools: [
+        { event: 'tool_start', tool: 'get-customer-orders', widget: 'order_list', outputKind: '-', items: 0 },
+        {
+          event: 'tool_result',
+          tool: 'get-customer-orders',
+          widget: 'order_list',
+          outputKind: 'json-string',
+          items: 2,
+        },
+      ],
+      declaredType: 'order_list',
+      committedType: 'order_list',
+      committedHasData: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('order-secret');
+  });
+
+  it('still reports a summary when the stream fails', async () => {
+    const onSummary = jest.fn();
+    await expect(
+      assembleEmporixChatStream(toNamedSseEvent('error', '{"error":"boom"}'), undefined, onSummary),
+    ).rejects.toThrow('boom');
+    expect(onSummary).toHaveBeenCalledWith(expect.objectContaining({ events: { error: 1 }, committedType: null }));
+  });
 });

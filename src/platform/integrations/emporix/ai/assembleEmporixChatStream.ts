@@ -183,6 +183,7 @@ function framesFromBlocks(blocks: string[]): SseFrame[] {
 
 function createAssemblyState(): AssemblyState {
   return {
+    summary: { events: {}, tools: [], declaredType: null, committedType: null, committedHasData: false },
     textBuffer: '',
     capturedResponse: null,
     identityOverlay: EMPTY_IDENTITY,
@@ -283,11 +284,11 @@ function consumeFrames(
 
 async function assembleFromReadableStream(
   source: ReadableStream<Uint8Array>,
+  state: AssemblyState,
   onProgress?: ChatStreamProgressHandler,
 ): Promise<EmporixAIChatResponse> {
   const reader = source.getReader();
   const decoder = new TextDecoder();
-  const state = createAssemblyState();
   let buffer = '';
   let chunks = 0;
 
@@ -519,7 +520,17 @@ function assertNonEmptyMessage(response: EmporixAIChatResponse): EmporixAIChatRe
   return response;
 }
 
+/** Shape-only trace of one stream (event and tool names, item counts) — never payload values. */
+export type ChatStreamSummary = {
+  events: Record<string, number>;
+  tools: Array<{ event: string; tool: string; widget: string | null; outputKind: string; items: number }>;
+  declaredType: string | null;
+  committedType: string | null;
+  committedHasData: boolean;
+};
+
 type AssemblyState = {
+  summary: ChatStreamSummary;
   textBuffer: string;
   capturedResponse: EmporixAIChatResponse | null;
   identityOverlay: StreamIdentity;
@@ -531,7 +542,54 @@ type AssemblyState = {
   cachedTokenPreview: StreamPreview | null;
 };
 
+function describeOutputKind(output: unknown): string {
+  if (Array.isArray(output)) {
+    return 'array';
+  }
+  if (typeof output === 'string') {
+    const trimmed = output.trim();
+    return trimmed.startsWith('{') || trimmed.startsWith('[') ? 'json-string' : 'string';
+  }
+  if (isStreamObject(output)) {
+    return `object(${Object.keys(output).slice(0, 8).join(',')})`;
+  }
+  return output == null ? 'none' : typeof output;
+}
+
+function countWidgetItems(data: Record<string, unknown>): number {
+  return Object.values(data).reduce<number>((total, value) => total + (Array.isArray(value) ? value.length : 0), 0);
+}
+
+function recordToolFrame(state: AssemblyState, frame: SseFrame): void {
+  try {
+    const parsed = JSON.parse(frame.payload) as unknown;
+    if (!isStreamObject(parsed)) {
+      return;
+    }
+    const tool = toStringValue(parsed.tool_name);
+    const adapted = frame.eventName === 'tool_result' ? adaptToolResult(tool, parsed.output) : null;
+    state.summary.tools.push({
+      event: frame.eventName,
+      tool,
+      widget: adapted?.type ?? widgetTypeFromToolName(tool),
+      outputKind: frame.eventName === 'tool_result' ? describeOutputKind(parsed.output) : '-',
+      items: adapted ? countWidgetItems(adapted.data) : 0,
+    });
+  } catch {
+    state.summary.tools.push({ event: frame.eventName, tool: '', widget: null, outputKind: 'unparseable', items: 0 });
+  }
+}
+
+function recordFrame(state: AssemblyState, frame: SseFrame): void {
+  const eventName = frame.eventName || 'message';
+  state.summary.events[eventName] = (state.summary.events[eventName] ?? 0) + 1;
+  if (frame.eventName === 'tool_start' || frame.eventName === 'tool_result') {
+    recordToolFrame(state, frame);
+  }
+}
+
 function consumeFrame(state: AssemblyState, frame: SseFrame): void {
+  recordFrame(state, frame);
   if (frame.eventName === 'thinking') {
     consumeThinking(state, frame.payload);
     return;
@@ -873,15 +931,45 @@ function finishAssembly(state: AssemblyState): EmporixAIChatResponse {
   throw new Error('AI stream did not contain a message');
 }
 
+function summarizeCommitted(state: AssemblyState, response: EmporixAIChatResponse | null): ChatStreamSummary {
+  const tokenPreview = tokenPreviewFromState(state);
+  let committedType: string | null = null;
+  let committedHasData = false;
+  if (response) {
+    try {
+      const parsed = JSON.parse(response.message) as unknown;
+      if (isStreamObject(parsed)) {
+        committedType = toStringValue(parsed.type) || null;
+        committedHasData = parsed.data != null;
+      }
+    } catch {
+      committedType = 'plain-text';
+    }
+  }
+  return {
+    ...state.summary,
+    declaredType: tokenPreview.kind === 'widget' ? tokenPreview.type : tokenPreview.kind,
+    committedType,
+    committedHasData,
+  };
+}
+
 export async function assembleEmporixChatStream(
   source: StreamSource,
   onProgress?: ChatStreamProgressHandler,
+  onSummary?: (summary: ChatStreamSummary) => void,
 ): Promise<EmporixAIChatResponse> {
-  if (typeof source !== 'string') {
-    return assembleFromReadableStream(source, onProgress);
-  }
-
   const state = createAssemblyState();
-  consumeFrames(state, parseEventFrames(source), onProgress, 0);
-  return finishAssembly(state);
+  let response: EmporixAIChatResponse | null = null;
+  try {
+    if (typeof source === 'string') {
+      consumeFrames(state, parseEventFrames(source), onProgress, 0);
+      response = finishAssembly(state);
+    } else {
+      response = await assembleFromReadableStream(source, state, onProgress);
+    }
+    return response;
+  } finally {
+    onSummary?.(summarizeCommitted(state, response));
+  }
 }
