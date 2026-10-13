@@ -232,8 +232,11 @@ function stripEnvelopeMeta(record: Record<string, unknown>): Record<string, unkn
   return Object.keys(rest).length > 0 ? rest : null;
 }
 
+/** Entity IDs the agent names so the BFF can load a widget when AI Service dropped the tool result. */
+export const WIDGET_REFERENCE_KEYS = new Set(['orderIds', 'productIds', 'quoteIds', 'returnIds']);
+
 export const isResolvedWidgetField = (key: string, value: unknown): boolean => {
-  if (key === 'pagination' || key === 'message') {
+  if (key === 'pagination' || key === 'message' || WIDGET_REFERENCE_KEYS.has(key)) {
     return false;
   }
   if (value == null || value === '') {

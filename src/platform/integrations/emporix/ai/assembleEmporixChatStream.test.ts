@@ -1,5 +1,6 @@
 import { parseAIResponse } from '@/components/account/dashboard/cards/ai/utils/response-parser';
 import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
+import { hasResolvedWidgetPayload } from '@/lib/common/ai-tool-widgets';
 import { assembleEmporixChatStream } from './assembleEmporixChatStream';
 
 type QuoteListWidgetData = { quotes?: Array<{ id?: string; quoteId?: string }> };
@@ -1011,6 +1012,33 @@ describe('assembleEmporixChatStream', () => {
       committedHasData: true,
     });
     expect(JSON.stringify(summary)).not.toContain('order-secret');
+  });
+
+  it('passes agent order IDs through without painting an empty card when the tool result was dropped', async () => {
+    const progressUpdates: AIChatStreamProgressUpdate[] = [];
+    const envelopeJson = JSON.stringify({
+      message: 'Here are your 5 most recent orders.',
+      type: 'order_list',
+      data: { orderIds: ['EON1625', 'EON1624'] },
+    });
+    const streamBody = [
+      toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-customer-orders', tool_call_id: 'call-1' })),
+      toNamedSseEvent('tool_end', JSON.stringify({ tool_name: 'get-customer-orders', tool_call_id: 'call-1' })),
+      toContentToken(envelopeJson.slice(0, 40)),
+      toContentToken(envelopeJson.slice(40)),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody, (update) => progressUpdates.push(update));
+
+    const paintedCard = progressUpdates.some(
+      (update) =>
+        update.preview?.kind === 'widget' && hasResolvedWidgetPayload(update.preview.type, update.preview.data),
+    );
+    expect(paintedCard).toBe(false);
+    expect(JSON.parse(assembled.message)).toMatchObject({
+      type: 'order_list',
+      data: { orderIds: ['EON1625', 'EON1624'] },
+    });
   });
 
   it('still reports a summary when the stream fails', async () => {

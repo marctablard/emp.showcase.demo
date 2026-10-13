@@ -103,8 +103,13 @@ json
 }
 
 ## When to fill data
-The storefront builds these widgets itself from the tool result. Set "data": null and do NOT copy tool data into the response:
-account_details, address_list, checkout_confirm, order_list, product_list, quote_list, quote_details, return_list, cart_summary.
+The storefront builds these widgets itself. Never copy tool data (names, prices, items, addresses) into the response.
+For these types, "data" contains only the IDs of the entities you show, in the order you show them, taken from the tool result:
+- order_list → { "orderIds": ["<order id>", ...] }
+- product_list → { "productIds": ["<product id>", ...] }
+- quote_list and quote_details → { "quoteIds": ["<quote id>", ...] }
+- return_list → { "returnIds": ["<return id>", ...] }
+For these types set "data": null: account_details, address_list, checkout_confirm, cart_summary.
 For a single order use order_list; for a single return use return_list.
 
 Plain answers (facts, confirmations, questions back to the shopper) use "type": "text" with the sentence in "message" and "data": null.
