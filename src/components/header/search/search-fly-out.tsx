@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 import { NoResults } from '@/components/header/search/no-results';
 import { QueryCompletions } from '@/components/header/search/query-completions';
+import { SearchPreview } from '@/components/header/search/search-preview';
 import { SideBar } from '@/components/header/search/side-bar';
 import { ProductTileFlyOut } from '@/components/product/product-tile-fly-out';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,8 @@ export interface SearchResultFlyOutProps {
   setQuery: Dispatch<SetStateAction<string>>;
   onProductClick?: () => void;
   onQuerySelect?: (query: string) => void;
+  /** Runs the full search for `query` (used by natural-language examples in the preview). */
+  onSearchSubmit?: (query: string) => void;
   redirectToBrowse?: () => void;
   isCollapsedHeader?: boolean;
 }
@@ -33,17 +36,22 @@ export const SearchFlyOut = forwardRef<HTMLDivElement, SearchResultFlyOutProps>(
       setQuery,
       onProductClick,
       onQuerySelect,
+      onSearchSubmit,
       redirectToBrowse,
     },
     ref,
   ) => {
     // COP-4822: last-seen items are re-validated against the products mode (assigned → only in-scope products).
-    const { products: lastSeenProducts, validating: lastSeenValidating } = useModeScopedLastSeen();
+    const { products: lastSeenProducts } = useModeScopedLastSeen();
     const t = useTranslations('layout.header');
     const isProductsShown = query.length > 2;
     const productsShow = isProductsShown ? products : lastSeenProducts;
-    // Do not flash "no results" while the last-seen list is still being validated in assigned mode.
-    const showNoResults = hasInitialSearch && !loading && (isProductsShown || !lastSeenValidating);
+    // Before typing, the preview fills the fly-out, so "no results" only applies to a real query.
+    const showNoResults = hasInitialSearch && !loading && isProductsShown;
+    const selectQuery = (selected: string) => {
+      setQuery(selected);
+      onQuerySelect?.(selected);
+    };
 
     return (
       <section
@@ -52,7 +60,15 @@ export const SearchFlyOut = forwardRef<HTMLDivElement, SearchResultFlyOutProps>(
       >
         <div className="overflow-y-auto h-screen sm:h-auto max-h-[calc(100vh-106px)] sm:max-h-[calc(100vh-224px)] pb-4">
           <div className="grid grid-cols-5 gap-4">
-            <QueryCompletions {...{ isProductsShown, queryCompletions, setQuery, onQuerySelect, query }} />
+            {isProductsShown ? (
+              <QueryCompletions {...{ isProductsShown, queryCompletions, setQuery, onQuerySelect, query }} />
+            ) : (
+              <SearchPreview
+                onQuerySelect={selectQuery}
+                onSearchSubmit={(selected) => (onSearchSubmit ? onSearchSubmit(selected) : selectQuery(selected))}
+                onProductClick={onProductClick}
+              />
+            )}
             {isProductsShown && <SideBar {...{ categories, query }} />}
             <div
               className={`grid auto-rows-max ${isProductsShown ? 'col-start-1 sm:col-start-2' : 'col-start-1'} col-end-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:order-2`}

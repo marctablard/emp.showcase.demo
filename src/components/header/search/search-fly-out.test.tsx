@@ -22,6 +22,10 @@ jest.mock('@/components/header/search/query-completions', () => ({
   QueryCompletions: () => <div data-testid="query-completions" />,
 }));
 
+jest.mock('@/components/header/search/search-preview', () => ({
+  SearchPreview: () => <div data-testid="search-preview" />,
+}));
+
 jest.mock('@/components/header/search/side-bar', () => ({
   SideBar: () => <div data-testid="side-bar" />,
 }));
@@ -161,7 +165,7 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
       );
     });
 
-    it('keeps the list and "no results" hidden while the validation is pending', async () => {
+    it('keeps the list hidden while the validation is pending', async () => {
       let resolveLookup: (value: Product | null) => void = () => {};
       mockFetchProductById.mockImplementation(
         () =>
@@ -182,7 +186,8 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
       });
 
       expect(screen.queryByTestId(`tile-${OUT_OF_SCOPE.id}`)).not.toBeInTheDocument();
-      expect(screen.getByTestId('no-results')).toBeInTheDocument();
+      expect(screen.queryByText('lastSeenProducts')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('no-results')).not.toBeInTheDocument();
     });
 
     it('does not refetch when the fly-out is re-opened with the same ids', async () => {
@@ -227,8 +232,10 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
 
       renderFlyOut();
 
-      await waitFor(() => expect(screen.getByTestId('no-results')).toBeInTheDocument());
+      await waitFor(() => expect(mockFetchProductById).toHaveBeenCalled());
+      await act(async () => {});
       expect(screen.queryByTestId(`tile-${IN_SCOPE.id}`)).not.toBeInTheDocument();
+      expect(screen.queryByText('lastSeenProducts')).not.toBeInTheDocument();
     });
   });
 
@@ -304,7 +311,7 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
       });
       // The new site does not expose the product: fail closed.
       expect(screen.queryByTestId(`tile-${IN_SCOPE.id}`)).not.toBeInTheDocument();
-      expect(screen.getByTestId('no-results')).toBeInTheDocument();
+      expect(screen.queryByText('lastSeenProducts')).not.toBeInTheDocument();
     });
 
     it('does not refetch when the fly-out is re-opened by the same customer on the same site', async () => {
@@ -424,5 +431,48 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
       });
       expect(screen.getByTestId(`tile-${IN_SCOPE.id}`)).toBeInTheDocument();
     });
+  });
+});
+
+describe('SearchFlyOut zero-query preview', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearModeScopedLastSeenCache();
+    mockUseSiteCode.mockReturnValue('main');
+    setCustomer('customer-1');
+    setMode('anonymous');
+    setLastSeen([]);
+  });
+
+  const renderWithQuery = (query: string, products: Product[] = []) =>
+    render(
+      <SearchFlyOut
+        suggestions={{ categories: [], queryCompletions: [], products }}
+        hasInitialSearch
+        query={query}
+        loading={false}
+        setQuery={jest.fn()}
+      />,
+    );
+
+  it('shows the preview instead of "no results" before the shopper types', () => {
+    renderWithQuery('');
+
+    expect(screen.getByTestId('search-preview')).toBeInTheDocument();
+    expect(screen.queryByTestId('no-results')).not.toBeInTheDocument();
+  });
+
+  it('switches to live suggestions once a query is typed', () => {
+    renderWithQuery('fluid', [IN_SCOPE]);
+
+    expect(screen.queryByTestId('search-preview')).not.toBeInTheDocument();
+    expect(screen.getByTestId('query-completions')).toBeInTheDocument();
+    expect(screen.getByTestId(`tile-${IN_SCOPE.id}`)).toBeInTheDocument();
+  });
+
+  it('still reports "no results" for a typed query without matches', () => {
+    renderWithQuery('zzzz');
+
+    expect(screen.getByTestId('no-results')).toBeInTheDocument();
   });
 });

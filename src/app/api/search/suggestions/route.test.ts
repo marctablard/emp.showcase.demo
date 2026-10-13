@@ -60,7 +60,10 @@ describe('GET /api/search/suggestions', () => {
   let logger: MockService;
 
   beforeEach(() => {
-    searchService = { getSuggestions: jest.fn().mockResolvedValue(SUGGESTIONS) };
+    searchService = {
+      getSuggestions: jest.fn().mockResolvedValue(SUGGESTIONS),
+      searchProducts: jest.fn().mockResolvedValue({ items: [] }),
+    };
     productsModeService = { resolve: jest.fn() };
     logger = {
       debug: jest.fn(),
@@ -147,6 +150,33 @@ describe('GET /api/search/suggestions', () => {
     const params = suggestionParamsOf(searchService.getSuggestions);
     expect(params).not.toHaveProperty('segmentIds');
     expect(params).not.toHaveProperty('mode');
+  });
+
+  it('falls back to the full search when suggest has no products (e.g. a natural-language query)', async () => {
+    productsModeService.resolve.mockResolvedValue(context('assigned'));
+    searchService.searchProducts.mockResolvedValue({ items: [{ id: 'coolant-1' }] });
+
+    const response = await GET(createRequest('?query=coolant%20for%20my%20inverter&site=main&currency=USD'));
+
+    await expect(response.json()).resolves.toEqual({ ...SUGGESTIONS, products: [{ id: 'coolant-1' }] });
+    expect(searchService.searchProducts).toHaveBeenCalledWith({
+      query: 'coolant for my inverter',
+      site: 'main',
+      currency: 'USD',
+      locale: undefined,
+      segmentIds: ['seg-1', 'seg-2'],
+      page: 0,
+      size: 6,
+    });
+  });
+
+  it('keeps suggest products without calling the full search', async () => {
+    productsModeService.resolve.mockResolvedValue(context('unsegmented'));
+    searchService.getSuggestions.mockResolvedValue({ ...SUGGESTIONS, products: [{ id: 'p1' }] });
+
+    await GET(createRequest('?query=dri&site=main'));
+
+    expect(searchService.searchProducts).not.toHaveBeenCalled();
   });
 
   it('missing query → 400 without resolving the mode', async () => {

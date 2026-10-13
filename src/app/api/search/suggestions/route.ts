@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { isPersonalised, jsonResponse } from '@/app/api/_util/personalised-json-response';
+import { getSuggestionsWithSearchFallback } from '@/app/api/_util/suggestions-with-search-fallback';
 import { PRODUCTS_MODE_COOKIE_NAME } from '@/lib/common/products-mode-cookie';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     const assigned = ctx.mode === 'assigned';
     const effectiveSite = isPersonalised(ctx) ? (ctx.siteCode ?? site) : site;
 
-    const suggestions = await searchService.getSuggestions({
+    const suggestions = await getSuggestionsWithSearchFallback(searchService, {
       query,
       locale,
       site: effectiveSite,

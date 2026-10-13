@@ -50,7 +50,19 @@
     "compare": "Compare",
     "compareCount": "Compare ({count})",
     "compareTooltip": "Click to compare {count} item(s)",
-    "compareTooltipMinimum": "Add at least 2 products to compare"
+    "compareTooltipMinimum": "Add at least 2 products to compare",
+    "searchPreview": {
+      "recentSearches": "Recent searches",
+      "suggestedSearches": "Suggested searches",
+      "tryAsking": "Try asking",
+      "recommendedForYou": "Recommended for your searches",
+      "popularProducts": "Popular products",
+      "examples": {
+        "example1": "Coolant for my inverter",
+        "example2": "Energy-efficient air conditioning for an office",
+        "example3": "Spare parts for injection moulds"
+      }
+    }
   },
   "footer": {
     "newsletterTitle": "Join Our Newsletter for Exclusive Updates and More!",

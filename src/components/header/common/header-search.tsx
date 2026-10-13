@@ -7,6 +7,7 @@ import { useHeaderSearch } from '@/components/header/search/search-context';
 import { SearchFlyOut } from '@/components/header/search/search-fly-out';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import useHistory from '@/hooks/history/useHistory';
 import { useSearch } from '@/hooks/search/useSearch';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
   const t = useTranslations('layout.header');
   const router = useRouter();
   const { activateSearch, deactivateSearch, showSearch, hasInputFocus } = useHeaderSearch();
+  const { addSearchQuery } = useHistory();
 
   // Get the current locale
   const locale = useLocale();
@@ -59,12 +61,23 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
   }, [hasInputFocus]);
 
   // redirect to /browse with the search terms
-  const redirectToBrowse = (e?: React.FormEvent) => {
+  const redirectToBrowse = (e?: React.SyntheticEvent, searchQuery: string = query) => {
     e?.preventDefault();
+    const trimmed = searchQuery.trim();
+    if (trimmed) {
+      addSearchQuery(trimmed);
+    }
+    setQuery(searchQuery);
     deactivateSearch();
     setShowSuggestions(false);
-    router.push(`/browse?q=${query}`);
+    router.push(`/browse?q=${encodeURIComponent(trimmed)}`);
     inputRef.current?.blur();
+  };
+
+  const openPreview = () => {
+    activateSearch();
+    setShowSuggestions(true);
+    setHasInitialSearch(true);
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,16 +89,25 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
       clearTimeout(inputTimeoutRef.current);
     }
 
+    // Below 2 characters the fly-out shows the zero-query preview instead of live suggestions.
+    if (value.trim().length < 2) {
+      openPreview();
+      return;
+    }
+
     inputTimeoutRef.current = setTimeout(() => {
-      // Fetch suggestions only when at least 2 characters are entered
-      if (value.trim().length >= 2) {
-        setShowSuggestions(true);
-        setHasInitialSearch(true);
-        getSuggestions(value, locale);
-      } else {
-        setShowSuggestions(false);
-      }
+      setShowSuggestions(true);
+      setHasInitialSearch(true);
+      getSuggestions(value, locale);
     }, 360);
+  };
+
+  const handleOpen = () => {
+    if (showSuggestions) return;
+    openPreview();
+    if (query.trim().length >= 2) {
+      getSuggestions(query, locale);
+    }
   };
 
   const handleClickOutside = useCallback(
@@ -105,9 +127,12 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
 
   // Function to close the flyout when a product is clicked
   const handleProductClick = useCallback(() => {
+    if (query.trim().length > 2) {
+      addSearchQuery(query.trim());
+    }
     deactivateSearch();
     setShowSuggestions(false);
-  }, [deactivateSearch]);
+  }, [addSearchQuery, deactivateSearch, query]);
 
   // Function to handle query selection from suggestions
   const handleQuerySelect = useCallback(
@@ -158,7 +183,8 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
           placeholder={small ? t('shortSearch') : t('search')}
           value={query}
           onChange={handleInput}
-          onFocus={handleInput}
+          onFocus={handleOpen}
+          onClick={handleOpen}
           ref={inputRef}
           id="search-input"
           onKeyDown={(e) => e.key === 'Enter' && redirectToBrowse(e)}
@@ -202,6 +228,7 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
           setQuery={setQuery}
           onProductClick={handleProductClick}
           onQuerySelect={handleQuerySelect}
+          onSearchSubmit={(selected) => redirectToBrowse(undefined, selected)}
           redirectToBrowse={redirectToBrowse}
           isCollapsedHeader={isCollapsedHeader}
         />
