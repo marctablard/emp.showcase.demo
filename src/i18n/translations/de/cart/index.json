@@ -133,6 +133,7 @@
     "availableQty": "Verfügbare Menge",
     "availableDescription": "{available} von {total} verfügbar",
     "availableInDays": "Rückstand verfügbar in {days} Tagen",
+    "replenishmentTime": "Wiederbeschaffungszeit: {days} Tage",
     "sustainabilityClaim": "Für ein grüneres Commerce",
     "sustainabilityNote": "Das Vermeiden von Nachlieferungen hilft, CO2-Emissionen zu reduzieren, indem die Notwendigkeit für zusätzliche Produktion und Transport reduziert wird.",
     "poweredBy": "Powered by",

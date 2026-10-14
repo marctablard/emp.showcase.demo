@@ -26,6 +26,9 @@ import type { ProductPrice } from '@/platform/services/model/price/price';
 import type { Product } from '@/platform/services/model/product';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
+/** Fixed demo value: Emporix stock data carries no replenishment time. */
+const REPLENISHMENT_TIME_DAYS = 28;
+
 interface SubstitutionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -272,29 +275,36 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                   </div>
                 </div>
 
-                {availability && (
-                  <div className="flex items-center gap-3 mt-3">
-                    {availability.availableQuantity && (
-                      <div className="flex items-center gap-2 rounded-md bg-surface-disabled px-3 py-2 shadow-[inset_0_0_0_1px_var(--color-border-primary)]">
-                        <Package className="h-4 w-4 shrink-0 text-text-error" />
-                        <span className="text-sm font-semibold text-text-body">
-                          {t('substitution.availableDescription', {
-                            available: availability.availableQuantity,
-                            total: cartItem.quantity,
-                          })}
-                        </span>
-                      </div>
-                    )}
-                    {availability.availableInDays && (
-                      <div className="flex items-center gap-2 rounded-md bg-surface-warning px-3 py-2 shadow-[inset_0_0_0_1px_var(--color-border-warning)]">
-                        <Clock className="h-4 w-4 shrink-0 text-text-warning" />
-                        <span className="text-sm font-semibold text-text-warning">
-                          {t('substitution.availableInDays', { days: availability.availableInDays })}
-                        </span>
-                      </div>
-                    )}
+                <div className="flex flex-wrap items-center gap-3 mt-3">
+                  {availability?.availableQuantity && (
+                    <div className="flex items-center gap-2 rounded-md bg-surface-disabled px-3 py-2 shadow-[inset_0_0_0_1px_var(--color-border-primary)]">
+                      <Package className="h-4 w-4 shrink-0 text-text-error" />
+                      <span className="text-sm font-semibold text-text-body">
+                        {t('substitution.availableDescription', {
+                          available: availability.availableQuantity,
+                          total: cartItem.quantity,
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    data-testid="substitution-replenishmentTime"
+                    className="flex items-center gap-2 rounded-md bg-surface-disabled px-3 py-2 shadow-[inset_0_0_0_1px_var(--color-border-primary)]"
+                  >
+                    <Clock className="h-4 w-4 shrink-0 text-text-body" />
+                    <span className="text-sm font-semibold text-text-body">
+                      {t('substitution.replenishmentTime', { days: REPLENISHMENT_TIME_DAYS })}
+                    </span>
                   </div>
-                )}
+                  {availability?.availableInDays && (
+                    <div className="flex items-center gap-2 rounded-md bg-surface-warning px-3 py-2 shadow-[inset_0_0_0_1px_var(--color-border-warning)]">
+                      <Clock className="h-4 w-4 shrink-0 text-text-warning" />
+                      <span className="text-sm font-semibold text-text-warning">
+                        {t('substitution.availableInDays', { days: availability.availableInDays })}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
