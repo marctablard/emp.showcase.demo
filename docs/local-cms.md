@@ -36,12 +36,14 @@ src/data/cms/<site>/<locale>/<slug>.json
 - `<locale>`: the language code (e.g. `en`, `de`).
 - `<slug>`: the page identifier (e.g. `home`, `about`).
 
-The repository ships starter fixtures:
+The repository ships the current storefront homepage in both storefront languages:
 
 ```
 src/data/cms/_default_/en/home.json
 src/data/cms/_default_/de/home.json
 ```
+
+Those files are the demo homepage. Each one is the same component list the live page uses (`hero`, `quick-entry`, two `media-text` blocks, three `recommendations` blocks), with the published copy, Storyblok image URLs, and product ids. When `NEXT_STORYBLOK_SPACE_ID` is unset, the homepage renders this JSON instead of Storyblok. A customer demo replaces the component fields in these files; set the space id to keep serving Storyblok.
 
 At request time `LocalJsonCmsAdapter.getPage` normalizes the slug (drops
 disallowed characters, lowercases) and the locale (lowercases), and determines
@@ -85,7 +87,7 @@ against that component's Zod schema (see [ADR 0002](./adr/0002-cms-component-co-
 }
 ```
 
-Refer to the shipped fixtures (`src/data/cms/_default_/en/home.json`) for a
+Refer to the shipped homepage (`src/data/cms/_default_/en/home.json`) for a
 complete, working example.
 
 ## Activating the local provider

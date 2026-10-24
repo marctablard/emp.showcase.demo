@@ -1,21 +1,80 @@
 {
-  "title": "E-Commerce Demo",
-  "description": "Wir bieten eine breite Palette an Produkten für Ihre Bedürfnisse. Entdecken Sie unser vielfältiges Sortiment in unserem Online-Shop.",
+  "title": "Home",
+  "description": "",
   "url": "/",
   "no_margin": true,
   "components": [
     {
-      "id": "hero-section",
+      "id": "ad392a91-687b-492c-a974-a34e69fb6e33",
       "type": "hero",
-      "headline": "Willkommen in unserem Online-Shop",
+      "headline": "Ihr Partner für Mechatronik Lösungen · statisch",
       "text": {
         "content": [
           {
-            "text": "Text content",
             "type": "paragraph",
             "content": [
               {
-                "text": "Entdecken Sie unsere Produkte und profitieren Sie von unseren attraktiven Angeboten. Qualität und Service stehen bei uns an erster Stelle."
+                "text": "Wir bieten ein breites Spektrum maßgeschneiderter Lösungen  für Ihre einzigartigen Projekte. Dies ermöglichen wir durch unsere Expertise und Erfahrung im Bereich Mechatronik."
+              }
+            ]
+          }
+        ]
+      },
+      "image": {
+        "filename": "https://a.storyblok.com/f/338074/2309x1299/a87f9b5767/istock-1412146388.jpg"
+      },
+      "main_button": [
+        {
+          "id": "156734c9-217c-4c3a-8ee5-45f4fe645031",
+          "type": "button",
+          "title": "Erfahren Sie mehr",
+          "link": "/",
+          "iconRight": "ArrowRight"
+        }
+      ]
+    },
+    {
+      "id": "5a6774ea-98b2-449e-ba25-21f2475c6428",
+      "type": "quick-entry",
+      "elements": [
+        {
+          "title": "Angebot Anfragen",
+          "link": "/",
+          "link_name": "In wenigen Schritten",
+          "icon": "MessageSquareQuote"
+        },
+        {
+          "title": "Große Auswahl",
+          "link": "/",
+          "link_name": "Finden Sie, was Sie brauchen",
+          "icon": "ScanSearch"
+        },
+        {
+          "title": "Quick Order",
+          "link": "/",
+          "link_name": "Direkt bestellen",
+          "icon": "Gauge"
+        },
+        {
+          "title": "Lieferung am nächsten Tag",
+          "link": "/",
+          "link_name": "Bestellen vor 14 Uhr",
+          "icon": "ShoppingCart"
+        }
+      ]
+    },
+    {
+      "id": "8c01bd23-302c-4c31-8157-7df9938547e3",
+      "type": "media-text",
+      "overline": "Für Fachkräfte",
+      "headline": "Solarpaneele",
+      "text": {
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "Ändern Sie Ihren Energieverbrauch mit unseren kostengünstigen Solarmodulen, die für maximale Effizienz ausgelegt sind. Genießen Sie einen schnellen Installationsprozess, der Sie in kürzester Zeit betriebsbereit macht, um Ihr Leben zu erhellen und gleichzeitig Energiekosten zu sparen!"
               }
             ]
           }
@@ -23,46 +82,72 @@
       },
       "main_button": [
         {
-          "title": "PRODUKTE ENTDECKEN",
-          "link": "/products",
-          "variant": "primary",
-          "size": "lg"
+          "id": "92051a14-f28e-49e0-8806-3847430ca607",
+          "type": "button",
+          "title": "Erfahren Sie mehr",
+          "link": "/",
+          "iconRight": "ArrowRight"
         }
       ],
       "image": {
-        "filename": "/images/cms/home/hero.jpg",
-        "alt": "Online-Shop Startseite"
-      }
+        "filename": "https://a.storyblok.com/f/338074/2309x1299/a87f9b5767/istock-1412146388.jpg"
+      },
+      "has_background": true,
+      "image_position": "Right"
     },
     {
-      "id": "quick-entry-section",
-      "type": "quick-entry",
-      "elements": [
+      "id": "1892e7ee-9a67-4e2f-a27e-f2198e54b742",
+      "type": "media-text",
+      "overline": "Für Fachkräfte",
+      "headline": "Solarpaneele",
+      "text": {
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "Ändern Sie Ihren Energieverbrauch mit unseren kostengünstigen Solarmodulen, die für maximale Effizienz ausgelegt sind. Genießen Sie einen schnellen Installationsprozess, der Sie in kürzester Zeit betriebsbereit macht, um Ihr Leben zu erhellen und gleichzeitig Energiekosten zu sparen!"
+              }
+            ]
+          }
+        ]
+      },
+      "main_button": [
         {
-          "title": "Kontakt",
-          "link": "/contact",
-          "link_name": "Fragen? Schreiben Sie uns",
-          "icon": "MessageSquareQuote"
-        },
-        {
-          "title": "Produktkatalog",
-          "link": "/products",
-          "link_name": "Unser Sortiment",
-          "icon": "ScanSearch"
-        },
-        {
-          "title": "Schnellauftrag",
-          "link": "/quick-order",
-          "link_name": "Zeit sparen",
-          "icon": "ShoppingCart"
-        },
-        {
-          "title": "Versandinformationen",
-          "link": "/delivery",
-          "link_name": "Schnelle Lieferung",
-          "icon": "Gauge"
+          "id": "f785dcd9-5863-4b6b-8e34-e9c2b6f32d62",
+          "type": "button",
+          "title": "Erfahren Sie mehr",
+          "link": "/",
+          "iconRight": "ArrowRight"
         }
-      ]
+      ],
+      "image": {
+        "filename": "https://a.storyblok.com/f/338074/1600x900/087a23b8c7/5a25f8b8944a8d8d94c2576c0dce514c7a3f667d.png"
+      },
+      "has_background": false,
+      "image_position": "Left"
+    },
+    {
+      "id": "841bd840-d158-45a3-ab87-6581e542871e",
+      "type": "recommendations",
+      "overline": "Recommendations",
+      "headline": "Recommendations",
+      "products": "10554915, 69209aaf205486755d2c82f3, victron-bluesolar-55w, 44170832, 15290649--15290649001, enjoysolar-200w-module, lg-cass-std-inv, 694478a34ea7bd47ada02f33"
+    },
+    {
+      "id": "1a275fc0-3352-43fe-a87a-e9fb16cc4b58",
+      "type": "recommendations",
+      "overline": "You might also like",
+      "headline": "Recommendations",
+      "products": "rexel-2029108, rexel-2078721, rexel-2029307, rexel-2078748"
+    },
+    {
+      "id": "556a78f0-d5b1-4a40-9f83-c34edf119cbf",
+      "type": "recommendations",
+      "overline": "Sale Test",
+      "headline": "Promote Additional Products",
+      "productId": "enjoysolar-200w-module",
+      "products": "ecoflow-extension-cable, enjoysolar-200w-module, ecoflow-extension-cable, ecoflow-extension-cable, ecoflow-extension-cable, ecoflow-extension-cable, ecoflow-extension-cable, ecoflow-extension-cable"
     }
   ]
 }

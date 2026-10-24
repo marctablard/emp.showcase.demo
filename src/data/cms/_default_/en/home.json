@@ -1,21 +1,80 @@
 {
-  "title": "E-Commerce Demo",
-  "description": "We offer a wide range of products for your needs. Discover our diverse selection in our online shop.",
+  "title": "Home",
+  "description": "",
   "url": "/",
   "no_margin": true,
   "components": [
     {
-      "id": "hero-section",
+      "id": "ad392a91-687b-492c-a974-a34e69fb6e33",
       "type": "hero",
-      "headline": "Welcome to our Online Shop",
+      "headline": "Your Electrical And Mechanical Solutions Provider · static",
       "text": {
         "content": [
           {
-            "text": "Text content",
             "type": "paragraph",
             "content": [
               {
-                "text": "Discover our products and benefit from our attractive offers. Quality and service are our top priorities."
+                "text": "We offer a diverse range of solutions tailored to your unique projects, combining our expertise in both electrical and mechanical fields to ensure your success."
+              }
+            ]
+          }
+        ]
+      },
+      "image": {
+        "filename": "https://a.storyblok.com/f/338074/2309x1299/a87f9b5767/istock-1412146388.jpg"
+      },
+      "main_button": [
+        {
+          "id": "156734c9-217c-4c3a-8ee5-45f4fe645031",
+          "type": "button",
+          "title": "Find Out More",
+          "link": "/",
+          "iconRight": "ArrowRight"
+        }
+      ]
+    },
+    {
+      "id": "5a6774ea-98b2-449e-ba25-21f2475c6428",
+      "type": "quick-entry",
+      "elements": [
+        {
+          "title": "Request a Quote.",
+          "link": "/",
+          "link_name": "In few simple steps",
+          "icon": "MessageSquareQuote"
+        },
+        {
+          "title": "Wide Selection",
+          "link": "/",
+          "link_name": "Find what you need",
+          "icon": "ScanSearch"
+        },
+        {
+          "title": "Quick Order",
+          "link": "/",
+          "link_name": "Order directly",
+          "icon": "Gauge"
+        },
+        {
+          "title": "Next Day Delivery",
+          "link": "/",
+          "link_name": "Order before 2pm",
+          "icon": "ShoppingCart"
+        }
+      ]
+    },
+    {
+      "id": "8c01bd23-302c-4c31-8157-7df9938547e3",
+      "type": "media-text",
+      "overline": "For Professionals",
+      "headline": "Solar Panels",
+      "text": {
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "Transform your energy consumption with our cost-effective solar panels, designed for maximum efficiency. Enjoy a quick installation process that gets you up and running in no time!Illuminate your life while saving on energy bills!"
               }
             ]
           }
@@ -23,46 +82,72 @@
       },
       "main_button": [
         {
-          "title": "EXPLORE PRODUCTS",
-          "link": "/products",
-          "variant": "primary",
-          "size": "lg"
+          "id": "92051a14-f28e-49e0-8806-3847430ca607",
+          "type": "button",
+          "title": "Find out more",
+          "link": "/",
+          "iconRight": "ArrowRight"
         }
       ],
       "image": {
-        "filename": "/images/cms/home/hero.jpg",
-        "alt": "Online Shop Homepage"
-      }
+        "filename": "https://a.storyblok.com/f/338074/2309x1299/a87f9b5767/istock-1412146388.jpg"
+      },
+      "has_background": true,
+      "image_position": "Right"
     },
     {
-      "id": "quick-entry-section",
-      "type": "quick-entry",
-      "elements": [
+      "id": "1892e7ee-9a67-4e2f-a27e-f2198e54b742",
+      "type": "media-text",
+      "overline": "For Professionals",
+      "headline": "Solar Panels",
+      "text": {
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "Transform your energy consumption with our cost-effective solar panels, designed for maximum efficiency. Enjoy a quick installation process that gets you up and running in no time!Illuminate your life while saving on energy bills!"
+              }
+            ]
+          }
+        ]
+      },
+      "main_button": [
         {
-          "title": "Contact",
-          "link": "/contact",
-          "link_name": "Questions? Write to us",
-          "icon": "MessageSquareQuote"
-        },
-        {
-          "title": "Product Catalog",
-          "link": "/products",
-          "link_name": "Our Selection",
-          "icon": "ScanSearch"
-        },
-        {
-          "title": "Quick Order",
-          "link": "/quick-order",
-          "link_name": "Save Time",
-          "icon": "ShoppingCart"
-        },
-        {
-          "title": "Shipping Information",
-          "link": "/delivery",
-          "link_name": "Fast Delivery",
-          "icon": "Gauge"
+          "id": "f785dcd9-5863-4b6b-8e34-e9c2b6f32d62",
+          "type": "button",
+          "title": "Find out more",
+          "link": "/",
+          "iconRight": "ArrowRight"
         }
-      ]
+      ],
+      "image": {
+        "filename": "https://a.storyblok.com/f/338074/1600x900/087a23b8c7/5a25f8b8944a8d8d94c2576c0dce514c7a3f667d.png"
+      },
+      "has_background": false,
+      "image_position": "Left"
+    },
+    {
+      "id": "841bd840-d158-45a3-ab87-6581e542871e",
+      "type": "recommendations",
+      "overline": "Recommendations",
+      "headline": "Recommendations",
+      "products": "10554915, 69209aaf205486755d2c82f3, victron-bluesolar-55w, 44170832, 15290649--15290649001, enjoysolar-200w-module, lg-cass-std-inv, 694478a34ea7bd47ada02f33"
+    },
+    {
+      "id": "1a275fc0-3352-43fe-a87a-e9fb16cc4b58",
+      "type": "recommendations",
+      "overline": "You might also like",
+      "headline": "Recommendations",
+      "products": "rexel-2029108, rexel-2078721, rexel-2029307, rexel-2078748"
+    },
+    {
+      "id": "556a78f0-d5b1-4a40-9f83-c34edf119cbf",
+      "type": "recommendations",
+      "overline": "Sale Test",
+      "headline": "Promote Additional Products",
+      "productId": "enjoysolar-200w-module",
+      "products": "ecoflow-extension-cable, enjoysolar-200w-module, ecoflow-extension-cable, ecoflow-extension-cable, ecoflow-extension-cable, ecoflow-extension-cable, ecoflow-extension-cable, ecoflow-extension-cable"
     }
   ]
 }
