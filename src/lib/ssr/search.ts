@@ -3,7 +3,6 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import type { SearchService } from '@/platform/services/search';
-import BatteryIncludedSearchService from '@/platform/services/search/impl/BatteryIncludedSearchService';
 import ssr from '@/platform/ssr';
 
 const getSearchService = () => ssr.get<SearchService>('SearchService');
@@ -24,6 +23,7 @@ export function searchProducts(params: SearchParams<Product>): Promise<SearchRes
 }
 
 export function getSearchResultsLayout(): 'list' | 'grid' {
-  const searchService = getSearchService();
-  return searchService instanceof BatteryIncludedSearchService ? 'list' : 'grid';
+  // Both engines use the category-tree PLP. Emporix resolves the tree from navigation
+  // categories and `filters[categoryIds]`; BatteryIncluded may overlay live facet counts.
+  return 'list';
 }

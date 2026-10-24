@@ -150,4 +150,48 @@ describe('EmporixAIApi.streamChatMessageWithContext', () => {
       'Failed to send chat message: Empty stream',
     );
   });
+
+  it('searches the catalog with the public token and the anonymous product RAG agent', async () => {
+    const mockApiClient = {
+      authenticatedFetch: jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: jest.fn().mockResolvedValue({
+          agentId: 'mcp-product-search',
+          agentType: 'generic',
+          message: '{"products":[{"id":"solar-1"}]}',
+          sessionId: 'agent-session',
+        }),
+      } as unknown as Response),
+    } as unknown as jest.Mocked<EmporixApiInvoker>;
+
+    const api = new EmporixAIApi(mockApiClient, mockConfig);
+    await api.searchCatalogWithProductRag('Find products matching this search, including close spellings: soler', {
+      ...chatContext,
+      sessionId: 'shopper-chat',
+    });
+
+    expect(mockApiClient.authenticatedFetch).toHaveBeenCalledWith(
+      '/ai-service/test-tenant/agentic/chat',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      'public',
+      undefined,
+      {
+        source: 'ai',
+        routePattern: '/ai-service/{tenant}/agentic/chat',
+      },
+    );
+    const fetchBody = (mockApiClient.authenticatedFetch.mock.calls[0][1] as RequestInit).body as string;
+    expect(JSON.parse(fetchBody)).toEqual({
+      agentId: 'mcp-product-search',
+      message: JSON.stringify({
+        userMessage: 'Find products matching this search, including close spellings: soler',
+        context: { siteId: 'main', currency: 'USD', language: 'en' },
+      }),
+    });
+  });
 });

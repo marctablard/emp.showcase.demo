@@ -72,6 +72,7 @@ describe('getProductById', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
     const getCatalogProductById = jest.spyOn(searchService, 'getCatalogProductById').mockResolvedValue(product);
     const getProductByIdOnProductService = jest.fn();

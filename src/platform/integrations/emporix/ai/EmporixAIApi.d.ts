@@ -22,4 +22,9 @@ export interface EmporixAIApi {
     context: EmporixAIChatContext,
     onProgress?: (progress: AIChatStreamProgressUpdate) => void,
   ): Promise<EmporixAIChatResponse>;
+
+  /**
+   * One catalog turn on the anonymous product RAG agent. Does not attach the shopper chat session.
+   */
+  searchCatalogWithProductRag(userMessage: string, context: EmporixAIChatContext): Promise<EmporixAIChatResponse>;
 }

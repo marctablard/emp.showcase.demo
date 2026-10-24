@@ -32,6 +32,9 @@ describe('EmporixSearchService', () => {
     error: jest.fn(),
     fatal: jest.fn(),
   };
+  const aiApi = {
+    searchCatalogWithProductRag: jest.fn(),
+  };
 
   const createService = () =>
     new EmporixSearchService(
@@ -42,6 +45,7 @@ describe('EmporixSearchService', () => {
       segmentFilterService as never,
       categoryService as never,
       logger as never,
+      aiApi as never,
     );
 
   const mockSegmentScopes = (assignedCategoryIds: string[], productIds: string[]) => {
@@ -69,6 +73,12 @@ describe('EmporixSearchService', () => {
       total: 1,
     });
     categoryService.getNavigationCategoryTrees.mockResolvedValue([{ id: 'root-1' }, { id: 'root-2' }]);
+    aiApi.searchCatalogWithProductRag.mockResolvedValue({
+      agentId: 'frontendAgent',
+      agentType: 'frontend',
+      sessionId: 'rag-session',
+      message: '{}',
+    });
   });
 
   afterAll(() => {
@@ -103,6 +113,12 @@ describe('EmporixSearchService', () => {
       {
         id: 'name',
         labelKey: 'name',
+        directions: ['asc', 'desc'],
+        defaultDirection: 'asc',
+      },
+      {
+        id: 'price',
+        labelKey: 'price',
         directions: ['asc', 'desc'],
         defaultDirection: 'asc',
       },
@@ -169,7 +185,7 @@ describe('EmporixSearchService', () => {
       expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main', ['s1'], expect.any(Promise));
       expect(segmentFilterService.getProductScope).toHaveBeenCalledWith('main', ['s1']);
       expect(categoryService.getNavigationCategoryTrees).not.toHaveBeenCalled();
-      expect(productApi.searchProducts).toHaveBeenCalledTimes(1);
+      expect(productApi.searchProducts).toHaveBeenCalledTimes(2);
       const criteria = productApi.searchProducts.mock.calls[0][0].criteria as Record<string, string>;
       expect(criteria.compoundLogicalQuery.startsWith('compoundLogicalQuery:(')).toBe(true);
       expect(criteria.compoundLogicalQuery).toBe(
@@ -270,6 +286,7 @@ describe('EmporixSearchService', () => {
       expect(segmentFilterService.getCategoryScope).not.toHaveBeenCalled();
       expect(segmentFilterService.getProductScope).not.toHaveBeenCalled();
       expect(categoryService.getNavigationCategoryTrees).not.toHaveBeenCalled();
+      expect(aiApi.searchCatalogWithProductRag).not.toHaveBeenCalled();
       expect(result).toEqual(expect.objectContaining({ items: [], total: 0, page: 0, pageSize: 12 }));
     });
 
@@ -302,22 +319,153 @@ describe('EmporixSearchService', () => {
     });
   });
 
-  describe('getRecommendations (stub honours the segmentIds contract)', () => {
-    it.each([
-      ['undefined (unscoped)', undefined],
-      ['an empty scope', { segmentIds: [] }],
-      ['a non-empty scope', { segmentIds: ['s1'] }],
-    ])('returns [] without any upstream call for %s', async (_label, options) => {
+  describe('getRecommendations', () => {
+    it('returns [] without any upstream call when segmentIds is []', async () => {
       const service = createService();
 
-      await expect(service.getRecommendations('product-1', 'en', 'main', 12, undefined, options)).resolves.toEqual({
+      await expect(
+        service.getRecommendations('product-1', 'en', 'main', 12, undefined, { segmentIds: [] }),
+      ).resolves.toEqual({
         products: [],
         crossSell: [],
         upSell: [],
       });
 
+      expect(productService.getProductById).not.toHaveBeenCalled();
       expect(productApi.searchProducts).not.toHaveBeenCalled();
-      expect(segmentFilterService.getProductScope).not.toHaveBeenCalled();
+    });
+
+    it('loads related items and keeps upsell separate from cross-sell', async () => {
+      productService.getProductById.mockResolvedValue({
+        id: 'product-1',
+        relatedItems: [
+          { refId: 'acc-1', type: 'Accessory' },
+          { refId: 'up-1', type: 'Upsell' },
+        ],
+      });
+      productApi.searchProducts.mockResolvedValue({
+        items: [
+          { id: 'acc-1', name: { en: 'Accessory' } },
+          { id: 'up-1', name: { en: 'Upsell' } },
+        ],
+        page: 1,
+        size: 2,
+        total: 2,
+      });
+      const service = createService();
+
+      const result = await service.getRecommendations('product-1', 'en', 'main', 12);
+
+      expect(productService.getProductById).toHaveBeenCalledWith('product-1', {
+        categories: true,
+        prices: false,
+        variants: false,
+        segmentIds: undefined,
+        siteCode: 'main',
+      });
+      const criteria = productApi.searchProducts.mock.calls[0][0].criteria as Record<string, string>;
+      expect(criteria.id).toBe('(acc-1,up-1)');
+      expect(criteria.categoryIds).toBe('(root-1,root-2)');
+      expect(result.crossSell).toEqual([{ id: 'acc-1' }]);
+      expect(result.upSell).toEqual([{ id: 'up-1' }]);
+      expect(result.products).toEqual([{ id: 'acc-1' }, { id: 'up-1' }]);
+    });
+  });
+
+  describe('product RAG fallback', () => {
+    const ragMessage = JSON.stringify({
+      type: 'product_list',
+      data: {
+        products: [{ productId: 'solar-2' }, { productId: 'solar-1' }],
+      },
+    });
+
+    function mockKeywordMiss() {
+      productApi.searchProducts.mockImplementation(async (request: { criteria?: { id?: string } }) => {
+        if (request.criteria?.id === '(solar-2,solar-1)') {
+          return {
+            items: [
+              { id: 'solar-1', name: { en: 'Solar One' } },
+              { id: 'solar-2', name: { en: 'Solar Two' } },
+            ],
+            page: 1,
+            size: 2,
+            total: 2,
+          };
+        }
+        return { items: [], page: 1, size: 12, total: 0 };
+      });
+      aiApi.searchCatalogWithProductRag.mockResolvedValue({
+        agentId: 'frontendAgent',
+        agentType: 'frontend',
+        sessionId: 'rag-session',
+        message: ragMessage,
+      });
+    }
+
+    it('keeps a keyword hit off the agent', async () => {
+      const service = createService();
+
+      await service.searchProducts({ page: 0, size: 12, query: 'solar' }, 'en', 'main');
+
+      expect(aiApi.searchCatalogWithProductRag).not.toHaveBeenCalled();
+    });
+
+    it('loads RAG product ids through the catalog scope when the keyword search is empty', async () => {
+      mockKeywordMiss();
+      const service = createService();
+
+      const result = await service.searchProducts({ page: 0, size: 12, query: 'soler' }, 'en', 'main');
+
+      expect(aiApi.searchCatalogWithProductRag).toHaveBeenCalledWith(
+        'Find products matching this search, including close spellings: soler',
+        { siteId: 'main', currency: 'USD', language: 'en' },
+      );
+      const idCall = productApi.searchProducts.mock.calls.find(
+        (call: Array<{ criteria?: { id?: string } }>) => call[0].criteria?.id === '(solar-2,solar-1)',
+      );
+      expect(idCall?.[0].criteria).toEqual(
+        expect.objectContaining({
+          id: '(solar-2,solar-1)',
+          categoryIds: '(root-1,root-2)',
+        }),
+      );
+      expect(result.items).toEqual([{ id: 'solar-2' }, { id: 'solar-1' }]);
+      expect(result.total).toBe(2);
+    });
+
+    it('returns the keyword miss when the agent fails', async () => {
+      productApi.searchProducts.mockResolvedValue({ items: [], page: 1, size: 12, total: 0 });
+      aiApi.searchCatalogWithProductRag.mockRejectedValue(new Error('agent down'));
+      const service = createService();
+
+      const result = await service.searchProducts({ page: 0, size: 12, query: 'soler' }, 'en', 'main');
+
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ query: 'soler' }),
+        'Product RAG fallback failed',
+      );
+    });
+
+    it('does not call the agent for a two-character query', async () => {
+      productApi.searchProducts.mockResolvedValue({ items: [], page: 1, size: 12, total: 0 });
+      const service = createService();
+
+      await service.searchProducts({ page: 0, size: 12, query: 'ab' }, 'en', 'main');
+
+      expect(aiApi.searchCatalogWithProductRag).not.toHaveBeenCalled();
+    });
+
+    it('fills suggestions from the product RAG when keyword search is empty', async () => {
+      mockKeywordMiss();
+      const service = createService();
+
+      const result = await service.getSuggestions({ query: 'soler', site: 'main', locale: 'en' });
+
+      expect(aiApi.searchCatalogWithProductRag).toHaveBeenCalledTimes(1);
+      expect(result.products).toEqual([{ id: 'solar-2' }, { id: 'solar-1' }]);
     });
   });
 });

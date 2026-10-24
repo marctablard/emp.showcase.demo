@@ -2,7 +2,10 @@ import React from 'react';
 import { MarkedText } from '@/components/header/search/marked-text';
 import { Heading } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
-import { buildBrowseHrefForBreadcrumbDisplayPath } from '@/lib/navigation/build-browse-category-href';
+import {
+  buildBrowseHrefForBreadcrumbDisplayPath,
+  buildBrowseHrefForCategoryId,
+} from '@/lib/navigation/build-browse-category-href';
 import type { SearchSuggestions } from '@/platform/services/model/search';
 
 export interface SideBarProps {
@@ -38,14 +41,23 @@ export function SideBar({ categories, query }: SideBarProps) {
           <Heading className="mb-6" variant="h5" as="div">
             Categories
           </Heading>
-          {categories.map(({ name, highlighted, count }) => {
+          {categories.map(({ name, highlighted, count, categoryId }) => {
             const params = new URLSearchParams();
             if (query) {
               params.set('q', query);
             }
-            const href = buildBrowseHrefForBreadcrumbDisplayPath(name, params);
+            const href = categoryId
+              ? buildBrowseHrefForCategoryId(categoryId, undefined, params)
+              : buildBrowseHrefForBreadcrumbDisplayPath(name, params);
             return (
-              <UiLink className="mb-3" key={name + count} type="Link" href={href} variant="secondary">
+              <UiLink
+                className="mb-3"
+                key={categoryId ?? name + count}
+                type="Link"
+                href={href}
+                variant="secondary"
+                data-testid={categoryId ? `searchSuggestions-category-${categoryId}` : undefined}
+              >
                 <span>
                   <MarkedText text={highlighted ?? name} keyword="" />
                 </span>

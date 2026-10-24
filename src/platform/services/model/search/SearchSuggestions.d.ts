@@ -8,6 +8,11 @@ export interface CategorySuggestion {
   highlighted?: string;
   count: number;
   idPath?: string;
+  /**
+   * Emporix category id. When set, suggestion links use `filters[categoryIds]`
+   * instead of a BatteryIncluded display path.
+   */
+  categoryId?: string;
 }
 
 /**

@@ -48,11 +48,11 @@ describe('getSearchResultsLayout', () => {
     expect(getSearchResultsLayout()).toBe('list');
   });
 
-  it('returns grid when the active SearchService binding is not BatteryIncluded', async () => {
+  it('returns list when the active SearchService is Emporix', async () => {
     const { getSearchResultsLayout, services } = await loadModule();
 
     services.set('SearchService', { searchProducts: jest.fn() });
 
-    expect(getSearchResultsLayout()).toBe('grid');
+    expect(getSearchResultsLayout()).toBe('list');
   });
 });

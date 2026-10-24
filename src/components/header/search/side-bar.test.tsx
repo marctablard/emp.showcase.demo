@@ -88,4 +88,23 @@ describe('SideBar', () => {
 
     expect(link).toHaveAttribute('href', `/browse?${expectedParams.toString()}`);
   });
+
+  it('links an Emporix category suggestion by category id', () => {
+    render(
+      <SideBar
+        categories={[
+          {
+            name: 'Solar panels',
+            highlighted: '<mark>Solar</mark> panels',
+            count: 0,
+            categoryId: 'cat-solar',
+          },
+        ]}
+        query="solar"
+      />,
+    );
+
+    const link = screen.getByRole('link', { name: /Solar panels/ });
+    expect(link).toHaveAttribute('href', '/browse?q=solar&filters%5BcategoryIds%5D=cat-solar');
+  });
 });
