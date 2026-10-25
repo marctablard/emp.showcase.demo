@@ -43,7 +43,7 @@ src/data/cms/_default_/en/home.json
 src/data/cms/_default_/de/home.json
 ```
 
-Those files are the demo homepage. Each one is the same component list the live page uses (`hero`, `quick-entry`, two `media-text` blocks, three `recommendations` blocks), with the published copy, Storyblok image URLs, and product ids. When `NEXT_STORYBLOK_SPACE_ID` is unset, the homepage renders this JSON instead of Storyblok. A customer demo replaces the component fields in these files; set the space id to keep serving Storyblok.
+Those files are the demo homepage. Each one is the same component list the live page uses (`hero`, `quick-entry`, two `media-text` blocks, three `recommendations` blocks), with the published copy, Storyblok image URLs, and product ids. The homepage renders this JSON when `NEXT_STORYBLOK_SPACE_ID` is unset, or when no CMS provider resolves (a missing access token, or `NEXT_CMS_PROVIDER=none`). A customer demo replaces the component fields in these files; set the space id and an access token to keep serving Storyblok.
 
 At request time `LocalJsonCmsAdapter.getPage` normalizes the slug (drops
 disallowed characters, lowercases) and the locale (lowercases), and determines

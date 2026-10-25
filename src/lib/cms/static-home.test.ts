@@ -9,9 +9,22 @@ describe('usesStaticHomepage', () => {
     expect(usesStaticHomepage({ NEXT_STORYBLOK_SPACE_ID: '   ' })).toBe(true);
   });
 
-  it('is off when a space id is configured', () => {
-    expect(usesStaticHomepage({ NEXT_STORYBLOK_SPACE_ID: '338074' })).toBe(false);
-    expect(usesStaticHomepage({ NEXT_PUBLIC_STORYBLOK_SPACE_ID: '338074' })).toBe(false);
+  it('is off when a space id and an access token are configured', () => {
+    expect(usesStaticHomepage({ NEXT_STORYBLOK_SPACE_ID: '338074', NEXT_STORYBLOK_ACCESS_TOKEN: 't' })).toBe(false);
+    expect(
+      usesStaticHomepage({ NEXT_PUBLIC_STORYBLOK_SPACE_ID: '338074', NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: 't' }),
+    ).toBe(false);
+  });
+
+  it('is on when no CMS provider resolves, even with a space id', () => {
+    expect(usesStaticHomepage({ NEXT_STORYBLOK_SPACE_ID: '338074' })).toBe(true);
+    expect(
+      usesStaticHomepage({
+        NEXT_STORYBLOK_SPACE_ID: '338074',
+        NEXT_STORYBLOK_ACCESS_TOKEN: 't',
+        NEXT_CMS_PROVIDER: 'none',
+      }),
+    ).toBe(true);
   });
 });
 
