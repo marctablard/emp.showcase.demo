@@ -17,6 +17,7 @@ export const WIDGET_TYPES = new Set([
   'quote_details',
   'return_list',
   'return_details',
+  'subscription_list',
   'table',
   'error',
 ]);

@@ -3,11 +3,15 @@ import { NextResponse } from 'next/server';
 import { routing } from '@/i18n/routing';
 import { type AIChatStreamEvent, encodeAiChatSse } from '@/lib/common/ai-chat-stream';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
-import type { AIChatContext, AIChatSubscriptions } from '@/platform/integrations/ai/model';
+import type { AIChatContext, AIChatResponse, AIChatSubscriptions } from '@/platform/integrations/ai/model';
 import server from '@/platform/server';
 import type { AIService } from '@/platform/services/ai';
 import { isAiChatStreamingEnabled } from '@/platform/services/ai/isAiChatStreamingEnabled';
-import { mentionsSubscriptions, toAgentSubscriptions } from '@/platform/services/ai/subscription-context';
+import {
+  mentionsSubscriptions,
+  toAgentSubscriptions,
+  withSubscriptionWidget,
+} from '@/platform/services/ai/subscription-context';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SessionService } from '@/platform/services/session';
 import type { SubscriptionService } from '@/platform/services/subscription/SubscriptionService';
@@ -147,18 +151,21 @@ export async function POST(request: NextRequest) {
     if (mentionsSubscriptions(userMessage)) {
       context.subscriptions = await loadSubscriptionContext();
     }
+    const subscriptions = context.subscriptions;
+    const withSubscriptions = (response: AIChatResponse): AIChatResponse =>
+      subscriptions ? { ...response, message: withSubscriptionWidget(response.message, subscriptions) } : response;
 
     if (isAiChatStreamingEnabled()) {
       return createChatSseResponse(async (send) => {
         const response = await aiService.sendChatMessageWithContext(userMessage, context, (progress) => {
           send({ type: 'progress', ...progress });
         });
-        send({ type: 'complete', ...response });
+        send({ type: 'complete', ...withSubscriptions(response) });
       });
     }
 
     const response = await aiService.sendChatMessageWithContext(userMessage, context);
-    return NextResponse.json(response);
+    return NextResponse.json(withSubscriptions(response));
   } catch (error) {
     const retryable = isRetryableError(error);
     logChatError(error, retryable);

@@ -214,16 +214,26 @@ export function AiQuoteStatus({ status }: Readonly<{ status?: string }>) {
 }
 
 /** Compact product breakdown (vignette, name, quantity, unit and line total) for detail widgets. */
-export function AiProductLines({ lines, testIdPrefix }: Readonly<{ lines: AiProductLine[]; testIdPrefix: string }>) {
+export function AiProductLines({
+  lines,
+  testIdPrefix,
+  showPrices = true,
+}: Readonly<{ lines: AiProductLine[]; testIdPrefix: string; showPrices?: boolean }>) {
   const t = useTranslations('account.productBreakdown');
   return (
     <Table>
       <TableHeader>
         <TableRow className="text-xs">
           <TableHead className={cn(aiTableHeadClass, 'pl-4')}>{t('product')}</TableHead>
-          <TableHead className={cn(aiTableHeadClass, 'w-14 text-center')}>{t('quantity')}</TableHead>
-          <TableHead className={cn(aiTableHeadClass, 'w-24 text-right')}>{t('unitPrice')}</TableHead>
-          <TableHead className={cn(aiTableHeadClass, 'w-24 pr-4 text-right')}>{t('totalPrice')}</TableHead>
+          <TableHead className={cn(aiTableHeadClass, 'w-14 text-center', !showPrices && 'pr-4')}>
+            {t('quantity')}
+          </TableHead>
+          {showPrices ? (
+            <>
+              <TableHead className={cn(aiTableHeadClass, 'w-24 text-right')}>{t('unitPrice')}</TableHead>
+              <TableHead className={cn(aiTableHeadClass, 'w-24 pr-4 text-right')}>{t('totalPrice')}</TableHead>
+            </>
+          ) : null}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -257,13 +267,21 @@ export function AiProductLines({ lines, testIdPrefix }: Readonly<{ lines: AiProd
                   </div>
                 </div>
               </TableCell>
-              <TableCell className={cn(aiTableCellClass, 'text-center tabular-nums')}>{line.quantity ?? '–'}</TableCell>
-              <TableCell className={cn(aiTableCellClass, 'whitespace-nowrap text-right tabular-nums')}>
-                {line.unitPrice ? formatPrice(line.unitPrice, line.currency) : '–'}
+              <TableCell className={cn(aiTableCellClass, 'text-center tabular-nums', !showPrices && 'pr-4')}>
+                {line.quantity ?? '–'}
               </TableCell>
-              <TableCell className={cn(aiTableCellClass, 'whitespace-nowrap pr-4 text-right font-medium tabular-nums')}>
-                {total ? formatPrice(total, line.currency) : '–'}
-              </TableCell>
+              {showPrices ? (
+                <>
+                  <TableCell className={cn(aiTableCellClass, 'whitespace-nowrap text-right tabular-nums')}>
+                    {line.unitPrice ? formatPrice(line.unitPrice, line.currency) : '–'}
+                  </TableCell>
+                  <TableCell
+                    className={cn(aiTableCellClass, 'whitespace-nowrap pr-4 text-right font-medium tabular-nums')}
+                  >
+                    {total ? formatPrice(total, line.currency) : '–'}
+                  </TableCell>
+                </>
+              ) : null}
             </TableRow>
           );
         })}

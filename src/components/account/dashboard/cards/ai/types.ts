@@ -2,6 +2,7 @@
  * AI Assistant Types
  * All type definitions for the AI chat feature
  */
+import type { AIChatSubscriptions } from '@/platform/integrations/ai/model';
 
 // ============================================================================
 // Price Types
@@ -275,6 +276,11 @@ export interface QuoteListData {
   pagination?: PaginationData;
 }
 
+export interface SubscriptionListData {
+  scope?: 'mine' | 'company';
+  subscriptions?: AIChatSubscriptions['items'];
+}
+
 export interface QuoteDetailsData extends QuoteData {
   message?: string;
   items?: QuoteItemData[];
@@ -347,6 +353,7 @@ export type StructuredDataType =
   | 'quote_details'
   | 'return_list'
   | 'return_details'
+  | 'subscription_list'
   | 'table'
   | 'html'
   | 'text'
@@ -365,6 +372,7 @@ export type StructuredData =
   | { type: 'quote_details'; data: QuoteDetailsData }
   | { type: 'return_list'; data: ReturnListData }
   | { type: 'return_details'; data: ReturnDetailsData }
+  | { type: 'subscription_list'; data: SubscriptionListData }
   | { type: 'table'; data: TableData }
   | { type: 'html'; data: HTMLData }
   | { type: 'error'; data: ErrorData }

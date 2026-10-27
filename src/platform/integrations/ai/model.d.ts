@@ -28,11 +28,13 @@ export interface AIChatSubscriptions {
     status: string;
     owner?: string;
     renewEvery: string;
+    every: number;
+    unit: string;
     scheduleLocked: boolean;
     nextOrderDate?: string;
     lastOrderDate?: string;
     endDate?: string;
-    products: { productId: string; name?: string; quantity: number }[];
+    products: { productId: string; name?: string; imageUrl?: string; quantity: number }[];
     orderIds: string[];
     link: string;
   }[];

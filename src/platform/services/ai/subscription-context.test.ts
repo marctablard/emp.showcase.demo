@@ -1,5 +1,7 @@
 import type { Subscription } from '@/platform/services/subscription/subscription-rules';
-import { mentionsSubscriptions, toAgentSubscriptions } from './subscription-context';
+import { mentionsSubscriptions, toAgentSubscriptions, withSubscriptionWidget } from './subscription-context';
+
+const context = toAgentSubscriptions('mine', []);
 
 describe('subscription context for the AI agent', () => {
   it('recognises subscription questions in English and German', () => {
@@ -8,6 +10,24 @@ describe('subscription context for the AI agent', () => {
     expect(mentionsSubscriptions('Zeig mir meine Abonnements')).toBe(true);
     expect(mentionsSubscriptions('Welche Abos habe ich?')).toBe(true);
     expect(mentionsSubscriptions('show my open quotes')).toBe(false);
+  });
+
+  it('turns a text reply into a subscription list that keeps the agent sentence', () => {
+    const raw = JSON.stringify({
+      agentId: 'frontendAgent',
+      message: JSON.stringify({ type: 'text', message: 'Here are your subscriptions.' }),
+    });
+    expect(JSON.parse(withSubscriptionWidget(raw, context))).toEqual({
+      type: 'subscription_list',
+      message: 'Here are your subscriptions.',
+      data: { scope: 'mine', subscriptions: [] },
+    });
+    expect(JSON.parse(withSubscriptionWidget('Plain text answer', context)).message).toBe('Plain text answer');
+  });
+
+  it('keeps a widget the agent returned itself', () => {
+    const raw = JSON.stringify({ type: 'order_list', message: 'Orders', data: { orders: [] } });
+    expect(withSubscriptionWidget(raw, context)).toBe(raw);
   });
 
   it('summarises each subscription with a link and hides the next order of a cancelled one', () => {

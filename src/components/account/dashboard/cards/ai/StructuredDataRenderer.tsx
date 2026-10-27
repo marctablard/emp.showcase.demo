@@ -18,6 +18,7 @@ import { QuoteDetailsRenderer } from './renderers/QuoteDetailsRenderer';
 import { QuoteListRenderer } from './renderers/QuoteListRenderer';
 import { ReturnDetailsRenderer } from './renderers/ReturnDetailsRenderer';
 import { ReturnListRenderer } from './renderers/ReturnListRenderer';
+import { SubscriptionListRenderer } from './renderers/SubscriptionListRenderer';
 import { TableRenderer } from './renderers/TableRenderer';
 import { WidgetSkeleton } from './renderers/WidgetSkeleton';
 import type {
@@ -36,6 +37,7 @@ import type {
   ReturnListData,
   StructuredDataHandlers,
   StructuredDataType,
+  SubscriptionListData,
   TableData,
 } from './types';
 import { UNRECOGNIZED_RESPONSE_TYPE } from './utils/unrecognized-response';
@@ -112,6 +114,9 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({
 
     case 'return_details':
       return <ReturnDetailsRenderer data={data as ReturnDetailsData} />;
+
+    case 'subscription_list':
+      return <SubscriptionListRenderer data={data as SubscriptionListData} />;
 
     case 'table':
       return <TableRenderer data={data as TableData} />;
