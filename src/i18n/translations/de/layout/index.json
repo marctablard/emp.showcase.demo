@@ -62,7 +62,10 @@
         "example2": "Energieeffiziente Klimaanlage für ein Büro",
         "example3": "Ersatzteile für Spritzgussformen"
       }
-    }
+    },
+    "assistant": "Assistent",
+    "openAssistant": "KI-Agent öffnen",
+    "closeAssistant": "KI-Agent schließen"
   },
   "footer": {
     "newsletterTitle": "Abonnieren Sie unseren Newsletter für exklusive Updates und mehr!",

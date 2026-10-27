@@ -62,7 +62,10 @@
         "example2": "Energy-efficient air conditioning for an office",
         "example3": "Spare parts for injection moulds"
       }
-    }
+    },
+    "assistant": "Assistant",
+    "openAssistant": "Open AI agent",
+    "closeAssistant": "Close AI agent"
   },
   "footer": {
     "newsletterTitle": "Join Our Newsletter for Exclusive Updates and More!",

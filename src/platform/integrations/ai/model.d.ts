@@ -17,6 +17,25 @@ export interface AIChatContext {
   currency: string;
   language: string;
   sessionId?: string;
+  subscriptions?: AIChatSubscriptions;
+}
+
+export interface AIChatSubscriptions {
+  scope: 'mine' | 'company';
+  note: string;
+  items: {
+    id: string;
+    status: string;
+    owner?: string;
+    renewEvery: string;
+    scheduleLocked: boolean;
+    nextOrderDate?: string;
+    lastOrderDate?: string;
+    endDate?: string;
+    products: { productId: string; name?: string; quantity: number }[];
+    orderIds: string[];
+    link: string;
+  }[];
 }
 
 export interface AIParsedMessage {

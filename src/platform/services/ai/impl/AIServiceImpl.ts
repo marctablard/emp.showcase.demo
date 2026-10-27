@@ -64,6 +64,9 @@ export class AIServiceImpl implements AIService {
     if (context.cartId) {
       emporixContext.cartId = context.cartId;
     }
+    if (context.subscriptions) {
+      emporixContext.subscriptions = context.subscriptions;
+    }
 
     return emporixContext;
   }

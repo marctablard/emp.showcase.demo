@@ -2,6 +2,8 @@
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { X } from 'lucide-react';
+import { useAssistantPanel } from '@/components/assistant/assistant-panel-context';
 import AiStarsIcon from '@/components/icons/ai-stars';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
@@ -24,8 +26,46 @@ import { parseAIResponse, resolveCommittedChatPayload } from './ai/utils/respons
 import { sanitizeUserInput } from './ai/utils/sanitize';
 import type { DashboardCardProps } from './dashboard-card';
 
-const AiHelperCard = ({ className, title, ...props }: Omit<DashboardCardProps, 'children'>) => {
+type AiHelperCardProps = Omit<DashboardCardProps, 'children'> & {
+  placement?: 'card' | 'panel';
+  onClose?: () => void;
+};
+
+/** While the side panel is open it owns the chat, so the dashboard card points there instead. */
+const AiHelperCard = ({ placement = 'card', ...props }: AiHelperCardProps) => {
+  const { open, setOpen } = useAssistantPanel();
+  if (placement === 'card' && open) {
+    return <AiHelperPanelNotice className={props.className} onShowHere={() => setOpen(false)} />;
+  }
+  return <AiHelperChat placement={placement} {...props} />;
+};
+
+const AiHelperPanelNotice = ({ className, onShowHere }: { className?: string; onShowHere: () => void }) => {
   const t = useTranslations('account.AiHelper');
+  return (
+    <div
+      className={cn(
+        'flex flex-col h-96 bg-surface-page rounded-xl border shadow-sm overflow-hidden p-4 gap-4',
+        className,
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <AiStarsIcon className="flex-shrink-0" />
+        <CardTitle className="text-4xl font-bold">{t('title')}</CardTitle>
+      </div>
+      <p className="text-text-placeholders">{t('openInPanel')}</p>
+      <div>
+        <Button variant="secondary" size="small" onClick={onShowHere} data-testid="aiHelper-showHereButton">
+          {t('showHere')}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const AiHelperChat = ({ className, title, placement, onClose, ...props }: AiHelperCardProps) => {
+  const t = useTranslations('account.AiHelper');
+  const inPanel = placement === 'panel';
   const locale = useLocale();
   const { form } = useValidator('AiHelperValidationService', { question: '' });
   const { toast } = useToast();
@@ -153,23 +193,45 @@ const AiHelperCard = ({ className, title, ...props }: Omit<DashboardCardProps, '
   return (
     <div
       className={cn(
-        'flex flex-col h-96 bg-surface-page rounded-xl border shadow-sm overflow-hidden',
+        'flex flex-col bg-surface-page overflow-hidden',
+        inPanel ? 'h-full' : 'h-96 rounded-xl border shadow-sm',
         isSendLocked && 'cursor-progress',
         className,
       )}
       {...props}
     >
-      <div className="p-4 pb-0">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <AiStarsIcon className="flex-shrink-0" />
-            <CardTitle className="text-4xl font-bold">{title || t('title')}</CardTitle>
+      <div className={cn('p-4 pb-0', inPanel && 'border-b border-border-primary pb-4 mb-4')}>
+        <div className={cn('flex items-center justify-between gap-3', !inPanel && 'mb-4')}>
+          <div className="flex min-w-0 items-center gap-3">
+            <AiStarsIcon className={cn('flex-shrink-0', inPanel && 'h-7 w-7')} />
+            <CardTitle className={cn('font-bold', inPanel ? 'truncate text-xl' : 'text-4xl')}>
+              {title || t('title')}
+            </CardTitle>
           </div>
-          {isChatMode && (
-            <Button variant="secondary" size="small" onClick={clearChat} className="text-sm">
-              {t('clearChat')}
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            {isChatMode && (
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={clearChat}
+                className="text-sm"
+                data-testid="aiHelper-clearChatButton"
+              >
+                {t('clearChat')}
+              </Button>
+            )}
+            {onClose ? (
+              <button
+                type="button"
+                className="text-icon-neutral hover:text-text-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                aria-label={t('closePanel')}
+                onClick={onClose}
+                data-testid="assistantPanel-closeButton"
+              >
+                <X className="size-5" aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 

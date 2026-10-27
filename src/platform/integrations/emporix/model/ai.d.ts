@@ -1,3 +1,5 @@
+import type { AIChatSubscriptions } from '@/platform/integrations/ai/model';
+
 export interface EmporixAIChatRequest {
   agentId: string;
   message: string; // JSON stringified AIUserMessage
@@ -16,6 +18,7 @@ export interface EmporixAIChatContext {
   currency: string;
   language: string;
   sessionId?: string;
+  subscriptions?: AIChatSubscriptions;
 }
 
 export interface EmporixAIUserMessage {

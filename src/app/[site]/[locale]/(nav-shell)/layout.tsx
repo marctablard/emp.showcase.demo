@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { setRequestLocale } from 'next-intl/server';
+import { AssistantPanel } from '@/components/assistant/assistant-panel';
+import { AssistantPanelProvider } from '@/components/assistant/assistant-panel-provider';
 import Footer from '@/components/footer';
 import { FooterLinks, FooterWrapper, LegalFooter } from '@/components/footer/footer';
 import { Header } from '@/components/header/header';
@@ -56,25 +58,28 @@ export default async function NavShellLayout({ children, params }: Props) {
 
   return (
     <ProductsModeProvider value={productsMode}>
-      <ProductsModeSessionSync />
-      <Header
-        productCategorySubmenu={productCategorySubmenu.length > 0 ? productCategorySubmenu : null}
-        navigationRootCategoryTotal={navigationRootCategoryTotal}
-      />
-      <CategoryDisplayLabelIndexProvider labelIndex={categoryDisplayLabelIndex}>
-        {children}
-      </CategoryDisplayLabelIndexProvider>
-      <footer>
-        <FooterWrapper>
-          <FooterLinks
-            topProductCategories={topProductCategories}
-            showAllProductsBrowse={productCategorySubmenuTruncated}
-            assignedProductsMode={isSegmented}
-          />
-          <Footer />
-        </FooterWrapper>
-        <LegalFooter />
-      </footer>
+      <AssistantPanelProvider>
+        <ProductsModeSessionSync />
+        <Header
+          productCategorySubmenu={productCategorySubmenu.length > 0 ? productCategorySubmenu : null}
+          navigationRootCategoryTotal={navigationRootCategoryTotal}
+        />
+        <CategoryDisplayLabelIndexProvider labelIndex={categoryDisplayLabelIndex}>
+          {children}
+        </CategoryDisplayLabelIndexProvider>
+        <footer>
+          <FooterWrapper>
+            <FooterLinks
+              topProductCategories={topProductCategories}
+              showAllProductsBrowse={productCategorySubmenuTruncated}
+              assignedProductsMode={isSegmented}
+            />
+            <Footer />
+          </FooterWrapper>
+          <LegalFooter />
+        </footer>
+        <AssistantPanel />
+      </AssistantPanelProvider>
     </ProductsModeProvider>
   );
 }

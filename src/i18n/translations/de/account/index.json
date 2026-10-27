@@ -875,7 +875,11 @@
     "thinkingWithChunks": "KI denkt nach [{numberOfChunks}]",
     "unrecognizedResponseHint": "Diese Antwort konnte nicht angezeigt werden. Die vollständige Antwort finden Sie in der Browser-Konsole.",
     "emptyValue": "-",
-    "noDataAvailable": "Keine Daten verfügbar"
+    "noDataAvailable": "Keine Daten verfügbar",
+    "openInPanel": "Der KI-Agent ist im Seitenbereich geöffnet.",
+    "showHere": "Hier anzeigen",
+    "closePanel": "Seitenbereich schließen",
+    "resizePanel": "Seitenbereich anpassen"
   },
   "Tickets": {
     "title": "Support-Tickets",

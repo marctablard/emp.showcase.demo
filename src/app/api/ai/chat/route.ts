@@ -3,12 +3,14 @@ import { NextResponse } from 'next/server';
 import { routing } from '@/i18n/routing';
 import { type AIChatStreamEvent, encodeAiChatSse } from '@/lib/common/ai-chat-stream';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
-import type { AIChatContext } from '@/platform/integrations/ai/model';
+import type { AIChatContext, AIChatSubscriptions } from '@/platform/integrations/ai/model';
 import server from '@/platform/server';
 import type { AIService } from '@/platform/services/ai';
 import { isAiChatStreamingEnabled } from '@/platform/services/ai/isAiChatStreamingEnabled';
+import { mentionsSubscriptions, toAgentSubscriptions } from '@/platform/services/ai/subscription-context';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SessionService } from '@/platform/services/session';
+import type { SubscriptionService } from '@/platform/services/subscription/SubscriptionService';
 import { AIChatRequestSchema } from './schema';
 
 export const revalidate = 0;
@@ -36,6 +38,23 @@ function logChatError(error: unknown, retryable: boolean): void {
     },
     'Error processing AI chat request',
   );
+}
+
+/** Company admins see their company's subscriptions; everyone else only their own. */
+async function loadSubscriptionContext(): Promise<AIChatSubscriptions | undefined> {
+  const subscriptions = server.get<SubscriptionService>('SubscriptionService');
+  try {
+    return toAgentSubscriptions('company', await subscriptions.list('company'));
+  } catch {
+    try {
+      return toAgentSubscriptions('mine', await subscriptions.list('mine'));
+    } catch (error) {
+      server
+        .get<LoggerService>('LoggerService')
+        .warn({ err: error instanceof Error ? error : new Error(String(error)) }, 'AI chat: subscriptions unavailable');
+      return undefined;
+    }
+  }
 }
 
 function createChatSseResponse(run: (send: (event: AIChatStreamEvent) => void) => Promise<void>): Response {
@@ -125,6 +144,9 @@ export async function POST(request: NextRequest) {
       sessionId: requestContext.sessionId,
       cartId: requestContext.cartId,
     };
+    if (mentionsSubscriptions(userMessage)) {
+      context.subscriptions = await loadSubscriptionContext();
+    }
 
     if (isAiChatStreamingEnabled()) {
       return createChatSseResponse(async (send) => {

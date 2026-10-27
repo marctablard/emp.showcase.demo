@@ -465,6 +465,21 @@
   }
 }
 
+:root {
+  --assistant-width: 440px;
+  --assistant-offset: 0px;
+}
+
+@media (width >= 64rem) {
+  html[data-assistant-open] {
+    --assistant-offset: var(--assistant-width);
+  }
+
+  html[data-assistant-open] body {
+    padding-right: var(--assistant-offset);
+  }
+}
+
 [data-sonner-toaster][data-sonner-theme='light'] {
   width: 100%;
 }

@@ -867,7 +867,11 @@
     "thinkingWithChunks": "AI is thinking [{numberOfChunks}]",
     "unrecognizedResponseHint": "This reply could not be displayed. Open the browser console to see the full response.",
     "emptyValue": "-",
-    "noDataAvailable": "No data available"
+    "noDataAvailable": "No data available",
+    "openInPanel": "The AI agent is open in the side panel.",
+    "showHere": "Show here",
+    "closePanel": "Close panel",
+    "resizePanel": "Resize panel"
   },
   "Tickets": {
     "title": "Support Tickets",
