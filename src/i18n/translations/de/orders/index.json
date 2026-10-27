@@ -36,6 +36,7 @@
   "customerNote": "Bestellnotiz",
   "notProvided": "Nicht angegeben",
   "relatedQuote": "Zugehöriges Angebot",
+  "relatedSubscription": "Abonnement",
   "shippingMethod": "Versandart",
   "shippingMethodUnknown": "Unbekannte Versandart",
   "orderItems": "Bestellte Artikel",

@@ -46,6 +46,10 @@ jest.mock('@/hooks/approval/useApprovalCheckout', () => ({
   useApprovalCheckout: () => mockUseApprovalCheckout(),
 }));
 
+jest.mock('@/hooks/customer/useCustomer', () => ({
+  useCustomer: () => ({ customer: null }),
+}));
+
 jest.mock('@/hooks/ui/useElementScroll', () => ({
   useElementScroll: () => ({
     isFixed: false,

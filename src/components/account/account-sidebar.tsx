@@ -14,6 +14,7 @@ interface SidebarItem {
   icon?: React.ReactNode;
   counter?: number;
   badgeVariant?: 'primary' | 'success';
+  testId?: string;
 }
 
 interface SidebarGroup {
@@ -44,6 +45,7 @@ export function AccountSidebar({ className, items, groups = [], scrollable = tru
           badgeVariant={item.badgeVariant}
           isLogout={true}
           onClick={() => logout()}
+          data-testid={item.testId}
         />
       );
     }
@@ -61,6 +63,7 @@ export function AccountSidebar({ className, items, groups = [], scrollable = tru
         counter={item.counter}
         badgeVariant={item.badgeVariant}
         active={isActive}
+        data-testid={item.testId}
       />
     );
   };

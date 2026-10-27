@@ -119,7 +119,35 @@
     "originalGrossValue": "Original Gross Value",
     "grossValueOfGoods": "Gross Value of Goods",
     "removePromo": "Remove promo code {code}",
-    "promoFreeShipping": "Free shipping"
+    "promoFreeShipping": "Free shipping",
+    "renewOrder": "Renew this order",
+    "renewEvery": "Every",
+    "renewUnit": "Unit",
+    "renewLocked": "Every {count} {unit}. A digital or service product sets this and it cannot be changed.",
+    "renewLoading": "Checking which products set their own schedule…",
+    "renewApproval": "Renewal is available when you place the order yourself. This order needs approval first.",
+    "unit": {
+      "days": "days",
+      "weeks": "weeks",
+      "months": "months",
+      "years": "years"
+    },
+    "renewIssue": {
+      "empty": "Add a product before renewing this order.",
+      "missing-cadence": "A digital or service product is missing its renewal interval.",
+      "conflicting-cadence": "Digital and service products on this order renew on different schedules. Split them into separate orders.",
+      "invalid-every": "Enter how often this order should renew.",
+      "cancelled": "A cancelled subscription cannot be changed."
+    }
+  },
+  "subscriptionCreated": "This order will renew as a subscription.",
+  "subscriptionIssue": {
+    "empty": "The order was placed, but it has no products to renew.",
+    "missing-cadence": "The order was placed, but a digital or service product is missing its renewal interval.",
+    "conflicting-cadence": "The order was placed. Digital and service products on it renew on different schedules, so split them into separate orders before renewing.",
+    "invalid-every": "The order was placed. Enter how often it should renew.",
+    "cancelled": "The order was placed, but a cancelled subscription cannot be changed.",
+    "failed": "The order was placed, but the subscription could not be created."
   },
   "promoCode": "Promo Code",
   "apply": "Apply",

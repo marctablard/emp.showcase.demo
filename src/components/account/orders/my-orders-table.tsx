@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, RotateCcw, ShoppingCart } from 'lucide-react';
 import { OrderStatusBadge } from '@/components/account/orders/order-status-badge';
+import { useOrderSubscriptionLinks } from '@/components/account/orders/order-subscription-link';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
@@ -129,6 +130,7 @@ export function MyOrdersTable({
   const [reorderOrder, setReorderOrder] = useState<Order | null>(null);
   // Per-row expansion overrides on top of the search-match default.
   const [expandOverrides, setExpandOverrides] = useState<Record<string, boolean>>({});
+  const subscriptionLinks = useOrderSubscriptionLinks(orders.map((order) => order.id));
 
   const highlightTerm = productHighlightTerm?.trim().toLowerCase() ?? '';
   const isExpandedByDefault = (order: Order) => highlightTerm.length > 0 && orderHasProductMatch(order, highlightTerm);
@@ -318,6 +320,21 @@ export function MyOrdersTable({
                       data-testid={`orders-relatedQuote-${order.quoteId}`}
                     >
                       #{shortenId(order.quoteId)}
+                    </UiLink>
+                  </span>
+                </div>
+              ) : null}
+              {subscriptionLinks[order.id] ? (
+                <div className="mt-1 text-sm text-text-placeholders" onClick={(event) => event.stopPropagation()}>
+                  {t('relatedSubscription')}{' '}
+                  <span title={subscriptionLinks[order.id]}>
+                    <UiLink
+                      type="Link"
+                      href={`/account/subscriptions/${subscriptionLinks[order.id]}`}
+                      variant="text"
+                      data-testid={`orders-subscription-${order.id}`}
+                    >
+                      {shortenId(subscriptionLinks[order.id])}
                     </UiLink>
                   </span>
                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useCart } from '@/hooks/cart/useCart';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
@@ -9,6 +9,7 @@ import { useRouter } from '@/i18n/navigation';
 import { createApproval } from '@/lib/client/approval';
 import { toHumanReadableGuestCheckoutNotification } from '@/lib/common/guest-checkout-error-message';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import type { CheckoutRenewal, CheckoutResponse } from '@/platform/services/model/checkout';
 import { H1 } from '../ui/h';
 import { Spinner } from '../ui/spinner';
 import { ToastType, notify } from '../ui/toast-notification';
@@ -22,6 +23,31 @@ import ContactData from './contact-data';
 
 interface CheckoutProps {
   onComplete?: (orderId: string) => void;
+}
+
+function subscriptionIssueTitle(
+  issue: NonNullable<CheckoutResponse['subscriptionIssue']>,
+):
+  | 'subscriptionIssue.empty'
+  | 'subscriptionIssue.missing-cadence'
+  | 'subscriptionIssue.conflicting-cadence'
+  | 'subscriptionIssue.invalid-every'
+  | 'subscriptionIssue.cancelled'
+  | 'subscriptionIssue.failed' {
+  switch (issue) {
+    case 'empty':
+      return 'subscriptionIssue.empty';
+    case 'missing-cadence':
+      return 'subscriptionIssue.missing-cadence';
+    case 'conflicting-cadence':
+      return 'subscriptionIssue.conflicting-cadence';
+    case 'invalid-every':
+      return 'subscriptionIssue.invalid-every';
+    case 'cancelled':
+      return 'subscriptionIssue.cancelled';
+    default:
+      return 'subscriptionIssue.failed';
+  }
 }
 
 /**
@@ -46,6 +72,9 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
   const t = useTranslations('checkout');
   const leftContent = useRef<HTMLDivElement>(null);
   const lastNotifiedErrorRef = useRef<Error | null>(null);
+  const [renewal, setRenewal] = useState<CheckoutRenewal | null>(null);
+  const [renewBlocked, setRenewBlocked] = useState(false);
+  const announcedOrderRef = useRef<string | null>(null);
 
   const onSubmit = async (approvalData?: { approverId: string; comment: string }) => {
     if (!checkoutCart) {
@@ -84,13 +113,20 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
       reset({ keepAddresses: true });
       router.push(pendingApprovalConfirmationPath(created?.id));
     } else {
-      // Proceed with checkout
-      await processCheckout();
+      await processCheckout(renewal ?? undefined);
     }
   };
 
   useEffect(() => {
     if (orderResponse && orderResponse.orderId) {
+      if (announcedOrderRef.current !== orderResponse.orderId) {
+        announcedOrderRef.current = orderResponse.orderId;
+        if (orderResponse.subscriptionId) {
+          notify({ type: ToastType.Success, title: t('subscriptionCreated') });
+        } else if (orderResponse.subscriptionIssue) {
+          notify({ type: ToastType.Error, title: t(subscriptionIssueTitle(orderResponse.subscriptionIssue)) });
+        }
+      }
       if (onComplete) {
         onComplete(orderResponse.orderId);
       } else {
@@ -98,7 +134,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
         router.refresh();
       }
     }
-  }, [orderResponse, onComplete, router]);
+  }, [orderResponse, onComplete, router, t]);
 
   useEffect(() => {
     if (!error) {
@@ -159,7 +195,15 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
               <CheckoutItemlist />
             </div>
             <div className="mb-6 flex">
-              <CheckoutSummary leftContent={leftContent} onSubmit={onSubmit} />
+              <CheckoutSummary
+                leftContent={leftContent}
+                onSubmit={onSubmit}
+                renewBlocked={renewBlocked}
+                onRenewalChange={(choice, blocked) => {
+                  setRenewal(choice);
+                  setRenewBlocked(blocked);
+                }}
+              />
             </div>
           </div>
         </div>

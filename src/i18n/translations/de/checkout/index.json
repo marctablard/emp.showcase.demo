@@ -115,7 +115,35 @@
     "grossValueOfGoods": "Brutto-Warenwert",
     "removePromo": "Promo-Code {code} entfernen",
     "promoFreeShipping": "Kostenloser Versand",
-    "free": "Kostenlos"
+    "free": "Kostenlos",
+    "renewOrder": "Bestellung erneuern",
+    "renewEvery": "Alle",
+    "renewUnit": "Einheit",
+    "renewLocked": "Alle {count} {unit}. Ein digitales Produkt oder eine Dienstleistung legt das fest und es kann nicht geändert werden.",
+    "renewLoading": "Es wird geprüft, welche Produkte ihren eigenen Zeitplan vorgeben…",
+    "renewApproval": "Eine Erneuerung ist möglich, wenn Sie die Bestellung selbst aufgeben. Diese Bestellung braucht zuerst eine Freigabe.",
+    "unit": {
+      "days": "Tage",
+      "weeks": "Wochen",
+      "months": "Monate",
+      "years": "Jahre"
+    },
+    "renewIssue": {
+      "empty": "Fügen Sie ein Produkt hinzu, bevor Sie diese Bestellung erneuern.",
+      "missing-cadence": "Einem digitalen Produkt oder einer Dienstleistung fehlt das Erneuerungsintervall.",
+      "conflicting-cadence": "Digitale Produkte und Dienstleistungen in dieser Bestellung erneuern sich nach unterschiedlichen Zeitplänen. Teilen Sie sie auf separate Bestellungen auf.",
+      "invalid-every": "Geben Sie an, wie oft sich diese Bestellung erneuern soll.",
+      "cancelled": "Ein gekündigtes Abonnement kann nicht geändert werden."
+    }
+  },
+  "subscriptionCreated": "Diese Bestellung wird als Abonnement erneuert.",
+  "subscriptionIssue": {
+    "empty": "Die Bestellung wurde aufgegeben, enthält aber keine Produkte zum Erneuern.",
+    "missing-cadence": "Die Bestellung wurde aufgegeben, aber einem digitalen Produkt oder einer Dienstleistung fehlt das Erneuerungsintervall.",
+    "conflicting-cadence": "Die Bestellung wurde aufgegeben. Digitale Produkte und Dienstleistungen erneuern sich nach unterschiedlichen Zeitplänen. Teilen Sie sie auf, bevor Sie erneuern.",
+    "invalid-every": "Die Bestellung wurde aufgegeben. Geben Sie an, wie oft sie sich erneuern soll.",
+    "cancelled": "Die Bestellung wurde aufgegeben, aber ein gekündigtes Abonnement kann nicht geändert werden.",
+    "failed": "Die Bestellung wurde aufgegeben, aber das Abonnement konnte nicht angelegt werden."
   },
   "products": "Produkte",
   "step3": "Persönliche Notizen",

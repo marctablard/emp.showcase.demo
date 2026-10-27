@@ -363,7 +363,9 @@
       "tasks": "Aufgaben",
       "myProjects": "Meine Projekte",
       "companyManagement": "Unternehmensverwaltung",
-      "userManagement": "Benutzerverwaltung"
+      "userManagement": "Benutzerverwaltung",
+      "subscriptions": "Abonnements",
+      "companySubscriptions": "Firmenabonnements"
     }
   },
   "accountDashboardDescription": "Verwalten Sie Ihr Konto, Bestellungen und Unternehmensinformationen",
@@ -1265,5 +1267,83 @@
       "columnPrice": "Preis",
       "columnQuantity": "Menge"
     }
+  },
+  "subscriptions": {
+    "title": "Abonnements",
+    "companyTitle": "Firmenabonnements",
+    "description": "Bestellungen, die sich nach einem Zeitplan erneuern. Pausieren, fortsetzen oder den Inhalt ändern.",
+    "companyDescription": "Alle Abonnements dieser Firma, auch die anderer Kontakte.",
+    "empty": "Sie haben noch keine Abonnements. Wählen Sie an der Kasse „Bestellung erneuern“, um eines zu starten.",
+    "companyEmpty": "Diese Firma hat noch keine Abonnements.",
+    "loadError": "Abonnements konnten nicht geladen werden.",
+    "schedule": "Zeitplan",
+    "products": "Produkte",
+    "history": "Bisherige Bestellungen",
+    "noHistory": "Noch keine Bestellungen.",
+    "notifyDate": "Hinweisdatum",
+    "endDate": "Beendet",
+    "every": "Alle {count} {unit}",
+    "renewEvery": "Alle",
+    "renewUnit": "Einheit",
+    "locked": "Ein digitales Produkt oder eine Dienstleistung legt diesen Zeitplan fest. Er kann nicht geändert werden.",
+    "cancelledNotice": "Dieses Abonnement ist gekündigt und kann nicht geändert werden.",
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "cancel": "Kündigen",
+    "keep": "Beibehalten",
+    "cancelTitle": "Dieses Abonnement kündigen?",
+    "cancelBody": "Die Kündigung kann nicht rückgängig gemacht werden. Es wird keine weitere Bestellung ausgelöst.",
+    "cancelConfirm": "Abonnement kündigen",
+    "saveCadence": "Zeitplan speichern",
+    "saveProducts": "Produkte speichern",
+    "addProduct": "Produkt hinzufügen",
+    "productId": "Produkt-ID",
+    "quantity": "Menge",
+    "remove": "Entfernen",
+    "cadenceSaved": "Zeitplan aktualisiert.",
+    "productsSaved": "Produkte aktualisiert.",
+    "paused": "Abonnement pausiert.",
+    "resumed": "Abonnement fortgesetzt.",
+    "cancelled": "Abonnement gekündigt.",
+    "columns": {
+      "id": "Abonnement",
+      "status": "Status",
+      "cadence": "Zeitplan",
+      "nextOrder": "Nächste Bestellung",
+      "customer": "Kunde",
+      "owner": "Inhaber",
+      "products": "Produkte",
+      "order": "Bestellung"
+    },
+    "status": {
+      "ACTIVE": "Aktiv",
+      "PAUSED": "Pausiert",
+      "CANCELLED": "Gekündigt"
+    },
+    "unit": {
+      "days": "Tage",
+      "weeks": "Wochen",
+      "months": "Monate",
+      "years": "Jahre"
+    },
+    "issues": {
+      "empty": "Ein Abonnement braucht mindestens ein Produkt.",
+      "missing-cadence": "Einem digitalen Produkt oder einer Dienstleistung fehlt das Erneuerungsintervall.",
+      "conflicting-cadence": "Digitale Produkte und Dienstleistungen in diesem Abonnement erneuern sich nach unterschiedlichen Zeitplänen. Teilen Sie sie auf separate Bestellungen auf.",
+      "invalid-every": "Geben Sie an, wie oft sich dieses Abonnement erneuert.",
+      "cancelled": "Ein gekündigtes Abonnement kann nicht geändert werden."
+    },
+    "searchPlaceholder": "Suche nach Abonnement, Inhaber oder Produkt...",
+    "noMatches": "Keine Abonnements entsprechen Ihrer Suche.",
+    "productSearch": "Produkte suchen",
+    "noProductResults": "Keine Produkte gefunden.",
+    "actions": "Abonnementaktionen",
+    "details": "Abonnementdetails",
+    "information": "Abonnementinformationen",
+    "created": "Erstellt",
+    "lastOrder": "Letzte Bestellung",
+    "changeSchedule": "Zeitplan ändern",
+    "changeScheduleBody": "Wählen Sie, wie oft dieses Abonnement bestellt. Die nächste Bestellung folgt dem neuen Zeitplan.",
+    "keepSubscription": "Abonnement behalten"
   }
 }

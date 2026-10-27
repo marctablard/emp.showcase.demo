@@ -12,6 +12,7 @@ import { useElementScroll } from '@/hooks/ui/useElementScroll';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { createCheckoutApprovalContext } from '@/lib/approval/contracts';
 import { cn, formatCurrency } from '@/lib/utils';
+import type { CheckoutRenewal } from '@/platform/services/model/checkout';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
@@ -20,6 +21,7 @@ import { H5 } from '../ui/h';
 import { ToastType, notify } from '../ui/toast-notification';
 import { ApprovalModal } from './approval-modal';
 import { CheckoutPromoCodeBox } from './checkout-promo-code';
+import { CheckoutRenew } from './checkout-renew';
 import { CheckoutGoodsTotals, CheckoutShippingFeeValue } from './checkout-summary-figures';
 import { focusFirstInvalid, useCheckoutValidation, useRegisterCheckoutForm } from './checkout-validation-registry';
 
@@ -27,13 +29,20 @@ interface OrderSummaryProps {
   isReadOnly?: boolean;
   leftContent: RefObject<HTMLDivElement | null>;
   onSubmit: (approvalData?: { approverId: string; comment: string }) => void;
+  renewBlocked?: boolean;
+  onRenewalChange?: (renewal: CheckoutRenewal | null, blocked: boolean) => void;
 }
 
 /**
  * Order summary component for checkout
  * Displays cart items, subtotal, shipping, and total
  */
-const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, onSubmit }) => {
+const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({
+  leftContent,
+  onSubmit,
+  renewBlocked = false,
+  onRenewalChange,
+}) => {
   const {
     checkoutCart: cart,
     loading: checkoutLoading,
@@ -179,6 +188,11 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                   <H5>{t('total')}</H5>
                   {!shippingVatLookupFailed && <H5>{formatCurrency(total, currency || cart.currency)}</H5>}
                 </div>
+                <CheckoutRenew
+                  items={cart.items ?? []}
+                  requiresApproval={requiresApproval}
+                  onChange={onRenewalChange ?? (() => undefined)}
+                />
               </div>
             </div>
           </CardContent>
@@ -246,7 +260,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                     setIsSubmitting(false);
                   }
                 }}
-                disabled={disabled || isSubmitting || loading || approvalLoading || cartMutating}
+                disabled={disabled || isSubmitting || loading || approvalLoading || cartMutating || renewBlocked}
                 className="w-full"
                 data-testid="checkout-submitOrder"
               >

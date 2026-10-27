@@ -54,7 +54,7 @@ interface UseCheckout {
   submitShippingMethod: (method: ShippingMethod | null) => void;
   // Operations
   createCheckoutData: () => CheckoutRequest | null;
-  processCheckout: () => Promise<CheckoutResponse | null>;
+  processCheckout: (renewal?: CheckoutRequest['renewal']) => Promise<CheckoutResponse | null>;
   processQuoteCheckout: (quoteId: string, paymentMethod: CheckoutPaymentMethod) => Promise<CheckoutResponse | null>;
   reset: (options?: CheckoutResetOptions) => void;
 }
@@ -284,7 +284,7 @@ export const useCheckout = (): UseCheckout => {
   /**
    * Process a checkout for the current cart
    */
-  const processCheckout = async (): Promise<CheckoutResponse | null> => {
+  const processCheckout = async (renewal?: CheckoutRequest['renewal']): Promise<CheckoutResponse | null> => {
     try {
       setLoading(true);
       setError(null);
@@ -293,8 +293,9 @@ export const useCheckout = (): UseCheckout => {
       if (!checkoutData) {
         throw new Error('Failed to create checkout data');
       }
+      const request: CheckoutRequest = renewal ? { ...checkoutData, renewal } : checkoutData;
 
-      const checkoutResponse = await checkout(checkoutData);
+      const checkoutResponse = await checkout(request);
 
       if (!checkoutResponse) {
         throw new Error('Failed to process checkout');

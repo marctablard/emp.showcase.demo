@@ -1,6 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
+import { OrderSubscriptionRow } from '@/components/account/orders/order-subscription-link';
 import {
   AccountSpecTable,
   SpecFullWidthRow,
@@ -110,6 +111,7 @@ export function OrderSummarySection({ order, siteName }: OrderSummarySectionProp
             }}
           />
         ) : null}
+        <OrderSubscriptionRow orderId={order.id} />
       </SpecSection>
 
       <SpecSection title={tOrder('contactAndPayment')}>

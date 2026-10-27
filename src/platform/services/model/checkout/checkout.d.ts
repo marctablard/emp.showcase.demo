@@ -3,6 +3,13 @@
  */
 import { Address, AddressType } from '@/platform/services/model/common';
 import { PaymentMode } from '@/platform/services/model/payment';
+import type { SubscriptionInterval } from '@/platform/services/subscription/subscription-rules';
+
+/** Shopper choice on the order review. The server re-reads the order and may lock the cadence. */
+export interface CheckoutRenewal {
+  every: number;
+  unit: SubscriptionInterval;
+}
 
 /**
  * Common properties for all checkout requests
@@ -78,6 +85,8 @@ export interface CheckoutRequest extends BaseCheckoutRequest {
   summary: {
     termsAndConditions: boolean;
   };
+  /** Present when the shopper chose "Renew this order". Customer and company come from the order. */
+  renewal?: CheckoutRenewal;
 }
 
 /**
@@ -86,6 +95,9 @@ export interface CheckoutRequest extends BaseCheckoutRequest {
 export interface CheckoutResponse {
   orderId: string;
   paymentDetails?: any;
+  subscriptionId?: string;
+  /** Set when the order was placed but the subscription was refused or could not be saved. */
+  subscriptionIssue?: 'empty' | 'missing-cadence' | 'conflicting-cadence' | 'invalid-every' | 'cancelled' | 'failed';
 }
 
 /**

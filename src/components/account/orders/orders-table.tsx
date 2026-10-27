@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
+import { useOrderSubscriptionLinks } from '@/components/account/orders/order-subscription-link';
+import { shortenId } from '@/components/account/shared/account-list';
 import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Order } from '@/platform/services/model/order/order';
@@ -13,6 +15,7 @@ import { OrderStatusBadge } from './order-status-badge';
  */
 export function OrdersTable({ orders }: { orders: Order[] }) {
   const tOrder = useTranslations('orders');
+  const subscriptionLinks = useOrderSubscriptionLinks(orders.map((order) => order.id));
 
   return (
     <Table>
@@ -43,6 +46,18 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                     data-testid={`orders-relatedQuote-${order.quoteId}`}
                   >
                     #{order.quoteId}
+                  </UiLink>
+                </div>
+              ) : null}
+              {subscriptionLinks[order.id] ? (
+                <div className="mt-1 text-sm text-text-placeholders">
+                  {tOrder('relatedSubscription')}{' '}
+                  <UiLink
+                    href={`/account/subscriptions/${subscriptionLinks[order.id]}`}
+                    type="Link"
+                    data-testid={`orders-subscription-${order.id}`}
+                  >
+                    {shortenId(subscriptionLinks[order.id])}
                   </UiLink>
                 </div>
               ) : null}

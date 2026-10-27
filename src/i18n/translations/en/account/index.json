@@ -298,7 +298,9 @@
       "tasks": "Tasks",
       "myProjects": "My Projects",
       "companyManagement": "Company Management",
-      "userManagement": "User Management"
+      "userManagement": "User Management",
+      "subscriptions": "Subscriptions",
+      "companySubscriptions": "Company subscriptions"
     }
   },
   "projects": {
@@ -1258,5 +1260,83 @@
       "columnPrice": "Price",
       "columnQuantity": "Quantity"
     }
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "companyTitle": "Company subscriptions",
+    "description": "Orders that renew on a schedule. Pause, resume, or change what is included.",
+    "companyDescription": "Every subscription for this company, including those owned by other contacts.",
+    "empty": "You have no subscriptions yet. Choose Renew this order at checkout to start one.",
+    "companyEmpty": "This company has no subscriptions yet.",
+    "loadError": "Subscriptions could not be loaded.",
+    "schedule": "Schedule",
+    "products": "Products",
+    "history": "Past orders",
+    "noHistory": "No orders yet.",
+    "notifyDate": "Notify date",
+    "endDate": "Ended",
+    "every": "Every {count} {unit}",
+    "renewEvery": "Every",
+    "renewUnit": "Unit",
+    "locked": "A digital or service product sets this schedule. It cannot be changed.",
+    "cancelledNotice": "This subscription is cancelled and cannot be changed.",
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancel": "Cancel",
+    "keep": "Keep current",
+    "cancelTitle": "Cancel this subscription?",
+    "cancelBody": "Cancellation cannot be undone. The subscription will not place another order.",
+    "cancelConfirm": "Cancel subscription",
+    "saveCadence": "Save schedule",
+    "saveProducts": "Save products",
+    "addProduct": "Add product",
+    "productId": "Product id",
+    "quantity": "Quantity",
+    "remove": "Remove",
+    "cadenceSaved": "Schedule updated.",
+    "productsSaved": "Products updated.",
+    "paused": "Subscription paused.",
+    "resumed": "Subscription resumed.",
+    "cancelled": "Subscription cancelled.",
+    "columns": {
+      "id": "Subscription",
+      "status": "Status",
+      "cadence": "Schedule",
+      "nextOrder": "Next order",
+      "customer": "Customer",
+      "owner": "Owner",
+      "products": "Products",
+      "order": "Order"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "PAUSED": "Paused",
+      "CANCELLED": "Cancelled"
+    },
+    "unit": {
+      "days": "days",
+      "weeks": "weeks",
+      "months": "months",
+      "years": "years"
+    },
+    "issues": {
+      "empty": "A subscription needs at least one product.",
+      "missing-cadence": "A digital or service product is missing its renewal interval.",
+      "conflicting-cadence": "Digital and service products on this subscription renew on different schedules. Split them into separate orders.",
+      "invalid-every": "Enter how often this subscription renews.",
+      "cancelled": "A cancelled subscription cannot be changed."
+    },
+    "searchPlaceholder": "Search by subscription, owner or product...",
+    "noMatches": "No subscriptions match your search.",
+    "productSearch": "Search products",
+    "noProductResults": "No products found.",
+    "actions": "Subscription Actions",
+    "details": "Subscription details",
+    "information": "Subscription information",
+    "created": "Created",
+    "lastOrder": "Last order",
+    "changeSchedule": "Change schedule",
+    "changeScheduleBody": "Choose how often this subscription places an order. The next order moves to the new schedule.",
+    "keepSubscription": "Keep subscription"
   }
 }
